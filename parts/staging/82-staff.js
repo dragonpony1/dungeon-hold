@@ -1,6 +1,6 @@
 // ===== BATTLE STAFFS: a caster's weapon, built in code (no model to load), with a glowing head and a spell bolt =====
 // Six kinds — five tiers for the forge and one for the Void set — in the same model units as the sword GLBs: the shaft runs
-// up +Y from the ferrule at y=0 to the head near y=1.2, and the template says the fist closes 44% of the way up. Registered
+// up +Y from the ferrule at y=0 to the head near y=1.2, and the template says the fist closes 36% of the way up and the mount makes it body-length (lenScale). Registered
 // with the weapon mount as 'staff-<kind>', so a hero whose mount node is a staff mount (or a test's force) carries one like
 // a sword: scaled by the mount's length, ink-outlined, tinted by a set. The head's crystal turns, rings and motes orbit it,
 // and __staff.fire() throws a bolt from the crystal that bursts on the first wall it meets.
@@ -27,7 +27,7 @@ function makeStaff(kind){ const K=STAFF_KINDS[kind]||STAFF_KINDS.hazel; const g=
   const motes=[]; for(let i=0;i<K.motes;i++){ const m=new THREE.Mesh(new THREE.OctahedronGeometry(.024,0),bright(K.glow)); m.name='mote'+i; m.userData.noOL=true; head.add(m); motes.push(m); }   // motes that orbit it
   let halo=null; if(K.halo){ halo=new THREE.Mesh(new THREE.TorusGeometry(.24,.014,6,28),bright(K.band)); halo.name='halo'; halo.userData.noOL=true; halo.rotation.x=PI/2; halo.position.y=gemY+.03; head.add(halo); }   // a gold halo for the battle staff
   const shards=[]; if(K.shards){ for(let i=0;i<3;i++){ const s=new THREE.Mesh(new THREE.OctahedronGeometry(.035,0),mat(K.dark)); s.name='shard'+i; s.scale.set(1,2.4,1); head.add(s); shards.push(s); } }   // dark shards for the void
-  g.userData.box=new THREE.Box3(new THREE.Vector3(-.26,-.09,-.26),new THREE.Vector3(.26,1.5,.26)); g.userData.gripF=.44; g.userData.proc=true; g.userData.kind=kind; g.userData.staff=K; return g; }
+  g.userData.box=new THREE.Box3(new THREE.Vector3(-.26,-.09,-.26),new THREE.Vector3(.26,1.5,.26)); g.userData.gripF=.36; g.userData.lenScale=1.64; g.userData.proc=true;   /* held a third of the way up and body-length: foot near the floor, head above the hat */ g.userData.kind=kind; g.userData.staff=K; return g; }
 const ANIMS=new WeakMap();
 function animFor(root){ let a=ANIMS.get(root); if(a) return a; const by=n=>root.getObjectByName(n); const gem=by('gem'), core=by('core'), gl=by('glow'), halo=by('halo'); const rings=[],motes=[],shards=[]; for(let i=0;i<4;i++){ if(by('ring'+i)) rings.push(by('ring'+i)); if(by('mote'+i)) motes.push({m:by('mote'+i),a:i/4*TAU,r:.2+.04*(i%2),h:.03*(i%3)}); if(by('shard'+i)) shards.push({s:by('shard'+i),a:i/3*TAU}); } let t=rnd()*6;
   a=dt=>{ t+=dt; if(gem) gem.rotation.y+=dt*1.3; if(core) core.scale.setScalar(.9+.2*Math.sin(t*5)); if(gl) gl.material.opacity=.6+.25*Math.sin(t*4); rings.forEach((r,i)=>{ r.rotation.z+=dt*(i?-.9:1.2); r.rotation.y+=dt*.4; }); motes.forEach(o=>{ o.a+=dt*1.8; o.m.position.set(Math.sin(o.a)*o.r,o.h+Math.sin(t*3+o.a)*.02,Math.cos(o.a)*o.r); o.m.rotation.y=o.a; }); if(halo) halo.rotation.z+=dt*.5; shards.forEach(o=>{ o.a-=dt*.7; o.s.position.set(Math.sin(o.a)*.25,Math.cos(o.a*2)*.05,Math.cos(o.a)*.25); o.s.rotation.set(Math.sin(t)*.3,o.a,.4); }); };
