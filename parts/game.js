@@ -77,26 +77,30 @@ const MAPS=[
   lights:[[-9,4.4,-9,0xff8a2a,1.5,16],[9,4.4,-9,0xff8a2a,1.5,16],[-9,4.4,9,0xff8a2a,1.5,16],[9,4.4,9,0xff8a2a,1.5,16],
    [0,5,-6,0xffb05a,.8,13],[0,3.2,0,0x4ae6ff,1.3,15],[0,4,-18,0xff8a2a,1.7,15],[0,4,-26,0xff8a2a,1.2,12],[-16,4,0,0xff8a2a,1.7,15],[-24,4,-10,0xff8a2a,1.5,14],[-24,4,-22,0xff8a2a,1.4,13],[18,4,0,0xff8a2a,1.7,15],[28,4,0,0xff8a2a,1.6,15],[-22,4,-26,0xc040ff,.9,10],[0,4,-28,0xc040ff,.9,10],[30,4,0,0xc040ff,.9,10],
    [0,4.2,19,0xffb05a,1.3,13],[-6,3.8,24,0xff8a2a,1.2,12],[6,3.8,22,0xff8a2a,1.2,12],[0,2.2,26.4,0xff7a1a,1.6,9]]},   // the tavern: lamps and the hearth
- {id:'throne',name:'THE THRONE ROOM',sub:'a marble stair hall: up a flight, along the landing, turn, up again · feeder gates open on the landings · seven waves',gw:27,gh:48,crystal:[13,6],waves:7,wallH:18,fog:[36,110],style:{marble:true,windows:true,rails:true},
-  build(f,g,h,ramp){ f(4,22,3,9,T.FLOOR); h(4,22,3,9,6); f(12,14,3,9,T.CARPET); f(12,14,5,7,T.DAIS); g(13,6,T.CRYSTAL);   // the top: the throne and the crystal, six up
-    f(11,15,10,13,T.CARPET); ramp(11,15,10,13,1,4,6);   // the third flight: up the middle of the upper landing to the throne
-    f(4,10,10,13,T.FLOOR); h(4,10,10,13,4); f(16,22,10,13,T.FLOOR); h(16,22,10,13,4); f(4,22,14,16,T.FLOOR); h(4,22,14,16,4);   // the upper landing, four up: galleries either side of the flight, a walk along the front
-    f(23,25,14,16,T.FLOOR); h(23,25,14,16,4); g(25,15,T.SPAWN);   // the east feeder: a door straight onto the upper landing
-    f(4,7,17,20,T.CARPET); ramp(4,7,17,20,1,2,4);   // the second flight: up the west wall
-    f(8,22,17,20,T.FLOOR); h(8,22,17,20,2); f(4,22,21,23,T.FLOOR); h(4,22,21,23,2);   // the lower landing, two up: the turn — the horde walks its length from the east stair to the west one
-    f(1,3,21,23,T.FLOOR); h(1,3,21,23,2); g(1,22,T.SPAWN);   // the west feeder: a door onto the lower landing, at the foot of the second flight
-    f(19,22,24,27,T.CARPET); ramp(19,22,24,27,1,0,2);   // the first flight: up the east wall from the floor
-    f(4,18,24,27,T.FLOOR); f(4,22,28,38,T.FLOOR); f(12,14,24,38,T.CARPET);   // the floor of the hall, where the horde comes in
-    f(12,14,39,42,T.FLOOR); g(13,41,T.SPAWN);   // the main gate, south
-    f(16,24,40,46,T.FLOOR); g(20,39,T.FLOOR); f(20,20,40,42,T.CARPET); [[16,41],[17,45],[23,42],[23,43],[23,44],[20,46]].forEach(([x,z])=>g(x,z,T.PROP));   // the tavern, south-east, through a door in the bottom row
-    [[6,4],[20,4],[7,11],[19,11],[9,22],[17,22],[7,31],[19,31],[7,36],[19,36]].forEach(([x,z])=>g(x,z,T.PILLAR)); [[4,28],[22,28],[4,38],[22,38]].forEach(([x,z])=>g(x,z,T.PROP)); },
-  lanes:{S:{cx:13,cz:41,face:PI,name:'South',from:1}, W:{cx:1,cz:22,face:PI/2,name:'West landing',from:3}, E:{cx:25,cz:15,face:-PI/2,name:'East landing',from:5}},   // from: the map's wave the gate first opens on
-  hall:[4,22,3,38],pillars:[[6,4],[20,4],[7,11],[19,11],[9,22],[17,22],[7,31],[19,31],[7,36],[19,36]],barrels:[[4,28],[22,28]],crates:[[4,38],[22,38]],chandeliers:[[0,18],[0,34],[0,54]],beams:{zs:[-2,10,24,38,52],w:40},tavern:{dx:4,dz:15},throne:[13,3],
-  lights:[{cx:6,cz:4,up:4.2,c:0xff8a2a,i:1.4,d:15},{cx:20,cz:4,up:4.2,c:0xff8a2a,i:1.4,d:15},{cx:6,cz:9,up:4,c:0xff8a2a,i:1.3,d:14},{cx:20,cz:9,up:4,c:0xff8a2a,i:1.3,d:14},[0,9.2,0,0x4ae6ff,1.3,15],
+ {id:'throne',name:'THE THRONE ROOM',sub:'a marble stair hall four flights high: twin stairs up each wall, one up the middle, landings where the streams meet · feeder gates on the landings · seven waves',gw:27,gh:54,crystal:[13,6],waves:7,wallH:18,fog:[36,110],style:{marble:true,windows:true,rails:true},
+  build(f,g,h,ramp){ f(4,22,3,9,T.FLOOR); h(4,22,3,9,8); f(12,14,3,9,T.CARPET); f(12,14,5,7,T.DAIS); g(13,6,T.CRYSTAL);   // the top: the throne and the crystal, eight up
+    f(11,15,10,13,T.CARPET); ramp(11,15,10,13,1,6,8);   // the fourth flight: up the middle to the throne — where the upper landing's two streams meet
+    f(4,10,10,13,T.FLOOR); h(4,10,10,13,6); f(16,22,10,13,T.FLOOR); h(16,22,10,13,6); f(4,22,14,16,T.FLOOR); h(4,22,14,16,6);   // the upper landing, six up: galleries either side of the flight, a walk along the front
+    f(23,25,14,16,T.FLOOR); h(23,25,14,16,6); g(25,15,T.SPAWN);   // the east feeder onto the upper landing
+    f(4,7,17,20,T.CARPET); ramp(4,7,17,20,1,4,6); f(19,22,17,20,T.CARPET); ramp(19,22,17,20,1,4,6);   // twin third flights, one up each wall: the horde splits here
+    f(8,18,17,20,T.FLOOR); h(8,18,17,20,4); f(4,22,21,23,T.FLOOR); h(4,22,21,23,4);   // the middle landing, four up
+    f(1,3,21,23,T.FLOOR); h(1,3,21,23,4); g(1,22,T.SPAWN);   // the west feeder onto the middle landing
+    f(11,15,24,27,T.CARPET); ramp(11,15,24,27,1,2,4);   // the second flight: up the middle — the lower landing's two streams meet at its foot
+    f(4,10,24,27,T.FLOOR); h(4,10,24,27,2); f(16,22,24,27,T.FLOOR); h(16,22,24,27,2); f(4,22,28,30,T.FLOOR); h(4,22,28,30,2);   // the lower landing, two up
+    f(23,25,28,30,T.FLOOR); h(23,25,28,30,2); g(25,29,T.SPAWN);   // the east feeder onto the lower landing
+    f(4,7,31,34,T.CARPET); ramp(4,7,31,34,1,0,2); f(19,22,31,34,T.CARPET); ramp(19,22,31,34,1,0,2);   // twin first flights up from the floor, one at each wall
+    f(8,18,31,34,T.FLOOR); f(4,22,35,44,T.FLOOR); f(12,14,31,44,T.CARPET);   // the floor of the hall, where the horde comes in; the runner ends under the lower landing's face
+    f(12,14,45,48,T.FLOOR); g(13,47,T.SPAWN);   // the main gate, south
+    f(16,24,46,52,T.FLOOR); g(20,45,T.FLOOR); f(20,20,46,48,T.CARPET); [[16,47],[17,51],[23,48],[23,49],[23,50],[20,52]].forEach(([x,z])=>g(x,z,T.PROP));   // the tavern, south-east, through a door in the bottom row
+    [[6,4],[20,4],[7,12],[19,12],[6,26],[20,26],[7,38],[19,38],[7,42],[19,42]].forEach(([x,z])=>g(x,z,T.PILLAR)); [[4,44],[22,44],[4,36],[22,36]].forEach(([x,z])=>g(x,z,T.PROP)); },
+  lanes:{S:{cx:13,cz:47,face:PI,name:'South',from:1}, EA:{cx:25,cz:29,face:-PI/2,name:'East lower landing',from:3}, W:{cx:1,cz:22,face:PI/2,name:'West landing',from:5}, EC:{cx:25,cz:15,face:-PI/2,name:'East upper landing',from:6}},   // from: the map's wave the gate first opens on
+  hall:[4,22,3,44],pillars:[[6,4],[20,4],[7,12],[19,12],[6,26],[20,26],[7,38],[19,38],[7,42],[19,42]],barrels:[[4,44],[22,44]],crates:[[4,36],[22,36]],chandeliers:[[0,18],[0,46],[0,68]],beams:{zs:[-2,12,26,38,52,66],w:40},tavern:{dx:4,dz:21},throne:[13,3],
+  lights:[{cx:6,cz:4,up:4.2,c:0xff8a2a,i:1.4,d:15},{cx:20,cz:4,up:4.2,c:0xff8a2a,i:1.4,d:15},{cx:6,cz:9,up:4,c:0xff8a2a,i:1.3,d:14},{cx:20,cz:9,up:4,c:0xff8a2a,i:1.3,d:14},[0,11.2,0,0x4ae6ff,1.3,15],
    {cx:6,cz:12,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:12,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:15,up:3.6,c:0xffb05a,i:1.2,d:14},{cx:25,cz:15,up:3.4,c:0xc040ff,i:.9,d:10},
-   {cx:6,cz:19,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:22,up:3.6,c:0xffb05a,i:1.2,d:14},{cx:20,cz:19,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:1,cz:22,up:3.4,c:0xc040ff,i:.9,d:10},
-   {cx:20,cz:26,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:7,cz:26,up:4,c:0xff8a2a,i:1.4,d:15},{cx:13,cz:31,up:4.4,c:0xffb05a,i:1.0,d:16},{cx:5,cz:33,up:4,c:0xff8a2a,i:1.5,d:15},{cx:21,cz:33,up:4,c:0xff8a2a,i:1.5,d:15},{cx:13,cz:38,up:4,c:0xff8a2a,i:1.3,d:14},{cx:13,cz:41,up:3.4,c:0xc040ff,i:.9,d:10},
-   {cx:20,cz:39,up:4.2,c:0xffb05a,i:1.3,d:13},{cx:18,cz:41,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:22,cz:45,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:20,cz:46,up:2.2,c:0xff7a1a,i:1.6,d:9,oz:.4}]},
+   {cx:6,cz:19,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:19,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:22,up:3.6,c:0xffb05a,i:1.2,d:14},{cx:1,cz:22,up:3.4,c:0xc040ff,i:.9,d:10},
+   {cx:6,cz:26,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:26,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:29,up:3.6,c:0xffb05a,i:1.2,d:14},{cx:25,cz:29,up:3.4,c:0xc040ff,i:.9,d:10},
+   {cx:6,cz:33,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:33,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:36,up:4.4,c:0xffb05a,i:1.0,d:16},{cx:5,cz:40,up:4,c:0xff8a2a,i:1.5,d:15},{cx:21,cz:40,up:4,c:0xff8a2a,i:1.5,d:15},{cx:13,cz:44,up:4,c:0xff8a2a,i:1.3,d:14},{cx:13,cz:47,up:3.4,c:0xc040ff,i:.9,d:10},
+   {cx:20,cz:45,up:4.2,c:0xffb05a,i:1.3,d:13},{cx:18,cz:47,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:22,cz:51,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:20,cz:52,up:2.2,c:0xff7a1a,i:1.6,d:9,oz:.4}]},
  {id:'court',name:'THE CLOISTER COURT',sub:'open sky, a sunken court, covered walkways all round · seven waves',gw:44,gh:52,crystal:[22,21],waves:7,wallH:9,fog:[34,110],style:{outdoor:true,moss:true},
   build(f,g,h,ramp){ f(2,41,2,41,T.FLOOR); h(2,41,2,41,1.5); h(5,38,5,38,0); f(21,23,19,23,T.CARPET); f(21,23,20,22,T.DAIS); g(22,21,T.CRYSTAL);   // the cloister walkway a step and a half up, the court sunken, the crystal in the middle
     f(21,23,5,6,T.FLOOR); ramp(21,23,5,6,1,0,1.5); f(21,23,37,38,T.FLOOR); ramp(21,23,37,38,2,0,1.5); f(5,6,20,22,T.FLOOR); ramp(5,6,20,22,4,0,1.5); f(37,38,20,22,T.FLOOR); ramp(37,38,20,22,3,0,1.5);   // four flights down into the court
@@ -463,7 +467,7 @@ function sectorMesh(range,arcDeg,hex){ const g=new THREE.Group(); if(!range) ret
 function tintSector(g,hex){ if(!g.userData.fill) return; g.userData.fill.material.color=C(hex); g.userData.line.material.color=C(hex); }
 let ghostSector=null, hoverSector=null, hoverFor=null;
 const GHOST_BAD=new THREE.MeshBasicMaterial({color:C(0xff3030),transparent:true,opacity:.45,depthWrite:false});
-function harpoonMesh(){ const g=new THREE.Group(); const s=M(G.cyl(.035,.035,1.3,6),mat(0x2b2540)); s.rotation.x=PI/2; g.add(s); const t=M(G.cone(.07,.26,6),mat(0xc4ced9),0,0,.75); t.rotation.x=PI/2; g.add(t); return g; }
+function harpoonMesh(){ const g=new THREE.Group(); const s=M(G.cyl(.06,.075,1.4,7),mat(0x2b2540)); s.rotation.x=PI/2; g.add(s); const t=M(G.cone(.12,.34,7),mat(0xc4ced9),0,0,.85); t.rotation.x=PI/2; g.add(t); const f=M(G.box(.05,.22,.3),mat(0x8a2a2a),0,0,-.55); g.add(f); const f2=M(G.box(.22,.05,.3),mat(0x8a2a2a),0,0,-.55); g.add(f2); return g; }   // a stout bolt: thick shaft, broad head, fletching
 function acornMesh(){ const g=new THREE.Group(); g.add(M(G.sph(.28,8,6),mat(0x9a6a3a),0,0,0)); const cap=M(G.cyl(.3,.34,.2,8),mat(0x5a3a1e),0,.17,0); g.add(cap); g.add(M(G.cyl(.03,.03,.14,4),mat(0x5a3a1e),0,.34,0)); outline(g); return g; }
 function turnipMesh(){ const g=new THREE.Group(); const body=M(G.sph(.3,10,8),mat(0xece2f2)); body.scale.y=.85; g.add(body); const top=M(G.sph(.24,10,8),mat(0x9a5ab8),0,.14,0); top.scale.y=.6; g.add(top); const leaf=mat(0x4f8f3a); [[.08,.3,0,.4],[-.06,.34,.05,-.3],[0,.32,-.08,1.2]].forEach(([x,y,z,r])=>{ const l=M(G.box(.06,.24,.02),leaf,x,y,z); l.rotation.z=r; g.add(l); }); outline(g); return g; }
 function ballMesh(){ const g=new THREE.Group(); const m=M(G.sph(.42,12,10),mat(0x1a1620)); [[.1,.34,.22],[-.12,.34,.22],[0,.4,.1]].forEach(([x,y,z])=>{ const h=M(G.sph(.06,6,5),basic(0x000000),x,y,z); h.userData.noOL=true; m.add(h); }); outline(m); g.add(m); g.userData.m=m; return g; }
@@ -477,7 +481,7 @@ const DEFS={
   acorn:{name:'Acorn Cannon',ic:'🌰',du:3,mana:45,hp:80,top:1.4,range:12,rangeUp:1.5,arc:70,cd:1.1,dmg:3,shots:3},          // a hollow oak stump that sprays three bouncing acorns in a cone
   ball:{name:'Turnip Trebuchet',ic:'🥔',du:5,mana:80,hp:90,top:2.2,range:17,arc:100,cd:2.8,dmg:6,splash:1.9},               // lobs a turnip that splats for area damage
   slice:{name:'Mushroom Ring',ic:'🍄',du:6,mana:90,hp:110,top:.05,range:2.6,rangeUp:.6,arc:360,cd:.45,dmg:2,slow:.55},     // a fairy ring: mobs inside are spored (damage over time) and slowed; heavy traffic tramples it
-  spike:{name:'Bramble Hedge',ic:'🌿',du:3,mana:40,hp:170,top:1.0,thorns:2,regrow:3},                                       // a thorn wall that hurts attackers and regrows when left alone
+  spike:{name:'Bramble Hedge',ic:'🌿',du:3,mana:50,hp:220,top:1.0,thorns:2,regrow:3},                                       // a thorn wall that hurts attackers and regrows when left alone
   totem:{name:'Rune Totem',ic:'🗿',du:4,mana:70,hp:120,top:2.8,range:7,rangeUp:1,arc:360,buff:.15,buffUp:.05},           // a runed pillar: every other defense in its ring hits 15% harder and faster (+5% a mark); totems never stack
   frost:{name:'Frost Spire',ic:'❄',du:4,mana:60,hp:100,top:2.4,range:6,rangeUp:.8,arc:360,chill:.6,chillUp:.06}};          // an ice spire: mobs in its ring crawl at 60% (6 points slower a mark); the deepest cold wins, it never stacks                                       // a thorn wall that hurts attackers and regrows when left alone
 const DEFKEYS=['harpoon','acorn','ball','slice','spike','totem','frost']; const MAXLVL=5, MARK=['','I','II','III','IV','V'];
@@ -486,7 +490,8 @@ function arcOf(d){ const cfg=DEFS[d.kind]; if(cfg.arcs) return cfg.arcs[Math.min
 function mobSpd(e){ return e.spd*(e.slowT>0?DEFS.slice.slow:1)*(e.chillT>0?(e.chillK||DEFS.frost.chill):1); }   // spored mobs crawl; chilled ones too
 const MOBS={goblin:{hp:10,spd:3.4,dmg:3,cd:1.0,mana:1,detour:3}, orc:{hp:45,spd:2.1,dmg:8,cd:1.4,mana:3,detour:1}, archer:{hp:22,spd:2.8,dmg:4,cd:1.6,mana:2,ranged:11,detour:4}, drake:{hp:70,spd:2.6,dmg:12,cd:1.8,mana:5,detour:0,fly:2.6}, ogre:{hp:200,spd:1.7,dmg:20,cd:2.2,mana:8,detour:0}};
 const DU_CAP=40, SENS=0.0042;
-const S={mana:260,du:0,crystal:100,wave:0,phase:'start',t:0,waveT:0,kills:0};
+const CRYSTAL_MAX=150;   // the crystal's life: half again what it was, so a leak costs a wave, not the run
+const S={mana:260,du:0,crystal:CRYSTAL_MAX,wave:0,phase:'start',t:0,waveT:0,kills:0};
 function effWave(w){ return MAP.wbase+(w===undefined?S.wave:w); }   // map 2 wave 1 is the eighth wave of the campaign: mobs, loot and pay scale with this
 const hero={x:0,y:0,z:6,vy:0,yaw:PI,hp:100,max:100,swingT:-1,hitDone:false,dead:0,ph:0,moving:false,hurtT:0,grounded:true,reach:2.4};   // reach: how far the swing lands (a whip reaches further than a sword)
 const H=makeHero(); scene.add(H.g); const heroShadow=blob(.5); scene.add(heroShadow);
@@ -550,7 +555,7 @@ function hurtCrystal(dmg){ if(S.phase==='dead'||S.phase==='won') return; S.cryst
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=22;
+const BUILD=23;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -616,7 +621,8 @@ addEventListener('drop',e=>{ e.preventDefault(); const f=e.dataTransfer&&e.dataT
 const HAS_ASSETS=/*ASSETS*/false;
 const ASSET_STAMPS=/*STAMPS*/{};   // per-file content stamps, filled in by the assembler for the folder build: a changed model gets a new URL, so no browser keeps serving the old one
 const ASSET=n=>ASSET_STAMPS[n]&&/\.glb$/.test(n)?'assets/'+n.replace(/\.glb$/,'')+'.'+ASSET_STAMPS[n]+'.glb.txt':'assets/'+n+(/\.glb$/.test(n)?'.txt':'');   // a model's file name carries its content stamp (witch.1a2b3c4d.glb.txt): a re-export is a new file, and no cache anywhere can hand out the old one
-function fetchBytes(url){ if(!HAS_ASSETS) return new Promise(()=>{}); const plain=url.replace(/\.[0-9a-f]{8}\.glb\.txt$/,'.glb.txt'); return fetch(url).then(r=>r.ok||plain===url?r:fetch(plain)).catch(()=>fetch(plain)).then(r=>{   /* the unstamped file is kept alongside as a fallback */ if(!r.ok) throw new Error('HTTP '+r.status+' '+url); if(!/\.txt(\?|$)/.test(url)) return r.arrayBuffer(); return r.text().then(t=>{ const b=atob(t.replace(/\s+/g,'')); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u.buffer; }); }); }
+function fetchRetry(url,tries){ return fetch(url).then(r=>{ if(!r.ok&&tries>1&&r.status!==404) throw new Error('HTTP '+r.status); return r; }).catch(e=>{ if(tries<=1) throw e; return new Promise(res=>setTimeout(res,600*(4-tries))).then(()=>fetchRetry(url,tries-1)); }); }   // three goes at each file, a beat apart: one dropped fetch must not cost the hero model
+function fetchBytes(url){ if(!HAS_ASSETS) return new Promise(()=>{}); const plain=url.replace(/\.[0-9a-f]{8}\.glb\.txt$/,'.glb.txt'); return fetchRetry(url,3).then(r=>r.ok||plain===url?r:fetchRetry(plain,2)).catch(()=>fetchRetry(plain,2)).then(r=>{   /* the unstamped file is kept alongside as a fallback */ if(!r.ok) throw new Error('HTTP '+r.status+' '+url); if(!/\.txt(\?|$)/.test(url)) return r.arrayBuffer(); return r.text().then(t=>{ const b=atob(t.replace(/\s+/g,'')); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u.buffer; }); }); }
 // the hero model is either baked into the page (SQUIRE_GLB_B64) or fetched from assets/ next to it
 if(typeof SQUIRE_GLB_B64!=='undefined'){ try{ const u=Uint8Array.from(atob(SQUIRE_GLB_B64),c=>c.charCodeAt(0)); loadHeroGLB(u.buffer,'Gnome Warden (Meshy)',true); }catch(e){} }
 else fetchBytes(ASSET('gnome.glb')).then(buf=>loadHeroGLB(buf,'Gnome Warden (Meshy)',true)).catch(e=>{ heroLoadError=String(e&&e.message||e); heroStatus('hero model failed: '+heroLoadError); });
@@ -713,7 +719,7 @@ function updateEnemies(dt){
 
 // ================= DEFENSES =================
 // the grid squares a defense really covers: its centre, plus both ends of a blockade
-function footprintCells(kind,x,z,yaw){ const cells=[idx(wc(x),wcz(z))]; if(kind==='spike'){ const ax=Math.cos(yaw), az=-Math.sin(yaw); for(const s of [-.9,.9]){ const cx=wc(x+ax*s), cz=wcz(z+az*s); if(!inb(cx,cz)) continue; const i=idx(cx,cz); if(!cells.includes(i)) cells.push(i); } } return cells; }
+function footprintCells(kind,x,z,yaw){ const cells=[idx(wc(x),wcz(z))]; if(kind==='spike'){ const ax=Math.cos(yaw), az=-Math.sin(yaw); for(const s of [-1.9,-.9,.9,1.9]){   /* five cells wide: a hedge closes a hall, not just a corridor */ const cx=wc(x+ax*s), cz=wcz(z+az*s); if(!inb(cx,cz)) continue; const i=idx(cx,cz); if(!cells.includes(i)) cells.push(i); } } return cells; }
 // where the camera is looking on the floor, kept within reach of the hero (look further away to build further away)
 function aimPoint(){ const fx=Math.sin(cam.yaw), fz=Math.cos(cam.yaw);
   if(!TOUCH){ const dir=new THREE.Vector3(); camera.getWorldDirection(dir); if(dir.y<-.02){ const t=(camera.position.y-hero.y)/-dir.y; let px=camera.position.x+dir.x*t, pz=camera.position.z+dir.z*t; const dx=px-hero.x, dz=pz-hero.z, d=Math.hypot(dx,dz); const md=Math.min(8,Math.max(1.6,d)); if(d>.01){ px=hero.x+dx/d*md; pz=hero.z+dz/d*md; } return [px,pz]; } }
@@ -898,7 +904,7 @@ function updateFx(dt){ S.t+=dt; const t=S.t;
   for(let i=floats.length-1;i>=0;i--){ const f=floats[i]; f.t+=dt; if(f.t>1.1) floats.splice(i,1); }
 }
 const hud={}; function setT(id,v){ if(hud[id]!==v){ hud[id]=v; $(id).textContent=v; } }
-function updateHUD(){ const cw_=Math.max(0,S.crystal)+'%'; if(hud.cbar!==cw_){ hud.cbar=cw_; $('cbar').style.width=cw_; } const hw=(hero.hp/hero.max*100)+'%'; if(hud.hbar!==hw){ hud.hbar=hw; $('hbar').style.width=hw; }
+function updateHUD(){ const cw_=Math.max(0,S.crystal/CRYSTAL_MAX*100)+'%'; if(hud.cbar!==cw_){ hud.cbar=cw_; $('cbar').style.width=cw_; } const hw=(hero.hp/hero.max*100)+'%'; if(hud.hbar!==hw){ hud.hbar=hw; $('hbar').style.width=hw; }
   setT('mana',Math.floor(S.mana)); setT('du',S.du+'/'+DU_CAP); updateGearHUD();
   const alive=enemies.filter(e=>!e.dead).length+spawnQ.length;
   if(S.phase==='wave'){ setT('wavet','WAVE '+S.wave+' / '+MAP.waves); setT('phaset',alive+' enem'+(alive===1?'y':'ies')+' left'); } else if(S.phase==='won'){ setT('wavet','HALL HELD — '+MAP.name+' CLEARED'); setT('phaset',''); } else if(S.phase==='build'){ setT('wavet',S.wave?'HALL HELD — BUILD PHASE':'BUILD PHASE'); setT('phaset',TOUCH?'Place defenses, then tap 📯':'Place defenses (1–7), then press G to sound the horn'); }

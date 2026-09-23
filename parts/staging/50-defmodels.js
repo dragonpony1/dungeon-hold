@@ -25,6 +25,7 @@ makeDef=function(kind,ghost,lvl){ const T=defTemplate(kind,lvl); if(!T) return m
   return g; };
 // re-skin a built defense whenever its mark (or a late-loading model) calls for a different look — checked every frame, cheaply
 function reskinDefs(){ for(const d of defs){ const T=defTemplate(d.kind,d.lvl); if(!T||d.mdl.userData.tpl===T) continue; const old=d.mdl; scene.remove(old); d.mdl=makeDef(d.kind,false,d.lvl); d.mdl.position.copy(old.position); d.mdl.rotation.y=d.rot; d.mdl.scale.copy(old.scale); scene.add(d.mdl); } }
+{ const base=makeDef; makeDef=function(kind,ghost,lvl){ const m=base(kind,ghost,lvl); if(kind==='spike') m.scale.x*=1.66; return m; }; }   // the hedge is five cells wide now: stretch the three-cell model to match
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); reskinDefs(); }; }
 // the ballista (harpoon turret) by mark: tier models from Meshy; marks beyond the last one reuse it
 for(let i=1;i<=4;i++) fetchDefGLB('harpoon',ASSET('ballista-'+i+'.glb'),i-1);   // Mark I..IV; Mark V keeps the tier-4 look

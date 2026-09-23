@@ -17,7 +17,7 @@ check("a goblin on the floor is still hit, with the yoke near level",r2.hit>=0&&
 // the throne room: a ballista on the floor, a goblin standing on the lower landing two up
 await page.evaluate(()=>{ try{ localStorage.setItem("ddMapsCleared","4"); }catch(e){} }); await page.goto("http://127.0.0.1:8936/?silent&nogate&map=1"); await ready();
 const r3=await page.evaluate(()=>{ const d=window.__dd; window.__meta.reset(); d.resetGear(); d.start(); d.addMana(9000); d.setHero(-6,58,0); d.step(1/60,3);
-  const t=d.place("harpoon",13,30,Math.PI); const g=d.spawn("goblin","S"); g.hp=g.max=1e6; g.spd=0; const gx=d.cw(13), gz=d.cwz(22); g.x=gx; g.z=gz; d.step(1/60,2); g.x=gx; g.z=gz;   // on the lower landing, straight north of the ballista
+  const t=d.place("harpoon",13,38,Math.PI); const g=d.spawn("goblin","S"); g.hp=g.max=1e6; g.spd=0; const gx=d.cw(13), gz=d.cwz(29); g.x=gx; g.z=gz; d.step(1/60,2); g.x=gx; g.z=gz;   // on the lower landing, straight north of the ballista
   let hit=-1, pitchMax=0, boltTop=0, floorAt=null; for(let i=0;i<300;i++){ d.step(1/60,1); g.x=gx; g.z=gz; pitchMax=Math.max(pitchMax,t.pitch||0); const p=d.projs.find(p=>p.kind==="harpoon"); if(p) boltTop=Math.max(boltTop,p.y); if(g.hp<g.max){ hit=i; break; } }
   return {ballistaBase:t.base,goblinY:+g.y.toFixed(2),pitch:+pitchMax.toFixed(2),boltTop:+boltTop.toFixed(2),hit,dist:+Math.hypot(g.x-t.x,g.z-t.z).toFixed(1)}; });
 check("from the throne room floor the bolt climbs to a goblin on the landing two up and hits it",r3.ballistaBase===0&&r3.goblinY>=1.9&&r3.pitch>.05&&r3.boltTop>1.8&&r3.hit>=0,JSON.stringify(r3));

@@ -13,7 +13,7 @@ function setMult(k){ let v=0; for(const a of active()) if(PCT[k]&&a.bonus[k]) v+
 function setFlat(k){ let v=0; for(const a of active()) if(!PCT[k]&&a.bonus[k]) v+=a.bonus[k]; return v; }
 { const prev=Meta.mult; Meta.mult=k=>(prev(k)||0)+setMult(k); }
 { const prev=heroStat; heroStat=function(k){ return prev(k)+setFlat(k); }; }
-{ const prev=Meta.onWaveHeld; Meta.onWaveHeld=w=>{ prev(w); const heal=setFlat('heal'); if(heal&&S.crystal>0){ S.crystal=Math.min(100,S.crystal+heal); floatText(0,4.2+(typeof hgt!=='undefined'?0:0),0,'+'+heal+' crystal','#5ee9ff'); } }; }
+{ const prev=Meta.onWaveHeld; Meta.onWaveHeld=w=>{ prev(w); const heal=setFlat('heal'); if(heal&&S.crystal>0){ S.crystal=Math.min(CRYSTAL_MAX,S.crystal+heal); floatText(0,4.2+(typeof hgt!=='undefined'?0:0),0,'+'+heal+' crystal','#5ee9ff'); } }; }
 // completing a set (or its first three) says so
 let seen={}; function announce(){ const c=counts(); for(const n of NAMES){ const k=c[n]|0; const lvl=k>=5?5:k>=3?3:0; if(lvl&&seen[n]!==lvl){ const S_=SETS[n]; toast(S_.ic+' SET BONUS · '+n+' ('+k+'/5): '+S_.text[lvl===5?1:0]); SFX.held(); } seen[n]=lvl; } }
 { const prev=Meta.equip; Meta.equip=id=>{ const ok=prev(id); if(ok){ applyGear(); announce(); } return ok; }; const pu=Meta.unequip; Meta.unequip=s=>{ const ok=pu(s); if(ok){ applyGear(); seen=Object.fromEntries(Object.entries(counts()).map(([n,k])=>[n,k>=5?5:k>=3?3:0])); } return ok; }; }

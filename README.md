@@ -64,18 +64,23 @@ raised tops and stone drops are generated after the walls (pale stone in marble 
 windows sit on the floor of the cell they stand at, and `style.rails` adds a balustrade (instanced posts and a gold rail)
 along every drop of a step and a half or more. The ballista pitches (`d.pitch`, the yoke's rotation.x) at its target's height, so it tilts up at a drake or a mob on a landing, and its bolt flies in three dimensions: it dies on a wall, the floor, a landing's face or the ceiling, and hits what it passes through at its own height (`ballista-test.mjs`).
 
-Maps so far: 1 The Gnome Hall (the original), 2 The Throne Room (a 27×48 marble stair hall under an 18-high ceiling with
-arched windows and drapes, built as a switchback climb: the horde comes in at the south gate on the floor, climbs the first
-flight up the east wall to the lower landing (two up), walks the landing's length, turns up the second flight on the west
-wall to the upper landing (four up), then the third flight up the middle to the throne platform (six up) with the crystal
-and the throne; feeder gates open straight onto the landings as the waves go, the west landing's from wave 3 and the east
-landing's from wave 5, with far shorter climbs; balustrades line every drop; `throne-test.mjs` checks all of it and takes
-the `throne-*.png` shots), 3 The Cloister Court (outdoors under a night sky: a sunken court, a covered
+Maps so far: 1 The Gnome Hall (the original), 2 The Throne Room (a 27×54 marble stair hall under an 18-high ceiling with
+arched windows and drapes, five levels high: the horde comes in at the south gate on the floor and climbs twin first
+flights, one up each wall, to the lower landing (two up); a single flight up the middle takes it to the middle landing
+(four up), where the two streams meet; twin third flights up the walls split it again on the way to the upper landing
+(six up), and one last flight up the middle brings it together at the throne platform (eight up) with the crystal and the
+throne. Feeder gates open onto the landings as the waves go — the east lower landing from wave 3, the west landing from
+5, the east upper landing from 6 — each with a shorter climb than the last; balustrades line every drop; `throne-test.mjs`
+checks all of it and takes the `throne-*.png` shots), 3 The Cloister Court (outdoors under a night sky: a sunken court, a covered
 colonnade a step and a half up with four flights down, trees, three corner gates), 4 The Great Feast Hall (three long
 tables with benches and candles, four hearths, the crystal on the high-table dais, doors east, north and south).
 Map styles: `wallH`, `fog`, `style.marble` / `style.moss` (floor and wall painters), `style.windows` (arched windows with
 drapes), `style.outdoor` (no ceiling, night sky, stars and a moon), `roofs` (slabs over colonnades), `trees`, `tables` +
 `tableGaps`, `hearths`, `throne`, `chandeliers`, `pillarH`.
+
+Balance notes: the crystal has `CRYSTAL_MAX` (150) life; the Bramble Hedge is five cells wide (its three-cell model
+stretched to match) with 220 hp for 50 mana; ballista bolts are stout (thick shaft, broad head, fletching); asset fetches
+retry three times before falling back, so one dropped file can't cost the hero model.
 
 ## Heroes, weapons, sets
 
