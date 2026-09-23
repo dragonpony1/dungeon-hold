@@ -4,7 +4,7 @@ A Dungeon Defenders–style 3D tower defense: a gnome warden, a crystal to hold,
 physical tavern (locker, barkeep, trainer, anvil), six familiars, Meshy-made models. Three.js r128, plain JavaScript, one
 page plus an `assets/` folder. Desktop first, tablet at most.
 
-Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 30; a second copy at https://claude.ai/artifact/G178miB5MXnvFLeqenipmE).
+Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 31; a second copy at https://claude.ai/artifact/G178miB5MXnvFLeqenipmE).
 
 ## Layout
 
@@ -228,6 +228,20 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   while a ranged weapon is out (`cam.shoulder`, eased in `updateCamera`, backing off if a wall is at that shoulder) so the
   hero's own body doesn't block the target. `aim-test.mjs` covers the reticle, the hold, both release strengths, piercing,
   the staff's point-and-charge, and that nothing shows while placing a defense.
+- The reticle keeps a target locked through a looser retain check once acquired (`LOCK` in `84-aim.js`), so it doesn't
+  flicker between two goblins jostling for the same spot as the horde closes in; a fresh acquisition still uses the
+  tighter cone. The free (nothing-in-reach) crosshair is anchored to literal screen centre rather than a reprojected 3D
+  point — the follow-camera always looks at the hero's own chest height, which is exactly centre-screen every frame
+  regardless of orbit pitch, so this is the one anchor that can't drift as the camera's pitch changes.
+
+- Mobs: a bandit archer (`archer`, ranged 11) throws rocks from wave 3; a troll archer (`troll`, ranged 13, 65 hp, a
+  Meshy rig merged the same way as the hero pipeline — `meshy/trollmob/merge.html`, no weapon mount needed since mob
+  ranged attacks are a separate tween-based projectile system, `fireArrow(e,x,y,z,hit)` in the core engine, unrelated to
+  the hero bow module of the same function name) joins from wave 8, one every third wave, capped at four. Wave one is a
+  gentler five-goblin opener with a slower trickle (`waveComp`'s `w===1` branch) — the climb in count and mob tier still
+  starts properly at wave two, per the design: winnable out of the gate with defenses actually placed, harder only as
+  the waves go on.
+- A second troll mob is coming: a lavender mini-boss that throws magical grenades. Not merged yet.
 
 ## Open items
 

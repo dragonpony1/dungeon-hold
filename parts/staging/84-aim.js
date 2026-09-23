@@ -13,10 +13,17 @@ function rangedKind(){ const w=window.__weapons&&window.__weapons.mounted(); if(
 function fullT(){ return FULL_BASE*swingDur()/swingBase(); }
 function charge(){ return HOLD.on?clamp(HOLD.t/fullT(),0,1):0; }
 function aimYaw(){ return cam.yaw; }
-// the mob a shot would take: nearest the aim line (within ~28°, or ~60° up close), within reach, not behind a wall
-function pick(yaw){ const fx=Math.sin(yaw), fz=Math.cos(yaw); const range=hero.reach||9; let best=null, bs=1e9;
-  for(const e of enemies){ if(e.dead) continue; const dx=e.x-hero.x, dz=e.z-hero.z, d=Math.hypot(dx,dz); if(d>range+e.r||d<.01) continue; const c=(dx*fx+dz*fz)/d; if(c<(d<3?.5:.88)) continue; if(!los(hero.x,hero.z,e.x,e.z)) continue; const s=(1-c)*8+d/range; if(s<bs){ bs=s; best=e; } }
-  return best; }
+// the mob a shot would take: nearest the aim line (within ~28°, or ~60° up close), within reach, not behind a wall.
+// once a mob has the lock it keeps it through a looser retain check (a wider cone, a longer leash) so the reticle doesn't
+// flicker between two goblins jostling for the same spot as the horde closes in — only a dead, blocked or well-clear target
+// loses the lock, never a marginally-better-scored neighbour.
+let LOCK=null;
+function inCone(e,fx,fz){ const dx=e.x-hero.x, dz=e.z-hero.z, d=Math.hypot(dx,dz); if(d<.01) return null; const c=(dx*fx+dz*fz)/d; return {d,c}; }
+function pick(yaw){ const fx=Math.sin(yaw), fz=Math.cos(yaw); const range=hero.reach||9;
+  if(LOCK&&!LOCK.dead){ const m=inCone(LOCK,fx,fz); if(m&&m.d<=range*1.2+LOCK.r&&m.c>=(m.d<3?.35:.72)&&los(hero.x,hero.z,LOCK.x,LOCK.z)) return LOCK; }   // the current lock, given a looser leash
+  LOCK=null; let best=null, bs=1e9;
+  for(const e of enemies){ if(e.dead) continue; const m=inCone(e,fx,fz); if(!m||m.d>range+e.r) continue; if(m.c<(m.d<3?.5:.88)) continue; if(!los(hero.x,hero.z,e.x,e.z)) continue; const s=(1-m.c)*8+m.d/range; if(s<bs){ bs=s; best=e; } }
+  LOCK=best; return best; }
 // what the shot being loosed carries (read by the bow and staff shots)
 function shot(){ const c=LAST_C; return {c,mul:TAP_MUL+(FULL_MUL-TAP_MUL)*c,full:c>=.999}; }
 // ---- press: a ranged hero's swing starts a draw that holds until the button comes up ----
@@ -61,7 +68,9 @@ function drawAim(){ LAST.shown=false; const k=rangedKind(); if(!k||placing||hero
     for(const [sx,sy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){ const x=cx+sx*w/2, y=cy+sy*h/2; stroke2(g,cc,2.5+pul*1.5,()=>{ g.moveTo(x-sx*L,y); g.lineTo(x,y); g.lineTo(x,y-sy*L); }); }   // corner brackets round the locked mob
     stroke2(g,cc,2,()=>{ g.moveTo(cx-4,cy); g.lineTo(cx+4,cy); g.moveTo(cx,cy-4); g.lineTo(cx,cy+4); });
     Object.assign(LAST,{x:cx,y:cy,locked:true}); }
-  else { const fx=Math.sin(yaw), fz=Math.cos(yaw), reach=hero.reach||9; let s=1; for(;s<reach;s+=.5){ if(wallAt(hero.x+fx*s,hero.z+fz*s)) break; } const p=proj(hero.x+fx*s,hero.y+1.3,hero.z+fz*s); if(!p){ g.restore(); return; } cx=p[0]; cy=p[1]; r=16;   // nothing in reach: a crosshair where the shot would end
+  else { cx=ov.width/2; cy=ov.height/2; r=16;   // nothing in reach: the camera always looks at the hero's own chest height, so
+    // that point is exactly screen centre in every frame — a fixed crosshair there, not a reprojected 3D point that would
+    // slide around the screen as the camera's orbit pitch changes (that was the "aiming up throws it off" bug)
     g.globalAlpha=.75; stroke2(g,col,2,()=>{ g.arc(cx,cy,7,0,TAU); }); stroke2(g,col,2,()=>{ for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ g.moveTo(cx+dx*10,cy+dy*10); g.lineTo(cx+dx*15,cy+dy*15); } }); g.globalAlpha=1;
     Object.assign(LAST,{x:cx,y:cy,locked:false}); }
   if(HOLD.on){ g.globalAlpha=.35; stroke2(g,col,3,()=>{ g.arc(cx,cy,r,0,TAU); }); g.globalAlpha=1; if(c>0) stroke2(g,full?'#ffffff':col,3.5,()=>{ g.arc(cx,cy,r,-PI/2,-PI/2+c*TAU); }); }   // the charge ring fills as the string comes back

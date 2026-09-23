@@ -545,7 +545,7 @@ const DEFKEYS=['harpoon','acorn','ball','slice','spike','totem','frost']; const 
 // a defense's sector of fire at its current mark
 function arcOf(d){ const cfg=DEFS[d.kind]; if(cfg.arcs) return cfg.arcs[Math.min(cfg.arcs.length-1,(d.lvl||1)-1)]; return cfg.arc||360; }
 function mobSpd(e){ return e.spd*(e.slowT>0?DEFS.slice.slow:1)*(e.chillT>0?(e.chillK||DEFS.frost.chill):1); }   // spored mobs crawl; chilled ones too
-const MOBS={goblin:{hp:10,spd:3.4,dmg:3,cd:1.0,mana:1,detour:3}, orc:{hp:45,spd:2.1,dmg:8,cd:1.4,mana:3,detour:1}, archer:{hp:22,spd:2.8,dmg:4,cd:1.6,mana:2,ranged:11,detour:4}, drake:{hp:32,spd:2.6,dmg:9,cd:1.8,mana:4,detour:0,fly:2.6}, ogre:{hp:200,spd:1.7,dmg:20,cd:2.2,mana:8,detour:0}};
+const MOBS={goblin:{hp:10,spd:3.4,dmg:3,cd:1.0,mana:1,detour:3}, orc:{hp:45,spd:2.1,dmg:8,cd:1.4,mana:3,detour:1}, archer:{hp:22,spd:2.8,dmg:4,cd:1.6,mana:2,ranged:11,detour:4}, drake:{hp:32,spd:2.6,dmg:9,cd:1.8,mana:4,detour:0,fly:2.6}, ogre:{hp:200,spd:1.7,dmg:20,cd:2.2,mana:8,detour:0}, troll:{hp:65,spd:2.3,dmg:10,cd:2.0,mana:6,ranged:13,detour:3}};   // troll archer: a heavier, longer-ranged bowman that joins from wave 8
 const DU_CAP=MAP.du||40, SENS=0.0042;   // roots: a bigger map gives more to build with
 const CRYSTAL_MAX=150;   // the crystal's life: half again what it was, so a leak costs a wave, not the run
 const S={mana:MAP.mana||260,du:0,crystal:CRYSTAL_MAX,wave:0,phase:'start',t:0,waveT:0,kills:0};
@@ -612,7 +612,7 @@ function hurtCrystal(dmg){ if(S.phase==='dead'||S.phase==='won') return; S.cryst
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=30;
+const BUILD=31;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -689,7 +689,7 @@ else fetchBytes(ASSET('gnome.glb')).then(buf=>loadHeroGLB(buf,'Gnome Warden (Mes
 function cloneSkinned(source){ const sl=new Map(), cl=new Map(); const clone=source.clone(); (function walk(a,b){ sl.set(b,a); cl.set(a,b); for(let i=0;i<a.children.length;i++) walk(a.children[i],b.children[i]); })(source,clone);
   clone.traverse(n=>{ if(!n.isSkinnedMesh) return; const src=sl.get(n); n.skeleton=src.skeleton.clone(); n.bindMatrix.copy(src.bindMatrix); n.skeleton.bones=src.skeleton.bones.map(b=>cl.get(b)); n.bind(n.skeleton,n.bindMatrix); }); return clone; }
 // per kind: model height to fit to, hit box, and the walk/run speeds (in body heights per second) the clips were made for
-const MOBDIM={goblin:{fit:1.55,h:1.4,r:.42,nat:{walk:1.0,run:2.4}}, orc:{fit:2.45,h:2.1,r:.65,nat:{walk:1.0,run:2.2}}, ogre:{fit:3.5,h:3.3,r:1.05,nat:{walk:.9,run:2.0}}, archer:{fit:1.85,h:1.7,r:.42,nat:{walk:1.0,run:2.2}}, drake:{fit:2.4,h:1.6,r:.7,nat:{walk:1,run:1}}};
+const MOBDIM={goblin:{fit:1.55,h:1.4,r:.42,nat:{walk:1.0,run:2.4}}, orc:{fit:2.45,h:2.1,r:.65,nat:{walk:1.0,run:2.2}}, ogre:{fit:3.5,h:3.3,r:1.05,nat:{walk:.9,run:2.0}}, archer:{fit:1.85,h:1.7,r:.42,nat:{walk:1.0,run:2.2}}, drake:{fit:2.4,h:1.6,r:.7,nat:{walk:1,run:1}}, troll:{fit:2.6,h:2.3,r:.62,nat:{walk:1.0,run:2.2}}};
 SFX.roar=()=>{ noise(.5,.12,300); beep(60,1.0,'sawtooth',.1,-25); };
 const MOBGLB={};   // kind -> {wrap,map,scale}
 function loadMobGLB(kind,b64){ try{ const u=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)); new THREE.GLTFLoader().parse(u.buffer,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,MOBDIM[kind].fit); toonify(root,fit.scale); MOBGLB[kind]={wrap:fit.wrap,map:mapClips(gltf.animations||[]),scale:fit.scale}; }catch(e){ console.warn('mob model '+kind,e); } },e=>console.warn('mob model '+kind,e)); }catch(e){ console.warn('mob model '+kind,e); } }
@@ -712,7 +712,7 @@ function mobAnim(e,dt){ const m=e.mdl, A=m.actions; let st; if(e.dead) st='death
   m.mixer.update(dt); }
 function fetchMobGLB(kind,url){ fetchBytes(url).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,MOBDIM[kind].fit); toonify(root,fit.scale); MOBGLB[kind]={wrap:fit.wrap,map:mapClips(gltf.animations||[]),scale:fit.scale}; }catch(e){ console.warn('mob model '+kind,e); } },e=>console.warn('mob model '+kind,e))).catch(e=>console.warn('mob model '+kind+' ('+url+')',e)); }
 if(typeof GOBLIN_GLB_B64!=='undefined') loadMobGLB('goblin',GOBLIN_GLB_B64); else fetchMobGLB('goblin',ASSET('goblin.glb'));
-fetchMobGLB('orc',ASSET('orc.glb')); fetchMobGLB('ogre',ASSET('ogre.glb')); fetchMobGLB('archer',ASSET('bandit.glb'));   // mobs with a model in assets/ use it; in the single-file build these never resolve and the block figures stay
+fetchMobGLB('orc',ASSET('orc.glb')); fetchMobGLB('ogre',ASSET('ogre.glb')); fetchMobGLB('archer',ASSET('bandit.glb')); fetchMobGLB('troll',ASSET('trollmob.glb'));   // mobs with a model in assets/ use it; in the single-file build these never resolve and the block figures stay
 
 // ================= CAMERA =================
 function updateCamera(dt){
@@ -733,7 +733,7 @@ function spawnEnemy(kind,lane){ const L=LANES[lane]||LANES.N; const m=makeMob(ki
   e.roar=(m.glb&&m.actions.shout)?0:-1;   // a mini-boss roars when it first comes into view (and again, enraged, at half health) — see ogreRoar
   m.g.position.set(e.x,0,e.z); m.g.rotation.y=e.yaw; scene.add(m.g); enemies.push(e); const p=portals.find(p=>p.k===lane); if(p) p.pulse=1; return e; }
 function hurt(e,dmg,kx,kz){ if(e.dead) return; e.hp-=dmg; e.squash=1; floatText(e.x,e.y+e.h+.4,e.z,String(dmg),'#ffd060'); if(kx||kz) moveCircle(e,kx*.5,kz*.5,e.r*.8,false); if(e.hp<=0) kill(e); }
-function kill(e){ e.dead=.001; S.kills++; spawnOrbs(e.x,e.z,e.mana); rollDrop(e); Meta.onKill(e); if(e.kind==='ogre'||e.kind==='orc'||e.kind==='drake') SFX.bigDie(); else SFX.die(); }
+function kill(e){ e.dead=.001; S.kills++; spawnOrbs(e.x,e.z,e.mana); rollDrop(e); Meta.onKill(e); if(e.kind==='ogre'||e.kind==='orc'||e.kind==='drake'||e.kind==='troll') SFX.bigDie(); else SFX.die(); }
 function attack(e,tg){ e.swing=0; e.pending=tg; }
 function landHit(e,tg){
   if(tg.kind==='hero'){ if(hero.dead<=0) hurtHero(e.dmg); }
@@ -854,7 +854,7 @@ const SLOTS=['weapon','armor','charm','amulet','familiar'], SICON={weapon:'⚔',
 const BASES={weapon:['Shortsword','Broadsword','Cleaver','Warhammer','Halberd','Gnome Blade'],armor:['Jerkin','Chainmail','Breastplate','Plate Harness','Tower Plate','Warden Mail'],charm:['Charm','Talisman','Idol','Sigil','Lantern','Relic'],amulet:['Pendant','Amulet','Locket','Torc','Medallion','Heartstone'],familiar:['Wisp','Cave Bat','Moss Sprite','Fire Imp','Crystal Owl','Storm Drake']};
 const PREFIX=[['Rusty','Plain','Worn','Sturdy','Old'],['Fine','Hardened','Keen','Polished'],['Gleaming','Runed','Tempered','Silvered'],['Ancient','Stormforged','Dragonbone','Moonlit'],['Mythic','Eternal','Goblinbane','Crystalheart']];
 const SUFFIX=['of Goblin Slaying','of Embers','of Fury','of Stone','of Vigil','of Thorns'];   // flavour only; "of the …" names that mean a set come from 93-gearsets.js
-const DROP={goblin:.05,archer:.10,orc:.22,ogre:1,drake:.3}; const LOOT_HOOK=3.2;   // how close a landed piece has to be before it flies to you
+const DROP={goblin:.05,archer:.10,orc:.22,ogre:1,drake:.3,troll:.28}; const LOOT_HOOK=3.2;   // how close a landed piece has to be before it flies to you
 const STATL={dmg:v=>'+'+v+' dmg',spd:v=>'+'+v+'% swing',hp:v=>'+'+v+' hp',def:v=>'+'+v+'% armor',regen:v=>'+'+v+' hp/s',tow:v=>'+'+v+'% defenses',mana:v=>'+'+v+'% mana',move:v=>'+'+v+'% speed',fdmg:v=>v+' pet dmg',frate:v=>'+'+v+'% pet rate',trate:v=>'+'+v+'% defense speed',tarea:v=>'+'+v+'% defense range',fproj:v=>'+'+v+' pet projectile'+(v===1?'':'s')};
 const STATW={dmg:3,spd:1,hp:.6,def:1.5,regen:4,tow:1.2,mana:.5,move:1.5,fdmg:2.5,frate:.8,trate:1.2,tarea:1.2,fproj:12}; const ROLLABLE=['dmg','spd','hp','def','regen','tow','mana','move','fdmg','frate'];
 function heroStat(k){ let v=0; for(const s of SLOTS){ const it=gear[s]; if(it&&it.stats[k]) v+=it.stats[k]; } return v; }
@@ -912,13 +912,14 @@ function updateGearHUD(){ let h=''; for(const s of SLOTS){ const it=gear[s]; h+=
 loadGear();
 
 // ================= WAVES =================
-function waveComp(w){ const all=Object.keys(LANES); const mw=w-MAP.wbase; const lanes=all.some(k=>LANES[k].from)?all.filter(k=>(LANES[k].from||1)<=mw):(w<2?all.slice(0,1):w<4?all.slice(0,2):all); /* a map can say which of its waves each gate opens on (feeders join as the climb goes on); otherwise the gates open one, two, all */ const q=[]; let t=1.5; const n=6+3*w; const gap=Math.max(.35,.8-.03*w); for(let i=0;i<n;i++){ q.push({t,kind:'goblin',lane:lanes[i%lanes.length]}); t+=gap; }
+function waveComp(w){ const all=Object.keys(LANES); const mw=w-MAP.wbase; const lanes=all.some(k=>LANES[k].from)?all.filter(k=>(LANES[k].from||1)<=mw):(w<2?all.slice(0,1):w<4?all.slice(0,2):all); /* a map can say which of its waves each gate opens on (feeders join as the climb goes on); otherwise the gates open one, two, all */ const q=[]; let t=w===1?2.5:1.5; const n=w===1?5:6+3*w; const gap=w===1?1.1:Math.max(.35,.8-.03*w);   /* wave one is a gentle on-ramp: five goblins, a slower trickle, more time to build first — the climb picks up from wave two */ for(let i=0;i<n;i++){ q.push({t,kind:'goblin',lane:lanes[i%lanes.length]}); t+=gap; }
   const orcs=w>=2?w-1:0; for(let i=0;i<orcs;i++) q.push({t:3+i*2.2,kind:'orc',lane:lanes[(i+1)%lanes.length]});
   const arch=w>=3?Math.floor(w/2):0; for(let i=0;i<arch;i++) q.push({t:4+i*1.8,kind:'archer',lane:lanes[i%lanes.length]});
   const ogres=w>=4&&(w-4)%3===0?(w>=10?2:1):0; for(let i=0;i<ogres;i++) q.push({t:t+2+i*4,kind:'ogre',lane:i?lanes[lanes.length-1]:lanes[0]});
   const drakes=w>=6?Math.min(12,Math.floor((w-3)/1.5)):0;   /* drakes are frail (32 hp) but come in growing flights: 2 on the sixth wave, 6 by the twelfth, a dozen by the twenty-first */ for(let i=0;i<drakes;i++) q.push({t:6+i*3,kind:'drake',lane:lanes[(i+2)%lanes.length]});   // from the eighth-ish wave the sky joins in
+  const trolls=w>=8?Math.min(4,1+Math.floor((w-8)/3)):0; for(let i=0;i<trolls;i++) q.push({t:5+i*4,kind:'troll',lane:lanes[(i+3)%lanes.length]});   // troll archers: tougher, longer-ranged bowmen, one every third wave from the eighth, capped at four
   q.sort((a,b)=>a.t-b.t);
-  const parts=['Goblins ×'+n]; if(orcs) parts.push('Orcs ×'+orcs); if(arch) parts.push('Bandits ×'+arch); if(drakes) parts.push('Drakes ×'+drakes); if(ogres) parts.push(ogres>1?'TWO OGRES':'AN OGRE');
+  const parts=['Goblins ×'+n]; if(orcs) parts.push('Orcs ×'+orcs); if(arch) parts.push('Bandits ×'+arch); if(drakes) parts.push('Drakes ×'+drakes); if(trolls) parts.push('Troll Archers ×'+trolls); if(ogres) parts.push(ogres>1?'TWO OGRES':'AN OGRE');
   const gates=lanes.map(l=>LANES[l].name||l).join(' + ')+' gate'+(lanes.length>1?'s':'');
   return {q,desc:parts.join(' · ')+'  —  '+gates}; }
 function startWave(){ if(S.phase!=='build') return; S.wave++; S.phase='wave'; S.waveT=0; const c=waveComp(effWave()); spawnQ=c.q; banner('WAVE '+S.wave+' OF '+MAP.waves,c.desc); SFX.horn(); setMusic('wave'); cancelPlace(); }
