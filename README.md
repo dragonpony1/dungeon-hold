@@ -4,7 +4,7 @@ A Dungeon Defenders–style 3D tower defense: a gnome warden, a crystal to hold,
 physical tavern (locker, barkeep, trainer, anvil), six familiars, Meshy-made models. Three.js r128, plain JavaScript, one
 page plus an `assets/` folder. Desktop first, tablet at most.
 
-Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 27; a second copy at https://claude.ai/artifact/G178miB5MXnvFLeqenipmE).
+Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 28; a second copy at https://claude.ai/artifact/G178miB5MXnvFLeqenipmE).
 
 ## Layout
 

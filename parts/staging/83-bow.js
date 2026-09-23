@@ -64,9 +64,11 @@ function gripWorld(g){ return (g.getObjectByName('bowGrip')||g).getWorldPosition
     fireArrow(wo.userData.kind,from,dir,ARROW_V,{dmg:heroDmg(),life:(range+1)/ARROW_V}); SFX.harpoon(); }; }
 // a bow is always held upright and facing the way the archer faces, wherever the hand is: the mount's own turn (measured for a
 // staff hanging at the hip) would lay it flat when the arm comes up to aim. Each frame the mounted bow is re-aimed in world space
-// and slid so its grip stays in the fist.
+// and slid so its grip (the stave's belly, ahead of the string) stays in the fist.
 const _pq=new THREE.Quaternion(), _q=new THREE.Quaternion(), _e=new THREE.Euler(), _g=new THREE.Vector3();
-function holdBow(wo){ const sd=wo.userData.sword; if(!sd||!wo.parent) return; wo.parent.getWorldQuaternion(_pq); _q.setFromEuler(_e.set(0,hero.yaw,0)); wo.quaternion.copy(_pq.invert()).multiply(_q); _g.set(0,sd.gripY*sd.scale,0).applyQuaternion(wo.quaternion); wo.position.copy(_g).negate(); }
+const GRIPS=new WeakMap();   // each mounted bow's grip node (its belly, where the fist closes on the stave — not the string line)
+function holdBow(wo){ const sd=wo.userData.sword; if(!sd||!wo.parent) return; wo.parent.getWorldQuaternion(_pq); _q.setFromEuler(_e.set(0,hero.yaw,0)); wo.quaternion.copy(_pq.invert()).multiply(_q);
+  let gp=GRIPS.get(wo); if(gp===undefined){ gp=wo.getObjectByName('bowGrip')||null; GRIPS.set(wo,gp); } if(gp) _g.copy(gp.position).multiplyScalar(sd.scale); else _g.set(0,sd.gripY*sd.scale,0); _g.applyQuaternion(wo.quaternion); wo.position.copy(_g).negate(); }
 const PLANTED=[];
 function plantBow(kind,x,z,yaw,scale){ const g=makeBow(kind); const s=scale||1.5; g.scale.setScalar(s); g.position.set(x,baseFloor(x,z)+.05*s,z); g.rotation.y=yaw||0; outline(g); scene.add(g); PLANTED.push(g); return g; }
 // the archer shoots side-on: the Meshy archery clip aims 90° left of the body (as a real archer stands), so while the shot
