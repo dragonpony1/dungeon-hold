@@ -4,7 +4,7 @@ A Dungeon Defenders–style 3D tower defense: a gnome warden, a crystal to hold,
 physical tavern (locker, barkeep, trainer, anvil), six familiars, Meshy-made models. Three.js r128, plain JavaScript, one
 page plus an `assets/` folder. Desktop first, tablet at most.
 
-Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 25; a second copy at https://claude.ai/artifact/G178miB5MXnvFLeqenipmE).
+Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 26; a second copy at https://claude.ai/artifact/G178miB5MXnvFLeqenipmE).
 
 ## Layout
 
@@ -126,7 +126,12 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   mob it meets for `heroDmg()` and bursts there); `staffFor(item)` picks the staff by forge tier, or the set's own
   (`pack.models.staff`, the Void set's `staff-void`).
 - `83-bow.js` — bows built in code like the staffs (`ash`, `yew`, `horn`, `storm`, `war` for the five tiers, `void` for the set),
-  registered as `bow-<kind>`; the stave bows forward, magic bows glow at the grip and carry runes. With a bow in hand a swing
+  registered as `bow-<kind>`, each its own length and fittings: the shortbow plain with horn knobs, the longbow tall with
+  leather wraps, the recurve curling its tips back with horn plates and runes, the stormwood bow with gold caps, a crystal in
+  the belly, motes about it and a string that burns blue, the war bow a tall gold-capped recurve with a halo about the grip,
+  the Bow of the Void with crystal tips, a void gem, motes, dark shards adrift along the limbs and a violet string. Animated
+  by part name (`animFor`) on the mounted bow and on planted ones; `__bow.plant/fire/clear` are the design bench and
+  `probes/bowshot.mjs` renders the row and the Void bow in the troll's hand. With a bow in hand a swing
   looses an arrow (`fireArrow`: a shaft, steel head, fletching in the bow's colour) from the grip at the nearest mob in the
   cone within `hero.reach`; it flies flat, stops in the first mob it meets or dies on a wall, the floor or at range. The
   mounted bow is re-aimed every frame in world space (`holdBow`: upright, facing the archer's way, its grip slid back into

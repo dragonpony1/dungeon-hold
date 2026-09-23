@@ -1,29 +1,44 @@
 // ===== BOWS: the archer's weapon, built in code like the staffs — five forge tiers and the Void bow — and the arrow it looses =====
-// The stave runs up +Y from the lower tip at y=0 to the upper at y=1.5 and bows forward (+z); the string joins the tips, the
-// grip wraps the belly, and the template says the fist closes halfway up (gripF .5) with the mount making it near body-length
-// (lenScale .72: a longbow three-quarters the archer's height). Registered with the weapon mount as 'bow-<kind>' for a hero whose mount node is a bow mount. With a bow in
+// The stave runs up +Y from the lower tip at y=0 to the upper at y=L (1.5 × the kind's len: a shortbow is short, a war bow
+// tall) and bows forward (+z), a recurve curling its tips back; the string joins the tips, the grip wraps the belly, and the
+// template says the fist closes halfway up (gripF .5) with the mount making it about three-quarters the archer's height
+// (lenScale .72 × len). Each kind has its own fittings: horn knobs, leather wraps, horn plates, gold caps, runes, a crystal
+// in the belly with motes about it, a gold halo, void shards, a string that burns. Registered with the weapon mount as 'bow-<kind>' for a hero whose mount node is a bow mount. With a bow in
 // hand a swing looses an arrow from the grip at the nearest mob in the cone within hero.reach; it flies flat and hurts the
 // first mob it meets, or dies on a wall, the floor or at the end of its range.
 (function(){
 const BOW_KINDS={
-  ash:  {name:'Ash Shortbow',    tier:1,wood:0x7a5a3a,dark:0x3a2716,band:0x8a6a3a,glow:null},
-  yew:  {name:'Yew Longbow',     tier:2,wood:0x5a3f28,dark:0x2c1c10,band:0xb87333,glow:null},
-  horn: {name:'Horn Recurve',    tier:3,wood:0x4a3a30,dark:0x2a2018,band:0xd8d0c0,glow:0x8dffa8},
-  storm:{name:'Stormwood Bow',   tier:4,wood:0x2e2a3a,dark:0x1a1722,band:0xc0c8d8,glow:0x3d8bff},
-  war:  {name:'Troll War Bow',   tier:5,wood:0x3a2416,dark:0x22150c,band:0xe0b040,glow:0xffd060},
-  void: {name:'Bow of the Void', tier:5,wood:0x1a1226,dark:0x0d0914,band:0x8a3cff,glow:0x9a30ff}};
-const zAt=y=>{ const t=y/1.5; return .34*2*(1-t)*t; };   // where the stave sits (its bow forward) at a height
-function makeBow(kind){ const K=BOW_KINDS[kind]||BOW_KINDS.ash; const g=new THREE.Group(); g.name='bow-'+kind; const wood=mat(K.wood), dark=mat(K.dark), band=mat(K.band);
-  const curve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(0,0,0),new THREE.Vector3(0,.75,.34),new THREE.Vector3(0,1.5,0));
-  g.add(new THREE.Mesh(new THREE.TubeGeometry(curve,20,.026,6,false),wood));                                    // the stave
-  g.add(M(G.cyl(.04,.04,.24,8),dark,0,.75,zAt(.75)));                                                          // the leather grip at the belly
-  for(const y of [.6,.9]) g.add(M(G.cyl(.036,.036,.02,8),band,0,y,zAt(y)));                                     // bands at the grip's ends
-  for(const y of [.14,1.36]) g.add(M(G.cyl(.03,.03,.03,8),band,0,y,zAt(y)));                                    // and near the tips
-  g.add(M(G.cyl(.005,.005,1.5,4),dark,0,.75,0));                                                                // the string, tip to tip
-  for(const y of [0,1.5]) g.add(M(G.sph(.03,6,5),band,0,y,0));                                                  // the nocks
-  if(K.glow){ const gl=glow(K.glow,.9,.7); gl.name='glow'; gl.position.set(0,.75,zAt(.75)); g.add(gl); for(let i=0;i<3;i++){ const y=.3+i*.1; const r=M(G.box(.012,.06,.008),basic(K.glow),0,y,zAt(y)+.028); r.userData.noOL=true; r.name='rune'+i; g.add(r); } }   // a magic bow glows at the grip and carries runes down the lower limb
-  const grip=new THREE.Object3D(); grip.name='bowGrip'; grip.position.set(0,.75,zAt(.75)); g.add(grip);        // where an arrow leaves
-  g.userData.box=new THREE.Box3(new THREE.Vector3(-.06,-.03,-.03),new THREE.Vector3(.06,1.53,.4)); g.userData.gripF=.5; g.userData.lenScale=.72; g.userData.proc=true; g.userData.kind=kind; g.userData.bowKind=K; return g; }
+  ash:  {name:'Ash Shortbow',    tier:1,len:.82, wood:0x7a5a3a,dark:0x3a2716,band:0x8a6a3a,glow:null,    tips:'horn'},
+  yew:  {name:'Yew Longbow',     tier:2,len:1.02,wood:0x5a3f28,dark:0x2c1c10,band:0xb87333,glow:null,    tips:'horn',wraps:true},
+  horn: {name:'Horn Recurve',    tier:3,len:.92, wood:0x4a3a30,dark:0x2a2018,band:0xd8d0c0,glow:0x8dffa8,tips:'horn',recurve:true,plates:true,runes:true},
+  storm:{name:'Stormwood Bow',   tier:4,len:1.0, wood:0x2e2a3a,dark:0x1a1722,band:0xc0c8d8,glow:0x3d8bff,tips:'gold',gem:0x7fbbff,motes:3,runes:true,litString:true},
+  war:  {name:'Troll War Bow',   tier:5,len:1.06,wood:0x3a2416,dark:0x22150c,band:0xe0b040,glow:0xffd060,tips:'gold',gem:0xfff2c0,motes:4,halo:true,recurve:true,litString:true},
+  void: {name:'Bow of the Void', tier:5,len:1.0, wood:0x1a1226,dark:0x0d0914,band:0x8a3cff,glow:0x9a30ff,tips:'crystal',gem:0xd070ff,motes:3,shards:3,litString:true}};
+// the stave's line: a plain bow is one arc bowing forward (+z); a recurve curls its tips back (-z) past the string
+function staveCurve(L,recurve){ const k=L/1.5; if(!recurve) return new THREE.QuadraticBezierCurve3(new THREE.Vector3(0,0,0),new THREE.Vector3(0,L/2,.34*k*2),new THREE.Vector3(0,L,0));   // control point at 2× the bulge: the curve peaks at .34
+  const pts=[[0,-.10],[.1,.03],[.3,.25],[.5,.34],[.7,.25],[.9,.03],[1,-.10]].map(([u,z])=>new THREE.Vector3(0,u*L,z*k)); return new THREE.CatmullRomCurve3(pts,false,'catmullrom',.5); }
+function makeBow(kind){ const K=BOW_KINDS[kind]||BOW_KINDS.ash; const g=new THREE.Group(); g.name='bow-'+kind; const wood=mat(K.wood), dark=mat(K.dark), band=mat(K.band), bright=h=>basic(h); const L=1.5*(K.len||1); const curve=staveCurve(L,K.recurve); const P=u=>curve.getPoint(u);
+  const at=(mesh,u,dz)=>{ const p=P(u); mesh.position.set(0,p.y,p.z+(dz||0)); return mesh; };
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(curve,28,.026,6,false),wood));                                                           // the stave
+  g.add(at(M(G.cyl(.04,.04,.24,8),dark),.5)); for(const u of [.46,.5,.54]) g.add(at(M(G.cyl(.043,.043,.014,8),band),u));                 // the leather grip and its three rings
+  for(const u of [.08,.92]) g.add(at(M(G.cyl(.03,.03,.03,8),band),u));                                                                   // bands near the tips
+  if(K.wraps) for(const u of [.24,.76]) g.add(at(M(G.cyl(.032,.032,.1,8),dark),u));                                                       // leather wraps down the limbs
+  if(K.plates) for(const u of [.15,.22,.29,.71,.78,.85]) g.add(at(M(G.cyl(.031,.031,.035,8),band),u));                                    // horn plates
+  const tipMat=K.tips==='gold'?band:K.tips==='crystal'?bright(K.gem):band; for(const u of [0,1]){ let t; if(K.tips==='gold'){ t=M(G.cone(.03,.09,6),band); t.rotation.x=u?0:PI; } else if(K.tips==='crystal'){ t=new THREE.Mesh(new THREE.OctahedronGeometry(.035,0),tipMat); t.scale.set(1,1.8,1); t.userData.noOL=true; } else t=M(G.sph(.03,6,5),band); g.add(at(t,u,0)); }   // the nocks: horn knobs, gold caps or void crystals
+  const zs=P(0).z; { const str=M(G.cyl(K.litString?.007:.005,K.litString?.007:.005,L,4),K.litString?bright(K.glow):dark,0,L/2,zs); if(K.litString){ str.userData.noOL=true; str.name='string'; } g.add(str); }   // the string, tip to tip (a magic bow's burns)
+  if(K.runes) for(let i=0;i<3;i++){ const r=at(M(G.box(.012,.06,.008),bright(K.glow)),.28+i*.06,.028); r.userData.noOL=true; r.name='rune'+i; g.add(r); }   // runes down the lower limb
+  const gp=P(.5); if(K.gem){ const gem=new THREE.Mesh(new THREE.OctahedronGeometry(.045,0),bright(K.gem)); gem.name='gem'; gem.scale.set(1,1.6,1); gem.position.set(0,gp.y,gp.z+.075); gem.userData.noOL=true; g.add(gem); }   // a crystal set in the belly
+  if(K.glow){ const gl=glow(K.glow,K.gem?1.1:.8,.75); gl.name='glow'; gl.position.set(0,gp.y,gp.z+.06); g.add(gl); }
+  for(let i=0;i<(K.motes||0);i++){ const m=new THREE.Mesh(new THREE.OctahedronGeometry(.02,0),bright(K.glow)); m.name='mote'+i; m.userData.noOL=true; g.add(m); }   // motes that orbit the grip
+  if(K.halo){ const h=new THREE.Mesh(new THREE.TorusGeometry(.12,.011,6,24),bright(K.band)); h.name='halo'; h.userData.noOL=true; h.rotation.x=PI/2; h.position.set(0,gp.y,gp.z); g.add(h); }   // a gold halo about the grip
+  for(let i=0;i<(K.shards||0);i++){ const sh=new THREE.Mesh(new THREE.OctahedronGeometry(.03,0),mat(K.dark)); sh.name='shard'+i; sh.scale.set(1,2.2,1); g.add(sh); }   // dark shards adrift along the limbs
+  const grip=new THREE.Object3D(); grip.name='bowGrip'; grip.position.set(0,gp.y,gp.z); g.add(grip);                                    // where an arrow leaves
+  g.userData.box=new THREE.Box3(new THREE.Vector3(-.12,-.05,-.15),new THREE.Vector3(.12,L+.05,.45)); g.userData.gripF=.5; g.userData.lenScale=.72*(K.len||1); g.userData.proc=true; g.userData.kind=kind; g.userData.bowKind=K; g.userData.L=L; return g; }
+// the moving bits, found by name so a mounted clone keeps them (clones lose userData functions)
+const ANIMS=new WeakMap();
+function animFor(root){ let a=ANIMS.get(root); if(a) return a; const by=n=>root.getObjectByName(n); const gem=by('gem'), gl=by('glow'), halo=by('halo'), str=by('string'), grip=by('bowGrip'); const L=root.userData.L||1.5; const motes=[],shards=[]; for(let i=0;i<4;i++){ if(by('mote'+i)) motes.push({m:by('mote'+i),a:i/4*TAU,r:.11+.03*(i%2)}); if(by('shard'+i)) shards.push({s:by('shard'+i),u:.22+i*.28,ph:i*2.1}); } let t=rnd()*6; const gx=grip?grip.position:new THREE.Vector3(0,L/2,.34);
+  a=dt=>{ t+=dt; if(gem) gem.rotation.y+=dt*1.4; if(gl) gl.material.opacity=.55+.25*Math.sin(t*4); if(halo) halo.rotation.y+=dt*.8; if(str) str.material.opacity=.7+.3*Math.sin(t*6); motes.forEach(o=>{ o.a+=dt*2.0; o.m.position.set(Math.sin(o.a)*o.r,gx.y+Math.sin(t*3+o.a)*.03,gx.z+Math.cos(o.a)*o.r); o.m.rotation.y=o.a; }); shards.forEach(o=>{ const y=o.u*L+Math.sin(t*1.3+o.ph)*.05; o.s.position.set(Math.sin(t*.9+o.ph)*.09,y,gx.z*.6+Math.cos(t*.9+o.ph)*.05); o.s.rotation.set(Math.sin(t+o.ph)*.3,t*.7,.3); }); };
+  ANIMS.set(root,a); return a; }
 // which bow a weapon item shows: the tier picks the forge bow, the Void set its own
 function bowFor(it){ if(!it) return 'bow-ash'; const pk=Meta.packs&&Meta.packs.of(it); if(pk&&pk.models&&pk.models.bow) return pk.models.bow; if(pk&&/void/i.test(pk.name||pk.id||'')) return 'bow-void'; const t=Math.max(1,Math.min(5,it.tier||tierOf(it.lvl||1))); return 'bow-'+['ash','yew','horn','storm','war'][t-1]; }
 // ---- the arrow: a shaft with a steel head and fletching in the bow's colour, flying flat ----
@@ -46,8 +61,11 @@ function gripWorld(g){ return (g.getObjectByName('bowGrip')||g).getWorldPosition
 // and slid so its grip stays in the fist.
 const _pq=new THREE.Quaternion(), _q=new THREE.Quaternion(), _e=new THREE.Euler(), _g=new THREE.Vector3();
 function holdBow(wo){ const sd=wo.userData.sword; if(!sd||!wo.parent) return; wo.parent.getWorldQuaternion(_pq); _q.setFromEuler(_e.set(0,hero.yaw+(typeof heroYawOff==='number'?heroYawOff:0),0)); wo.quaternion.copy(_pq.invert()).multiply(_q); _g.set(0,sd.gripY*sd.scale,0).applyQuaternion(wo.quaternion); wo.position.copy(_g).negate(); }
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); arrowsUpdate(dt); const wo=window.__weapons.mounted(); if(wo&&/^bow-/.test(wo.name)) holdBow(wo); }; }
+const PLANTED=[];
+function plantBow(kind,x,z,yaw,scale){ const g=makeBow(kind); const s=scale||1.5; g.scale.setScalar(s); g.position.set(x,baseFloor(x,z)+.05*s,z); g.rotation.y=yaw||0; outline(g); scene.add(g); PLANTED.push(g); return g; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); arrowsUpdate(dt); const wo=window.__weapons.mounted(); if(wo&&/^bow-/.test(wo.name)){ holdBow(wo); animFor(wo)(dt); } PLANTED.forEach(p=>animFor(p)(dt)); }; }
 Object.keys(BOW_KINDS).forEach(k=>{ window.__weapons.register('bow-'+k,()=>makeBow(k)); });   // served by the weapon mount like a loaded sword
-window.__bow={kinds:()=>Object.keys(BOW_KINDS),info:k=>Object.assign({kind:k},BOW_KINDS[k]),make:makeBow,bowFor,arrows:()=>ARROWS.length,
+window.__bow={kinds:()=>Object.keys(BOW_KINDS),info:k=>Object.assign({kind:k},BOW_KINDS[k]),make:makeBow,bowFor,arrows:()=>ARROWS.length,plant:plantBow,planted:()=>PLANTED.length,clear:()=>{ PLANTED.forEach(g=>scene.remove(g)); PLANTED.length=0; },
+  fire:(g,dx,dy,dz)=>fireArrow(g.userData.kind,gripWorld(g),new THREE.Vector3(dx,dy||0,dz),38),
   fireFromHand:(dx,dy,dz)=>{ const wo=window.__weapons.mounted(); if(!(wo&&/^bow-/.test(wo.name))) return null; return fireArrow(wo.userData.kind,gripWorld(wo),new THREE.Vector3(dx,dy||0,dz),38); }};
 })();
