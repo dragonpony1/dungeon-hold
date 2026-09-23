@@ -82,6 +82,14 @@ drapes), `style.outdoor` (no ceiling, night sky, stars and a moon), `roofs` (sla
 - `70-hero2.js` holds `HEROES` (Gnome Warden with a sword, Fae Battle Witch with a whip and reach 3.6); the start screen
   picks one (saved as `ddHero`); a pick swaps the model live. The start screen also has a testing line: unlock all maps,
   auto-mana (orbs fly to you from anywhere), +1000 gold, ↻ fresh reload (a plain reload; the page's URL is left alone since a host may sign it; saves kept) and wipe saves (two clicks: forgets every `dd*` key, then reloads fresh).
+- `82-staff.js` — battle staffs built in code, no model to load: six kinds (`hazel`, `copper`, `runed`, `storm`, `battle` for
+  the five forge tiers, `void` for the set) in the sword GLBs' model units, the fist 44% of the way up (`userData.gripF`).
+  Registered with the weapon mount as `staff-<kind>` through `window.__weapons.register` (a code-built template is served
+  like a loaded sword; `userData.proc` skips the material conversion and gets the scaled ink outline), animated by part
+  name (`animFor`) so a mounted clone turns its crystal and orbits its motes too. `fireBolt` throws a spark of the staff's
+  colour that bursts on the first wall, ledge or floor; `__staff.plant/fire/fireFromHand/clear` are the design bench and
+  `probes/staffshot.mjs` renders the row, a bolt, a burst and the staff in the Warden's hand (`__weapons.force(name)`
+  mounts any weapon regardless of gear). Meant for the gnome caster that replaces the witch; no hero wields one yet.
 - `80-weapons.js` mounts sword models on a `weaponMount_<cm>` node and whip models on a `whipMount_<cm>` node; a whip
   model is cut into a handle and five chained lash segments (`rigWhip`). The lash is a small rope simulation
   (`whipAnim`): five points hang from the handle under gravity, keep their lengths, trail the fist on a swing and snap round
