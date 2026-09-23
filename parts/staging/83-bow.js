@@ -58,16 +58,16 @@ function makeArrow(K,nocked){ const g=new THREE.Group(); const fl=K.glow||0xe8d8
   for(const sx of [-1,1]){ g.add(M(G.box(.025,.13,.24),mat(fl),sx*.045,0,-ARROW_L/2+.16)); } g.add(M(G.box(.13,.025,.24),mat(fl),0,.045,-ARROW_L/2+.16));
   if(!nocked){ const gl=glow(K.glow||0xffe0a0,1.1,.7); gl.position.z=ARROW_L/2; g.add(gl); const tr=M(G.box(.06,.06,1.6),basic(fl,{transparent:true,opacity:.45}),0,0,-ARROW_L/2-.7); g.add(tr); }   // a flying arrow carries a glow at the head and a streak behind
   g.traverse(m=>{ if(m.isMesh) m.userData.noOL=true; }); return g; }
-function fireArrow(kind,from,dir,speed,opts){ opts=opts||{}; const K=BOW_KINDS[kind]||BOW_KINDS.ash; const g=makeArrow(K); g.position.copy(from); const d=dir.clone().normalize(); g.lookAt(from.clone().add(d)); scene.add(g); ARROWS.push({g,d,v:speed||ARROW_V,t:0,life:opts.life||1.2,x:from.x,y:from.y,z:from.z,dmg:opts.dmg||0,hit:new Set(),kind}); return g; }
+function fireArrow(kind,from,dir,speed,opts){ opts=opts||{}; const K=BOW_KINDS[kind]||BOW_KINDS.ash; const g=makeArrow(K); g.position.copy(from); const d=dir.clone().normalize(); g.lookAt(from.clone().add(d)); if(opts.size) g.scale.setScalar(opts.size); scene.add(g); ARROWS.push({g,d,v:speed||ARROW_V,t:0,life:opts.life||1.2,x:from.x,y:from.y,z:from.z,dmg:opts.dmg||0,pierce:opts.pierce||0,hit:new Set(),kind}); return g; }
 function arrowsUpdate(dt){ for(let i=ARROWS.length-1;i>=0;i--){ const a=ARROWS[i]; a.t+=dt; const step=a.v*dt; const nx=a.x+a.d.x*step, ny=a.y+a.d.y*step, nz=a.z+a.d.z*step;
     if(wallAt(nx,nz)||ny<=baseFloor(nx,nz)+.05||ny>WALLH||a.t>=a.life){ scene.remove(a.g); ARROWS.splice(i,1); continue; } a.x=nx; a.y=ny; a.z=nz; a.g.position.set(nx,ny,nz);
-    if(a.dmg){ for(const e of enemies){ if(e.dead||a.hit.has(e)) continue; if(Math.hypot(e.x-nx,e.z-nz)<e.r+.45&&ny>e.y-.4&&ny<e.y+e.h+.6){ a.hit.add(e); hurt(e,a.dmg,a.d.x*1.2,a.d.z*1.2); SFX.hit(); scene.remove(a.g); ARROWS.splice(i,1); break; } } } } }   // an arrow stops in the first mob it meets
+    if(a.dmg){ for(const e of enemies){ if(e.dead||a.hit.has(e)) continue; if(Math.hypot(e.x-nx,e.z-nz)<e.r+.45&&ny>e.y-.4&&ny<e.y+e.h+.6){ a.hit.add(e); hurt(e,a.dmg,a.d.x*1.2,a.d.z*1.2); SFX.hit(); if(a.pierce>0){ a.pierce--; if(a.d.y<0){ a.d.y=0; a.d.normalize(); a.g.lookAt(a.g.position.clone().add(a.d)); } continue; }   /* through it, and level again so it carries to the next */ scene.remove(a.g); ARROWS.splice(i,1); break; } } } } }   // an arrow stops in the first mob it meets (a full-draw one goes through two)
 function gripWorld(g){ return (g.getObjectByName('bowGrip')||g).getWorldPosition(new THREE.Vector3()); }
 // the archer's attack: with a bow in hand a swing looses an arrow instead of sweeping the sword's cone (the staff's wrapper sits under this one)
-{ const prevHit=hitCone; hitCone=function(){ const wo=window.__weapons.mounted(); if(!(wo&&/^bow-/.test(wo.name))) return prevHit(); const from=gripWorld(wo); const fx=Math.sin(hero.yaw), fz=Math.cos(hero.yaw); const range=hero.reach||12; let best=null, bd=1e9;
-    for(const e of enemies){ if(e.dead) continue; const dx=e.x-hero.x, dz=e.z-hero.z, d=Math.hypot(dx,dz); if(d>range+e.r||d<.01||(dx*fx+dz*fz)/d<.75) continue; if(d<bd){ bd=d; best=e; } }
+{ const prevHit=hitCone; hitCone=function(){ const wo=window.__weapons.mounted(); if(!(wo&&/^bow-/.test(wo.name))) return prevHit(); const from=gripWorld(wo); const A=window.__aim, yaw=A?A.yaw():hero.yaw; const fx=Math.sin(yaw), fz=Math.cos(yaw); const range=hero.reach||12; let best=A?A.pick(yaw):null, bd=1e9;   // the aim module picks the target the reticle shows
+    if(!A) for(const e of enemies){ if(e.dead) continue; const dx=e.x-hero.x, dz=e.z-hero.z, d=Math.hypot(dx,dz); if(d>range+e.r||d<.01||(dx*fx+dz*fz)/d<.75) continue; if(d<bd){ bd=d; best=e; } }
     const dir=best?new THREE.Vector3(best.x-from.x,(best.y+best.h*.5)-from.y,best.z-from.z):new THREE.Vector3(fx,-.01,fz);
-    fireArrow(wo.userData.kind,from,dir,ARROW_V,{dmg:heroDmg(),life:(range+1)/ARROW_V}); SFX.harpoon(); }; }
+    const sh=A?A.shot():{c:1,mul:1,full:false}, spd=ARROW_V*(1+.45*sh.c); fireArrow(wo.userData.kind,from,dir,spd,{dmg:Math.round(heroDmg()*sh.mul*10)/10,life:(range+1)/spd,pierce:sh.full?2:0,size:1+.4*sh.c}); SFX.harpoon(); }; }
 // a bow is always held upright and facing the way the archer faces, wherever the hand is: the mount's own turn (measured for a
 // staff hanging at the hip) would lay it flat when the arm comes up to aim. Each frame the mounted bow is re-aimed in world space
 // and slid so its grip (the stave's belly, ahead of the string) stays in the fist.
@@ -83,7 +83,7 @@ function plantBow(kind,x,z,yaw,scale){ const g=makeBow(kind); const s=scale||1.5
 const ATTACK_TURN=-PI/2; let DRAW=0;
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); arrowsUpdate(dt); const wo=window.__weapons.mounted(); const bow=!!(wo&&/^bow-/.test(wo.name)); const swinging=bow&&hero.swingT>=0&&!(hero.dead>0);
     if(bow||heroYawOff!==0) heroYawOff=angLerp(heroYawOff,swinging?ATTACK_TURN:0,1-Math.exp(-14*dt));
-    if(bow){ holdBow(wo); animFor(wo)(dt); const drawing=swinging&&hero.swingT<swingDur()*hitFrac(); DRAW=lerp(DRAW,drawing?1:0,1-Math.exp(-(drawing?16:40)*dt)); setDraw(wo,DRAW); } PLANTED.forEach(p=>animFor(p)(dt)); }; }
+    if(bow){ holdBow(wo); animFor(wo)(dt); const A=window.__aim, held=!!(A&&A.holding()); const drawing=swinging&&(held||hero.swingT<swingDur()*hitFrac()); DRAW=lerp(DRAW,drawing?(held?.35+.65*A.charge():1):0,1-Math.exp(-(drawing?16:40)*dt)); /* held, the string comes back with the charge */ setDraw(wo,DRAW); } PLANTED.forEach(p=>animFor(p)(dt)); }; }
 Object.keys(BOW_KINDS).forEach(k=>{ window.__weapons.register('bow-'+k,()=>makeBow(k)); });   // served by the weapon mount like a loaded sword
 window.__bow={kinds:()=>Object.keys(BOW_KINDS),info:k=>Object.assign({kind:k},BOW_KINDS[k]),make:makeBow,bowFor,arrows:()=>ARROWS.length,plant:plantBow,planted:()=>PLANTED.length,clear:()=>{ PLANTED.forEach(g=>scene.remove(g)); PLANTED.length=0; },
   fire:(g,dx,dy,dz)=>fireArrow(g.userData.kind,gripWorld(g),new THREE.Vector3(dx,dy||0,dz),ARROW_V),

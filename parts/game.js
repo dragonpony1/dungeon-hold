@@ -589,7 +589,7 @@ function heroUpdate(dt){
   let mx=0,mz=0; if(K.w) mz+=1; if(K.s) mz-=1; if(K.d) mx+=1; if(K.a) mx-=1; if(TOUCH){ mx+=joy.x; mz+=joy.y; }
   const len=Math.hypot(mx,mz); hero.moving=len>.05; hero.slow=len<.5;
   if(hero.moving){ mx/=Math.max(len,1); mz/=Math.max(len,1); const fx=Math.sin(cam.yaw), fz=Math.cos(cam.yaw), rx=-Math.cos(cam.yaw), rz=Math.sin(cam.yaw);
-    const vx=fx*mz+rx*mx, vz=fz*mz+rz*mx; const mul=(K.shift?11:7.5)/7.5*(1+heroStat('move')/100)*heroMult('move'); hero.spdMul=mul; const spd=7.5*mul; moveCircle(hero,vx*spd*dt,vz*spd*dt,.42,true);
+    const vx=fx*mz+rx*mx, vz=fz*mz+rz*mx; const mul=(K.shift?11:7.5)/7.5*(1+heroStat('move')/100)*heroMult('move'); hero.spdMul=mul; const spd=7.5*mul*(hero.aimSlow||1); moveCircle(hero,vx*spd*dt,vz*spd*dt,.42,true);
     hero.yaw=angLerp(hero.yaw,Math.atan2(vx,vz),1-Math.exp(-12*dt)); hero.ph+=dt*10*mul; }
   const fl=floorAt(hero.x,hero.z,hero.y); hero.vy-=20*dt; hero.y+=hero.vy*dt; if(hero.y<=fl){ if(!hero.grounded&&hero.vy<-3) SFX.land(); hero.y=fl; hero.vy=0; hero.grounded=true; } else hero.grounded=false;
   const stp=Math.floor(hero.ph/PI); if(stp!==hero.lastStep){ hero.lastStep=stp; if(hero.moving&&hero.grounded) SFX.step(); }
@@ -612,7 +612,7 @@ function hurtCrystal(dmg){ if(S.phase==='dead'||S.phase==='won') return; S.cryst
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=29;
+const BUILD=30;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -717,7 +717,8 @@ fetchMobGLB('orc',ASSET('orc.glb')); fetchMobGLB('ogre',ASSET('ogre.glb')); fetc
 // ================= CAMERA =================
 function updateCamera(dt){
   if(S.phase==='start'){ introA+=dt*.1; camera.position.set(Math.sin(introA)*15,6.5,Math.cos(introA)*15); camera.lookAt(0,2.6,0); return; }
-  const tx=hero.x, ty=hero.y+1.5, tz=hero.z;
+  let tx=hero.x, ty=hero.y+1.5, tz=hero.z;
+  if(cam.shoulder>.01){ const rx=-Math.cos(cam.yaw), rz=Math.sin(cam.yaw); let o=cam.shoulder*1.1; for(;o>.05;o*=.5){ const g=gat(wc(hero.x+rx*o),wcz(hero.z+rz*o)); if(!(g===T.WALL||g===T.PILLAR||g===T.PROP)) break; } if(o>.05){ tx+=rx*o; tz+=rz*o; } }   // over the right shoulder (a ranged hero), so the hero doesn't stand over what they aim at; less when a wall is at that shoulder
   const cp=Math.cos(cam.pitch), fx=Math.sin(cam.yaw)*cp, fz=Math.cos(cam.yaw)*cp, fy=Math.sin(cam.pitch);
   let d=cam.dist; for(let s=.5;s<cam.dist;s+=.25){ const px=tx-fx*s, py=ty+fy*s, pz=tz-fz*s; if(!OUT&&py>WALLH-.35){ d=s-.3; break; } /* under a roof the camera stays below it; outdoors it may rise over the walls */ if(py<floorH(px,pz)+.5){ d=s-.4; break; } const g=gat(wc(px),wcz(pz)); if(g===T.WALL||g===T.PILLAR||g===T.PROP){ d=s-.5; break; } }
   d=Math.max(d,1.0); cam.d=dt>0?(d<cam.d?d:lerp(cam.d,d,1-Math.exp(-6*dt))):d;

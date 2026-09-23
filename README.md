@@ -4,7 +4,7 @@ A Dungeon Defenders–style 3D tower defense: a gnome warden, a crystal to hold,
 physical tavern (locker, barkeep, trainer, anvil), six familiars, Meshy-made models. Three.js r128, plain JavaScript, one
 page plus an `assets/` folder. Desktop first, tablet at most.
 
-Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 29; a second copy at https://claude.ai/artifact/G178miB5MXnvFLeqenipmE).
+Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 30; a second copy at https://claude.ai/artifact/G178miB5MXnvFLeqenipmE).
 
 ## Layout
 
@@ -215,6 +215,19 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 - The loot hook: a piece that has landed within 3.2 units of the hero flies to their hands and is bagged (no need to stand
   on it; the test magnet extends it to anywhere). Walking over a piece still works. A legendary's bonus stat is drawn from
   the rollable stats only (the forge-only ones — defense speed and range, pet projectiles — are bought, never rolled).
+
+- `84-aim.js`: aiming for the archer and the witch — a reticle, a two-phase press-to-draw/release-to-loose attack, and a
+  shoulder camera. The camera's own facing is the aim; `pick(yaw)` finds the mob nearest that line, in reach and in sight
+  (a wide cone up close, narrow at range), and the reticle locks brackets onto it or shows a crosshair where the shot would
+  land with nothing there. Pressing (mouse, the touch ⚔ button, or `__aim.press()`) starts the swing and holds it: the
+  archer's clip freezes at full draw, the witch's at her wind-up with the staff levelled at the target (`pointStaff`, turned
+  about the grip so the fist doesn't slide), the charge ring fills over `fullT()` seconds (quicker with attack speed, a
+  ping at full), and the hero walks at half speed while holding. Releasing looses at the current charge: a tap does 60%
+  damage, a full charge 130% and something extra — a full-draw arrow flies faster and pierces two more mobs, a full-charge
+  bolt is bigger and bursts on the mobs beside the one it hits. The camera itself shifts over the hero's right shoulder
+  while a ranged weapon is out (`cam.shoulder`, eased in `updateCamera`, backing off if a wall is at that shoulder) so the
+  hero's own body doesn't block the target. `aim-test.mjs` covers the reticle, the hold, both release strengths, piercing,
+  the staff's point-and-charge, and that nothing shows while placing a defense.
 
 ## Open items
 
