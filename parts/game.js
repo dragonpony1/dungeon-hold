@@ -77,7 +77,7 @@ const MAPS=[
   lights:[[-9,4.4,-9,0xff8a2a,1.5,16],[9,4.4,-9,0xff8a2a,1.5,16],[-9,4.4,9,0xff8a2a,1.5,16],[9,4.4,9,0xff8a2a,1.5,16],
    [0,5,-6,0xffb05a,.8,13],[0,3.2,0,0x4ae6ff,1.3,15],[0,4,-18,0xff8a2a,1.7,15],[0,4,-26,0xff8a2a,1.2,12],[-16,4,0,0xff8a2a,1.7,15],[-24,4,-10,0xff8a2a,1.5,14],[-24,4,-22,0xff8a2a,1.4,13],[18,4,0,0xff8a2a,1.7,15],[28,4,0,0xff8a2a,1.6,15],[-22,4,-26,0xc040ff,.9,10],[0,4,-28,0xc040ff,.9,10],[30,4,0,0xc040ff,.9,10],
    [0,4.2,19,0xffb05a,1.3,13],[-6,3.8,24,0xff8a2a,1.2,12],[6,3.8,22,0xff8a2a,1.2,12],[0,2.2,26.4,0xff7a1a,1.6,9]]},   // the tavern: lamps and the hearth
- {id:'throne',name:'THE THRONE ROOM',sub:'a marble stair hall: up a flight, along the landing, turn, up again · feeder gates open on the landings · seven waves',gw:27,gh:48,crystal:[13,6],waves:7,wallH:14,fog:[36,110],style:{marble:true,windows:true,rails:true},
+ {id:'throne',name:'THE THRONE ROOM',sub:'a marble stair hall: up a flight, along the landing, turn, up again · feeder gates open on the landings · seven waves',gw:27,gh:48,crystal:[13,6],waves:7,wallH:18,fog:[36,110],style:{marble:true,windows:true,rails:true},
   build(f,g,h,ramp){ f(4,22,3,9,T.FLOOR); h(4,22,3,9,6); f(12,14,3,9,T.CARPET); f(12,14,5,7,T.DAIS); g(13,6,T.CRYSTAL);   // the top: the throne and the crystal, six up
     f(11,15,10,13,T.CARPET); ramp(11,15,10,13,1,4,6);   // the third flight: up the middle of the upper landing to the throne
     f(4,10,10,13,T.FLOOR); h(4,10,10,13,4); f(16,22,10,13,T.FLOOR); h(16,22,10,13,4); f(4,22,14,16,T.FLOOR); h(4,22,14,16,4);   // the upper landing, four up: galleries either side of the flight, a walk along the front
@@ -550,7 +550,7 @@ function hurtCrystal(dmg){ if(S.phase==='dead'||S.phase==='won') return; S.cryst
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=21;
+const BUILD=22;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -725,7 +725,7 @@ function placeDef(kind,cx,cz,rot){ const t=gat(cx,cz); if(!(t===T.FLOOR||t===T.C
 function removeDef(d){ scene.remove(d.mdl); if(hoverFor===d){ if(hoverSector) scene.remove(hoverSector); hoverSector=null; hoverFor=null; } for(const i of (d.cells||[idx(d.cx,d.cz)])) if(defAt[i]===d) defAt[i]=null; const i=defs.indexOf(d); if(i>=0) defs.splice(i,1); S.du-=DEFS[d.kind].du; reflow(); }
 function hurtDef(d,dmg){ d.hp-=dmg; d.shake=.25; d.calm=0; floatText(d.x,d.top+.6,d.z,String(dmg),'#ff6a5a'); if(d.hp<=0){ removeDef(d); SFX.destroy(); toast(DEFS[d.kind].name+' destroyed!'); } }
 function fire(d,e){ const cfg=DEFS[d.kind]; const fx=Math.sin(d.yaw), fz=Math.cos(d.yaw); d.recoil=1;
-  if(d.kind==='harpoon'){ const m=harpoonMesh(); m.rotation.y=d.yaw; scene.add(m); projs.push({kind:'harpoon',x:d.x+fx*.9,y:d.base+1.35,z:d.z+fz*.9,fx,fz,spd:26,life:stat(d,'range')/26,hit:new Set(),dmg:stat(d,'dmg'),mesh:m}); SFX.harpoon(); }
+  if(d.kind==='harpoon'){ const m=harpoonMesh(); const pt=d.pitch||0, cp=Math.cos(pt), sp=Math.sin(pt); m.rotation.set(-pt,d.yaw,0,'YXZ'); scene.add(m); projs.push({kind:'harpoon',x:d.x+fx*cp*.9,y:d.base+1.35+sp*.9,z:d.z+fz*cp*.9,fx:fx*cp,fz:fz*cp,vy:26*sp,spd:26,life:stat(d,'range')/26,hit:new Set(),dmg:stat(d,'dmg'),mesh:m}); SFX.harpoon(); }   // the bolt leaves along the yoke's tilt
   else if(d.kind==='acorn'){ for(let k=0;k<(cfg.shots||3);k++){ const a=d.yaw+(k-1)*.21+R(-.05,.05); const ax=Math.sin(a), az=Math.cos(a); const m=acornMesh(); scene.add(m); projs.push({kind:'acorn',x:d.x+ax*.9,y:d.base+1.25,z:d.z+az*.9,vx:ax*15,vy:2.2,vz:az*15,life:1.3,bounces:0,dmg:stat(d,'dmg'),mesh:m}); } SFX.acorn(); }
   else { // trebuchet: lob a turnip so it lands where the target is heading
     const m=turnipMesh(); scene.add(m); const x0=d.x+fx*.6, z0=d.z+fz*.6, y0=d.base+2.4; const T=clamp(Math.hypot(e.x-x0,e.z-z0)/11,.5,1.6); const lead=(e.walking?mobSpd(e)*T*.8:0); const tx=e.x+Math.sin(e.yaw)*lead, tz=e.z+Math.cos(e.yaw)*lead; /* lead a walking target by most of the flight time */ const fl=baseFloor(tx,tz)+.35; const vy=((fl-y0)+.5*18*T*T)/T;
@@ -743,9 +743,9 @@ function updateDefs(dt){ const trampled=[];
   for(const d of defs){ const cfg=DEFS[d.kind]; d.pop=Math.min(1,d.pop+dt*4); const s=(d.pop<1?easeOutBack(d.pop):1)*(d.kind==='slice'?stat(d,'range')/cfg.range:(1+.07*(d.lvl-1))); d.mdl.scale.set(s,s,s); d.cd-=dt; d.shake=Math.max(0,d.shake-dt); d.recoil=Math.max(0,d.recoil-dt*4);
     d.mdl.position.set(d.x+(d.shake>0?(rnd()-.5)*.12:0),d.base,d.z+(d.shake>0?(rnd()-.5)*.12:0));
     if(d.kind==='harpoon'||d.kind==='ball'||d.kind==='acorn'){ const half=arcOf(d)*PI/360; let best=null, bd=stat(d,'range'); for(const e of enemies){ if(e.dead) continue; const dd=Math.hypot(e.x-d.x,e.z-d.z); if(dd<bd&&Math.abs(angDiff(d.rot,Math.atan2(e.x-d.x,e.z-d.z)))<=half&&los(d.x,d.z,e.x,e.z)){ bd=dd; best=e; } }
-      if(best){ const ty=Math.atan2(best.x-d.x,best.z-d.z); d.yaw=angLerp(d.yaw,ty,1-Math.exp(-7*dt)); if(d.cd<=0&&Math.abs(angDiff(d.yaw,ty))<.25){ d.cd=stat(d,'cd'); fire(d,best); } } else d.yaw=angLerp(d.yaw,d.rot,1-Math.exp(-2*dt));
+      if(best){ const ty=Math.atan2(best.x-d.x,best.z-d.z); d.yaw=angLerp(d.yaw,ty,1-Math.exp(-7*dt)); if(d.kind==='harpoon'){ const tp=clamp(Math.atan2((best.y+best.h*.55)-(d.base+1.35),Math.max(1,Math.hypot(best.x-d.x,best.z-d.z))),-.6,1.1); d.pitch=lerp(d.pitch||0,tp,1-Math.exp(-7*dt)); } /* a ballista tilts to a drake in the air or a mob on a landing */ if(d.cd<=0&&Math.abs(angDiff(d.yaw,ty))<.25){ d.cd=stat(d,'cd'); fire(d,best); } } else { d.yaw=angLerp(d.yaw,d.rot,1-Math.exp(-2*dt)); if(d.kind==='harpoon') d.pitch=lerp(d.pitch||0,0,1-Math.exp(-2*dt)); }
       d.yaw=d.rot+clamp(angDiff(d.rot,d.yaw),-half,half);
-      const y=d.mdl.userData.yoke; y.rotation.y=d.yaw-d.rot; if(d.kind==='ball'){ if(d.mdl.userData.arm) d.mdl.userData.arm.rotation.x=-.9+d.recoil*2.0; d.mdl.userData.ball.visible=d.cd<cfg.cd*.5; } else { y.position.z=-d.recoil*.22; d.mdl.userData.hp.visible=d.cd<cfg.cd*.45; } }
+      const y=d.mdl.userData.yoke; y.rotation.y=d.yaw-d.rot; if(d.kind==='harpoon') y.rotation.x=-(d.pitch||0); if(d.kind==='ball'){ if(d.mdl.userData.arm) d.mdl.userData.arm.rotation.x=-.9+d.recoil*2.0; d.mdl.userData.ball.visible=d.cd<cfg.cd*.5; } else { y.position.z=-d.recoil*.22; d.mdl.userData.hp.visible=d.cd<cfg.cd*.45; } }
     else if(d.kind==='slice'){ const rr=stat(d,'range'); const near=[]; for(const e of enemies){ if(!e.dead&&!e.fly&&Math.hypot(e.x-d.x,e.z-d.z)<rr+e.r*.5) near.push(e); }
       d.spin=lerp(d.spin,near.length?1.8:.5,1-Math.exp(-3*dt)); const hub=d.mdl.userData.hub; if(hub){ hub.rotation.y+=d.spin*dt; const lift=near.length?1.7:1.1; for(const pf of hub.children){ const k=((S.t*.45+pf.userData.ph)%1.1)/1.1; pf.position.y=.25+k*lift; pf.material.opacity=(.22+Math.min(near.length,4)*.06)*(1-k); } }
       for(const e of near) e.slowT=.5;
@@ -759,8 +759,8 @@ function updateDefs(dt){ const trampled=[];
 function updateProj(dt){}
 function updateProj(dt){
   for(let i=projs.length-1;i>=0;i--){ const p=projs[i]; let dead=false;
-    if(p.kind==='harpoon'){ p.life-=dt; dead=p.life<=0; const nx=p.x+p.fx*p.spd*dt, nz=p.z+p.fz*p.spd*dt; const g=gat(wc(nx),wcz(nz)); if(g===T.WALL||g===T.PILLAR) dead=true; p.x=nx; p.z=nz;
-      for(const e of enemies){ if(e.dead||p.hit.has(e)) continue; if(Math.hypot(e.x-p.x,e.z-p.z)<e.r+.5){ p.hit.add(e); hurt(e,p.dmg,p.fx*.9,p.fz*.9); SFX.hit(); } } p.mesh.position.set(p.x,p.y,p.z); }
+    if(p.kind==='harpoon'){ p.life-=dt; dead=p.life<=0; const nx=p.x+p.fx*p.spd*dt, nz=p.z+p.fz*p.spd*dt, ny=p.y+(p.vy||0)*dt; const g=gat(wc(nx),wcz(nz)); if(g===T.WALL||g===T.PILLAR||ny<baseFloor(nx,nz)+.05||ny>WALLH) dead=true; /* into a wall, the floor, a landing's face or the ceiling */ p.x=nx; p.z=nz; p.y=ny;
+      for(const e of enemies){ if(e.dead||p.hit.has(e)) continue; if(Math.hypot(e.x-p.x,e.z-p.z)<e.r+.5&&p.y>e.y-.4&&p.y<e.y+e.h+.5){ p.hit.add(e); hurt(e,p.dmg,p.fx*.9,p.fz*.9); SFX.hit(); } } p.mesh.position.set(p.x,p.y,p.z); }   // a bolt hits what it flies through, at its own height
     else if(p.kind==='acorn'){ p.life-=dt; dead=p.life<=0; const nx=p.x+p.vx*dt; if(wallAt(nx+Math.sign(p.vx)*.3,p.z)){ p.vx=-p.vx*.8; p.bounces++; } else p.x=nx; const nz=p.z+p.vz*dt; if(wallAt(p.x,nz+Math.sign(p.vz)*.3)){ p.vz=-p.vz*.8; p.bounces++; } else p.z=nz;
       const fl=baseFloor(p.x,p.z)+.3; p.vy-=14*dt; p.y+=p.vy*dt; if(p.y<fl){ p.y=fl; p.vy=-p.vy*.45; p.vx*=.8; p.vz*=.8; p.bounces++; } if(p.bounces>2) dead=true;
       for(const e of enemies){ if(e.dead) continue; if(Math.hypot(e.x-p.x,e.z-p.z)<e.r+.45&&Math.abs(e.y+e.h*.5-p.y)<e.h){ hurt(e,p.dmg,p.vx*.05,p.vz*.05); SFX.hit(); dead=true; break; } }

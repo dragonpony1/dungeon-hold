@@ -62,9 +62,9 @@ wave count. Height: `hgt`/`rampA` per cell, `floorH(x,z)` (stairs are two flat s
 ledge taller than a step, a flight is entered and left at its ends only (never over its side), no building on stairs;
 raised tops and stone drops are generated after the walls (pale stone in marble halls), gates, torches, banners and
 windows sit on the floor of the cell they stand at, and `style.rails` adds a balustrade (instanced posts and a gold rail)
-along every drop of a step and a half or more.
+along every drop of a step and a half or more. The ballista pitches (`d.pitch`, the yoke's rotation.x) at its target's height, so it tilts up at a drake or a mob on a landing, and its bolt flies in three dimensions: it dies on a wall, the floor, a landing's face or the ceiling, and hits what it passes through at its own height (`ballista-test.mjs`).
 
-Maps so far: 1 The Gnome Hall (the original), 2 The Throne Room (a 27×48 marble stair hall under a 14-high ceiling with
+Maps so far: 1 The Gnome Hall (the original), 2 The Throne Room (a 27×48 marble stair hall under an 18-high ceiling with
 arched windows and drapes, built as a switchback climb: the horde comes in at the south gate on the floor, climbs the first
 flight up the east wall to the lower landing (two up), walks the landing's length, turns up the second flight on the west
 wall to the upper landing (four up), then the third flight up the middle to the throne platform (six up) with the crystal
