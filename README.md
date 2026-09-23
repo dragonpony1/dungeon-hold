@@ -4,7 +4,7 @@ A Dungeon Defenders–style 3D tower defense: a gnome warden, a crystal to hold,
 physical tavern (locker, barkeep, trainer, anvil), six familiars, Meshy-made models. Three.js r128, plain JavaScript, one
 page plus an `assets/` folder. Desktop first, tablet at most.
 
-Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 26; a second copy at https://claude.ai/artifact/G178miB5MXnvFLeqenipmE).
+Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 27; a second copy at https://claude.ai/artifact/G178miB5MXnvFLeqenipmE).
 
 ## Layout
 
@@ -135,8 +135,11 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   looses an arrow (`fireArrow`: a shaft, steel head, fletching in the bow's colour) from the grip at the nearest mob in the
   cone within `hero.reach`; it flies flat, stops in the first mob it meets or dies on a wall, the floor or at range. The
   mounted bow is re-aimed every frame in world space (`holdBow`: upright, facing the archer's way, its grip slid back into
-  the fist) because the hand's own turn would lay it flat when the arm comes up to aim. `bowFor(item)` picks by tier or the
-  set's `models.bow`.
+  the fist) because the hand's own turn would lay it flat when the arm comes up to aim. The Meshy archery clip aims 90° to
+  the left of the body, as a real archer stands, so while the shot plays the body turns side-on (`heroYawOff`, blended in
+  and out) and the bow arm points down the aim; the string is drawn back in two halves with a nocked arrow on it until the
+  release (`setDraw`). Arrows are stout and slow enough to follow (`ARROW_L`, `ARROW_V`), with a glow at the head and a
+  streak behind. `bowFor(item)` picks by tier or the set's `models.bow`.
 - `80-weapons.js` mounts a weapon model on the hero's `weaponMount_<cm>` (a sword), `staffMount_<cm>` (a staff) or `bowMount_<cm>` (a bow) node:
   the grip point (`userData.gripF` of the template's height) sits on the mount, the blade or shaft runs up its +Y, scaled
   so the length above the grip is the mount's length (× `userData.lenScale`; a staff is body-length). A set piece that is
