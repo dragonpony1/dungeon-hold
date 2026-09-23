@@ -8,21 +8,25 @@
 (function(){
 const HOLD={on:false,t:0,src:'',kind:null,paused:null,fullRung:false}; let ATK_TOUCH=false, API_HOLD=false, LAST_C=0;
 const LAST={x:0,y:0,locked:false,shown:false,charge:0};
-const FULL_BASE=.75, TAP_MUL=.6, FULL_MUL=1.3;
+const FULL_BASE=.5, TAP_MUL=.6, FULL_MUL=1.3;
 function rangedKind(){ const w=window.__weapons&&window.__weapons.mounted(); if(!w||!w.parent) return null; return /^bow-/.test(w.name)?'bow':/^staff-/.test(w.name)?'staff':null; }
 function fullT(){ return FULL_BASE*swingDur()/swingBase(); }
 function charge(){ return HOLD.on?clamp(HOLD.t/fullT(),0,1):0; }
 function aimYaw(){ return cam.yaw; }
-// the mob a shot would take: nearest the aim line (within ~28°, or ~60° up close), within reach, not behind a wall.
+const PITCH0=.42, UP_SCALE=1.9, DOWN_SCALE=.85, ELEV_MAX=.85;   // pitch0: the camera's own resting pitch, read as level aim; scaled so the full mouse-up range reaches a hovering drake (they sit only ~2.6 up) without overshooting past it
+function aimElev(){ const d=PITCH0-cam.pitch; return clamp(d*(d>0?UP_SCALE:DOWN_SCALE),-ELEV_MAX,ELEV_MAX); }
+function aimDir3(){ const yaw=aimYaw(), el=aimElev(), c=Math.cos(el); return {fx:Math.sin(yaw)*c,fy:Math.sin(el),fz:Math.cos(yaw)*c,yaw,el}; }
+// the mob a shot would take: nearest the aim line in full 3D (within ~28°, or ~60° up close), within reach, not behind a
+// wall — aiming up genuinely favours a drake overhead over a goblin at your feet, and the other way round.
 // once a mob has the lock it keeps it through a looser retain check (a wider cone, a longer leash) so the reticle doesn't
 // flicker between two goblins jostling for the same spot as the horde closes in — only a dead, blocked or well-clear target
 // loses the lock, never a marginally-better-scored neighbour.
 let LOCK=null;
-function inCone(e,fx,fz){ const dx=e.x-hero.x, dz=e.z-hero.z, d=Math.hypot(dx,dz); if(d<.01) return null; const c=(dx*fx+dz*fz)/d; return {d,c}; }
-function pick(yaw){ const fx=Math.sin(yaw), fz=Math.cos(yaw); const range=hero.reach||9;
-  if(LOCK&&!LOCK.dead){ const m=inCone(LOCK,fx,fz); if(m&&m.d<=range*1.2+LOCK.r&&m.c>=(m.d<3?.35:.72)&&los(hero.x,hero.z,LOCK.x,LOCK.z)) return LOCK; }   // the current lock, given a looser leash
-  LOCK=null; let best=null, bs=1e9;
-  for(const e of enemies){ if(e.dead) continue; const m=inCone(e,fx,fz); if(!m||m.d>range+e.r) continue; if(m.c<(m.d<3?.5:.88)) continue; if(!los(hero.x,hero.z,e.x,e.z)) continue; const s=(1-m.c)*8+m.d/range; if(s<bs){ bs=s; best=e; } }
+function inCone(e,fx,fy,fz){ const dx=e.x-hero.x, dy=(e.y+e.h*.5)-(hero.y+1.3), dz=e.z-hero.z, d=Math.hypot(dx,dy,dz); if(d<.01) return null; const c=(dx*fx+dy*fy+dz*fz)/d; return {d,c}; }
+function pick(yaw){ const el=aimElev(), ce=Math.cos(el); const fx=Math.sin(yaw)*ce, fy=Math.sin(el), fz=Math.cos(yaw)*ce; const range=hero.reach||9;
+  let best=null, bs=1e9;   // always scan fresh, so a deliberate re-aim (pitching up onto a drake) can override a stale lock, not just lose it
+  for(const e of enemies){ if(e.dead) continue; const m=inCone(e,fx,fy,fz); if(!m||m.d>range+e.r) continue; if(m.c<(m.d<3?.5:.88)) continue; if(!los(hero.x,hero.z,e.x,e.z)) continue; const s=(1-m.c)*8+m.d/range; if(s<bs){ bs=s; best=e; } }
+  if(LOCK&&!LOCK.dead&&LOCK!==best){ const m=inCone(LOCK,fx,fy,fz); if(m&&m.d<=range*1.2+LOCK.r&&m.c>=(m.d<3?.35:.72)&&los(hero.x,hero.z,LOCK.x,LOCK.z)){ const ls=(1-m.c)*8+m.d/range; if(!best||ls<=bs+1.5) return LOCK; } }   // the retained lock, but only kept over a fresh pick when it's still competitive, not just barely legal
   LOCK=best; return best; }
 // what the shot being loosed carries (read by the bow and staff shots)
 function shot(){ const c=LAST_C; return {c,mul:TAP_MUL+(FULL_MUL-TAP_MUL)*c,full:c>=.999}; }
@@ -44,7 +48,7 @@ const PT={w:0,glow:0}, _pq=new THREE.Quaternion(), _qa=new THREE.Quaternion(), _
 function pointStaff(dt,k){ const wo=window.__weapons&&window.__weapons.mounted(); if(k!=='staff'||!wo||!wo.parent||!wo.userData.sword){ PT.w=0; PT.glow=0; return; } const sd=wo.userData.sword;
   const on=HOLD.on||hero.swingT>=0; PT.w=lerp(PT.w,on?1:0,1-Math.exp(-(on?14:6)*dt)); PT.glow=lerp(PT.glow,charge(),1-Math.exp(-10*dt));
   const fist=wo.parent.getWorldPosition(_v); const yaw=aimYaw(); const t=pick(yaw); let hx, hz, el;
-  if(t){ const dx=t.x-fist.x, dz=t.z-fist.z, dh=Math.max(.01,Math.hypot(dx,dz)); hx=dx/dh; hz=dz/dh; el=Math.atan2((t.y+t.h*.55)-fist.y,dh); } else { hx=Math.sin(yaw); hz=Math.cos(yaw); el=0; }
+  if(t){ const dx=t.x-fist.x, dz=t.z-fist.z, dh=Math.max(.01,Math.hypot(dx,dz)); hx=dx/dh; hz=dz/dh; el=Math.atan2((t.y+t.h*.55)-fist.y,dh); } else { const d3=aimDir3(); hx=Math.sin(d3.yaw); hz=Math.cos(d3.yaw); el=d3.el; }
   el=clamp(el+.5,-.2,1.25); _d.set(hx*Math.cos(el),Math.sin(el),hz*Math.cos(el));   // the head lifted about 30° over the line to the target: levelled, not lanced
   wo.parent.getWorldQuaternion(_pq); _qa.setFromUnitVectors(_Y,_d); _qa.premultiply(_pq.invert()); _q.copy(_q0).slerp(_qa,PT.w); wo.quaternion.copy(_q); _g.set(0,sd.gripY*sd.scale,0).applyQuaternion(wo.quaternion); wo.position.copy(_g).negate();   // turned about the grip: the fist keeps its place on the shaft
   const gl=wo.getObjectByName('glow'); if(gl){ let base=GLOWS.get(gl); if(base===undefined){ base=gl.scale.x; GLOWS.set(gl,base); } gl.scale.setScalar(base*(1+2.2*PT.glow)); } }
@@ -68,14 +72,13 @@ function drawAim(){ LAST.shown=false; const k=rangedKind(); if(!k||placing||hero
     for(const [sx,sy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){ const x=cx+sx*w/2, y=cy+sy*h/2; stroke2(g,cc,2.5+pul*1.5,()=>{ g.moveTo(x-sx*L,y); g.lineTo(x,y); g.lineTo(x,y-sy*L); }); }   // corner brackets round the locked mob
     stroke2(g,cc,2,()=>{ g.moveTo(cx-4,cy); g.lineTo(cx+4,cy); g.moveTo(cx,cy-4); g.lineTo(cx,cy+4); });
     Object.assign(LAST,{x:cx,y:cy,locked:true}); }
-  else { cx=ov.width/2; cy=ov.height/2; r=16;   // nothing in reach: the camera always looks at the hero's own chest height, so
-    // that point is exactly screen centre in every frame — a fixed crosshair there, not a reprojected 3D point that would
-    // slide around the screen as the camera's orbit pitch changes (that was the "aiming up throws it off" bug)
+  else { const d3=aimDir3(), reach=hero.reach||9, y0=hero.y+1.3; let s=1; for(;s<reach;s+=.5){ const px=hero.x+d3.fx*s, pz=hero.z+d3.fz*s; if(wallAt(px,pz)) break; if(d3.fy<-1e-4&&y0+d3.fy*s<=baseFloor(px,pz)+.1) break; }
+    const p=proj(hero.x+d3.fx*s,y0+d3.fy*s,hero.z+d3.fz*s); if(!p){ g.restore(); return; } cx=p[0]; cy=p[1]; r=16;   // nothing in reach: a point along the real 3D aim ray, clipped to the floor when it dips that low, so a steep downward look lands nearby instead of projecting far off underground
     g.globalAlpha=.75; stroke2(g,col,2,()=>{ g.arc(cx,cy,7,0,TAU); }); stroke2(g,col,2,()=>{ for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ g.moveTo(cx+dx*10,cy+dy*10); g.lineTo(cx+dx*15,cy+dy*15); } }); g.globalAlpha=1;
     Object.assign(LAST,{x:cx,y:cy,locked:false}); }
   if(HOLD.on){ g.globalAlpha=.35; stroke2(g,col,3,()=>{ g.arc(cx,cy,r,0,TAU); }); g.globalAlpha=1; if(c>0) stroke2(g,full?'#ffffff':col,3.5,()=>{ g.arc(cx,cy,r,-PI/2,-PI/2+c*TAU); }); }   // the charge ring fills as the string comes back
   LAST.shown=true; LAST.charge=c; g.restore(); }
 { const prev=drawOverlay; drawOverlay=function(){ prev(); drawAim(); }; }
-window.__aim={kind:rangedKind,holding:()=>HOLD.on,charge,lastCharge:()=>LAST_C,pick:y=>pick(y===undefined?aimYaw():y),yaw:aimYaw,shot,fullT,
+window.__aim={kind:rangedKind,holding:()=>HOLD.on,charge,lastCharge:()=>LAST_C,pick:y=>pick(y===undefined?aimYaw():y),yaw:aimYaw,elev:aimElev,dir3:aimDir3,shot,fullT,
   press:()=>{ API_HOLD=true; swing(); }, release:()=>{ API_HOLD=false; }, reticle:()=>Object.assign({},LAST), point:()=>+PT.w.toFixed(2), paused:()=>!!HOLD.paused};
 })();

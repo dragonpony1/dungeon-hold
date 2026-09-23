@@ -4,7 +4,7 @@ A Dungeon Defenders–style 3D tower defense: a gnome warden, a crystal to hold,
 physical tavern (locker, barkeep, trainer, anvil), six familiars, Meshy-made models. Three.js r128, plain JavaScript, one
 page plus an `assets/` folder. Desktop first, tablet at most.
 
-Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 31; a second copy at https://claude.ai/artifact/G178miB5MXnvFLeqenipmE).
+Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 32; a second copy at https://claude.ai/artifact/G178miB5MXnvFLeqenipmE).
 
 ## Layout
 
@@ -40,7 +40,8 @@ node familiar-test.mjs                  # the single-file fallback suite reads $
 ```
 Suites: feat, loot, glb, place, csp, mob, mobpath, meta, tavern, tavernroom, familiar, familiars2, cone, music, defglb,
 ballista, lootfeel, weapons, towers, paperdoll, casino, ogre, forge, fix-r1, fix-r2, heroes, void, sets, throne, campaign, maps,
-moat. Run them one at a time: ten in parallel time out on page loads (the page is 6.8 MB).
+moat, aim, newmobs, trollboss, armory, totem, pause, pwa, share, and the verify-* adversarial suites. Run them one at a
+time: ten in parallel time out on page loads (the page is 6.8 MB).
 
 ## Adding Meshy art
 
@@ -222,26 +223,36 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   land with nothing there. Pressing (mouse, the touch ⚔ button, or `__aim.press()`) starts the swing and holds it: the
   archer's clip freezes at full draw, the witch's at her wind-up with the staff levelled at the target (`pointStaff`, turned
   about the grip so the fist doesn't slide), the charge ring fills over `fullT()` seconds (quicker with attack speed, a
-  ping at full), and the hero walks at half speed while holding. Releasing looses at the current charge: a tap does 60%
-  damage, a full charge 130% and something extra — a full-draw arrow flies faster and pierces two more mobs, a full-charge
-  bolt is bigger and bursts on the mobs beside the one it hits. The camera itself shifts over the hero's right shoulder
-  while a ranged weapon is out (`cam.shoulder`, eased in `updateCamera`, backing off if a wall is at that shoulder) so the
-  hero's own body doesn't block the target. `aim-test.mjs` covers the reticle, the hold, both release strengths, piercing,
-  the staff's point-and-charge, and that nothing shows while placing a defense.
+  ping at full — `FULL_BASE` is .5s now, was .75, so a tap-to-full-charge cycle comes round faster), and the hero walks at
+  half speed while holding. Releasing looses at the current charge: a tap does 60% damage, a full charge 130% and
+  something extra — a full-draw arrow flies faster and pierces two more mobs, a full-charge bolt is bigger and bursts on
+  the mobs beside the one it hits. The camera itself shifts over the hero's right shoulder while a ranged weapon is out
+  (`cam.shoulder`, eased in `updateCamera`, backing off if a wall is at that shoulder) so the hero's own body doesn't
+  block the target. `aim-test.mjs` covers the reticle, the hold, both release strengths, piercing, the staff's
+  point-and-charge, and that nothing shows while placing a defense.
 - The reticle keeps a target locked through a looser retain check once acquired (`LOCK` in `84-aim.js`), so it doesn't
-  flicker between two goblins jostling for the same spot as the horde closes in; a fresh acquisition still uses the
-  tighter cone. The free (nothing-in-reach) crosshair is anchored to literal screen centre rather than a reprojected 3D
-  point — the follow-camera always looks at the hero's own chest height, which is exactly centre-screen every frame
-  regardless of orbit pitch, so this is the one anchor that can't drift as the camera's pitch changes.
+  flicker between two goblins jostling for the same spot as the horde closes in; a fresh acquisition always runs against
+  a fresh scan too, so a deliberate re-aim (pitching up onto a drake overhead) can override a stale lock on a goblin at
+  your feet, not just lose it to one. Vertical aim is real: `aimElev()` reads the camera's own pitch as a genuine
+  look-up/down angle (scaled and capped — `PITCH0` is level, `UP_SCALE`/`DOWN_SCALE`/`ELEV_MAX` tuned so the top of the
+  range reaches a hovering drake without overshooting past it) and `aimDir3()` turns yaw + elevation into one 3D ray, used
+  for target-picking, the free crosshair's on-screen position and an unlocked shot's actual flight direction — the three
+  always agree, so the arrow goes where the reticle shows. The free crosshair walks that ray out to `hero.reach` but
+  stops it the moment a steep downward look would put it underground, landing it on the floor nearby instead of
+  projecting a point far away and buried — without that clip a steep-down aim swung the reticle the wrong way on screen.
 
 - Mobs: a bandit archer (`archer`, ranged 11) throws rocks from wave 3; a troll archer (`troll`, ranged 13, 65 hp, a
   Meshy rig merged the same way as the hero pipeline — `meshy/trollmob/merge.html`, no weapon mount needed since mob
   ranged attacks are a separate tween-based projectile system, `fireArrow(e,x,y,z,hit)` in the core engine, unrelated to
-  the hero bow module of the same function name) joins from wave 8, one every third wave, capped at four. Wave one is a
-  gentler five-goblin opener with a slower trickle (`waveComp`'s `w===1` branch) — the climb in count and mob tier still
-  starts properly at wave two, per the design: winnable out of the gate with defenses actually placed, harder only as
-  the waves go on.
-- A second troll mob is coming: a lavender mini-boss that throws magical grenades. Not merged yet.
+  the hero bow module of the same function name) joins from wave 8, one every third wave, capped at four. A lavender
+  troll boss (`trollboss`, 340 hp, the same merge pipeline again — `meshy/trollboss/merge.html`) is a healer and a
+  mini-boss in one: it lobs a magic grenade that splashes anything within 2.2 units of where it lands (`grenadeMesh`,
+  `fireArrow`'s `splash` field, applied to both the crystal and nearby defenses in `updateProj`), and every 3.2s pulses a
+  heal (`healAmt` 14 within `healR` 6.5) over every wounded mob in range, itself included — kill it first or the horde it's
+  minding outlasts you. Joins from wave 12, every fifth wave after, capped at one. `trollboss-test.mjs` covers the rig,
+  the splash and the heal-pulse's range, and the wave-12 introduction. Wave one is a gentler five-goblin opener with a
+  slower trickle (`waveComp`'s `w===1` branch) — the climb in count and mob tier still starts properly at wave two, per
+  the design: winnable out of the gate with defenses actually placed, harder only as the waves go on.
 
 ## Open items
 

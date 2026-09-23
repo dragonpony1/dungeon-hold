@@ -50,7 +50,7 @@ function boltsUpdate(dt){ for(let i=BOLTS.length-1;i>=0;i--){ const b=BOLTS[i]; 
 // flies level with the aim, nudged toward the nearest mob ahead so a drake in the air or a goblin down a stair can be hit.
 { const prevHit=hitCone; hitCone=function(){ const wo=window.__weapons.mounted(); if(!(wo&&/^staff-/.test(wo.name))) return prevHit(); const from=staffHeadWorld(wo); const A=window.__aim, yaw=A?A.yaw():hero.yaw; const fx=Math.sin(yaw), fz=Math.cos(yaw); const range=hero.reach||9; let best=A?A.pick(yaw):null, bd=1e9;   // the aim module picks the target the reticle shows
     if(!A) for(const e of enemies){ if(e.dead) continue; const dx=e.x-hero.x, dz=e.z-hero.z, d=Math.hypot(dx,dz); if(d>range+e.r||d<.01||(dx*fx+dz*fz)/d<.8) continue; if(d<bd){ bd=d; best=e; } }
-    const dir=best?new THREE.Vector3(best.x-from.x,(best.y+best.h*.5)-from.y,best.z-from.z):new THREE.Vector3(fx,-.02,fz);
+    const d3=A&&A.dir3(); const dir=best?new THREE.Vector3(best.x-from.x,(best.y+best.h*.5)-from.y,best.z-from.z):(d3?new THREE.Vector3(d3.fx,d3.fy,d3.fz):new THREE.Vector3(fx,-.02,fz));   // nothing locked: fly the real 3D aim ray, not flat
     const sh=A?A.shot():{c:1,mul:1,full:false}, spd=26*(1+.35*sh.c); fireBolt(wo.userData.kind,from,dir,spd,{dmg:Math.round(heroDmg()*sh.mul*10)/10,life:(range+1)/spd,splash:sh.full?1.9:0,size:1+.7*sh.c}); SFX.harpoon(); }; }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); boltsUpdate(dt); const wo=window.__weapons.mounted(); if(wo&&/^staff-/.test(wo.name)) animFor(wo)(dt); PLANTED.forEach(p=>animFor(p)(dt)); }; }
 // ---- previews: staffs planted in the floor, and a shot from one (tests and the design bench) ----

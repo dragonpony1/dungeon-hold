@@ -66,7 +66,7 @@ function gripWorld(g){ return (g.getObjectByName('bowGrip')||g).getWorldPosition
 // the archer's attack: with a bow in hand a swing looses an arrow instead of sweeping the sword's cone (the staff's wrapper sits under this one)
 { const prevHit=hitCone; hitCone=function(){ const wo=window.__weapons.mounted(); if(!(wo&&/^bow-/.test(wo.name))) return prevHit(); const from=gripWorld(wo); const A=window.__aim, yaw=A?A.yaw():hero.yaw; const fx=Math.sin(yaw), fz=Math.cos(yaw); const range=hero.reach||12; let best=A?A.pick(yaw):null, bd=1e9;   // the aim module picks the target the reticle shows
     if(!A) for(const e of enemies){ if(e.dead) continue; const dx=e.x-hero.x, dz=e.z-hero.z, d=Math.hypot(dx,dz); if(d>range+e.r||d<.01||(dx*fx+dz*fz)/d<.75) continue; if(d<bd){ bd=d; best=e; } }
-    const dir=best?new THREE.Vector3(best.x-from.x,(best.y+best.h*.5)-from.y,best.z-from.z):new THREE.Vector3(fx,-.01,fz);
+    const d3=A&&A.dir3(); const dir=best?new THREE.Vector3(best.x-from.x,(best.y+best.h*.5)-from.y,best.z-from.z):(d3?new THREE.Vector3(d3.fx,d3.fy,d3.fz):new THREE.Vector3(fx,-.01,fz));   // nothing locked: fly the real 3D aim ray, not flat
     const sh=A?A.shot():{c:1,mul:1,full:false}, spd=ARROW_V*(1+.45*sh.c); fireArrow(wo.userData.kind,from,dir,spd,{dmg:Math.round(heroDmg()*sh.mul*10)/10,life:(range+1)/spd,pierce:sh.full?2:0,size:1+.4*sh.c}); SFX.harpoon(); }; }
 // a bow is always held upright and facing the way the archer faces, wherever the hand is: the mount's own turn (measured for a
 // staff hanging at the hip) would lay it flat when the arm comes up to aim. Each frame the mounted bow is re-aimed in world space
