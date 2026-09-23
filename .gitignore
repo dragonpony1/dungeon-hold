@@ -7,3 +7,6 @@ meshy/**/*.png
 meshy/**/*.zip
 meshy/**/*.wav
 meshy/**/*.mp3
+meshy/**/three.min.js
+meshy/**/GLTFLoader.js
+meshy/**/GLTFExporter.js

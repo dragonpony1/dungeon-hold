@@ -4,7 +4,7 @@ A Dungeon Defenders–style 3D tower defense: a gnome warden, a crystal to hold,
 physical tavern (locker, barkeep, trainer, anvil), six familiars, Meshy-made models. Three.js r128, plain JavaScript, one
 page plus an `assets/` folder. Desktop first, tablet at most.
 
-Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 19).
+Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 24; a second copy at https://claude.ai/artifact/G178miB5MXnvFLeqenipmE).
 
 ## Layout
 
@@ -39,7 +39,8 @@ DIST=$SP/dist node forge-test.mjs      # any *-test.mjs; run them one at a time 
 node familiar-test.mjs                  # the single-file fallback suite reads $SP/dungeon.html
 ```
 Suites: feat, loot, glb, place, csp, mob, mobpath, meta, tavern, tavernroom, familiar, familiars2, cone, music, defglb,
-ballista-shot, lootfeel, weapons, towers, paperdoll, casino, ogre, forge, fix-r1, fix-r2. All green on build 19.
+ballista, lootfeel, weapons, towers, paperdoll, casino, ogre, forge, fix-r1, fix-r2, heroes, void, sets, throne, campaign, maps,
+moat. Run them one at a time: ten in parallel time out on page loads (the page is 6.8 MB).
 
 ## Adding Meshy art
 
@@ -73,18 +74,39 @@ throne. Feeder gates open onto the landings as the waves go — the east lower l
 5, the east upper landing from 6 — each with a shorter climb than the last; balustrades line every drop; `throne-test.mjs`
 checks all of it and takes the `throne-*.png` shots), 3 The Cloister Court (outdoors under a night sky: a sunken court, a covered
 colonnade a step and a half up with four flights down, trees, three corner gates), 4 The Great Feast Hall (three long
-tables with benches and candles, four hearths, the crystal on the high-table dais, doors east, north and south).
-Map styles: `wallH`, `fog`, `style.marble` / `style.moss` (floor and wall painters), `style.windows` (arched windows with
-drapes), `style.outdoor` (no ceiling, night sky, stars and a moon), `roofs` (slabs over colonnades), `trees`, `tables` +
-`tableGaps`, `hearths`, `throne`, `chandeliers`, `pillarH`.
+tables with benches and candles, four hearths, the crystal on the high-table dais, doors east, north and south), 5 The
+Drawbridge (outdoors, 50×56: the castle's outer ward behind a curtain wall, a moat four cells wide across the whole map, the
+drawbridge over it in the middle and an old ford (a paved causeway) at the west end below a postern, a wide green before
+the walls with the royal road up the middle, lamp posts, stone gnome kings on plinths, braziers, the keep rising behind
+the ward with lit windows and the royal banner, twin gate towers with pennants, battlements on every wall, the portcullis
+raised in the gate arch, and the tavern as a walled roadside inn. Gates: the road's far end (wave 1), the west wood (2,
+walks the ford), the east wood (3, walks round to the bridge), a sally port in the ward's east wall (5). `moat-test.mjs`
+checks it and takes the `moat-*.png` shots).
+Map styles: `wallH`, `fog`, `style.marble` / `style.moss` / `style.grass` (floor and wall painters), `style.road` (carpet
+cells paint as pale paving with the gold edge), `style.windows` (arched windows with drapes), `style.outdoor` (no ceiling,
+night sky, stars and a moon, and the camera may rise above the walls), `roofs` (slabs over colonnades), `trees`, `tables` +
+`tableGaps`, `hearths`, `throne`, `chandeliers`, `pillarH`, `du` / `mana` (that map's roots cap and starting mana: 40/260
+on the hall, 80/480 in the throne room, 60/360 on the court and in the feast hall, 90/520 at the drawbridge), and
+`castle` (`towers` [x,z,r,h,'cone'?], `keep` [x0,x1,z0,z1,h], `arches` [x0,x1,z0,z1,underside], `bridge`, `chains`,
+`lamps`, `statues`, `braziers`; battlements go on every wall face except the inn's). The water tile `T.WATER` is a moat:
+walkers and the hero stop at the bank, flyers cross it (`bfs(…,fly)` and `solidAt` let a flyer over water), nothing is
+built on it; its cells sink to `WATER_BED` (-1.5) so the banks show as stone drops, a water map draws every cell's top
+itself instead of one floor plane, wall faces reach down to a sunken cell, and the surface is a painted ripple texture
+drifting over the bed with a fainter sheen drifting the other way (`WORLDANIM` runs the water and the pennants each frame).
+
+Design rule (Matt, Sep 23): every map from here on is outdoors or has a tall ceiling like the throne room's — no more low
+halls.
 
 Balance notes: the crystal has `CRYSTAL_MAX` (150) life; the Bramble Hedge is five cells wide (its three-cell model
 stretched to match) with 220 hp for 50 mana; ballista bolts are stout (thick shaft, broad head, fletching); asset fetches
-retry three times before falling back, so one dropped file can't cost the hero model.
+retry three times before falling back, so one dropped file can't cost the hero model. Roots (`DU_CAP`) and starting mana
+are per map (`MAP.du`, `MAP.mana`, see above): the bigger halls give more to build with. Drakes are frail (32 hp, 9
+damage, 4 mana) and come in flights that grow with the waves (`waveComp`: two on the sixth wave, six by the twelfth, a
+dozen by the twenty-first) — the difficulty is in their numbers, not their hides.
 
 ## Heroes, weapons, sets
 
-- `70-hero2.js` holds `HEROES` (Gnome Warden with a sword, Fae Battle Witch with a whip and reach 3.6); the start screen
+- `70-hero2.js` holds `HEROES` (Gnome Warden with a sword and reach 2.4, Gnome Battle Witch with a battle staff that shoots, reach 9); the start screen
   picks one (saved as `ddHero`); a pick swaps the model live. The start screen also has a testing line: unlock all maps,
   auto-mana (orbs fly to you from anywhere), +1000 gold, ↻ fresh reload (a plain reload; the page's URL is left alone since a host may sign it; saves kept) and wipe saves (two clicks: forgets every `dd*` key, then reloads fresh).
 - `82-staff.js` — battle staffs built in code, no model to load: six kinds (`hazel`, `copper`, `runed`, `storm`, `battle` for
@@ -94,29 +116,24 @@ retry three times before falling back, so one dropped file can't cost the hero m
   name (`animFor`) so a mounted clone turns its crystal and orbits its motes too. `fireBolt` throws a spark of the staff's
   colour that bursts on the first wall, ledge or floor; `__staff.plant/fire/fireFromHand/clear` are the design bench and
   `probes/staffshot.mjs` renders the row, a bolt, a burst and the staff in the Warden's hand (`__weapons.force(name)`
-  mounts any weapon regardless of gear). Meant for the gnome caster that replaces the witch; no hero wields one yet.
-- `80-weapons.js` mounts sword models on a `weaponMount_<cm>` node and whip models on a `whipMount_<cm>` node; a whip
-  model is cut into a handle and five chained lash segments (`rigWhip`). The lash is a small rope simulation
-  (`whipAnim`): five points hang from the handle under gravity, keep their lengths, trail the fist on a swing and snap round
-  after it; each segment points at the next point. `window.__weapons.tick(dt)` runs it while the sheet is open.
-- The witch's baked vine whip is cut off her mesh by `meshy/witch/merge.mjs` (`merge.html?whip=1&noreskin=1&axis=forearm`):
-  vertices are welded by position, the vine is seeded by its green texture colour and grown through connected triangles that
-  sit away from the bones, and a `whipMount_100` is added under LeftHand with its axis along the forearm (the vine's own
-  direction pointed through her leg — that was "she whips her leg").
-- The witch is a hybrid of two Meshy exports. The first export had the real mesh (8397 verts) with scrambled weights (ten of
-  22 bones, the left arm's skin on the right-arm bones — the "high kick"); the re-rig came back as a 217-triangle stand-in
-  with a sane skeleton and good clips (idle, walk, run, whip crack). `meshy/witch2/merge.mjs` runs
-  `merge.html?whip=1&reskin=auto&axis=forearm&grip=.03&mesh=old.glb`: the re-rig's skeleton and clips, the first export's
-  geometry and texture swapped in (`mesh=`), every vertex bound afresh to the nearest bone segments of the bind pose
-  (`reskin=auto`, core first: the trunk binds to the spine bones unless a limb bone outside the trunk hugs the vertex, above
-  the neck to the head bones; a limb bone that itself runs inside the trunk — this rig's right arm crosses the chest — may
-  not claim trunk vertices), the baked vine cut off, a `whipMount_<cm>` under LeftHand along the forearm. Clips keep
-  rotations and the hips only; a Meshy idle (`idle.glb`) replaces the breathing loop when present. `probes/skinhist2.mjs
-  <glb…>` prints every skinned primitive's weights per joint and encoding — run it on any new Meshy export first.
-- `72-witchswing.js`: a hand-made strike for a hero whose attack clip is unusable — the whip arm winds up over the shoulder
-  and snaps forward (bones aimed in world space and blended into the idle or walk pose), the clip never plays, the hit lands
-  at the snap. Nobody uses it now (the witch plays her own crack: a raised wind-up, then a low lunge); heroes opt in by id
-  in `PROC`, or at runtime `window.__armSwing.set('witch','Left')`.
+  mounts any weapon regardless of gear). The staff is strictly the witch's weapon: with one in hand her swing throws a
+  bolt from the crystal (`hitCone` is wrapped: aimed at the nearest mob in the cone within `hero.reach`, it hurts the first
+  mob it meets for `heroDmg()` and bursts there); `staffFor(item)` picks the staff by forge tier, or the set's own
+  (`pack.models.staff`, the Void set's `staff-void`).
+- `80-weapons.js` mounts a weapon model on the hero's `weaponMount_<cm>` (a sword) or `staffMount_<cm>` (a staff) node:
+  the grip point (`userData.gripF` of the template's height) sits on the mount, the blade or shaft runs up its +Y, scaled
+  so the length above the grip is the mount's length (× `userData.lenScale`; a staff is body-length). A set piece that is
+  a loaded GLB is tinted (darkened, burning the set's colour); a code-built staff already wears its colours. Whips are
+  gone (the whip models, the rope simulation and the `whipMount` are removed with the fae witch).
+- The Gnome Battle Witch is a Meshy re-rig merged by `meshy/witch3/merge.mjs` (`merge.html?hand=auto&len=90&grip=.045`):
+  the rig file's mesh and skeleton, the separate Meshy clips (walk, run, idle, staff thrust → Attack, jump, death) retargeted
+  by bone name, facing found from the `headfront` marker, the Attack clip cut to ±0.35 s around the arm's fastest motion,
+  Jump procedural, and a `staffMount_90` added under the hand that travels most in the thrust (LeftHand), placed at the
+  fist with +Y along world-up in the idle pose so the staff stands upright in her grip. `meshy/view.mjs` renders clip strips
+  to check a merge. The old fae witch (two Meshy exports, `meshy/witch` and `meshy/witch2`) is retired.
+- `72-witchswing.js`: a hand-made strike for a hero whose attack clip is unusable (the arm winds up over the shoulder and
+  snaps forward, bones aimed in world space and blended into the idle or walk pose). Nobody uses it; heroes opt in by id in
+  `PROC`, or at runtime `window.__armSwing.set('witch','Left')`.
 - Model files carry their content stamp in the name (`assets/witch.<sha1[0:8]>.glb.txt`, written by `assemble.mjs` for the
   folder build next to the plain copy) so a re-exported model is a new file and no browser or CDN cache can hand out the
   old one; `fetchBytes` falls back to the plain path if the stamped file is missing.
@@ -177,8 +194,10 @@ retry three times before falling back, so one dropped file can't cost the hero m
 
 ## Open items
 
-- Void set models: the concept art (runed blade, chain whip, shard charm, galaxy amulet, starless robe) is waiting on Meshy
-  exports; until then Void weapons use the holy sword / crystal whip darkened and burning violet.
+- Void set models: the concept art (runed blade, shard charm, galaxy amulet, starless robe) is waiting on Meshy exports;
+  until then the Void sword is the holy sword darkened and burning violet. The Void staff is done (`staff-void`, built in code).
+- Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); co-op (a room server on Cloudflare Durable
+  Objects, host-authoritative); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer.
 - Upgraded gear raises gear score, which nudges mob health up a little (rubber band); revisit if it feels punishing.
