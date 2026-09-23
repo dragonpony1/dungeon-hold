@@ -1,0 +1,16 @@
+import { chromium } from "playwright"; import { serve } from "./serve.mjs";
+const SP=process.env.SP; const server=await serve(8880);
+const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
+const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const ctx=await browser.newContext({viewport:{width:1100,height:700}}); const page=await ctx.newPage(); const errors=[]; page.on("pageerror",e=>errors.push(String(e))); page.on("console",m=>{ if(m.type()==="error") errors.push(m.text().slice(0,200)); });
+await page.goto("http://127.0.0.1:8880/?silent&nogate"); await page.waitForFunction(()=>window.__dd&&window.__sets&&window.__void&&window.__doll&&window.__dd.heroModel(),null,{timeout:90000});
+// only the great sets are sets: no ordinary drop carries an "of the …" name; the registry holds the Void set alone for now
+const r1=await page.evaluate(()=>{ const d=window.__dd; d.start(); d.S.wave=3; let ofThe=0; for(let i=0;i<600;i++){ const it=d.rollItem(1,undefined,3); if(/ of the /.test(it.name)) ofThe++; } return {names:window.__sets.names,sets:Object.keys(window.__sets.SETS),ofThe,packs:window.__packs.list()}; });
+check("the set frame lists only the Void set; 600 wave-3 Uncommon+ rolls carry no \"of the …\" name",r1.names.join()==="of the Void"&&r1.sets.join()==="of the Void"&&r1.ofThe===0&&r1.packs.join()==="of the Void",JSON.stringify(r1));
+// three pieces announce the small bonus, five the big one; the sheet's set panel shows the count; stat lines say "Void set 3/5"
+const r2=await page.evaluate(async()=>{ const d=window.__dd, M=window.__meta, V=window.__void; M.reset(); d.resetGear(); const toasts=[]; const T=document.getElementById("toast"); const mk=(slot)=>{ const it=d.rollItem(2,slot,6); it.rarity=2; V.make(it); M.giveItem(it); M.equip(it.id); toasts.push(T.textContent); return it; };
+  mk("weapon"); mk("armor"); const two=V.lvl(), t2=toasts[1]; const w3=mk("charm"); const three=V.lvl(), t3=toasts[2], line=d.statStr(w3); mk("amulet"); mk("familiar"); const five=V.lvl(), t5=toasts[4]; window.__doll.open(); await new Promise(r=>setTimeout(r,300)); const sheet=window.__doll.html(); window.__doll.close();
+  M.unequip("familiar"); const four=V.lvl(); return {two,three,five,four,t2,t3,t5,line,sheet3:/of the Void 5\/5/.test(sheet),panel:(sheet.match(/class="sr/g)||[]).length}; });
+check("two Void pieces: nothing; three: level 3 and a SET BONUS toast; five: level 5 and the big toast; the sheet's set panel has one row (of the Void 5/5); the stat line says Void set 3/5; unequipping one drops it to 4 (three-piece bonus stays)",r2.two===0&&r2.three===3&&r2.five===5&&r2.four===3&&!/SET BONUS/.test(r2.t2||"")&&/SET BONUS · of the Void \(3\/5\)/.test(r2.t3)&&/\(5\/5\)/.test(r2.t5)&&/VOID RIFT/.test(r2.t5)&&/Void set 3\/5/.test(r2.line)&&r2.sheet3&&r2.panel===1,JSON.stringify(r2));
+const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
+check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
+await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");
