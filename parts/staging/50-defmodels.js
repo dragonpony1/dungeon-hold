@@ -6,7 +6,17 @@ const DEFGLB={};                                                     // kind -> 
 const DEF_H={harpoon:1.6,acorn:1.5,ball:2.2,slice:.6,spike:1.1,totem:2.8,frost:2.4};              // target heights in world units (about the procedural sizes)
 const DEF_W={slice:5.0};                                                    // flat things fit by footprint width instead (the ring's toadstools stand at radius 2.3)
 const DEF_TURN=/yoke|turret|swivel|head|top|arm|bow|hub|blade|rotor/i; // a node named like this is the part that turns
-function regDefGLB(kind,gltf,markIdx){ const root=gltf.scene||gltf.scenes[0]; let targetH=DEF_H[kind]||2; if(DEF_W[kind]){ root.updateMatrixWorld(true); const sz=new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3()); targetH=DEF_W[kind]*sz.y/Math.max(sz.x,sz.z,1e-6); } const fit=fitModel(root,targetH); toonify(root,fit.scale); let turn=null; root.traverse(o=>{ if(!turn&&o!==root&&DEF_TURN.test(o.name||'')) turn=o.name; }); (DEFGLB[kind]=DEFGLB[kind]||[])[markIdx||0]={wrap:fit.wrap,scale:fit.scale,turn}; }
+// the ballista's hinge: the bow assembly (everything above HINGE of the model's height — the stock and bow on the pedestal) is
+// cut off into a group named 'pitch' whose origin is the pedestal's top, so it tilts up at a drake while the pedestal stands
+const HINGE={harpoon:.6};
+function hingeSplit(root,frac){ root.updateMatrixWorld(true); const box=new THREE.Box3().setFromObject(root); const ySplit=box.min.y+frac*(box.max.y-box.min.y); const ctr=box.getCenter(new THREE.Vector3()); const meshes=[]; root.traverse(m=>{ if(m.isMesh) meshes.push(m); }); if(!meshes.length) return null;
+  const top=new THREE.Group(); top.name='pitch'; top.position.set(ctr.x,ySplit,ctr.z); let nTop=0, nBot=0;
+  for(const m of meshes){ const g=(m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone()); g.applyMatrix4(m.matrixWorld); const P=g.attributes.position; const keys=Object.keys(g.attributes); const pick=[[],[]];
+    for(let t=0;t<P.count;t+=3){ const cy=(P.getY(t)+P.getY(t+1)+P.getY(t+2))/3; pick[cy>=ySplit?0:1].push(t); }
+    const build=(tris,shift)=>{ if(!tris.length) return null; const ng=new THREE.BufferGeometry(); for(const k of keys){ const a=g.attributes[k], sz=a.itemSize, out=new Float32Array(tris.length*3*sz); let o=0; for(const t of tris) for(let v=t;v<t+3;v++) for(let c=0;c<sz;c++) out[o++]=a.array[v*sz+c]; ng.setAttribute(k,new THREE.BufferAttribute(out,sz)); } if(shift) ng.translate(-ctr.x,-ySplit,-ctr.z); return ng; };
+    const gt=build(pick[0],true), gb=build(pick[1],false); m.parent.remove(m); if(gt){ top.add(new THREE.Mesh(gt,m.material)); nTop++; } if(gb){ root.add(new THREE.Mesh(gb,m.material)); nBot++; } }
+  root.add(top); root.userData.hinge={y:ySplit,top:nTop,bottom:nBot}; return top; }
+function regDefGLB(kind,gltf,markIdx){ const root=gltf.scene||gltf.scenes[0]; if(HINGE[kind]) hingeSplit(root,HINGE[kind]); let targetH=DEF_H[kind]||2; if(DEF_W[kind]){ root.updateMatrixWorld(true); const sz=new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3()); targetH=DEF_W[kind]*sz.y/Math.max(sz.x,sz.z,1e-6); } const fit=fitModel(root,targetH); toonify(root,fit.scale); let turn=null; root.traverse(o=>{ if(!turn&&o!==root&&DEF_TURN.test(o.name||'')) turn=o.name; }); (DEFGLB[kind]=DEFGLB[kind]||[])[markIdx||0]={wrap:fit.wrap,scale:fit.scale,turn}; }
 function loadDefGLB(kind,b64,markIdx,cb){ try{ const u=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)); new THREE.GLTFLoader().parse(u.buffer,'',gltf=>{ try{ regDefGLB(kind,gltf,markIdx); if(cb) cb(null); }catch(e){ console.warn('defense model '+kind,e); if(cb) cb(e); } },e=>{ console.warn('defense model '+kind,e); if(cb) cb(e); }); }catch(e){ console.warn('defense model '+kind,e); if(cb) cb(e); } }
 function fetchDefGLB(kind,url,markIdx){ fetchBytes(url).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ regDefGLB(kind,gltf,markIdx); }catch(e){ console.warn('defense model '+kind,e); } },e=>console.warn('defense model '+kind,e))).catch(e=>console.warn('defense model '+kind+' ('+url+')',e)); }
 function defTemplate(kind,lvl){ const list=DEFGLB[kind]; if(!list) return null; let i=Math.min(list.length-1,Math.max(0,(lvl||1)-1)); while(i>=0&&!list[i]) i--; return i>=0?list[i]:null; }
@@ -18,7 +28,7 @@ makeDef=function(kind,ghost,lvl){ const T=defTemplate(kind,lvl); if(!T) return m
   const g=T.wrap.clone(); g.userData.glb=true; g.userData.tpl=T;                         // clone shares geometry + materials (outline shells included)
   let yoke=null; if(T.turn) g.traverse(o=>{ if(!yoke&&o.name===T.turn) yoke=o; });
   if(!yoke){ yoke=new THREE.Group(); const inner=g.children[0]; g.remove(inner); yoke.add(inner); g.add(yoke); }   // no named part: the whole model turns about its footprint centre
-  g.userData.yoke=yoke; g.userData.hub=yoke; g.userData.hp=new THREE.Object3D(); g.userData.ball=new THREE.Object3D();
+  g.userData.yoke=yoke; g.userData.hub=yoke; g.userData.hp=new THREE.Object3D(); g.userData.ball=new THREE.Object3D(); g.traverse(o=>{ if(o.name==='pitch') g.userData.pitch=o; });   // a hinged bow assembly pitches on its own
   if(kind==='slice'){ g.userData.yoke=new THREE.Object3D(); g.userData.hub=sporeHub(); g.add(g.userData.hub); if(!ghost) g.add(sporeDisc()); }   // the ring does not spin: its spore puffs drift up as before, over the model
   if(ghost){ g.traverse(m=>{ if(m.isMesh){ if(m.userData.isOL) m.visible=false; else m.material=GHOST_OK; } }); }
   else g.add(blob(.95));

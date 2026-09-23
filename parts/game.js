@@ -612,7 +612,7 @@ function hurtCrystal(dmg){ if(S.phase==='dead'||S.phase==='won') return; S.cryst
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=24;
+const BUILD=25;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -781,10 +781,11 @@ function footprintCells(kind,x,z,yaw){ const cells=[idx(wc(x),wcz(z))]; if(kind=
 function aimPoint(){ const fx=Math.sin(cam.yaw), fz=Math.cos(cam.yaw);
   if(!TOUCH){ const dir=new THREE.Vector3(); camera.getWorldDirection(dir); if(dir.y<-.02){ const t=(camera.position.y-hero.y)/-dir.y; let px=camera.position.x+dir.x*t, pz=camera.position.z+dir.z*t; const dx=px-hero.x, dz=pz-hero.z, d=Math.hypot(dx,dz); const md=Math.min(8,Math.max(1.6,d)); if(d>.01){ px=hero.x+dx/d*md; pz=hero.z+dz/d*md; } return [px,pz]; } }
   return [hero.x+fx*3.2,hero.z+fz*3.2]; }
-function placeDefAt(kind,x,z,rot){ const cfg=DEFS[kind]; const cx=wc(x), cz=wcz(z); const base=baseFloor(x,z); const cells=footprintCells(kind,x,z,rot||0).filter(i=>walk(grid[i])&&!defAt[i]&&!rampA[i]);
+function standH(cells){ let h=-1e9; for(const i of cells) h=Math.max(h,rampA[i]?rampH[i]:hgt[i]); return h>-1e8?h:0; }   // where a defense stands: the highest step under its footprint (a flight's upper step)
+function placeDefAt(kind,x,z,rot){ const cfg=DEFS[kind]; const cx=wc(x), cz=wcz(z); const cells=footprintCells(kind,x,z,rot||0).filter(i=>walk(grid[i])&&!defAt[i]); const base=standH(cells);
   const d={kind,cx,cz,cells,x,z,base,rot:rot||0,hp:cfg.hp,max:cfg.hp,top:cfg.top+base,cd:R(.2,cfg.cd),yaw:rot||0,mdl:makeDef(kind,false),pop:0,recoil:0,spin:0,shake:0,lvl:1,spent:cfg.mana};
   d.mdl.position.set(d.x,base,d.z); d.mdl.rotation.y=d.rot; scene.add(d.mdl); defs.push(d); for(const i of cells) defAt[i]=d; S.du+=cfg.du; S.mana-=cfg.mana; reflow(); SFX.place(); return d; }
-function placeDef(kind,cx,cz,rot){ const t=gat(cx,cz); if(!(t===T.FLOOR||t===T.CARPET)||footprintCells(kind,cw(cx),cwz(cz),rot||0).some(i=>!walk(grid[i])||rampA[i])) return null; /* the same 'can't build there' as the ghost: floor or carpet, never a stair */ return placeDefAt(kind,cw(cx),cwz(cz),rot||0); }
+function placeDef(kind,cx,cz,rot){ const t=gat(cx,cz); if(!(t===T.FLOOR||t===T.CARPET)||footprintCells(kind,cw(cx),cwz(cz),rot||0).some(i=>!walk(grid[i]))) return null; /* the same 'can't build there' as the ghost: floor or carpet, stairs included */ return placeDefAt(kind,cw(cx),cwz(cz),rot||0); }
 function removeDef(d){ scene.remove(d.mdl); if(hoverFor===d){ if(hoverSector) scene.remove(hoverSector); hoverSector=null; hoverFor=null; } for(const i of (d.cells||[idx(d.cx,d.cz)])) if(defAt[i]===d) defAt[i]=null; const i=defs.indexOf(d); if(i>=0) defs.splice(i,1); S.du-=DEFS[d.kind].du; reflow(); }
 function hurtDef(d,dmg){ d.hp-=dmg; d.shake=.25; d.calm=0; floatText(d.x,d.top+.6,d.z,String(dmg),'#ff6a5a'); if(d.hp<=0){ removeDef(d); SFX.destroy(); toast(DEFS[d.kind].name+' destroyed!'); } }
 function fire(d,e){ const cfg=DEFS[d.kind]; const fx=Math.sin(d.yaw), fz=Math.cos(d.yaw); d.recoil=1;
@@ -808,7 +809,7 @@ function updateDefs(dt){ const trampled=[];
     if(d.kind==='harpoon'||d.kind==='ball'||d.kind==='acorn'){ const half=arcOf(d)*PI/360; let best=null, bd=stat(d,'range'); for(const e of enemies){ if(e.dead) continue; const dd=Math.hypot(e.x-d.x,e.z-d.z); if(dd<bd&&Math.abs(angDiff(d.rot,Math.atan2(e.x-d.x,e.z-d.z)))<=half&&los(d.x,d.z,e.x,e.z)){ bd=dd; best=e; } }
       if(best){ const ty=Math.atan2(best.x-d.x,best.z-d.z); d.yaw=angLerp(d.yaw,ty,1-Math.exp(-7*dt)); if(d.kind==='harpoon'){ const tp=clamp(Math.atan2((best.y+best.h*.55)-(d.base+1.35),Math.max(1,Math.hypot(best.x-d.x,best.z-d.z))),-.6,1.1); d.pitch=lerp(d.pitch||0,tp,1-Math.exp(-7*dt)); } /* a ballista tilts to a drake in the air or a mob on a landing */ if(d.cd<=0&&Math.abs(angDiff(d.yaw,ty))<.25){ d.cd=stat(d,'cd'); fire(d,best); } } else { d.yaw=angLerp(d.yaw,d.rot,1-Math.exp(-2*dt)); if(d.kind==='harpoon') d.pitch=lerp(d.pitch||0,0,1-Math.exp(-2*dt)); }
       d.yaw=d.rot+clamp(angDiff(d.rot,d.yaw),-half,half);
-      const y=d.mdl.userData.yoke; y.rotation.y=d.yaw-d.rot; if(d.kind==='harpoon') y.rotation.x=-(d.pitch||0); if(d.kind==='ball'){ if(d.mdl.userData.arm) d.mdl.userData.arm.rotation.x=-.9+d.recoil*2.0; d.mdl.userData.ball.visible=d.cd<cfg.cd*.5; } else { y.position.z=-d.recoil*.22; d.mdl.userData.hp.visible=d.cd<cfg.cd*.45; } }
+      const y=d.mdl.userData.yoke; y.rotation.y=d.yaw-d.rot; if(d.kind==='harpoon') (d.mdl.userData.pitch||y).rotation.x=-(d.pitch||0); /* the Meshy ballista hinges its bow assembly on the pedestal; the procedural one tilts its yoke */ if(d.kind==='ball'){ if(d.mdl.userData.arm) d.mdl.userData.arm.rotation.x=-.9+d.recoil*2.0; d.mdl.userData.ball.visible=d.cd<cfg.cd*.5; } else { y.position.z=-d.recoil*.22; d.mdl.userData.hp.visible=d.cd<cfg.cd*.45; } }
     else if(d.kind==='slice'){ const rr=stat(d,'range'); const near=[]; for(const e of enemies){ if(!e.dead&&!e.fly&&Math.hypot(e.x-d.x,e.z-d.z)<rr+e.r*.5) near.push(e); }
       d.spin=lerp(d.spin,near.length?1.8:.5,1-Math.exp(-3*dt)); const hub=d.mdl.userData.hub; if(hub){ hub.rotation.y+=d.spin*dt; const lift=near.length?1.7:1.1; for(const pf of hub.children){ const k=((S.t*.45+pf.userData.ph)%1.1)/1.1; pf.position.y=.25+k*lift; pf.material.opacity=(.22+Math.min(near.length,4)*.06)*(1-k); } }
       for(const e of near) e.slowT=.5;
@@ -937,9 +938,9 @@ function unstick(){ if(placeStage===1){ placeStage=0; anchorPos=null; ghostRot=a
 function rotateGhost(a){ if(placeStage===1) anchorYaw+=a; else ghostRot+=a; }
 function updateGhost(){ if(!placing) return; const [px,pz]=placeStage===1?anchorPos:aimPoint(); const cx=wc(px), cz=wcz(pz); const t=gat(cx,cz), cfg=DEFS[placing]; let reason='';
   const yaw=placeStage===1?anchorYaw:cam.yaw+ghostRot; const cells=footprintCells(placing,px,pz,yaw); const heroCell=idx(wc(hero.x),wcz(hero.z));
-  if(!(t===T.FLOOR||t===T.CARPET)||cells.some(i=>!walk(grid[i])||rampA[i])) reason="Can't build there"; else if(cells.some(i=>defAt[i])) reason='Already occupied'; else if(cells.includes(heroCell)||Math.hypot(px-hero.x,pz-hero.z)<1.1) reason="You're standing there"; else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units'; else if(S.mana<cfg.mana) reason='Not enough mana'; else if(enemies.some(e=>!e.dead&&Math.hypot(e.x-px,e.z-pz)<2.2)) reason='Enemy too close';
+  if(!(t===T.FLOOR||t===T.CARPET)||cells.some(i=>!walk(grid[i]))) reason="Can't build there"; else if(cells.some(i=>defAt[i])) reason='Already occupied'; else if(cells.includes(heroCell)||Math.hypot(px-hero.x,pz-hero.z)<1.1) reason="You're standing there"; else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units'; else if(S.mana<cfg.mana) reason='Not enough mana'; else if(enemies.some(e=>!e.dead&&Math.hypot(e.x-px,e.z-pz)<2.2)) reason='Enemy too close';
   ghostOk=!reason; ghostReason=reason; ghostCell=[cx,cz]; ghostPos=[px,pz]; ghostYaw=yaw;
-  ghost.position.set(px,baseFloor(px,pz),pz); ghost.rotation.y=ghostYaw; const m=ghostOk?GHOST_OK:GHOST_BAD; ghost.traverse(o=>{ if(o.isMesh) o.material=m; });
+  ghost.position.set(px,standH(cells),pz); ghost.rotation.y=ghostYaw; const m=ghostOk?GHOST_OK:GHOST_BAD; ghost.traverse(o=>{ if(o.isMesh) o.material=m; });
   if(ghostSector){ ghostSector.position.set(px,baseFloor(px,pz),pz); ghostSector.rotation.y=ghostYaw; tintSector(ghostSector,ghostOk?0x40ff80:0xff3030); } }
 function confirmPlace(){ if(!placing) return; if(!ghostOk){ toast(ghostReason); return; }
   if(placeStage===0){ anchorPos=[ghostPos[0],ghostPos[1]]; anchorYaw=ghostYaw; placeStage=1; SFX.hit(); updateGhost(); return; }   // first click: set it down

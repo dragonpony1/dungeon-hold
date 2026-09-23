@@ -4,7 +4,7 @@ A Dungeon Defenders–style 3D tower defense: a gnome warden, a crystal to hold,
 physical tavern (locker, barkeep, trainer, anvil), six familiars, Meshy-made models. Three.js r128, plain JavaScript, one
 page plus an `assets/` folder. Desktop first, tablet at most.
 
-Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 24; a second copy at https://claude.ai/artifact/G178miB5MXnvFLeqenipmE).
+Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 25; a second copy at https://claude.ai/artifact/G178miB5MXnvFLeqenipmE).
 
 ## Layout
 
@@ -97,6 +97,11 @@ drifting over the bed with a fainter sheen drifting the other way (`WORLDANIM` r
 Design rule (Matt, Sep 23): every map from here on is outdoors or has a tall ceiling like the throne room's — no more low
 halls.
 
+Building: defenses may stand on a flight of stairs (they stand on the highest step under their footprint, `standH`); a
+hedge across a flight blocks it and the horde chews through. The Meshy ballista is split at 60% of its height into the
+pedestal and the bow assembly (`hingeSplit` in `50-defmodels.js`, a group named `pitch` with its origin at the pedestal's
+top); the assembly alone tilts at a drake, the pedestal stands.
+
 Balance notes: the crystal has `CRYSTAL_MAX` (150) life; the Bramble Hedge is five cells wide (its three-cell model
 stretched to match) with 220 hp for 50 mana; ballista bolts are stout (thick shaft, broad head, fletching); asset fetches
 retry three times before falling back, so one dropped file can't cost the hero model. Roots (`DU_CAP`) and starting mana
@@ -106,7 +111,7 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 
 ## Heroes, weapons, sets
 
-- `70-hero2.js` holds `HEROES` (Gnome Warden with a sword and reach 2.4, Gnome Battle Witch with a battle staff that shoots, reach 9); the start screen
+- `70-hero2.js` holds `HEROES` (Gnome Warden with a sword and reach 2.4, Gnome Battle Witch with a battle staff that shoots, reach 9, Troll Archer with a longbow, reach 12); the start screen
   picks one (saved as `ddHero`); a pick swaps the model live. The start screen also has a testing line: unlock all maps,
   auto-mana (orbs fly to you from anywhere), +1000 gold, ↻ fresh reload (a plain reload; the page's URL is left alone since a host may sign it; saves kept) and wipe saves (two clicks: forgets every `dd*` key, then reloads fresh).
 - `82-staff.js` — battle staffs built in code, no model to load: six kinds (`hazel`, `copper`, `runed`, `storm`, `battle` for
@@ -120,7 +125,14 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   bolt from the crystal (`hitCone` is wrapped: aimed at the nearest mob in the cone within `hero.reach`, it hurts the first
   mob it meets for `heroDmg()` and bursts there); `staffFor(item)` picks the staff by forge tier, or the set's own
   (`pack.models.staff`, the Void set's `staff-void`).
-- `80-weapons.js` mounts a weapon model on the hero's `weaponMount_<cm>` (a sword) or `staffMount_<cm>` (a staff) node:
+- `83-bow.js` — bows built in code like the staffs (`ash`, `yew`, `horn`, `storm`, `war` for the five tiers, `void` for the set),
+  registered as `bow-<kind>`; the stave bows forward, magic bows glow at the grip and carry runes. With a bow in hand a swing
+  looses an arrow (`fireArrow`: a shaft, steel head, fletching in the bow's colour) from the grip at the nearest mob in the
+  cone within `hero.reach`; it flies flat, stops in the first mob it meets or dies on a wall, the floor or at range. The
+  mounted bow is re-aimed every frame in world space (`holdBow`: upright, facing the archer's way, its grip slid back into
+  the fist) because the hand's own turn would lay it flat when the arm comes up to aim. `bowFor(item)` picks by tier or the
+  set's `models.bow`.
+- `80-weapons.js` mounts a weapon model on the hero's `weaponMount_<cm>` (a sword), `staffMount_<cm>` (a staff) or `bowMount_<cm>` (a bow) node:
   the grip point (`userData.gripF` of the template's height) sits on the mount, the blade or shaft runs up its +Y, scaled
   so the length above the grip is the mount's length (× `userData.lenScale`; a staff is body-length). A set piece that is
   a loaded GLB is tinted (darkened, burning the set's colour); a code-built staff already wears its colours. Whips are
@@ -131,6 +143,10 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   Jump procedural, and a `staffMount_90` added under the hand that travels most in the thrust (LeftHand), placed at the
   fist with +Y along world-up in the idle pose so the staff stands upright in her grip. `meshy/view.mjs` renders clip strips
   to check a merge. The old fae witch (two Meshy exports, `meshy/witch` and `meshy/witch2`) is retired.
+- The Troll Archer is the same pipeline in `meshy/troll` (`merge.html?hand=LeftHand&mount=bow&len=90&grip=.045`: the
+  `mount=` parameter names the node — `staff`, `bow` or `weapon`). His Meshy archery clip is 3.8 s of drawing and aiming; the
+  cut Attack window is the aim. `probes/glbinfo.mjs <glb…>` prints any GLB's nodes, skins and clips (run it on a new export
+  first); `probes/thumbs.mjs out.png a.glb …` renders static models from three sides.
 - `72-witchswing.js`: a hand-made strike for a hero whose attack clip is unusable (the arm winds up over the shoulder and
   snaps forward, bones aimed in world space and blended into the idle or walk pose). Nobody uses it; heroes opt in by id in
   `PROC`, or at runtime `window.__armSwing.set('witch','Left')`.
@@ -199,5 +215,7 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); co-op (a room server on Cloudflare Durable
   Objects, host-authoritative); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
-- Meshy art still wanted: turnip trebuchet, hobgoblin archer.
+- Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
+  tower — the seven unnamed `Meshy_AI_model.glb` files are the drake, three ballista marks, the acorn cannon and the barkeep;
+  `frost-1..4.glb` in `assets/` and a fetch line in `50-defmodels.js` would wire it).
 - Upgraded gear raises gear score, which nudges mob health up a little (rubber band); revisit if it feels punishing.

@@ -1,0 +1,3 @@
+{"mount":{"hand":"LeftHand","travel":{"LeftHand":0.0004,"RightHand":0.0018},"len":90,"grip":0.045,"fingerDown":-0.97,"pos":[-0.006,7.551,1.225],"axis":[0.22,-0.974,-0.062]},"yawFixDeg":0,"meshH":1.7,"natural":{"walk":0,"run":0},"toeYawDeg":-6,"srcTex":2048,"boneHeight":1.596,"attackPeak":3.23,"attackWindow":[2.89,3.59],"clips":["Idle:10.00s/25tr","Walk:1.07s/25tr","Run:0.67s/25tr","Attack:0.70s/25tr","Death:3.00s/25tr","Jump:0.70s/25tr"],"verts":8440,"bytes":1502460} errors: none
+exit 0
+copied
