@@ -10,3 +10,4 @@ meshy/**/*.mp3
 meshy/**/three.min.js
 meshy/**/GLTFLoader.js
 meshy/**/GLTFExporter.js
+node_modules
