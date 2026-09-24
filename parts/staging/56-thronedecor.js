@@ -13,6 +13,11 @@ if(MAP.throne){
   // the generic gold balustrade (game.js) still runs along every drop in the hall — now duplicated by the real
   // railing model on the stairs, sitting a little behind it. Hide it for this map now that it's fully replaced.
   (world.userData.railMeshes||[]).forEach(m=>{ m.visible=false; });
+  // the generic procedural wall torch (game.js, every map — a bracket, a flame, a glow) is what actually reads as
+  // "the sconce" in play, not the Meshy throne-sconce pair pulled above: it repeats on every fourth wall face the
+  // length of the hall, throne room included. Pulled here too, same clean-wall diagnostic, throne room only —
+  // every other map keeps its torches.
+  (world.userData.torchProcs||[]).forEach(t=>{ t.visible=false; });
   // the stair treads share their mesh with the raised floors (game.js), so the floor motif's own tiles — which
   // skip stair cells, since a flat tile can't sit right on a stepped surface — leave the treads showing that
   // mesh's original cream marble. Retinting the whole mesh gold covers just the stairs in practice: everywhere

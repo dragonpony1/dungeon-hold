@@ -367,10 +367,11 @@ function makeTorch(){ const g=new THREE.Group(); g.add(M(G.box(.14,.14,.34),mat(
       const dh=wh*.62; for(const sd of [-1,1]){ const d=new THREE.Mesh(new THREE.PlaneGeometry(1.0,dh),new THREE.MeshToonMaterial({map:DRAPETEX,gradientMap:GRAD,color:C(0xffffff),side:THREE.DoubleSide})); d.position.set(f.x+f.nx*.16+tx*sd*1.75,fy+wh*.5,f.z+f.nz*.16+tz*sd*1.75); d.rotation.y=yaw; d.userData.noOL=true; world.add(d); }
       const rod=M(G.cyl(.06,.06,4.9,6),mat(0xe0b040),f.x+f.nx*.2,fy+wh*.5+dh/2+.12,f.z+f.nz*.2); rod.rotation.set(0,yaw,PI/2); world.add(rod); for(const sd of [-1,1]) world.add(M(G.sph(.14,7,6),mat(0xe0b040),f.x+f.nx*.2+tx*sd*2.45,fy+wh*.5+dh/2+.12,f.z+f.nz*.2+tz*sd*2.45)); }); }
   world.userData.windows=nWin;
-  let i=0; wallFaces.forEach(f=>{ const inHall=f.cx>=hx0&&f.cx<=hx1&&f.cz>=hz0&&f.cz<=hz1; i++; if(WIN.has(f)) return;
+  const torchProcs=[]; let i=0; wallFaces.forEach(f=>{ const inHall=f.cx>=hx0&&f.cx<=hx1&&f.cz>=hz0&&f.cz<=hz1; i++; if(WIN.has(f)) return;
     const yaw=Math.atan2(f.nx,f.nz), fy=hgt[idx(f.cx,f.cz)]||0;   // torches and banners hang above the floor of the cell they face (a landing's wall carries its own)
-    if(i%4===1){ const t=makeTorch(); t.position.set(f.x,fy+3.1,f.z); t.rotation.y=yaw; world.add(t); }
+    if(i%4===1){ const t=makeTorch(); t.position.set(f.x,fy+3.1,f.z); t.rotation.y=yaw; world.add(t); torchProcs.push(t); }
     else if(inHall&&i%4===3){ const b=new THREE.Mesh(new THREE.PlaneGeometry(1.3,2.6),new THREE.MeshToonMaterial({map:BANNERTEX,gradientMap:GRAD,color:C(0xffffff),transparent:true,side:THREE.DoubleSide,alphaTest:.5})); b.position.set(f.x+f.nx*.12,fy+4.2,f.z+f.nz*.12); b.rotation.y=yaw; world.add(b); const rod=M(G.cyl(.05,.05,1.7,6),mat(0xe0b040),f.x+f.nx*.12,fy+5.5,f.z+f.nz*.12); rod.rotation.y=yaw; rod.rotation.z=PI/2; world.add(rod); } });
+  world.userData.torchProcs=torchProcs;
   (MAP.roofs||[]).forEach(([x0,x1,z0,z1])=>{ const y=(MAP.pillarH||6)+1.0; const w=(x1-x0+1)*CELL, d=(z1-z0+1)*CELL; const r=M(G.box(w,.45,d),mat(0x2a1f2c),(cw(x0)+cw(x1))/2,y,(cwz(z0)+cwz(z1))/2); world.add(r); world.add(M(G.box(w,.12,d),mat(0x4a4262),(cw(x0)+cw(x1))/2,y+.28,(cwz(z0)+cwz(z1))/2)); });   // covered walkways: a slab on the colonnade
   (MAP.trees||[]).forEach(([x,z])=>{ const g=new THREE.Group(); g.position.set(cw(x),hgt[idx(x,z)]||0,cwz(z)); g.add(M(G.cyl(.22,.3,2.2,7),mat(0x5a3a22),0,1.1,0)); [[0,2.6,0,1.5],[.7,2.2,.4,1.0],[-.6,2.3,-.5,1.0],[0,3.5,0,1.1]].forEach(([ox,oy,oz,r])=>g.add(M(G.sph(r,8,6),mat(0x2f6a2a),ox,oy,oz))); world.add(outline(g)); });   // trees in the court
   // a castle's outside: battlements on every wall, towers with pennants, the keep rising behind the ward, the gate arch with its
@@ -632,7 +633,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=61;
+const BUILD=62;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
