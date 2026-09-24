@@ -633,7 +633,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=68;
+const BUILD=69;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -712,6 +712,7 @@ function cloneSkinned(source){ const sl=new Map(), cl=new Map(); const clone=sou
 // per kind: model height to fit to, hit box, and the walk/run speeds (in body heights per second) the clips were made for
 const MOBDIM={goblin:{fit:1.55,h:1.4,r:.42,nat:{walk:1.0,run:2.4}}, orc:{fit:2.45,h:2.1,r:.65,nat:{walk:1.0,run:2.2}}, ogre:{fit:3.5,h:3.3,r:1.05,nat:{walk:.9,run:2.0}}, archer:{fit:1.85,h:1.7,r:.42,nat:{walk:1.0,run:2.2}}, drake:{fit:2.4,h:1.6,r:.7,nat:{walk:1,run:1}}, troll:{fit:2.6,h:2.3,r:.62,nat:{walk:1.0,run:2.2}}, trollboss:{fit:3.1,h:2.9,r:.85,nat:{walk:1.0,run:2.2}}};
 SFX.roar=()=>{ noise(.5,.12,300); beep(60,1.0,'sawtooth',.1,-25); };
+SFX.setBong=()=>{ beep(392,1.1,'sine',.16,-60); setTimeout(()=>beep(784,.7,'sine',.05,-40),40); };   // a set piece landing: one low bell strike, a soft overtone just after
 const MOBGLB={};   // kind -> {wrap,map,scale}
 function loadMobGLB(kind,b64){ try{ const u=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)); new THREE.GLTFLoader().parse(u.buffer,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,MOBDIM[kind].fit); toonify(root,fit.scale); MOBGLB[kind]={wrap:fit.wrap,map:mapClips(gltf.animations||[]),scale:fit.scale}; }catch(e){ console.warn('mob model '+kind,e); } },e=>console.warn('mob model '+kind,e)); }catch(e){ console.warn('mob model '+kind,e); } }
 function makeMobGLB(kind){ const T=MOBGLB[kind], dim=MOBDIM[kind]; const g=cloneSkinned(T.wrap); const mixer=new THREE.AnimationMixer(g); const actions={};
@@ -949,6 +950,7 @@ function updateLoot(dt){
     if(hero.dead<=0&&l.t>.5&&l.vy<=.01){ const hd=Math.hypot(hero.x-l.x,hero.z-l.z), hy=Math.abs(hero.y-l.y); if(hd<(window.__autoMana?1e9:LOOT_HOOK)&&hy<4){ const tx=hero.x, ty=hero.y+.9, tz=hero.z, dx=tx-l.x, dy=ty-l.y, dz=tz-l.z, dd=Math.hypot(dx,dy,dz); if(dd<.6){ pickup(l); scene.remove(l.mesh); loot.splice(i,1); continue; } const sp=Math.min(1,10*dt/dd); l.x+=dx*sp; l.y+=dy*sp; l.z+=dz*sp; l.vx=0; l.vz=0; l.vy=0; l.mesh.position.set(l.x,l.y,l.z); l.mesh.userData.item.rotation.y+=dt*6; continue; } }
     l.vy-=14*dt; const nx=l.x+l.vx*dt, nz=l.z+l.vz*dt; if(!solidAt(nx,nz,0,true)){ l.x=nx; l.z=nz; } else { l.vx=-l.vx*.5; l.vz=-l.vz*.5; } l.y+=l.vy*dt; const fl=baseFloor(l.x,l.z); if(l.y<fl){ l.y=fl; l.vy=-l.vy*.3; l.vx*=.6; l.vz*=.6; }
     l.mesh.position.set(l.x,l.y,l.z); l.mesh.userData.item.position.y=.55+Math.sin(l.t*3)*.08; l.mesh.userData.item.rotation.y+=dt*2; l.mesh.userData.ring.scale.setScalar(1+Math.sin(l.t*4)*.08);
+    if(l.mesh.userData.artSprite) l.mesh.userData.artSprite.position.y=.55+Math.sin(l.t*3)*.08;   // a set piece's card art bobs the same as the placeholder it replaced (a sprite always faces the camera, so no spin to match)
     if(hero.dead<=0&&Math.hypot(hero.x-l.x,hero.z-l.z)<1.15&&Math.abs(hero.y-l.y)<1.6){ pickup(l); scene.remove(l.mesh); loot.splice(i,1); } }
 }
 let gearHTML='';
@@ -1066,7 +1068,7 @@ function frame(now){ requestAnimationFrame(frame); const dt=Math.min(.05,(now-la
 requestAnimationFrame(frame);
 
 // ================= TEST HOOK =================
-window.__dd={S,hero,cam,enemies,defs,projs,orbs,loot,grid,DEFS,MOBS,stat,mobSpd,gear:()=>gear,rollItem,dropLoot,resetGear,heroStat,heroMult,heroDmg,kill,Meta,SLOTS,applyGear,saveGear,pickup,tierOf,statStr,RNAME,RCSS,loadHeroGLB,toggleHero,ghost:()=>placing?{x:ghostPos[0],z:ghostPos[1],yaw:ghostYaw,ok:ghostOk,why:ghostReason,stage:placeStage,dist:Math.hypot(ghostPos[0]-hero.x,ghostPos[1]-hero.z),sector:!!ghostSector&&ghostSector.children.length>0}:null,rotateGhost,unstick,music:()=>({on:musicOn,mode:musicMode,step:mStep}),hoverSector:()=>!!hoverSector,heroModel:()=>GLBH?{label:GLBH.label,useGLB,clips:Object.keys(GLBH.map),cur:GLBH.cur?GLBH.cur.getClip().name:null,scale:GLBH.scale,height:GLBH.height,visible:GLBH.wrap.visible}:null,mobTemplate:k=>MOBGLB[k],scene,mobModel:k=>MOBGLB[k]?{clips:Object.keys(MOBGLB[k].map),scale:MOBGLB[k].scale}:null,mobState:e=>e&&e.mdl&&e.mdl.glb?{cur:e.mdl.cur?e.mdl.cur.getClip().name:null,time:e.mdl.cur?e.mdl.cur.time:0}:null,setHeroYaw:d=>{ heroYawOff=d; },deathCut:()=>deathCut,camPos:()=>({x:camera.position.x,y:camera.position.y,z:camera.position.z}),hurtCrystal,
+window.__dd={S,hero,cam,enemies,defs,projs,orbs,loot,grid,DEFS,MOBS,stat,mobSpd,gear:()=>gear,rollItem,dropLoot,resetGear,heroStat,heroMult,heroDmg,kill,Meta,SLOTS,applyGear,saveGear,pickup,tierOf,statStr,RNAME,RCSS,loadHeroGLB,toggleHero,ghost:()=>placing?{x:ghostPos[0],z:ghostPos[1],yaw:ghostYaw,ok:ghostOk,why:ghostReason,stage:placeStage,dist:Math.hypot(ghostPos[0]-hero.x,ghostPos[1]-hero.z),sector:!!ghostSector&&ghostSector.children.length>0}:null,rotateGhost,unstick,music:()=>({on:musicOn,mode:musicMode,step:mStep}),hoverSector:()=>!!hoverSector,heroModel:()=>GLBH?{label:GLBH.label,useGLB,clips:Object.keys(GLBH.map),cur:GLBH.cur?GLBH.cur.getClip().name:null,scale:GLBH.scale,height:GLBH.height,visible:GLBH.wrap.visible}:null,mobTemplate:k=>MOBGLB[k],scene,mobModel:k=>MOBGLB[k]?{clips:Object.keys(MOBGLB[k].map),scale:MOBGLB[k].scale}:null,mobState:e=>e&&e.mdl&&e.mdl.glb?{cur:e.mdl.cur?e.mdl.cur.getClip().name:null,time:e.mdl.cur?e.mdl.cur.time:0}:null,setHeroYaw:d=>{ heroYawOff=d; },deathCut:()=>deathCut,camPos:()=>({x:camera.position.x,y:camera.position.y,z:camera.position.z}),hurtCrystal,SFX,
   start:()=>{ if(S.phase==='start'){ S.phase='build'; $('start').classList.add('hide'); cam.x=hero.x; cam.y=hero.y+5; cam.z=hero.z+8; cam.d=cam.dist; } },
   startWave, place:(k,cx,cz,rot)=>placeDef(k,cx,cz,rot||0), spawn:spawnEnemy, select, confirmPlace, swing, repair, upgrade, sell, jump, setKeys:(o)=>Object.assign(K,o), r:renderer,
   step:(dt,n)=>{ for(let i=0;i<(n||1);i++) update(dt||1/60); },
