@@ -53,16 +53,17 @@ if(MAP.throne){
   // the true wall was the only way to clear it. That bug's long fixed, but these never got moved back: they've been
   // floating .85 units out in the open room ever since, with the now-correctly-flush wall panel visible behind them —
   // "attached to the wall behind the wall". tz0-.8 lands them back on the real wall face, matching everything else.
+  /* pulled out for a clean look at the bare wall behind the throne while we re-figure sconce/window placement — see
+     the matching pull-out below for the ambient copies. Re-enable once the wall itself checks out.
   loadThroneProp('throne-window.glb',5.0,wrap=>place(wrap,tx0,ty0+3.6,tz0-.8,0));
+  */
   loadThroneProp('throne-crest.glb',2.2,wrap=>place(wrap,tx0,ty0+7.6,tz0-.8,0));
-  // lit torches flanking the window — real point lights now, not just dark geometry, so the sconces actually read as
-  // lit. Same stale-offset bug as the window above (tz0+.35 was tuned to clear the old bloated wall panel, not to sit
-  // on the real wall — moved to tz0-.8 to match); warmGlow gives the fixture itself a warm self-lit floor so its
-  // silhouette reads against the wall regardless of external light, which is what actually fixed "buried" for these.
+  /* lit torches flanking the window — pulled out alongside it, same reason.
   loadThroneProp('throne-sconce.glb',1.4,wrap=>{ warmGlow(wrap); place(wrap,tx0-3.4,ty0+3.0,tz0-.8,0);
     const l=new THREE.PointLight(C(0xff8a2a),4,11,2); l.position.set(-.1,.3,.3); wrap.add(l); });
   loadThroneProp('throne-sconce.glb',1.4,wrap=>{ warmGlow(wrap); place(wrap,tx0+3.4,ty0+3.0,tz0-.8,0);
     const l=new THREE.PointLight(C(0xff8a2a),4,11,2); l.position.set(.1,.3,.3); wrap.add(l); });
+  */
   // a portrait on the left wall, a scepter rack on the right — the room's own trophies
   loadThroneProp('throne-portrait.glb',2.2,wrap=>place(wrap,cw(6),ty0+2.3,tz0+1.5,-PI/2));
   loadThroneProp('throne-scepter.glb',2.0,wrap=>place(wrap,cw(20),ty0+2.3,tz0+1.5,PI/2));
@@ -136,9 +137,8 @@ if(MAP.throne){
       const baseY=hgt[idx(w.cx,w.cz)]||0, yaw=Math.atan2(w.nx,w.nz), span=WALLH-baseY;
       for(let dy=0;dy<span;dy+=9){ const t=wrap.clone(); t.position.set(w.x+w.nx*.18,baseY+dy,w.z+w.nz*.18); t.rotation.y=yaw; world.add(t); } });
   });
-  // the stained-glass window, the same stretch-tile treatment as the wall panel but sparser — an accent spaced
-  // around the hall, each one glowing for ambient light, always clear of the game's own painted windows so it
-  // never lands on top of one
+  /* the ambient stained-glass windows tiled around the hall — pulled out with the pair behind the throne, same
+     re-figuring-placement reason. The wall panel motif right above stays on, so the bare wall is still visible.
   loadThroneProp('throne-window.glb',4.2,wrap=>{
     wallFaces.forEach(w=>{ if(w.cz<4||w.cz>44||WIN.has(w)) return; if(Math.abs(w.cx-tx)<=5&&w.cz<=4) return;   // skip right behind the throne — the big dramatic window's already there
       const runAxisVal=(w.nz!==0)?w.cx:w.cz; if(((runAxisVal%8)+8)%8!==3) return;
@@ -147,4 +147,5 @@ if(MAP.throne){
       const l=new THREE.PointLight(C(0x9a8ad0),1.8,15,2); l.position.set(w.nx*1.2,0,w.nz*1.2); t.add(l);
     });
   });
+  */
 }
