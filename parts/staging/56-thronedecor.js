@@ -61,12 +61,14 @@ if(MAP.throne){
         const t=wrap.clone(); t.position.set(cw(cx),hgt[i]+.02,cwz(cz)); world.add(t);
       } }); }
   // the wall motif: the stone panel, over every real wall face of the hall that doesn't already carry a painted
-  // window (found from the engine's own wall geometry, so it lines up exactly) — two tall tiles per face reach
-  // most of the way up, so the old bare marble wall doesn't still show through in patches between them
+  // window (found from the engine's own wall geometry, so it lines up exactly) — stacked bottom-up from that cell's
+  // own floor (fitModel roots a wrap at the model's bottom, not its centre, so row 0 sits flush on the floor) up to
+  // the hall's fixed ceiling height, however many 9-tall tiles that takes, so it reaches the floor everywhere,
+  // landings included, instead of stopping partway down
   loadThroneProp('throne-panel2.glb',9,wrap=>{
     wallFaces.forEach(w=>{ if(w.cz<2||w.cz>44||WIN.has(w)) return;
-      const baseY=hgt[idx(w.cx,w.cz)]||0, yaw=Math.atan2(w.nx,w.nz);
-      [4.5,13.5].forEach(dy=>{ const t=wrap.clone(); t.position.set(w.x+w.nx*.18,baseY+dy,w.z+w.nz*.18); t.rotation.y=yaw; world.add(t); }); });
+      const baseY=hgt[idx(w.cx,w.cz)]||0, yaw=Math.atan2(w.nx,w.nz), span=WALLH-baseY;
+      for(let dy=0;dy<span;dy+=9){ const t=wrap.clone(); t.position.set(w.x+w.nx*.18,baseY+dy,w.z+w.nz*.18); t.rotation.y=yaw; world.add(t); } });
   });
   // the stained-glass window, the same stretch-tile treatment as the wall panel but sparser — an accent spaced
   // around the hall, each one glowing for ambient light, always clear of the game's own painted windows so it
