@@ -334,8 +334,10 @@ const wallFaces=[];
       for(const [nx,nz] of [[1,0],[-1,0],[0,1],[0,-1]]) for(let sgm=0;sgm<2;sgm++){ const f0=sgm/2, f1=(sgm+1)/2, fm=(f0+f1)/2; const mine=Hc(cx,cz,nx?(nx>0?.99:.01):fm,nz?(nz>0?.99:.01):fm), theirs=Hc(cx+nx,cz+nz,nx?(nx>0?.01:.99):fm,nz?(nz>0?.01:.99):fm); if(theirs<0||mine<theirs+1.5) continue;
         const ex=nx?X0+(nx>0?CELL:0):0, ez=nz?Z0+(nz>0?CELL:0):0, ax=nx?ex:X0+f0*CELL, az=nz?ez:Z0+f0*CELL, bx=nx?ex:X0+f1*CELL, bz=nz?ez:Z0+f1*CELL, ox=-nx*.14, oz=-nz*.14;
         P.push(ax+ox,mine+.45,az+oz); (nx?RZ:RX).push((ax+bx)/2+ox,mine+.92,(az+bz)/2+oz); } }
-    const inst=(geo,m,arr)=>{ const n=arr.length/3; if(!n) return; const im=new THREE.InstancedMesh(geo,m,n); const o=new THREE.Object3D(); for(let k=0;k<n;k++){ o.position.set(arr[k*3],arr[k*3+1],arr[k*3+2]); o.updateMatrix(); im.setMatrixAt(k,o.matrix); } im.userData.noOL=true; world.add(im); };
-    inst(G.box(.16,.9,.16),mat(0x8a7c6a),P); inst(G.box(CELL/2,.08,.1),mat(0xe0b040),RX); inst(G.box(.1,.08,CELL/2),mat(0xe0b040),RZ); world.userData.rails=P.length/3; } }
+    const inst=(geo,m,arr)=>{ const n=arr.length/3; if(!n) return null; const im=new THREE.InstancedMesh(geo,m,n); const o=new THREE.Object3D(); for(let k=0;k<n;k++){ o.position.set(arr[k*3],arr[k*3+1],arr[k*3+2]); o.updateMatrix(); im.setMatrixAt(k,o.matrix); } im.userData.noOL=true; world.add(im); return im; };
+    const railMeshes=[inst(G.box(.16,.9,.16),mat(0x8a7c6a),P),inst(G.box(CELL/2,.08,.1),mat(0xe0b040),RX),inst(G.box(.1,.08,CELL/2),mat(0xe0b040),RZ)].filter(Boolean);
+    world.userData.rails=P.length/3; world.userData.railMeshes=railMeshes;   // a handle so a map can hide the generic gold balustrade where it's been replaced with real art (56-thronedecor.js)
+  } }
 // pillars, props, torches, banners
 const flames=[], WORLDANIM=[];   // WORLDANIM: per-frame animators for the world's moving bits (water, pennants)
 // the moat: a painted ripple texture drifting over the sunken bed, and a fainter sheen drifting the other way
@@ -614,7 +616,7 @@ function hurtCrystal(dmg){ if(S.phase==='dead'||S.phase==='won') return; S.cryst
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=38;
+const BUILD=39;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),

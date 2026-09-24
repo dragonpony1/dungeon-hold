@@ -5,10 +5,13 @@
 // each spawn gate's portal swirl, the ornate raked banister railing on every flight of stairs in the hall, and the
 // wood-and-gem floor tile plus the stone wall panel laid as the room's motif — floor over every flat walkable cell
 // of the hall, wall panel over every real wall face — both in big two-cell tiles, not a small patch. The gates' own
-// portal arch and every other map's balustrade are shared code, left untouched: the door and railings here are pure
-// additions alongside them, not replacements, so nothing elsewhere can break.
+// portal arch is shared code, left untouched; every other map's own gold balustrade is untouched too, since only
+// the throne room's is hidden below, in favour of the real railing model.
 if(MAP.throne){
   const [tx,tz]=MAP.throne; const tx0=cw(tx), tz0=cwz(tz), ty0=hgt[idx(tx,tz)];
+  // the generic gold balustrade (game.js) still runs along every drop in the hall — now duplicated by the real
+  // railing model on the stairs, sitting a little behind it. Hide it for this map now that it's fully replaced.
+  (world.userData.railMeshes||[]).forEach(m=>{ m.visible=false; });
   // the stair treads share their mesh with the raised floors (game.js), so the floor motif's own tiles — which
   // skip stair cells, since a flat tile can't sit right on a stepped surface — leave the treads showing that
   // mesh's original cream marble. Retinting the whole mesh gold covers just the stairs in practice: everywhere
