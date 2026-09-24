@@ -32,10 +32,12 @@ if(MAP.throne){
   // the stained-glass window on the wall behind the throne, a crest above it — the dramatic backlight the throne sits under
   loadThroneProp('throne-window.glb',5.0,wrap=>place(wrap,tx0,ty0+3.6,tz0-.85,0));
   loadThroneProp('throne-crest.glb',2.2,wrap=>place(wrap,tx0,ty0+7.6,tz0-.85,0));
-  // lit torches flanking the window — real point lights now, not just dark geometry, so the sconces actually read as lit
-  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ place(wrap,tx0-3.4,ty0+3.0,tz0-.85,0);
+  // lit torches flanking the window — real point lights now, not just dark geometry, so the sconces actually read as
+  // lit. Pulled out well clear of the wall (the dense wall-panel tiling now sits almost flush with the wall itself,
+  // so the old depth left them sunk behind it)
+  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ place(wrap,tx0-3.4,ty0+3.0,tz0-.15,0);
     const l=new THREE.PointLight(C(0xff8a2a),2.6,11,2); l.position.set(-.1,.3,.3); wrap.add(l); });
-  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ place(wrap,tx0+3.4,ty0+3.0,tz0-.85,0);
+  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ place(wrap,tx0+3.4,ty0+3.0,tz0-.15,0);
     const l=new THREE.PointLight(C(0xff8a2a),2.6,11,2); l.position.set(.1,.3,.3); wrap.add(l); });
   // a portrait on the left wall, a scepter rack on the right — the room's own trophies
   loadThroneProp('throne-portrait.glb',2.2,wrap=>place(wrap,cw(6),ty0+2.3,tz0+1.5,-PI/2));
