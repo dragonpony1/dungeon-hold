@@ -36,8 +36,12 @@ function rift(e,dmg){ let n=0; for(const o of enemies){ if(o.dead||o===e) contin
 // ---- card art: a set piece shows its picture wherever gear is drawn; a missing file falls back to the slot's emoji
 function itemArt(it){ if(!it) return null; if(it.art) return it.art; const d=packOf(it); if(!d||!d.art) return null; let k=it.slot; if(k==='weapon'){ const hm=window.__heroes&&window.__heroes.pick(); k=(hm==='witch')?'staff':(hm==='troll')?'bow':'sword'; } const n=d.art[k]||d.art[it.slot]; if(!n) return null; return /^(data:|https?:|\.\/|\/)/.test(n)?n:ASSET(n); }
 function artHtml(it,slot){ const em=SICON[(it&&it.slot)||slot]||''; const a=itemArt(it); return a?'<img class="ia" src="'+a+'" alt="" onerror="this.classList.add(\'bad\')"><span class="ie">'+em+'</span>':em; }
-{ const st=document.createElement('style'); st.textContent='.ia{width:100%;height:100%;object-fit:contain;display:block;border-radius:2px;pointer-events:none}.ia.bad{display:none}.ia:not(.bad)+.ie{display:none}.tv-card .ic .ia{width:30px;height:30px;vertical-align:middle}'; document.head.appendChild(st); }
-if(typeof tvCard==='function'){ const prev=tvCard; tvCard=function(it,from,extra){ return prev(it,from,extra).replace('<span class="ic">'+SICON[it.slot]+'</span>','<span class="ic">'+artHtml(it)+'</span>'); }; }
+{ const st=document.createElement('style'); st.textContent='.ia{width:100%;height:100%;object-fit:contain;display:block;border-radius:2px;pointer-events:none}.ia.bad{display:none}.ia:not(.bad)+.ie{display:none}.tv-card .ic .ia{width:30px;height:30px;vertical-align:middle}.tv-setbadge{position:absolute;top:3px;left:3px;width:15px;height:15px;line-height:15px;text-align:center;font-size:10px;border-radius:50%;background:#120c1a;box-shadow:0 0 0 1px currentColor,0 0 4px currentColor;pointer-events:none}'; document.head.appendChild(st); }
+// a small round badge in the corner, the set's own icon on the set's own colour — so a set piece reads as one at a
+// glance in the bag/shop/sheet, not just from its "of the ..." name text
+if(typeof tvCard==='function'){ const prev=tvCard; tvCard=function(it,from,extra){ let html=prev(it,from,extra).replace('<span class="ic">'+SICON[it.slot]+'</span>','<span class="ic">'+artHtml(it)+'</span>');
+  const d=packOf(it); if(d) html=html.replace(/^(<div class="tv-card[^>]*>)/,'$1<span class="tv-setbadge" style="color:'+d.css+'" title="Part of a set: '+it.name.replace(/"/g,'&quot;')+'">'+d.ic+'</span>');
+  return html; }; }
 // ---- the full-set aura: a thin shell in the set's colour around the hero's own model (additive, drawn behind the surface,
 // so only a faint rim shows), on while all five pieces are worn; the sheet's portrait sees it too
 const AURA={root:null,col:null,meshes:[]};
