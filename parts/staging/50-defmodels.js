@@ -4,7 +4,7 @@
 // models: yoke (turns to aim / spins), hp / ball (projectile shown while loaded — dummies here), hub (spinner).
 const DEFGLB={};                                                     // kind -> [{wrap,scale,turn,tpl}] by mark index
 const DEF_H={harpoon:1.6,acorn:1.5,ball:2.2,slice:.6,spike:1.1,totem:2.8,frost:2.4,snare:2.6};              // target heights in world units (about the procedural sizes)
-const DEF_W={slice:5.0};                                                    // flat things fit by footprint width instead (the ring's toadstools stand at radius 2.3)
+const DEF_W={slice:5.0,zap:3.2,venom:3.2,ember:3.2,dazzle:3.2};             // flat things fit by footprint width instead (the ring's toadstools stand at radius 2.3) — the halos are the same idea, a low sigil disc, not a spire
 const DEF_TURN=/yoke|turret|swivel|head|top|arm|bow|hub|blade|rotor/i; // a node named like this is the part that turns
 // the ballista's hinge: the bow assembly (everything above HINGE of the model's height — the stock and bow on the pedestal) is
 // cut off into a group named 'pitch' whose origin is the pedestal's top, so it tilts up at a drake while the pedestal stands
@@ -45,6 +45,8 @@ for(let i=1;i<=4;i++) fetchDefGLB('slice',ASSET('mushroom-'+i+'.glb'),i-1);   //
 for(let i=1;i<=4;i++) fetchDefGLB('totem',ASSET('totem-'+i+'.glb'),i-1);   // the rune totem (Meshy) Mark I..IV; Mark V keeps the tier-4 look
 for(let i=1;i<=4;i++) fetchDefGLB('frost',ASSET('frost-'+i+'.glb'),i-1);   // the frost spire (Meshy, "cold tower") Mark I..IV; Mark V keeps the tier-4 look
 for(let i=1;i<=4;i++) fetchDefGLB('snare',ASSET('snare-'+i+'.glb'),i-1);   // the snare tower (Meshy) Mark I..IV; Mark V keeps the tier-4 look
+// the four elemental halos (Meshy): one sigil disc each, all marks — the glow ring drawn over them (game.js, auraRing) is what grows with each mark, not the model
+fetchDefGLB('zap',ASSET('aura-zap.glb'),0); fetchDefGLB('venom',ASSET('aura-venom.glb'),0); fetchDefGLB('ember',ASSET('aura-ember.glb'),0); fetchDefGLB('dazzle',ASSET('aura-dazzle.glb'),0);
 // the acorn the cannon fires: Meshy's acorn, toon-shaded, ~0.34 tall; the procedural one until it lands
 { let tpl=null; const proc=acornMesh; fetchBytes(ASSET('acorn.glb')).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,.64); toonify(root,fit.scale); const w=fit.wrap; w.children[0].position.y-=.32; tpl=w; }catch(e){ console.warn('acorn model',e); } },e=>console.warn('acorn model',e))).catch(e=>console.warn('acorn model',e));
   acornMesh=function(){ if(!tpl) return proc(); const g=tpl.clone(); g.rotation.set(rnd()*6,rnd()*6,0); return g; }; }

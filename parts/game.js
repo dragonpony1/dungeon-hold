@@ -546,8 +546,13 @@ const DEFS={
   spike:{name:'Bramble Hedge',ic:'🌿',du:3,mana:50,hp:220,top:1.0,thorns:2,regrow:3},                                       // a thorn wall that hurts attackers and regrows when left alone
   totem:{name:'Rune Totem',ic:'🗿',du:4,mana:70,hp:120,top:2.8,range:7,rangeUp:1,arc:360,buff:.15,buffUp:.05},           // a runed pillar: every other defense in its ring hits 15% harder and faster (+5% a mark); totems never stack
   frost:{name:'Frost Spire',ic:'❄',du:4,mana:60,hp:100,top:2.4,range:6,rangeUp:.8,arc:360,chill:.6,chillUp:.06},          // an ice spire: mobs in its ring crawl at 60% (6 points slower a mark); the deepest cold wins, it never stacks                                       // a thorn wall that hurts attackers and regrows when left alone
-  snare:{name:'Snare Tower',ic:'🕸',du:4,mana:65,hp:100,top:2.6,range:9,rangeUp:1,arc:360,cd:6,dmg:0}};                   // a net-winch tower for flying mobs only: on cooldown it nets the nearest flyer in range and takes it off the field outright — no damage stat, it doesn't hurt what it doesn't catch
-const DEFKEYS=['harpoon','acorn','ball','slice','spike','totem','frost','snare']; const MAXLVL=5, MARK=['','I','II','III','IV','V'];
+  snare:{name:'Snare Tower',ic:'🕸',du:4,mana:65,hp:100,top:2.6,range:9,rangeUp:1,arc:360,cd:6,dmg:0},                    // a net-winch tower for flying mobs only: on cooldown it nets the nearest flyer in range and takes it off the field outright — no damage stat, it doesn't hurt what it doesn't catch
+  // four elemental halo rings — flat glowing sigils on the floor, like the mushroom ring but each doing its own thing
+  zap:{name:'Storm Halo',ic:'⚡',du:4,mana:65,hp:90,top:.08,range:5,rangeUp:.8,arc:360,cd:1.8,dmg:7},                     // electric: a burst on every mob in the ring at once, on a cooldown — a jolt, not a tick
+  venom:{name:'Venom Halo',ic:'☠',du:4,mana:65,hp:90,top:.08,range:5,rangeUp:.8,arc:360,cd:.5,dmg:1.4,poisonDur:3},      // poison: a DOT that keeps ticking for a few seconds after a mob leaves the ring, unlike the others
+  ember:{name:'Ember Halo',ic:'🔥',du:4,mana:65,hp:90,top:.08,range:5,rangeUp:.8,arc:360,cd:.5,dmg:2.2},                 // fire: burns everything standing in the ring, same tick pattern as the mushroom ring
+  dazzle:{name:'Dazzling Halo',ic:'🌀',du:4,mana:65,hp:90,top:.08,range:5,rangeUp:.8,arc:360,confuseDur:1.2}};           // confusion: no damage — a mob in the ring wanders instead of advancing, for as long as it stays in range plus a little after
+const DEFKEYS=['harpoon','acorn','ball','slice','spike','totem','frost','snare','zap','venom','ember','dazzle']; const MAXLVL=5, MARK=['','I','II','III','IV','V'];
 // a defense's sector of fire at its current mark
 function arcOf(d){ const cfg=DEFS[d.kind]; if(cfg.arcs) return cfg.arcs[Math.min(cfg.arcs.length-1,(d.lvl||1)-1)]; return cfg.arc||360; }
 function mobSpd(e){ return e.spd*(e.slowT>0?DEFS.slice.slow:1)*(e.chillT>0?(e.chillK||DEFS.frost.chill):1); }   // spored mobs crawl; chilled ones too
@@ -620,7 +625,7 @@ function hurtCrystal(dmg){ if(S.phase==='dead'||S.phase==='won') return; S.cryst
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=56;
+const BUILD=57;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -757,6 +762,7 @@ function updateEnemies(dt){
       if(e.mdl.glb){ mobAnim(e,dt); const t=e.dead-.9; if(t>0){ const s=Math.max(0,1-t/.35)*e.sc; g.scale.setScalar(Math.max(s,.001)); g.position.y=e.y-(1-s)*.4; } if(e.dead>1.25){ scene.remove(g); enemies.splice(i,1); } continue; }
       const s=Math.max(0,1-e.dead/.3)*e.sc; g.scale.set(s*1.3,s*.6,s*1.3); if(e.dead>.3){ scene.remove(g); enemies.splice(i,1); } continue; }
     e.pop=Math.min(1,e.pop+dt*3); e.atk-=dt; e.slowT=Math.max(0,(e.slowT||0)-dt); e.chillT=Math.max(0,(e.chillT||0)-dt); if(!e.chillT) e.chillK=1; if(e.swing>=0){ e.swing+=dt; if(e.pending&&e.swing>=.2){ const tg=e.pending; e.pending=null; landHit(e,tg); } if(e.swing>.4) e.swing=-1; }
+    if(e.poisonT>0){ e.poisonT-=dt; e.poisonTick=(e.poisonTick||0)-dt; if(e.poisonTick<=0){ e.poisonTick=.5; hurt(e,e.poisonDmg*.5,0,0); } } e.confuseT=Math.max(0,(e.confuseT||0)-dt);   // the venom halo's lingering DOT (keeps ticking after a mob leaves the ring) and the dazzling halo's wander timer
     let target=null; const hd=Math.hypot(hero.x-e.x,hero.z-e.z);
     if(hero.dead<=0&&hd<e.r+1.1&&hero.y-e.y<1.4) target={kind:'hero',x:hero.x,z:hero.z,reach:e.r+1.3};
     else if(e.fly){ const ci=idx(wc(e.x),wcz(e.z)); const n=flowFly.nxt[ci]; const cr={kind:'crystal',x:0,z:0,reach:2.9+e.r}; target=(ci===GOAL||n===GOAL)?cr:(n>=0?{kind:'move',x:cw(n%GW),z:cwz((n/GW)|0)}:null); }   // straight over stairs, ledges and defenses
@@ -772,7 +778,9 @@ function updateEnemies(dt){
     if(e.shoutT>0){ e.shoutT-=dt; target=null; }
     e.walking=false;
     if(target){ const dx=target.x-e.x, dz=target.z-e.z, d=Math.hypot(dx,dz)||.001; const ty=Math.atan2(dx,dz);
-      if(target.kind==='move'||d>target.reach){ const sp=mobSpd(e); moveCircle(e,(dx/d*sp+e.sx)*dt,(dz/d*sp+e.sz)*dt,e.r*.8,false); e.ph+=dt*9; e.yaw=angLerp(e.yaw,ty,1-Math.exp(-10*dt)); e.walking=true; }
+      if(target.kind==='move'||d>target.reach){ const sp=mobSpd(e); let mx=dx/d, mz=dz/d, facing=ty;
+        if(e.confuseT>0){ e.confuseAng=(e.confuseAng===undefined?rnd()*TAU:e.confuseAng)+R(-2.2,2.2)*dt; mx=Math.sin(e.confuseAng); mz=Math.cos(e.confuseAng); facing=e.confuseAng; }   // the dazzling halo: wanders instead of advancing, for as long as it's confused
+        moveCircle(e,(mx*sp+e.sx)*dt,(mz*sp+e.sz)*dt,e.r*.8,false); e.ph+=dt*9; e.yaw=angLerp(e.yaw,facing,1-Math.exp(-10*dt)); e.walking=true; }
       else { e.yaw=angLerp(e.yaw,ty,1-Math.exp(-10*dt)); if(e.atk<=0){ e.atk=e.cd; attack(e,target); } } }
     if(e.fly){ const ty=baseFloor(e.x,e.z)+e.fly+Math.sin(S.t*2.2+e.ph)*.25; e.y=lerp(e.y,ty,1-Math.exp(-3*dt)); } else e.y=baseFloor(e.x,e.z); e.squash=Math.max(0,e.squash-dt*7);
     const sc=e.sc*(e.pop<1?easeOutBack(e.pop):1), sq=e.squash; g.scale.set(sc*(1+sq*.25),sc*(1-sq*.35),sc*(1+sq*.25));
@@ -813,6 +821,10 @@ function upCost(d){ return 100*(d.lvl||1); }
 function upgrade(){ const d=nearestDef(3.4); if(!d) return; if(d.hp<d.max){ repair(); return; } if(d.lvl>=MAXLVL){ toast('Already Mark '+MARK[MAXLVL]+' — that is as good as it gets'); return; } const cost=upCost(d); if(S.mana<cost){ toast('Need '+cost+' mana to upgrade'); return; }
   S.mana-=cost; d.spent+=cost; d.lvl++; d.max=Math.round(DEFS[d.kind].hp*(1+.4*(d.lvl-1))); d.hp=d.max; d.pop=0; const ring=M(new THREE.TorusGeometry(d.kind==='spike'?1.1:.98,.045,6,18),mat(d.lvl>=MAXLVL?0xd8322c:0xe0b040),0,.16+.1*(d.lvl-2),0); ring.rotation.x=PI/2; d.mdl.add(ring); SFX.place(); floatText(d.x,d.top+.9,d.z,'MARK '+MARK[d.lvl]+(DEFS[d.kind].arcs?'  ·  '+arcOf(d)+'° cone':''),'#e8b94a'); floatText(d.x,d.top+1.7,d.z,'-'+cost+' ◆ mana','#5ee9ff'); toast(DEFS[d.kind].name+' → Mark '+MARK[d.lvl]+'  ·  '+cost+' mana spent'); if(hoverFor===d){ if(hoverSector) scene.remove(hoverSector); hoverSector=null; hoverFor=null; } }
 function fireArrow(e,x,y,z,hit){ const splash=MOBS[e.kind]&&MOBS[e.kind].splash||0; const m=splash?grenadeMesh():arrowMesh(); scene.add(m); const x0=e.x, y0=e.y+1.2*e.sc, z0=e.z; const dur=Math.hypot(x-x0,z-z0)/(splash?13:18); projs.push({kind:'arrow',x0,y0,z0,x1:x,y1:y,z1:z,t:0,dur:Math.max(.2,dur),dmg:e.dmg,hit,mesh:m,splash}); }   // a splash-tagged mob throws a grenade, slower and heavier than a plain shot
+// the floor ring the four elemental halos share: a glow ring at the reach, a small inner spinner — same idea as the
+// totem/frost aura but flatter and lower, since these stand barely off the ground (top .08) instead of being a spire
+function auraRing(d,rr,col,active,s){ let a=d.mdl.userData.aura; if(!a){ a=new THREE.Group(); const ring=new THREE.Mesh(new THREE.RingGeometry(.94,1,48),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); ring.rotation.x=-PI/2; ring.userData.noOL=true; a.add(ring); const inner=new THREE.Mesh(new THREE.RingGeometry(.2,.24,24),ring.material.clone()); inner.rotation.x=-PI/2; inner.userData.noOL=true; a.add(inner); a.userData.ring=ring; a.userData.inner=inner; d.mdl.add(a); d.mdl.userData.aura=a; }
+  a.position.y=.03; a.scale.set(rr/s,1/s,rr/s); a.userData.inner.rotation.z+=(active?2.5:.8)*.016; a.userData.ring.material.opacity=.3+.1*Math.sin(S.t*2.4)+(active?.15:0); }
 function updateDefs(dt){ const trampled=[];
   // the totems' rings: every other defense inside one hits harder and faster by the strongest ring it stands in
   for(const d of defs) d.buff=0; for(const t of defs){ if(t.kind!=='totem'||t.pop<1) continue; const r=stat(t,'range'), b=stat(t,'buff'); for(const d of defs){ if(d===t||d.kind==='totem') continue; if(Math.hypot(d.x-t.x,d.z-t.z)<=r) d.buff=Math.max(d.buff,b); } }
@@ -832,7 +844,13 @@ function updateDefs(dt){ const trampled=[];
     else if(d.kind==='totem'||d.kind==='frost'){ const rr=stat(d,'range'); let n=0; if(d.kind==='frost'){ const k=stat(d,'chill'); for(const e of enemies){ if(!e.dead&&Math.hypot(e.x-d.x,e.z-d.z)<rr+e.r*.5){ e.chillT=.5; e.chillK=Math.min(e.chillK||1,k); n++; } } } else { for(const o of defs) if(o!==d&&o.kind!=='totem'&&Math.hypot(o.x-d.x,o.z-d.z)<=rr) n++; }
       let a=d.mdl.userData.aura; if(!a){ const col=d.kind==='frost'?0x8ee0ff:0xffd27a; a=new THREE.Group(); const ring=new THREE.Mesh(new THREE.RingGeometry(.94,1,48),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); ring.rotation.x=-PI/2; ring.userData.noOL=true; a.add(ring); const inner=new THREE.Mesh(new THREE.RingGeometry(.2,.24,24),ring.material.clone()); inner.rotation.x=-PI/2; inner.userData.noOL=true; a.add(inner); const plume=glow(col,1.5,.55); a.add(plume); a.userData.ring=ring; a.userData.inner=inner; a.userData.plume=plume; d.mdl.add(a); d.mdl.userData.aura=a; }   /* the ring on the floor at the reach, a small spinner, a plume of light at the top */
       a.position.y=.03; a.scale.set(rr/s,1/s,rr/s); a.userData.plume.scale.set(1.5/rr,1.5,1); a.userData.plume.position.set(0,cfg.top-.1,0); a.userData.inner.rotation.z+=dt*(n?2.5:.8); a.userData.ring.material.opacity=.28+.1*Math.sin(S.t*2.4)+(n?.12:0); a.userData.plume.material.opacity=.45+.15*Math.sin(S.t*3.1); }
-    else if(d.kind==='snare'){ const rr=stat(d,'range'); if(d.cd<=0){ let best=null, bd=rr; for(const e of enemies){ if(e.dead||!e.fly) continue; const dd=Math.hypot(e.x-d.x,e.z-d.z); if(dd<bd){ bd=dd; best=e; } } if(best){ d.cd=stat(d,'cd'); snareCapture(d,best); } } } }
+    else if(d.kind==='snare'){ const rr=stat(d,'range'); if(d.cd<=0){ let best=null, bd=rr; for(const e of enemies){ if(e.dead||!e.fly) continue; const dd=Math.hypot(e.x-d.x,e.z-d.z); if(dd<bd){ bd=dd; best=e; } } if(best){ d.cd=stat(d,'cd'); snareCapture(d,best); } } }
+    else if(d.kind==='zap'||d.kind==='venom'||d.kind==='ember'||d.kind==='dazzle'){ const rr=stat(d,'range'); const near=[]; for(const e of enemies){ if(!e.dead&&!e.fly&&Math.hypot(e.x-d.x,e.z-d.z)<rr+e.r*.5) near.push(e); }
+      const col=d.kind==='zap'?0x7fd8ff:d.kind==='venom'?0x8ef05a:d.kind==='ember'?0xff6a2a:0xffd060;
+      auraRing(d,rr,col,near.length,s);
+      if(d.kind==='dazzle'){ for(const e of near) e.confuseT=Math.max(e.confuseT||0,cfg.confuseDur); }
+      else if(d.kind==='venom'){ if(near.length&&d.cd<=0){ d.cd=stat(d,'cd'); for(const e of near){ e.poisonT=cfg.poisonDur; e.poisonDmg=stat(d,'dmg'); } } }
+      else if(near.length&&d.cd<=0){ d.cd=stat(d,'cd'); for(const e of near) hurt(e,stat(d,'dmg'),0,0); SFX.hit(); } } }
   for(const d of trampled){ removeDef(d); SFX.destroy(); toast(DEFS[d.kind].name+' trampled flat!'); }
 }
 // the net: a streak from the tower to its catch, then the mob is gone outright (a full kill: mana, loot, XP — same as any other) —
@@ -1006,7 +1024,7 @@ const K={};
 addEventListener('keydown',e=>{ const c=e.code; if(Meta.isOpen()) return; if(c==='KeyI'||c==='KeyB'){ if(!e.repeat) Meta.open(); return; } if(S.phase==='start'){ if(c==='Enter'||c==='Space'){ e.preventDefault(); play(); } return; }
   if(c==='KeyW'||c==='ArrowUp') K.w=1; if(c==='KeyS'||c==='ArrowDown') K.s=1; if(c==='KeyA') K.a=1; if(c==='KeyD') K.d=1; if(c==='ShiftLeft'||c==='ShiftRight') K.shift=1; if(c==='ArrowLeft') K.tl=1; if(c==='ArrowRight') K.tr=1;
   if(c==='Space'){ jump(); e.preventDefault(); }
-  if(c==='Digit1') select('harpoon'); if(c==='Digit2') select('acorn'); if(c==='Digit3') select('ball'); if(c==='Digit4') select('slice'); if(c==='Digit5') select('spike'); if(c==='Digit6') select('totem'); if(c==='Digit7') select('frost'); if(c==='Digit8') select('snare');
+  if(c==='Digit1') select('harpoon'); if(c==='Digit2') select('acorn'); if(c==='Digit3') select('ball'); if(c==='Digit4') select('slice'); if(c==='Digit5') select('spike'); if(c==='Digit6') select('totem'); if(c==='Digit7') select('frost'); if(c==='Digit8') select('snare'); if(c==='Digit9') select('zap'); if(c==='Digit0') select('venom'); if(c==='Minus') select('ember'); if(c==='Equal') select('dazzle');
   if(c==='KeyR'){ rotateGhost(PI/12); } if(c==='Escape') cancelPlace(); if(c==='KeyG') startWave(); if(c==='KeyE') upgrade(); if(c==='KeyX') sell(); if(c==='KeyM') setSound(soundOff); if(c==='KeyN') toggleMusic(); if(c==='KeyF'||c==='KeyQ') swing(); if(c==='KeyH') toggleHero(); });
 addEventListener('keyup',e=>{ const c=e.code; if(c==='KeyW'||c==='ArrowUp') K.w=0; if(c==='KeyS'||c==='ArrowDown') K.s=0; if(c==='KeyA') K.a=0; if(c==='KeyD') K.d=0; if(c==='ShiftLeft'||c==='ShiftRight') K.shift=0; if(c==='ArrowLeft') K.tl=0; if(c==='ArrowRight') K.tr=0; });
 addEventListener('blur',()=>{ for(const k in K) K[k]=0; });
@@ -1026,7 +1044,7 @@ canvas.addEventListener('touchend',touchEnd); canvas.addEventListener('touchcanc
 DEFKEYS.forEach((k,i)=>{ const cfg=DEFS[k]; const s=document.createElement('div'); s.className='slot'; s.id='slot-'+k; s.innerHTML='<div class="k">'+(i+1)+'</div><div class="ic">'+cfg.ic+'</div><div class="n">'+cfg.name+'</div><div class=\"cst\">🌱 '+cfg.du+' · '+cfg.mana+' ◆</div>'; s.addEventListener('click',()=>select(k)); $('hotbar').appendChild(s); });
 if(TOUCH){ [['⚔',swing],['⤴',jump],['✔',()=>{ if(placing) confirmPlace(); }],['↻',()=>{ rotateGhost(PI/4); }],['🔧',upgrade],['🎒',()=>Meta.open()]].forEach(([t,f])=>{ const b=document.createElement('div'); b.className='hb'; b.textContent=t; b.addEventListener('touchstart',e=>{ e.preventDefault(); f(); },{passive:false}); $('btns').appendChild(b); }); }
 $('wavebtn').addEventListener('click',()=>{ startWave(); if(!TOUCH&&canvas.requestPointerLock) canvas.requestPointerLock(); });
-function play(){ if(S.phase!=='start') return; S.phase='build'; $('start').classList.add('hide'); SFX.enter(); setTimeout(()=>setMusic('build'),400); if(heroLoadError) setTimeout(()=>toast('Hero model failed to load ('+heroLoadError+') — using the old gnome'),600); if(!TOUCH&&canvas.requestPointerLock) canvas.requestPointerLock(); cam.x=hero.x; cam.y=hero.y+5; cam.z=hero.z+8; cam.d=cam.dist; toast('Build phase — pick a defense with 1–7, then G to start the wave'); }
+function play(){ if(S.phase!=='start') return; S.phase='build'; $('start').classList.add('hide'); SFX.enter(); setTimeout(()=>setMusic('build'),400); if(heroLoadError) setTimeout(()=>toast('Hero model failed to load ('+heroLoadError+') — using the old gnome'),600); if(!TOUCH&&canvas.requestPointerLock) canvas.requestPointerLock(); cam.x=hero.x; cam.y=hero.y+5; cam.z=hero.z+8; cam.d=cam.dist; toast('Build phase — pick a defense with the number keys, then G to start the wave'); }
 $('playbtn').addEventListener('click',play); $('tavbtn').addEventListener('click',()=>Meta.open()); $('bagbtn').addEventListener('click',()=>Meta.open());
 
 // ================= MAIN LOOP =================
