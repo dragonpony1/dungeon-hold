@@ -2,6 +2,7 @@
 // walk up to — your LOCKER (bag), the BARKEEP (shop) and the TRAINER (skills) — open the matching page with E. The 🎒 / I
 // shortcut still works from anywhere; walking there is the intended way between waves.
 (function(){
+if(MAP.noTavern) return;   // this map has no physical tavern room right now (a wall stands where its door used to be) — the 🎒 / I shortcut still opens every page this room would have
 const wood=mat(0x6b4a2a), dark=mat(0x2b2540), plank=mat(0x8a5e34), stone=mat(0x4a4262), cream=mat(0xf1e6d0), gold=mat(0xe0b040), brass=mat(0xc9a44a);
 const room=new THREE.Group(); world.add(room);
 const TD=MAP.tavern||{dx:0,dz:0}; const at=(x,z)=>[cw(x+TD.dx),cwz(z+TD.dz)];   // grid → world, in map 1's room coordinates shifted to where this map keeps its tavern

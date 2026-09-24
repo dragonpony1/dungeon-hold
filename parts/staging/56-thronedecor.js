@@ -75,7 +75,7 @@ if(MAP.throne){
   // the real hanging chandeliers, replacing the procedural gold rings at the same ceiling spots
   (world.userData.chandelierProcs||[]).forEach(ch=>{ ch.visible=false; });
   MAP.chandeliers.forEach(([chx,chz])=>loadThroneProp('chandelier.glb',3.2,wrap=>{ place(wrap,chx,13.8,chz,0);
-    const l=new THREE.PointLight(C(0xffb05a),2.2,14,2); l.position.set(0,1,0); wrap.add(l); }));
+    const l=new THREE.PointLight(C(0xffb05a),2.75,14,2); l.position.set(0,1,0); wrap.add(l); }));
   // the real runed pillars, replacing the procedural stone columns at the same ten spots. One fetch, cloned per spot
   // (unlike the chandeliers above — only 3 of those, but 10 of these, so it's worth not re-fetching the model ten
   // times). Target height matches the procedural ones exactly: PH (the shaft) + the base/capital's own 1 unit.
@@ -130,6 +130,26 @@ if(MAP.throne){
       const t=wrap.clone(); t.position.set(cw(px)+nx*.78,fy+3.0,cwz(pz)); t.rotation.y=Math.atan2(nx,0); world.add(t);
       const l=new THREE.PointLight(C(0xffa040),5,13,2); l.position.set(nx*.15,.3,0); t.add(l); });
   });
+  // real windows: the same painted night sky the base game's own arched windows show (WINDOWTEX — stars and a moon,
+  // not the flat wall behind), just sized and placed on purpose here instead of the formulaic every-sixth-face rule.
+  // Four long tall ones down the main hall's side walls; two or three smaller ones high on the wall up by the
+  // throne and crystal. Each claims its wall face in WIN so the stone wall-panel motif below leaves it alone.
+  if(WINDOWTEX){
+    const pick=(arr,n)=>{ const out=[]; if(!arr.length) return out; const step=Math.max(1,Math.floor(arr.length/n)); for(let i=0;i<n&&i*step<arr.length;i++) out.push(arr[i*step]); return out; };
+    const sideFaces=wallFaces.filter(f=>Math.abs(f.nx)>.5&&!WIN.has(f)&&f.cz>=8&&f.cz<=40);
+    const tallSpots=[...pick(sideFaces.filter(f=>f.nx<0),2),...pick(sideFaces.filter(f=>f.nx>0),2)];
+    tallSpots.forEach(f=>{ const yaw=Math.atan2(f.nx,f.nz), fy=hgt[idx(f.cx,f.cz)]||0, wh=Math.min(9,WALLH-fy-1.5);
+      const w=new THREE.Mesh(new THREE.PlaneGeometry(3.2,wh),new THREE.MeshBasicMaterial({map:WINDOWTEX,transparent:true,alphaTest:.5,side:THREE.DoubleSide}));
+      w.position.set(f.x+f.nx*.22,fy+wh/2+.8,f.z+f.nz*.22); w.rotation.y=yaw; w.userData.noOL=true; world.add(w);
+      const l=new THREE.PointLight(C(0x8fb8ff),1.6,12,2); l.position.set(f.nx*1.2,0,f.nz*1.2); w.add(l); WIN.add(f); });
+    const nearWest=wallFaces.filter(f=>f.nx<0&&!WIN.has(f)&&f.cz>=6&&f.cz<=8), nearEast=wallFaces.filter(f=>f.nx>0&&!WIN.has(f)&&f.cz>=6&&f.cz<=8);   // past z 4, clear of the pillar row that stands right at the wall there
+    const nearBack=wallFaces.filter(f=>f.nz<0&&!WIN.has(f)&&Math.abs(f.cx-tx)>2&&f.cz<=4);
+    const topSpots=[...pick(nearBack,1),...pick(nearWest,1),...pick(nearEast,1)];
+    topSpots.forEach(f=>{ const yaw=Math.atan2(f.nx,f.nz);   // WALLH is the hall's one shared ceiling height, not per-landing — no baseY added here, unlike the tall run above
+      const w=new THREE.Mesh(new THREE.PlaneGeometry(1.3,3.2),new THREE.MeshBasicMaterial({map:WINDOWTEX,transparent:true,alphaTest:.5,side:THREE.DoubleSide}));
+      w.position.set(f.x+f.nx*.22,WALLH-2.4,f.z+f.nz*.22); w.rotation.y=yaw; w.userData.noOL=true; world.add(w);
+      const l=new THREE.PointLight(C(0x8fb8ff),1.4,10,2); l.position.set(f.nx*1.0,0,f.nz*1.0); w.add(l); WIN.add(f); });
+  }
   // the floor motif: the wood-and-gem dais tile, one per walkable flat cell (a hair oversized so neighbours overlap
   // and hide the seams) — the dais, every landing, the galleries, the runner down the middle, the whole hall's
   // floor, not just the small patch under the crystal. One tile a cell (not a 2-cell block) so odd-width rooms —

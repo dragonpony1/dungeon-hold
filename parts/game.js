@@ -91,16 +91,16 @@ const MAPS=[
     f(4,7,31,34,T.CARPET); ramp(4,7,31,34,1,0,2); f(19,22,31,34,T.CARPET); ramp(19,22,31,34,1,0,2);   // twin first flights up from the floor, one at each wall
     f(8,18,31,34,T.FLOOR); f(4,22,35,44,T.FLOOR); f(12,14,31,44,T.CARPET);   // the floor of the hall, where the horde comes in; the runner ends under the lower landing's face
     f(12,14,45,48,T.FLOOR); g(13,47,T.SPAWN);   // the main gate, south
-    f(16,24,46,52,T.FLOOR); g(20,45,T.FLOOR); f(20,20,46,48,T.CARPET); [[16,47],[17,51],[23,48],[23,49],[23,50],[20,52]].forEach(([x,z])=>g(x,z,T.PROP));   // the tavern, south-east, through a door in the bottom row
+    // the tavern is off this map for now (noTavern below) — no room, no door: the south wall runs solid where it used to open
     [[6,4],[20,4],[7,12],[19,12],[6,26],[20,26],[7,38],[19,38],[7,42],[19,42]].forEach(([x,z])=>g(x,z,T.PILLAR)); [[4,44],[22,44],[4,36],[22,36]].forEach(([x,z])=>g(x,z,T.PROP)); },
   lanes:{S:{cx:13,cz:47,face:PI,name:'South',from:1}, EA:{cx:25,cz:29,face:-PI/2,name:'East lower landing',from:3}, W:{cx:1,cz:22,face:PI/2,name:'West landing',from:5}, EC:{cx:25,cz:15,face:-PI/2,name:'East upper landing',from:6}},   // from: the map's wave the gate first opens on
-  hall:[4,22,3,44],pillars:[[6,4],[20,4],[7,12],[19,12],[6,26],[20,26],[7,38],[19,38],[7,42],[19,42]],barrels:[[4,44],[22,44]],crates:[[4,36],[22,36]],chandeliers:[[0,18],[0,46],[0,68]],beams:{zs:[-2,12,26,38,52,66],w:40},tavern:{dx:4,dz:21},throne:[13,3],
+  hall:[4,22,3,44],pillars:[[6,4],[20,4],[7,12],[19,12],[6,26],[20,26],[7,38],[19,38],[7,42],[19,42]],barrels:[[4,44],[22,44]],crates:[[4,36],[22,36]],chandeliers:[[0,18],[0,46],[0,68]],beams:{zs:[-2,12,26,38,52,66],w:40},tavern:{dx:4,dz:21},throne:[13,3],noTavern:true,
   lights:[{cx:6,cz:4,up:4.2,c:0xff8a2a,i:1.4,d:15},{cx:20,cz:4,up:4.2,c:0xff8a2a,i:1.4,d:15},{cx:6,cz:9,up:4,c:0xff8a2a,i:1.3,d:14},{cx:20,cz:9,up:4,c:0xff8a2a,i:1.3,d:14},[0,11.2,0,0x4ae6ff,1.3,15],
    {cx:6,cz:12,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:12,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:15,up:3.6,c:0xffb05a,i:1.2,d:14},{cx:25,cz:15,up:3.4,c:0xc040ff,i:.9,d:10},
    {cx:6,cz:19,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:19,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:22,up:3.6,c:0xffb05a,i:1.2,d:14},{cx:1,cz:22,up:3.4,c:0xc040ff,i:.9,d:10},
    {cx:6,cz:26,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:26,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:29,up:3.6,c:0xffb05a,i:1.2,d:14},{cx:25,cz:29,up:3.4,c:0xc040ff,i:.9,d:10},
    {cx:6,cz:33,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:33,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:36,up:4.4,c:0xffb05a,i:1.0,d:16},{cx:5,cz:40,up:4,c:0xff8a2a,i:1.5,d:15},{cx:21,cz:40,up:4,c:0xff8a2a,i:1.5,d:15},{cx:13,cz:44,up:4,c:0xff8a2a,i:1.3,d:14},{cx:13,cz:47,up:3.4,c:0xc040ff,i:.9,d:10},
-   {cx:20,cz:45,up:4.2,c:0xffb05a,i:1.3,d:13},{cx:18,cz:47,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:22,cz:51,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:20,cz:52,up:2.2,c:0xff7a1a,i:1.6,d:9,oz:.4}]},
+   ]},
  {id:'court',name:'THE CLOISTER COURT',sub:'open sky, a sunken court, covered walkways all round · seven waves',gw:44,gh:52,crystal:[22,21],waves:7,wallH:9,du:60,mana:360,fog:[34,110],style:{outdoor:true,moss:true},
   build(f,g,h,ramp){ f(2,41,2,41,T.FLOOR); h(2,41,2,41,1.5); h(5,38,5,38,0); f(21,23,19,23,T.CARPET); f(21,23,20,22,T.DAIS); g(22,21,T.CRYSTAL);   // the cloister walkway a step and a half up, the court sunken, the crystal in the middle
     f(21,23,5,6,T.FLOOR); ramp(21,23,5,6,1,0,1.5); f(21,23,37,38,T.FLOOR); ramp(21,23,37,38,2,0,1.5); f(5,6,20,22,T.FLOOR); ramp(5,6,20,22,4,0,1.5); f(37,38,20,22,T.FLOOR); ramp(37,38,20,22,3,0,1.5);   // four flights down into the court
@@ -633,7 +633,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=64;
+const BUILD=68;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
