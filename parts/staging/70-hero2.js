@@ -15,7 +15,14 @@ installHero(heroPick);
 window.__heroes={list:()=>HEROES.map(h=>({id:h.id,name:h.name})),pick:()=>heroPick.id,unlocks:()=>heroPick.unlocks,canUse:k=>heroPick.unlocks.includes(k),
   select:id=>{ const h=HEROES.find(h=>h.id===id); if(h) return installHero(h); },
   next:()=>{ const i=HEROES.findIndex(h=>h.id===heroPick.id); const nh=HEROES[(i+1)%HEROES.length]; installHero(nh); toast('Hero: '+nh.name); if(placing&&!nh.unlocks.includes(placing)) cancelPlace(); return nh.id; }};
-// ---- each hero unlocks its own three or four defenses (the raven's job, once it grows a real picker): a locked slot
-// stays on the hotbar so its keybind and cost are still visible, just greyed and refused, not hidden outright
+// ---- each hero unlocks its own two to four defenses (the raven's job, once it grows a real picker): the hotbar
+// shows only that hero's own kinds, in the order the hero lists them, keyed 1..N — nothing else visible, nothing
+// greyed out. A switch (raven or H) reflows the slots on the next hud tick.
+const NUMKEYS=['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9'];
 { const prevSel=select; select=function(kind){ if(DEFKEYS.includes(kind)&&!heroPick.unlocks.includes(kind)){ toast(DEFS[kind].name+' needs a different hero — press H at the raven to switch'); return; } return prevSel(kind); }; }
-{ const prevHud=Meta.hud; Meta.hud=()=>{ prevHud(); DEFKEYS.forEach(k=>{ const el=$('slot-'+k); if(!el) return; const locked=!heroPick.unlocks.includes(k); if(el.classList.contains('locked')!==locked) el.classList.toggle('locked',locked); }); }; }
+{ const prevHud=Meta.hud; Meta.hud=()=>{ prevHud(); DEFKEYS.forEach(k=>{ const el=$('slot-'+k); if(!el) return; const i=heroPick.unlocks.indexOf(k), hide=i<0;
+  if((el.style.display==='none')!==hide) el.style.display=hide?'none':''; if(!hide){ const lab=String(i+1); const kEl=el.querySelector('.k'); if(kEl&&kEl.textContent!==lab) kEl.textContent=lab; } }); }; }
+// the base Digit1-12 wiring (game.js) assumes the old always-all-12 hotbar; intercept in the capture phase, remap to
+// this hero's own list by position, and swallow the event so the base handler can't also fire on its old fixed kind
+addEventListener('keydown',e=>{ if(Meta.isOpen()||S.phase==='start') return; const i=NUMKEYS.indexOf(e.code); if(i<0) return; const kind=heroPick.unlocks[i]; if(kind) select(kind); e.stopImmediatePropagation(); },true);
+{ const prevHUD=updateHUD; updateHUD=function(){ prevHUD(); if(S.phase==='build'&&!TOUCH){ const n=heroPick.unlocks.length, want='Place defenses (1'+(n>1?'–'+n:'')+'), then press G to sound the horn', el=$('phaset'); if(el.textContent!==want) el.textContent=want; } }; }
