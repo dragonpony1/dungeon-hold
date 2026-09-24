@@ -65,6 +65,21 @@ if(MAP.throne){
   railFlight(4,7,17); railFlight(19,22,17); // the twin third flights, one up each wall
   railFlight(11,15,24);                     // the second flight, up the middle
   railFlight(4,7,31); railFlight(19,22,31); // the twin first flights, up from the floor
+  // the straight banister: a level, symmetric module (unlike the raked one, it has matching posts at both ends, so
+  // no mirroring problem) — laid one per cell along every landing/gallery edge with a real drop, the same edges the
+  // old hidden gold balustrade used to mark. Found with the same "drop of a step and a half or more" rule as that
+  // balustrade (game.js), reimplemented here since its own Hc() helper is scoped to that block. Stair cells are
+  // skipped — those already have the raked railing.
+  { const Hc=(cx,cz,fx,fz)=>{ if(!inb(cx,cz)||grid[idx(cx,cz)]===T.WALL) return -1; return floorH(cw(cx)-CELL/2+fx*CELL,cwz(cz)-CELL/2+fz*CELL); };
+    loadThroneProp('throne-banister.glb',1.33,wrap=>{
+      for(let cz=0;cz<GH;cz++) for(let cx=0;cx<GW;cx++){ const i=idx(cx,cz); if(grid[i]===T.WALL||rampA[i]||(hgt[i]<=0&&!rampA[i])) continue;
+        const X0=cw(cx)-CELL/2, Z0=cwz(cz)-CELL/2;
+        for(const [nx,nz] of [[1,0],[-1,0],[0,1],[0,-1]]){
+          const mine=Hc(cx,cz,nx>0?.99:nx<0?.01:.5,nz>0?.99:nz<0?.01:.5), theirs=Hc(cx+nx,cz+nz,nx>0?.01:nx<0?.99:.5,nz>0?.01:nz<0?.99:.5);
+          if(theirs<0||mine<theirs+1.5) continue;
+          const ex=nx?X0+(nx>0?CELL:0):cw(cx), ez=nz?Z0+(nz>0?CELL:0):cwz(cz);
+          const t=wrap.clone(); t.position.set(ex-nx*.15,mine,ez-nz*.15); t.rotation.y=nz?0:PI/2; world.add(t);
+        } } }); }
   // the wall faces that already carry the game's own painted arched window (every sixth hall face — see the
   // "pillars, props, torches, banners" block in game.js): the wall/window motif below steers clear of these so it
   // never plasters a stone panel or a second window half over the ones already there
