@@ -544,8 +544,9 @@ const DEFS={
   slice:{name:'Mushroom Ring',ic:'🍄',du:6,mana:90,hp:110,top:.05,range:2.6,rangeUp:.6,arc:360,cd:.45,dmg:2,slow:.55},     // a fairy ring: mobs inside are spored (damage over time) and slowed; heavy traffic tramples it
   spike:{name:'Bramble Hedge',ic:'🌿',du:3,mana:50,hp:220,top:1.0,thorns:2,regrow:3},                                       // a thorn wall that hurts attackers and regrows when left alone
   totem:{name:'Rune Totem',ic:'🗿',du:4,mana:70,hp:120,top:2.8,range:7,rangeUp:1,arc:360,buff:.15,buffUp:.05},           // a runed pillar: every other defense in its ring hits 15% harder and faster (+5% a mark); totems never stack
-  frost:{name:'Frost Spire',ic:'❄',du:4,mana:60,hp:100,top:2.4,range:6,rangeUp:.8,arc:360,chill:.6,chillUp:.06}};          // an ice spire: mobs in its ring crawl at 60% (6 points slower a mark); the deepest cold wins, it never stacks                                       // a thorn wall that hurts attackers and regrows when left alone
-const DEFKEYS=['harpoon','acorn','ball','slice','spike','totem','frost']; const MAXLVL=5, MARK=['','I','II','III','IV','V'];
+  frost:{name:'Frost Spire',ic:'❄',du:4,mana:60,hp:100,top:2.4,range:6,rangeUp:.8,arc:360,chill:.6,chillUp:.06},          // an ice spire: mobs in its ring crawl at 60% (6 points slower a mark); the deepest cold wins, it never stacks                                       // a thorn wall that hurts attackers and regrows when left alone
+  snare:{name:'Snare Tower',ic:'🕸',du:4,mana:65,hp:100,top:2.6,range:9,rangeUp:1,arc:360,cd:6,dmg:0}};                   // a net-winch tower for flying mobs only: on cooldown it nets the nearest flyer in range and takes it off the field outright — no damage stat, it doesn't hurt what it doesn't catch
+const DEFKEYS=['harpoon','acorn','ball','slice','spike','totem','frost','snare']; const MAXLVL=5, MARK=['','I','II','III','IV','V'];
 // a defense's sector of fire at its current mark
 function arcOf(d){ const cfg=DEFS[d.kind]; if(cfg.arcs) return cfg.arcs[Math.min(cfg.arcs.length-1,(d.lvl||1)-1)]; return cfg.arc||360; }
 function mobSpd(e){ return e.spd*(e.slowT>0?DEFS.slice.slow:1)*(e.chillT>0?(e.chillK||DEFS.frost.chill):1); }   // spored mobs crawl; chilled ones too
@@ -618,7 +619,7 @@ function hurtCrystal(dmg){ if(S.phase==='dead'||S.phase==='won') return; S.cryst
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=49;
+const BUILD=50;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -827,9 +828,13 @@ function updateDefs(dt){ const trampled=[];
     else if(d.kind==='spike'){ d.calm=(d.calm||0)+dt; if(d.calm>4&&d.hp<d.max) d.hp=Math.min(d.max,d.hp+cfg.regrow*dt); }
     else if(d.kind==='totem'||d.kind==='frost'){ const rr=stat(d,'range'); let n=0; if(d.kind==='frost'){ const k=stat(d,'chill'); for(const e of enemies){ if(!e.dead&&Math.hypot(e.x-d.x,e.z-d.z)<rr+e.r*.5){ e.chillT=.5; e.chillK=Math.min(e.chillK||1,k); n++; } } } else { for(const o of defs) if(o!==d&&o.kind!=='totem'&&Math.hypot(o.x-d.x,o.z-d.z)<=rr) n++; }
       let a=d.mdl.userData.aura; if(!a){ const col=d.kind==='frost'?0x8ee0ff:0xffd27a; a=new THREE.Group(); const ring=new THREE.Mesh(new THREE.RingGeometry(.94,1,48),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); ring.rotation.x=-PI/2; ring.userData.noOL=true; a.add(ring); const inner=new THREE.Mesh(new THREE.RingGeometry(.2,.24,24),ring.material.clone()); inner.rotation.x=-PI/2; inner.userData.noOL=true; a.add(inner); const plume=glow(col,1.5,.55); a.add(plume); a.userData.ring=ring; a.userData.inner=inner; a.userData.plume=plume; d.mdl.add(a); d.mdl.userData.aura=a; }   /* the ring on the floor at the reach, a small spinner, a plume of light at the top */
-      a.position.y=.03; a.scale.set(rr/s,1/s,rr/s); a.userData.plume.scale.set(1.5/rr,1.5,1); a.userData.plume.position.set(0,cfg.top-.1,0); a.userData.inner.rotation.z+=dt*(n?2.5:.8); a.userData.ring.material.opacity=.28+.1*Math.sin(S.t*2.4)+(n?.12:0); a.userData.plume.material.opacity=.45+.15*Math.sin(S.t*3.1); } }
+      a.position.y=.03; a.scale.set(rr/s,1/s,rr/s); a.userData.plume.scale.set(1.5/rr,1.5,1); a.userData.plume.position.set(0,cfg.top-.1,0); a.userData.inner.rotation.z+=dt*(n?2.5:.8); a.userData.ring.material.opacity=.28+.1*Math.sin(S.t*2.4)+(n?.12:0); a.userData.plume.material.opacity=.45+.15*Math.sin(S.t*3.1); }
+    else if(d.kind==='snare'){ const rr=stat(d,'range'); if(d.cd<=0){ let best=null, bd=rr; for(const e of enemies){ if(e.dead||!e.fly) continue; const dd=Math.hypot(e.x-d.x,e.z-d.z); if(dd<bd){ bd=dd; best=e; } } if(best){ d.cd=stat(d,'cd'); snareCapture(d,best); } } } }
   for(const d of trampled){ removeDef(d); SFX.destroy(); toast(DEFS[d.kind].name+' trampled flat!'); }
 }
+// the net: a streak from the tower to its catch, then the mob is gone outright (a full kill: mana, loot, XP — same as any other) —
+// what it doesn't catch, it never scratches, so it's purely a flying-mob answer, not a damage tower
+function snareCapture(d,e){ const from=new THREE.Vector3(d.x,d.top*.6,d.z), to=new THREE.Vector3(e.x,e.y+e.h*.5,e.z); const streak=glow(0xc9a8ff,1.4,.8); streak.position.copy(from).lerp(to,.5); streak.scale.set(.5,.5,from.distanceTo(to)*1.6); streak.lookAt(to); scene.add(streak); projs.push({kind:'splat',t:0,mesh:streak}); const burst=glow(0x8a3cff,e.r*2.6,.85); burst.position.copy(to); scene.add(burst); projs.push({kind:'splat',t:0,mesh:burst}); floatText(e.x,e.y+e.h+.5,e.z,'SNARED!','#c9a8ff'); SFX.destroy(); kill(e); }
 function updateProj(dt){}
 function updateProj(dt){
   for(let i=projs.length-1;i>=0;i--){ const p=projs[i]; let dead=false;
@@ -998,7 +1003,7 @@ const K={};
 addEventListener('keydown',e=>{ const c=e.code; if(Meta.isOpen()) return; if(c==='KeyI'||c==='KeyB'){ if(!e.repeat) Meta.open(); return; } if(S.phase==='start'){ if(c==='Enter'||c==='Space'){ e.preventDefault(); play(); } return; }
   if(c==='KeyW'||c==='ArrowUp') K.w=1; if(c==='KeyS'||c==='ArrowDown') K.s=1; if(c==='KeyA') K.a=1; if(c==='KeyD') K.d=1; if(c==='ShiftLeft'||c==='ShiftRight') K.shift=1; if(c==='ArrowLeft') K.tl=1; if(c==='ArrowRight') K.tr=1;
   if(c==='Space'){ jump(); e.preventDefault(); }
-  if(c==='Digit1') select('harpoon'); if(c==='Digit2') select('acorn'); if(c==='Digit3') select('ball'); if(c==='Digit4') select('slice'); if(c==='Digit5') select('spike'); if(c==='Digit6') select('totem'); if(c==='Digit7') select('frost');
+  if(c==='Digit1') select('harpoon'); if(c==='Digit2') select('acorn'); if(c==='Digit3') select('ball'); if(c==='Digit4') select('slice'); if(c==='Digit5') select('spike'); if(c==='Digit6') select('totem'); if(c==='Digit7') select('frost'); if(c==='Digit8') select('snare');
   if(c==='KeyR'){ rotateGhost(PI/12); } if(c==='Escape') cancelPlace(); if(c==='KeyG') startWave(); if(c==='KeyE') upgrade(); if(c==='KeyX') sell(); if(c==='KeyM') setSound(soundOff); if(c==='KeyN') toggleMusic(); if(c==='KeyF'||c==='KeyQ') swing(); if(c==='KeyH') toggleHero(); });
 addEventListener('keyup',e=>{ const c=e.code; if(c==='KeyW'||c==='ArrowUp') K.w=0; if(c==='KeyS'||c==='ArrowDown') K.s=0; if(c==='KeyA') K.a=0; if(c==='KeyD') K.d=0; if(c==='ShiftLeft'||c==='ShiftRight') K.shift=0; if(c==='ArrowLeft') K.tl=0; if(c==='ArrowRight') K.tr=0; });
 addEventListener('blur',()=>{ for(const k in K) K[k]=0; });
