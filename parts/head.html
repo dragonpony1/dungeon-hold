@@ -25,6 +25,8 @@ body.play #c{cursor:none}
 .slot{width:112px;padding:6px 6px 5px;background:linear-gradient(#3a2a44,#1c1424);border:2px solid #6b5a3c;border-radius:6px;text-align:center;box-shadow:0 3px 0 #000;cursor:pointer}
 .slot.sel{border-color:var(--gold);background:linear-gradient(#5a4066,#2a1c34);box-shadow:0 0 12px #e8b94a88}
 .slot.poor{opacity:.5}
+.slot.locked{opacity:.32;filter:grayscale(.7);cursor:not-allowed}
+.slot.locked .n:after{content:' 🔒'}
 .slot .k{font-size:11px;color:var(--gold);letter-spacing:1px}
 .slot .n{font-size:13px;font-weight:bold;white-space:nowrap}
 .slot .ic{font-size:22px;line-height:26px}

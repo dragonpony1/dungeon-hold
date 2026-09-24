@@ -552,7 +552,7 @@ const DEFS={
   venom:{name:'Venom Halo',ic:'☠',du:4,mana:65,hp:90,top:.08,range:5,rangeUp:.8,arc:360,cd:.5,dmg:1.4,poisonDur:3},      // poison: a DOT that keeps ticking for a few seconds after a mob leaves the ring, unlike the others
   ember:{name:'Ember Halo',ic:'🔥',du:4,mana:65,hp:90,top:.08,range:5,rangeUp:.8,arc:360,cd:.5,dmg:2.2},                 // fire: burns everything standing in the ring, same tick pattern as the mushroom ring
   dazzle:{name:'Dazzling Halo',ic:'🌀',du:4,mana:65,hp:90,top:.08,range:5,rangeUp:.8,arc:360,confuseDur:1.2}};           // confusion: no damage — a mob in the ring wanders instead of advancing, for as long as it stays in range plus a little after
-const DEFKEYS=['harpoon','acorn','ball','slice','spike','totem','frost','snare','zap','venom','ember','dazzle']; const MAXLVL=5, MARK=['','I','II','III','IV','V'];
+const DEFKEYS=['harpoon','acorn','ball','slice','spike','totem','frost','snare','zap','venom','ember','dazzle']; const DEFKEY_LABELS=['1','2','3','4','5','6','7','8','9','0','-','=']; const MAXLVL=5, MARK=['','I','II','III','IV','V'];
 // a defense's sector of fire at its current mark
 function arcOf(d){ const cfg=DEFS[d.kind]; if(cfg.arcs) return cfg.arcs[Math.min(cfg.arcs.length-1,(d.lvl||1)-1)]; return cfg.arc||360; }
 function mobSpd(e){ return e.spd*(e.slowT>0?DEFS.slice.slow:1)*(e.chillT>0?(e.chillK||DEFS.frost.chill):1); }   // spored mobs crawl; chilled ones too
@@ -632,7 +632,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=59;
+const BUILD=60;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -1032,7 +1032,7 @@ addEventListener('keydown',e=>{ const c=e.code; if(Meta.isOpen()) return; if(c==
   if(c==='KeyW'||c==='ArrowUp') K.w=1; if(c==='KeyS'||c==='ArrowDown') K.s=1; if(c==='KeyA') K.a=1; if(c==='KeyD') K.d=1; if(c==='ShiftLeft'||c==='ShiftRight') K.shift=1; if(c==='ArrowLeft') K.tl=1; if(c==='ArrowRight') K.tr=1;
   if(c==='Space'){ jump(); e.preventDefault(); }
   if(c==='Digit1') select('harpoon'); if(c==='Digit2') select('acorn'); if(c==='Digit3') select('ball'); if(c==='Digit4') select('slice'); if(c==='Digit5') select('spike'); if(c==='Digit6') select('totem'); if(c==='Digit7') select('frost'); if(c==='Digit8') select('snare'); if(c==='Digit9') select('zap'); if(c==='Digit0') select('venom'); if(c==='Minus') select('ember'); if(c==='Equal') select('dazzle');
-  if(c==='KeyR'){ rotateGhost(PI/12); } if(c==='Escape') cancelPlace(); if(c==='KeyG') startWave(); if(c==='KeyE') upgrade(); if(c==='KeyX') sell(); if(c==='KeyM') setSound(soundOff); if(c==='KeyN') toggleMusic(); if(c==='KeyF'||c==='KeyQ') swing(); if(c==='KeyH') toggleHero(); });
+  if(c==='KeyR'){ rotateGhost(PI/12); } if(c==='Escape') cancelPlace(); if(c==='KeyG') startWave(); if(c==='KeyE') upgrade(); if(c==='KeyX') sell(); if(c==='KeyM') setSound(soundOff); if(c==='KeyN') toggleMusic(); if(c==='KeyF'||c==='KeyQ') swing(); if(c==='KeyH'){ if(window.__raven&&window.__raven.near()) window.__heroes.next(); else toggleHero(); } });
 addEventListener('keyup',e=>{ const c=e.code; if(c==='KeyW'||c==='ArrowUp') K.w=0; if(c==='KeyS'||c==='ArrowDown') K.s=0; if(c==='KeyA') K.a=0; if(c==='KeyD') K.d=0; if(c==='ShiftLeft'||c==='ShiftRight') K.shift=0; if(c==='ArrowLeft') K.tl=0; if(c==='ArrowRight') K.tr=0; });
 addEventListener('blur',()=>{ for(const k in K) K[k]=0; });
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
@@ -1048,7 +1048,7 @@ canvas.addEventListener('touchmove',e=>{ for(const t of e.changedTouches){ if(t.
   else if(t.identifier===lookId){ if(placing&&placeStage===1){ anchorYaw-=(t.clientX-lookX)*.01; } else { cam.yaw-=(t.clientX-lookX)*.007; cam.pitch=clamp(cam.pitch+(t.clientY-lookY)*.007,.1,1.15); } lookX=t.clientX; lookY=t.clientY; } } e.preventDefault(); },{passive:false});
 const touchEnd=e=>{ for(const t of e.changedTouches){ if(t.identifier===joy.id){ joy.id=null; joy.x=joy.y=0; $('joy').firstElementChild.style.transform=''; } if(t.identifier===lookId) lookId=null; } };
 canvas.addEventListener('touchend',touchEnd); canvas.addEventListener('touchcancel',touchEnd);
-DEFKEYS.forEach((k,i)=>{ const cfg=DEFS[k]; const s=document.createElement('div'); s.className='slot'; s.id='slot-'+k; s.innerHTML='<div class="k">'+(i+1)+'</div><div class="ic">'+cfg.ic+'</div><div class="n">'+cfg.name+'</div><div class=\"cst\">🌱 '+cfg.du+' · '+cfg.mana+' ◆</div>'; s.addEventListener('click',()=>select(k)); $('hotbar').appendChild(s); });
+DEFKEYS.forEach((k,i)=>{ const cfg=DEFS[k]; const s=document.createElement('div'); s.className='slot'; s.id='slot-'+k; s.innerHTML='<div class="k">'+DEFKEY_LABELS[i]+'</div><div class="ic">'+cfg.ic+'</div><div class="n">'+cfg.name+'</div><div class=\"cst\">🌱 '+cfg.du+' · '+cfg.mana+' ◆</div>'; s.addEventListener('click',()=>select(k)); $('hotbar').appendChild(s); });
 if(TOUCH){ [['⚔',swing],['⤴',jump],['✔',()=>{ if(placing) confirmPlace(); }],['↻',()=>{ rotateGhost(PI/4); }],['🔧',upgrade],['🎒',()=>Meta.open()]].forEach(([t,f])=>{ const b=document.createElement('div'); b.className='hb'; b.textContent=t; b.addEventListener('touchstart',e=>{ e.preventDefault(); f(); },{passive:false}); $('btns').appendChild(b); }); }
 $('wavebtn').addEventListener('click',()=>{ startWave(); if(!TOUCH&&canvas.requestPointerLock) canvas.requestPointerLock(); });
 function play(){ if(S.phase!=='start') return; S.phase='build'; $('start').classList.add('hide'); SFX.enter(); setTimeout(()=>setMusic('build'),400); if(heroLoadError) setTimeout(()=>toast('Hero model failed to load ('+heroLoadError+') — using the old gnome'),600); if(!TOUCH&&canvas.requestPointerLock) canvas.requestPointerLock(); cam.x=hero.x; cam.y=hero.y+5; cam.z=hero.z+8; cam.d=cam.dist; toast('Build phase — pick a defense with the number keys, then G to start the wave'); }

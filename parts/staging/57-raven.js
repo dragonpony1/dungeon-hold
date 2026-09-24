@@ -34,7 +34,7 @@ function ravenUpdate(dt){ if(!wrap) return;
   wrap.position.set(RX,ravenY(),RZ); wrap.rotation.y=Math.sin(S.t*1.1)*.1; wrap.rotation.z=Math.sin(S.t*1.7)*.04;
   wrap.scale.setScalar(state==='perched'?1:easeOutBack(pop)); }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); ravenUpdate(dt); }; }
-{ const ph=Meta.hud; Meta.hud=()=>{ ph(); if(near()&&!placing&&!Meta.isOpen()){ const el=$('prompt'); const want='E  the raven (character sheet)'; if(el.textContent!==want) el.textContent=want; } }; }
+{ const ph=Meta.hud; Meta.hud=()=>{ ph(); if(near()&&!placing&&!Meta.isOpen()){ const el=$('prompt'); const want='E  the raven (character sheet)  ·  H  switch hero'; if(el.textContent!==want) el.textContent=want; } }; }
 { const prev=upgrade; upgrade=function(){ if(near()){ window.__doll.open(); return; } return prev(); }; }
 window.__raven={state:()=>state,near,pos:()=>({x:RX,y:ravenY(),z:RZ}),loaded:()=>!!wrap};
 })();
