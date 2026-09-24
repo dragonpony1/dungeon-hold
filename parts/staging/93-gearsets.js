@@ -31,8 +31,13 @@ function riftFx(x,y,z,col){ const m=new THREE.Mesh(RING_GEO,fxMat(col,.9)); m.ro
     if(done){ scene.remove(f.m); f.m.material.dispose(); FX.splice(i,1); } } }; }
 { const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); const d=packOf(it); if(d){ SFX.setBong(); if(d.sfx) d.sfx(); floatText(x,1.7,z,d.ic+' A PIECE '+d.name.toUpperCase(),d.css); column(x,z,d.col);
     const art=itemArt(it), item=l.mesh.userData.item;
-    if(art&&item){ item.visible=false; const tex=new THREE.TextureLoader().load(art); tex.encoding=THREE.sRGBEncoding; const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true})); spr.scale.set(.62,.62,1); spr.position.y=.55; spr.userData.noOL=true; l.mesh.add(spr); l.mesh.userData.artSprite=spr; }
-    else l.mesh.traverse(m=>{ if(m.isMesh&&m.material&&m.material.color&&!m.userData.isOL){ m.material=m.material.clone(); m.material.color.set(d.col); if(m.material.emissive) m.material.emissive.set(d.emissive||0); } }); } return l; }; }
+    const recolor=()=>l.mesh.traverse(m=>{ if(m.isMesh&&m.material&&m.material.color&&!m.userData.isOL){ m.material=m.material.clone(); m.material.color.set(d.col); if(m.material.emissive) m.material.emissive.set(d.emissive||0); } });
+    // a set with an `art` entry but no file there yet (still common: see the "emoji stands in" note above) used to
+    // hide the generic shape regardless of whether the swap actually had anything to show, leaving nothing on the
+    // floor at all. Hide it optimistically as before, but bring it back (recoloured, same as a set with no art) if
+    // the file 404s instead of silently leaving an empty sprite where the piece should be.
+    if(art&&item){ item.visible=false; const tex=new THREE.TextureLoader().load(art,undefined,undefined,()=>{ item.visible=true; recolor(); }); tex.encoding=THREE.sRGBEncoding; const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true})); spr.scale.set(.62,.62,1); spr.position.y=.55; spr.userData.noOL=true; l.mesh.add(spr); l.mesh.userData.artSprite=spr; }
+    else recolor(); } return l; }; }
 // ---- the five-piece powers ride hero hits: a hit that lands hands the target and the blow to the set
 function rift(e,dmg){ let n=0; for(const o of enemies){ if(o.dead||o===e) continue; if(Math.hypot(o.x-e.x,o.z-e.z)<3+(o.r||.5)){ hurt(o,dmg,0,0); o.slowT=Math.max(o.slowT||0,2); n++; } } e.slowT=Math.max(e.slowT||0,2); return n; }
 { const prev=hitCone; hitCone=function(){ const five=worn().filter(w=>w.tier>=5&&w.pack.onHit); if(!five.length) return prev(); const before=[]; for(const e of enemies) if(!e.dead) before.push([e,e.hp]); prev(); const dmg=heroDmg(); for(const [e,h] of before) if(e.hp<h) for(const w of five) w.pack.onHit(e,dmg); }; }
