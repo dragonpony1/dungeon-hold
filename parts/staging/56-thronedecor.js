@@ -2,8 +2,9 @@
 // placeholders. Gated to MAP.throne so no other map is touched. The set: the throne, two big armored guardian
 // statues flanking the dais, a stained-glass window and heraldic crest on the wall behind the throne, twin lit wall
 // sconces either side of it, a portrait and a scepter rack on the side walls, a real gothic door standing behind
-// each spawn gate's portal swirl, the ornate raked banister railing on every flight of stairs in the hall, and the
-// wood-and-gem floor tile plus the stone wall panel laid as the room's motif — floor over every flat walkable cell
+// each spawn gate's portal swirl, real hanging chandeliers over the shared procedural rings, the ornate raked
+// banister railing on every flight of stairs in the hall, and the wood-and-gem floor tile plus the stone wall panel
+// laid as the room's motif — floor over every flat walkable cell
 // of the hall, wall panel over every real wall face — both in big two-cell tiles, not a small patch. The gates' own
 // portal arch is shared code, left untouched; every other map's own gold balustrade is untouched too, since only
 // the throne room's is hidden below, in favour of the real railing model.
@@ -30,14 +31,15 @@ if(MAP.throne){
   // two armored guardian statues flanking the dais, big enough to loom, facing the hall the same way the throne does
   for(const dx of [-2.8,2.8]) loadThroneProp('throne-statue.glb',4.0,wrap=>place(wrap,tx0+dx,ty0,tz0+.4,0));
   // the stained-glass window on the wall behind the throne, a crest above it — the dramatic backlight the throne sits under
-  loadThroneProp('throne-window.glb',5.0,wrap=>place(wrap,tx0,ty0+3.6,tz0-.5,0));
-  loadThroneProp('throne-crest.glb',2.2,wrap=>place(wrap,tx0,ty0+7.6,tz0-.5,0));
+  loadThroneProp('throne-window.glb',5.0,wrap=>place(wrap,tx0,ty0+3.6,tz0-.15,0));
+  loadThroneProp('throne-crest.glb',2.2,wrap=>place(wrap,tx0,ty0+7.6,tz0-.15,0));
   // lit torches flanking the window — real point lights now, not just dark geometry, so the sconces actually read as
-  // lit. Pulled out well clear of the wall (the dense wall-panel tiling now sits almost flush with the wall itself,
-  // so the old depth left them sunk behind it)
-  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ place(wrap,tx0-3.4,ty0+3.0,tz0-.15,0);
+  // lit. Pulled out well clear of the wall (clearing the panel's own front face wasn't enough on its own — these
+  // are fairly flat/compact models, so even clear of the panel they still read as hugging the wall; pushed out
+  // further, level with the throne itself, to actually stand proud of it)
+  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ place(wrap,tx0-3.4,ty0+3.0,tz0+.35,0);
     const l=new THREE.PointLight(C(0xff8a2a),2.6,11,2); l.position.set(-.1,.3,.3); wrap.add(l); });
-  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ place(wrap,tx0+3.4,ty0+3.0,tz0-.15,0);
+  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ place(wrap,tx0+3.4,ty0+3.0,tz0+.35,0);
     const l=new THREE.PointLight(C(0xff8a2a),2.6,11,2); l.position.set(.1,.3,.3); wrap.add(l); });
   // a portrait on the left wall, a scepter rack on the right — the room's own trophies
   loadThroneProp('throne-portrait.glb',2.2,wrap=>place(wrap,cw(6),ty0+2.3,tz0+1.5,-PI/2));
@@ -46,6 +48,10 @@ if(MAP.throne){
   Object.entries(LANES).forEach(([k,l])=>{ loadThroneProp('throne-door.glb',3.4,wrap=>{
     const y=hgt[idx(l.cx,l.cz)]||0, fx=Math.sin(l.face), fz=Math.cos(l.face);   // the portal's own arch sits at local z=-1.1; the door stands a little further back, past the swirl
     place(wrap,cw(l.cx)-fx*2.0,y,cwz(l.cz)-fz*2.0,l.face+PI); }); });
+  // the real hanging chandeliers, replacing the procedural gold rings at the same ceiling spots
+  (world.userData.chandelierProcs||[]).forEach(ch=>{ ch.visible=false; });
+  MAP.chandeliers.forEach(([chx,chz])=>loadThroneProp('chandelier.glb',3.2,wrap=>{ place(wrap,chx,13.8,chz,0);
+    const l=new THREE.PointLight(C(0xffb05a),2.2,14,2); l.position.set(0,1,0); wrap.add(l); }));
   // the ornate raked railing, matched to a stair's own pitch: one on each side of every flight in the hall, six
   // flights in all. Both sides use the SAME yaw, not mirrored left/right — a Y-axis rotation on an asymmetric raked
   // model (it has a thick post at its low end, an open baluster run at its high end) swaps which end is which, so

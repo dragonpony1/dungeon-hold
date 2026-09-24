@@ -405,8 +405,9 @@ function makeTorch(){ const g=new THREE.Group(); g.add(M(G.box(.14,.14,.34),mat(
     for(const sx of [-1,1]){ g.add(M(G.box(.4,.7,1.9),dk,sx*1.5,1.55,-.1)); g.add(M(G.box(.5,.12,2.0),gd,sx*1.5,1.95,-.1)); g.add(M(G.sph(.28,8,6),gd,sx*1.4,4.7,-1.15)); g.add(M(G.cyl(.16,.2,.9,7),gd,sx*1.45,.8,.9)); }
     world.add(outline(g)); world.userData.throneProc=g; }
   // chandelier over the north half of the hall
+  world.userData.chandelierProcs=[];
   for(const [chx,chz] of (MAP.chandeliers||[MAP.chandelier])){ const ch=new THREE.Group(); ch.position.set(chx,WALLH-1.8,chz); const ring=M(new THREE.TorusGeometry(1.6,.09,6,18),mat(0x2b2540)); ring.rotation.x=PI/2; ch.add(ring); ch.add(M(G.cyl(.03,.03,1.8,5),mat(0x2b2540),0,.9,0));
-  for(let k=0;k<6;k++){ const a=k/6*TAU; ch.add(M(G.cyl(.06,.06,.32,6),mat(0xf4ead0),Math.cos(a)*1.6,.2,Math.sin(a)*1.6)); const f=M(G.cone(.08,.24,6),basic(0xffd060),Math.cos(a)*1.6,.48,Math.sin(a)*1.6); f.userData.noOL=true; ch.add(f); flames.push({f,f2:f,p:k}); } const cg=glow(0xffb05a,3,.5); cg.position.y=.4; ch.add(cg); world.add(ch); }
+  for(let k=0;k<6;k++){ const a=k/6*TAU; ch.add(M(G.cyl(.06,.06,.32,6),mat(0xf4ead0),Math.cos(a)*1.6,.2,Math.sin(a)*1.6)); const f=M(G.cone(.08,.24,6),basic(0xffd060),Math.cos(a)*1.6,.48,Math.sin(a)*1.6); f.userData.noOL=true; ch.add(f); flames.push({f,f2:f,p:k}); } const cg=glow(0xffb05a,3,.5); cg.position.y=.4; ch.add(cg); world.add(ch); world.userData.chandelierProcs.push(ch); }   // a handle so a map can hide these once a real chandelier model stands in their place (56-thronedecor.js)
   // beams
   MAP.beams.zs.forEach(z=>world.add(M(G.box(MAP.beams.w,.5,.5),mat(0x2a1f2c),0,WALLH-.25,z)));
 }
@@ -616,7 +617,7 @@ function hurtCrystal(dmg){ if(S.phase==='dead'||S.phase==='won') return; S.cryst
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=41;
+const BUILD=42;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
