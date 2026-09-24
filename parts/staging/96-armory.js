@@ -18,12 +18,16 @@ const canWear=it=>!GATE||!it||!it.req||Meta.level()>=it.req;
 if(typeof tvTier==='function'){ const prev=tvTier; tvTier=function(it){ return prev(it)+(it.req?'<span class="tb'+(canWear(it)?'':' no')+'">Lv '+it.req+'</span>':''); }; }
 // --- the store ---
 let ARM=[]; try{ const a=JSON.parse(localStorage.getItem('ddArmory')); if(Array.isArray(a)) ARM=a.filter(validItem).map(fixItem).slice(0,CAP); }catch(e){}
+let refresh=()=>{};   // real body assigned below only when the physical stands exist (not on a noTavern map) — save() always has one to call either way
 function save(){ try{ localStorage.setItem('ddArmory',JSON.stringify(ARM)); }catch(e){} if(Meta.save) Meta.save(); refresh(); }
 function stash(id){ const bag=Meta.bag(); const i=bag.findIndex(b=>b.id===id); if(i<0) return false; if(ARM.length>=CAP){ toast('The armory is full — '+CAP+' stands'); return false; } const it=bag.splice(i,1)[0]; ARM.push(it); save(); SFX.place(); return true; }
 function unstash(id){ const i=ARM.findIndex(b=>b.id===id); if(i<0) return false; if(Meta.bagFull()){ toast('Bag is full'); return false; } const it=ARM.splice(i,1)[0]; if(!Meta.giveItem(it)){ ARM.splice(i,0,it); return false; } save(); return true; }
 { const prev=Meta.reset; Meta.reset=()=>{ prev(); ARM=[]; save(); }; }
 Meta.levelGate=v=>{ if(v!==undefined) GATE=!!v; return GATE; }; Meta.armory=()=>ARM; Meta.armoryCap=CAP; Meta.stash=stash; Meta.unstash=unstash; Meta.canWear=canWear; Meta.reqFor=reqFor;
-// --- the stands in the tavern: six along the north wall west of the door, two east of it ---
+// --- the stands in the tavern: six along the north wall west of the door, two east of it — skipped on a map with
+// no physical tavern room (MAP.noTavern): there's nowhere to stand them, and they were showing up in open air
+// where the room used to be. KEEP / TAKE still works from the character sheet either way (Meta.armory above).
+if(!MAP.noTavern){
 const TD=MAP.tavern||{dx:0,dz:0}; const at=(x,z)=>[cw(x+TD.dx),cwz(z+TD.dz)];
 const SPOTS=[12.2,12.775,13.35,13.925,14.5,15.075,17.0,17.7].map(x=>at(x,25.42)); for(const cx of [12,13,14,15,17,18]){ const i=idx(cx+TD.dx,25+TD.dz); if(grid[i]===T.FLOOR||grid[i]===T.CARPET) grid[i]=T.PROP; }
 const wood=mat(0x6b4a2a), dark=mat(0x2b2540), cream=mat(0xf1e6d0); const ROOT=new THREE.Group(); world.add(ROOT); const STANDS=SPOTS.map(([x,z])=>{ const g=new THREE.Group(); g.position.set(x,0,z); g.add(M(G.cyl(.34,.38,.08,12),dark,0,.04,0)); ROOT.add(g); return {g,x,z,shown:null,item:null}; });
@@ -44,9 +48,10 @@ function build(st,it){ const g=new THREE.Group(); const col=itemColor(it), tint=
   else if(it.slot==='amulet'){ g.add(M(G.cyl(.16,.22,1.0,9),dark,0,.55,0)); const gem=M(new THREE.OctahedronGeometry(.16,0),shine,0,1.3,0); gem.userData.noOL=true; g.add(gem); const gl=glow(col,.8,.5); gl.position.y=1.3; g.add(gl); }
   else { g.add(M(G.cyl(.05,.07,1.1,7),wood,0,.6,0)); g.add(M(G.cyl(.26,.3,.07,10),wood,0,1.15,0)); const egg=M(G.sph(.17,10,8),tint,0,1.4,0); egg.scale.y=1.3; g.add(egg); const gl=glow(col,.7,.4); gl.position.y=1.42; g.add(gl); }
   outline(g); const nm=it.name.length>20?it.name.slice(0,19)+'…':it.name; const t=tag(nm,RCSS[it.rarity]); t.position.y=2.45; g.add(t); return g; }
-function refresh(){ STANDS.forEach((st,i)=>{ const it=ARM[i]||null; if(st.item===it) return; if(st.shown){ st.g.remove(st.shown); st.shown=null; } st.item=it; if(it){ st.shown=build(st,it); st.g.add(st.shown); } }); }
+refresh=function(){ STANDS.forEach((st,i)=>{ const it=ARM[i]||null; if(st.item===it) return; if(st.shown){ st.g.remove(st.shown); st.shown=null; } st.item=it; if(it){ st.shown=build(st,it); st.g.add(st.shown); } }); };
 refresh();
 // the gems turn; a stand in use is the "armory" station's centre
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); for(const st of STANDS){ if(!st.shown||!st.item) continue; if(st.item.slot==='charm'||st.item.slot==='amulet') st.shown.children.forEach(o=>{ if(o.userData.noOL&&!o.isSprite) o.rotation.y+=dt*1.2; }); } }; }
 window.__armory={cap:CAP,list:()=>ARM.map(it=>it.id),stands:()=>STANDS.map(st=>({x:+st.x.toFixed(2),z:+st.z.toFixed(2),slot:st.item?st.item.slot:null,shown:!!st.shown})),stash,unstash,reqFor,canWear,refresh,center:()=>[(SPOTS[2][0]+SPOTS[3][0])/2,SPOTS[2][1]+1.0]};
+}
 })();
