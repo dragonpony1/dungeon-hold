@@ -26,6 +26,9 @@ window.build=async()=>{
   const bones=[]; scene.traverse(o=>{ if(o.isBone) bones.push(o); });
   const rest=new Map(bones.map(b=>[b,{q:b.quaternion.clone(),p:b.position.clone()}]));
   const resetAll=()=>{ for(const b of bones){ const r=rest.get(b); b.quaternion.copy(r.q); b.position.copy(r.p); } scene.updateMatrixWorld(true); };
+  const X=new THREE.Vector3(1,0,0), Y=new THREE.Vector3(0,1,0);
+  const pq=new THREE.Quaternion(), rq=new THREE.Quaternion(), tmp=new THREE.Quaternion();
+  const rot=(name,axis,deg)=>{ const b=bone(name); scene.updateMatrixWorld(true); b.parent.getWorldQuaternion(pq); rq.setFromAxisAngle(axis,deg*PI/180); tmp.copy(pq).invert().multiply(rq).multiply(pq); b.quaternion.premultiply(tmp); b.updateMatrixWorld(true); };
   const hips=bone('Hips'); const hipsRest=rest.get(hips).p.clone();
   const record=()=>{ const out={}; for(const b of bones) out[b.name]=b.quaternion.toArray(); out.__hipsPos=hips.position.toArray(); return out; };
   const clipFrom=(name,times,poses)=>{ const tracks=[]; for(const b of bones){ const vals=[]; for(const p of poses) vals.push(...p[b.name]); tracks.push(new THREE.QuaternionKeyframeTrack(b.name+'.quaternion',times,vals)); } const pv=[]; for(const p of poses) pv.push(...p.__hipsPos); tracks.push(new THREE.VectorKeyframeTrack(hips.name+'.position',times,pv)); return new THREE.AnimationClip(name,times[times.length-1],tracks); };
@@ -42,7 +45,13 @@ window.build=async()=>{
   mixer.stopAllAction(); resetAll();
   const Attack=sample(SP,t0,t1,18,'Attack'); for(const t of Attack.tracks){ if(/Hips\.position$/.test(t.name)){ const v=t.values; for(let i=0;i<v.length;i+=3){ v[i]=hipsRest.x; v[i+2]=hipsRest.z; } } }
   resetAll();
-  const Idle=fix(idleG.animations[0],'Idle');
+  // Idle: NOT the raw Meshy clip — "Idle_3" turns out to be a dramatic held stance (one clawed hand raised, the staff
+  // swung out low) that reaches that pose in under a second and then just holds it for the rest of its 10s, which
+  // reads as a broken/frozen character standing around for the many seconds a player actually watches an idle hero.
+  // A calm breathing sway, the same synthesized fallback the squire and other Meshy melee rigs use when there's no
+  // idle clip worth keeping, holds up far better as the thing shown by default for as long as the hero just stands there.
+  const S=(a,n,i,ph)=>Math.sin(i/n*2*PI+(ph||0))*a;
+  let Idle; { const n=8, times=[], poses=[]; for(let i=0;i<=n;i++){ times.push(i/n*2.0); resetAll(); rot('Spine',X,S(-3,n,i)); rot('Head',Y,S(8,n,i,1)); rot('Head',X,S(3,n,i)); rot('LeftArm',X,S(3,n,i,.5)); rot('RightArm',X,S(-3,n,i,.5)); hips.position.y=hipsRest.y+S(.4,n,i); poses.push(record()); } Idle=clipFrom('Idle',times,poses); }
   const Death=fix(deathG.animations[0],'Death'); for(const t of Death.tracks){ if(/Hips\.position$/.test(t.name)){ const v=t.values; for(let i=0;i<v.length;i+=3){ v[i]=v[0]; v[i+2]=v[2]; } } }
   const Jump=fix(jumpG.animations[0],'Jump'); for(const t of Jump.tracks){ if(/Hips\.position$/.test(t.name)){ const v=t.values; for(let i=0;i<v.length;i+=3){ v[i]=v[0]; v[i+2]=v[2]; } } }
   resetAll();

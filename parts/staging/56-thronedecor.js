@@ -41,17 +41,23 @@ if(MAP.throne){
   loadThroneProp('throne-seat.glb',3.2,wrap=>{ const proc=world.userData.throneProc; if(proc) proc.visible=false; place(wrap,tx0,ty0,tz0,0); });
   // two armored guardian statues flanking the dais, big enough to loom, facing the hall the same way the throne does
   for(const dx of [-2.8,2.8]) loadThroneProp('throne-statue.glb',4.0,wrap=>place(wrap,tx0+dx,ty0,tz0+.4,0));
-  // the stained-glass window on the wall behind the throne, a crest above it — the dramatic backlight the throne sits under
-  loadThroneProp('throne-window.glb',5.0,wrap=>place(wrap,tx0,ty0+3.6,tz0-.15,0));
-  loadThroneProp('throne-crest.glb',2.2,wrap=>place(wrap,tx0,ty0+7.6,tz0-.15,0));
+  // the stained-glass window on the wall behind the throne, a crest above it — the dramatic backlight the throne sits under.
+  // Z offset: the throne's own cell is one cell clear of the true wall (a full CELL=2 away, so the wall's face sits at
+  // tz0-1), and the wall panel + the ambient copies of this same window elsewhere in the hall both mount flush at that
+  // face plus a ~.2 standoff (wallFaces-derived, game.js). These two were hand-placed at tz0-.15 instead — back when
+  // the wall panel had its own thickness bug (fixed below) and stuck out 0.7+ units, so pulling the window that far off
+  // the true wall was the only way to clear it. That bug's long fixed, but these never got moved back: they've been
+  // floating .85 units out in the open room ever since, with the now-correctly-flush wall panel visible behind them —
+  // "attached to the wall behind the wall". tz0-.8 lands them back on the real wall face, matching everything else.
+  loadThroneProp('throne-window.glb',5.0,wrap=>place(wrap,tx0,ty0+3.6,tz0-.8,0));
+  loadThroneProp('throne-crest.glb',2.2,wrap=>place(wrap,tx0,ty0+7.6,tz0-.8,0));
   // lit torches flanking the window — real point lights now, not just dark geometry, so the sconces actually read as
-  // lit, and pulled out well clear of the wall. Neither actually fixed the "buried" look: the fixture's own base
-  // colour is nearly as dark as the stone around it, so even with clean geometric separation there was no contrast
-  // to see it by. warmGlow gives the fixture itself a warm self-lit floor so its silhouette reads against the wall
-  // regardless of external light.
-  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ warmGlow(wrap); place(wrap,tx0-3.4,ty0+3.0,tz0+.35,0);
+  // lit. Same stale-offset bug as the window above (tz0+.35 was tuned to clear the old bloated wall panel, not to sit
+  // on the real wall — moved to tz0-.8 to match); warmGlow gives the fixture itself a warm self-lit floor so its
+  // silhouette reads against the wall regardless of external light, which is what actually fixed "buried" for these.
+  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ warmGlow(wrap); place(wrap,tx0-3.4,ty0+3.0,tz0-.8,0);
     const l=new THREE.PointLight(C(0xff8a2a),4,11,2); l.position.set(-.1,.3,.3); wrap.add(l); });
-  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ warmGlow(wrap); place(wrap,tx0+3.4,ty0+3.0,tz0+.35,0);
+  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ warmGlow(wrap); place(wrap,tx0+3.4,ty0+3.0,tz0-.8,0);
     const l=new THREE.PointLight(C(0xff8a2a),4,11,2); l.position.set(.1,.3,.3); wrap.add(l); });
   // a portrait on the left wall, a scepter rack on the right — the room's own trophies
   loadThroneProp('throne-portrait.glb',2.2,wrap=>place(wrap,cw(6),ty0+2.3,tz0+1.5,-PI/2));
