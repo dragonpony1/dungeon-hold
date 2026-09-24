@@ -178,6 +178,25 @@ if(MAP.throne){
       const baseY=hgt[idx(w.cx,w.cz)]||0, yaw=Math.atan2(w.nx,w.nz), span=WALLH-baseY;
       for(let dy=0;dy<span;dy+=9){ const t=wrap.clone(); t.position.set(w.x+w.nx*.18,baseY+dy,w.z+w.nz*.18); t.rotation.y=yaw; world.add(t); } });
   });
+  // real hanging banners, swapped in for the painted-plane ones at their exact spots (read straight off the
+  // meshes being replaced, so nothing needs re-deriving from the wall geometry a second time) — no other map
+  // touched, since bannerMeshes (game.js) is throne-room-only in practice: the castle-only "banner over the
+  // gate" doesn't build on this indoor map, so the wall run is the only banner this hall ever had.
+  { const spots=(world.userData.bannerMeshes||[]).map(b=>({p:b.position.clone(),yaw:b.rotation.y}));
+    (world.userData.bannerMeshes||[]).forEach(b=>{ b.visible=false; });
+    if(spots.length) loadThroneProp('throne-banner2.glb',2.6,wrap=>{ spots.forEach(s=>{ const t=wrap.clone(); t.position.copy(s.p); t.rotation.y=s.yaw; world.add(t); }); }); }
+  // the carpet motif, over the same cells the floor tile above already covers — laid a hair higher so it wins the
+  // z-fight — but restricted to actual T.CARPET cells (the runner and the landings it crosses), leaving the plain
+  // stone floor tile as-is everywhere else. Ramp cells stay out of both loops (a flat tile can't sit right on a
+  // stepped surface); the repainted procedural carpet texture (game.js) is what covers the stair flights themselves.
+  loadThroneProp('throne-carpet-tile.glb',2.7,wrap=>{ wrap.rotation.x=-PI/2;
+    for(let cz=2;cz<=44;cz++) for(let cx=0;cx<GW;cx++){ const i=idx(cx,cz);
+      if(grid[i]!==T.CARPET||rampA[i]) continue;
+      const t=wrap.clone(); t.position.set(cw(cx),hgt[i]+.03,cwz(cz)); world.add(t);
+    } });
+  // one rug, laid once as a real accent piece rather than tiled — centred on the dais before the throne, long axis
+  // running with the hall's own north-south spine (the model's long axis is local X; PI/2 turns it to world Z)
+  loadThroneProp('throne-rug.glb',4.0,wrap=>place(wrap,tx0,ty0+.03,cwz(6),PI/2));
   /* the ambient stained-glass windows tiled around the hall — pulled out with the pair behind the throne, same
      re-figuring-placement reason. The wall panel motif right above stays on, so the bare wall is still visible.
   loadThroneProp('throne-window.glb',4.2,wrap=>{

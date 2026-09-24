@@ -238,7 +238,7 @@ function paintFloor(){
   g.fillStyle='#0f0a16'; g.fillRect(0,0,c.width,c.height);
   for(let z=0;z<GH;z++) for(let x=0;x<GW;x++){ const t=grid[idx(x,z)]; if(t===T.WALL) continue; const px=x*S, pz=z*S;
     if(t===T.CARPET){ if(MAP.style&&MAP.style.road){ g.fillStyle='#5e5a52'; g.fillRect(px,pz,S,S); for(let sx=0;sx<2;sx++) for(let sz=0;sz<2;sz++){ g.fillStyle=hsl(38,10,R(46,58)); g.fillRect(px+sx*16+1.5,pz+sz*16+1.5,13,13); for(let i=0;i<2;i++) splat(g,px+sx*16+2+rnd()*12,pz+sz*16+2+rnd()*12,R(1,3),rnd()<.5?hsl(38,8,40):hsl(40,14,66),.22); } }   // a paved royal road, gold-edged
-      else { g.fillStyle='#8c1d24'; g.fillRect(px,pz,S,S); for(let i=0;i<14;i++) splat(g,px+rnd()*S,pz+rnd()*S,R(1.5,4),rnd()<.5?'#5a0f14':'#b03038',.16);
+      else { const throne=MAP.id==='throne'; g.fillStyle=throne?'#2c1a5e':'#8c1d24'; g.fillRect(px,pz,S,S); for(let i=0;i<14;i++) splat(g,px+rnd()*S,pz+rnd()*S,R(1.5,4),rnd()<.5?(throne?'#180f3a':'#5a0f14'):(throne?'#4a2f96':'#b03038'),.16);
       g.globalAlpha=.32; g.fillStyle='#e8b94a'; g.beginPath(); g.moveTo(px+16,pz+6); g.lineTo(px+26,pz+16); g.lineTo(px+16,pz+26); g.lineTo(px+6,pz+16); g.closePath(); g.fill(); g.globalAlpha=1; }
       g.strokeStyle='#e8b94a'; g.lineWidth=3; g.beginPath();
       if(gat(x,z-1)!==T.CARPET){ g.moveTo(px,pz+2); g.lineTo(px+S,pz+2);} if(gat(x,z+1)!==T.CARPET){ g.moveTo(px,pz+S-2); g.lineTo(px+S,pz+S-2);} if(gat(x-1,z)!==T.CARPET){ g.moveTo(px+2,pz); g.lineTo(px+2,pz+S);} if(gat(x+1,z)!==T.CARPET){ g.moveTo(px+S-2,pz); g.lineTo(px+S-2,pz+S);} g.stroke();
@@ -283,8 +283,8 @@ function paintWindow(){ const c=cv(128,320), g=c.getContext('2d'); g.clearRect(0
   g.save(); arch(); g.clip(); for(let i=0;i<40;i++) splat(g,rnd()*128,rnd()*320,R(.6,1.8),'#dfe8ff',.7); g.globalAlpha=.35; g.fillStyle='#8fb8ff'; g.beginPath(); g.arc(88,72,30,0,TAU); g.fill(); g.globalAlpha=.95; g.fillStyle='#f4efd8'; g.beginPath(); g.arc(88,72,15,0,TAU); g.fill(); g.globalAlpha=1;
   g.strokeStyle='#e8b94a'; g.lineWidth=4; g.beginPath(); g.moveTo(64,10); g.lineTo(64,312); g.moveTo(10,150); g.lineTo(118,150); g.moveTo(10,230); g.lineTo(118,230); g.stroke(); g.restore();
   arch(); g.strokeStyle='#e8b94a'; g.lineWidth=9; g.stroke(); arch(); g.strokeStyle='#5a4220'; g.lineWidth=3; g.stroke(); const tex=new THREE.CanvasTexture(c); tex.encoding=THREE.sRGBEncoding; return tex; }
-function paintDrape(){ const c=cv(64,256), g=c.getContext('2d'); g.fillStyle='#8c1d24'; g.fillRect(0,0,64,256); for(let x=0;x<64;x+=8){ g.fillStyle=(x/8)%2?'#6a1219':'#a3282f'; g.fillRect(x,0,8,256); g.globalAlpha=.5; g.fillStyle='#b8383f'; g.fillRect(x+2,0,2,256); g.globalAlpha=1; }
-  for(let i=0;i<60;i++) splat(g,rnd()*64,rnd()*256,R(1,4),rnd()<.5?'#5a0f14':'#c04048',.15); g.fillStyle='#e8b94a'; g.fillRect(0,0,64,9); g.fillRect(0,247,64,9); g.beginPath(); g.moveTo(0,150); g.quadraticCurveTo(32,172,64,150); g.lineTo(64,162); g.quadraticCurveTo(32,184,0,162); g.closePath(); g.fill();
+function paintDrape(){ const throne=MAP.id==='throne'; const c=cv(64,256), g=c.getContext('2d'); g.fillStyle=throne?'#2c1a5e':'#8c1d24'; g.fillRect(0,0,64,256); for(let x=0;x<64;x+=8){ g.fillStyle=(x/8)%2?(throne?'#20134a':'#6a1219'):(throne?'#3a2478':'#a3282f'); g.fillRect(x,0,8,256); g.globalAlpha=.5; g.fillStyle=throne?'#5a3aa8':'#b8383f'; g.fillRect(x+2,0,2,256); g.globalAlpha=1; }
+  for(let i=0;i<60;i++) splat(g,rnd()*64,rnd()*256,R(1,4),rnd()<.5?(throne?'#180f3a':'#5a0f14'):(throne?'#6a48c0':'#c04048'),.15); g.fillStyle='#e8b94a'; g.fillRect(0,0,64,9); g.fillRect(0,247,64,9); g.beginPath(); g.moveTo(0,150); g.quadraticCurveTo(32,172,64,150); g.lineTo(64,162); g.quadraticCurveTo(32,184,0,162); g.closePath(); g.fill();
   const tex=new THREE.CanvasTexture(c); tex.encoding=THREE.sRGBEncoding; return tex; }
 const FLOORTEX=paintFloor(), WALLTEX=paintWall(), BANNERTEX=paintBanner(); const WINDOWTEX=(MAP.style&&MAP.style.windows)?paintWindow():null, DRAPETEX=WINDOWTEX?paintDrape():null;
 
@@ -368,11 +368,11 @@ function makeTorch(){ const g=new THREE.Group(); g.add(M(G.box(.14,.14,.34),mat(
       const dh=wh*.62; for(const sd of [-1,1]){ const d=new THREE.Mesh(new THREE.PlaneGeometry(1.0,dh),new THREE.MeshToonMaterial({map:DRAPETEX,gradientMap:GRAD,color:C(0xffffff),side:THREE.DoubleSide})); d.position.set(f.x+f.nx*.16+tx*sd*1.75,fy+wh*.5,f.z+f.nz*.16+tz*sd*1.75); d.rotation.y=yaw; d.userData.noOL=true; world.add(d); }
       const rod=M(G.cyl(.06,.06,4.9,6),mat(0xe0b040),f.x+f.nx*.2,fy+wh*.5+dh/2+.12,f.z+f.nz*.2); rod.rotation.set(0,yaw,PI/2); world.add(rod); for(const sd of [-1,1]) world.add(M(G.sph(.14,7,6),mat(0xe0b040),f.x+f.nx*.2+tx*sd*2.45,fy+wh*.5+dh/2+.12,f.z+f.nz*.2+tz*sd*2.45)); }); }
   world.userData.windows=nWin;
-  const torchProcs=[]; let i=0; wallFaces.forEach(f=>{ const inHall=f.cx>=hx0&&f.cx<=hx1&&f.cz>=hz0&&f.cz<=hz1; i++; if(WIN.has(f)) return;
+  const torchProcs=[], bannerMeshes=[]; let i=0; wallFaces.forEach(f=>{ const inHall=f.cx>=hx0&&f.cx<=hx1&&f.cz>=hz0&&f.cz<=hz1; i++; if(WIN.has(f)) return;
     const yaw=Math.atan2(f.nx,f.nz), fy=hgt[idx(f.cx,f.cz)]||0;   // torches and banners hang above the floor of the cell they face (a landing's wall carries its own)
     if(i%4===1){ const t=makeTorch(); t.position.set(f.x,fy+3.1,f.z); t.rotation.y=yaw; world.add(t); torchProcs.push(t); }
-    else if(inHall&&i%4===3){ const b=new THREE.Mesh(new THREE.PlaneGeometry(1.3,2.6),new THREE.MeshToonMaterial({map:BANNERTEX,gradientMap:GRAD,color:C(0xffffff),transparent:true,side:THREE.DoubleSide,alphaTest:.5})); b.position.set(f.x+f.nx*.12,fy+4.2,f.z+f.nz*.12); b.rotation.y=yaw; world.add(b); const rod=M(G.cyl(.05,.05,1.7,6),mat(0xe0b040),f.x+f.nx*.12,fy+5.5,f.z+f.nz*.12); rod.rotation.y=yaw; rod.rotation.z=PI/2; world.add(rod); } });
-  world.userData.torchProcs=torchProcs;
+    else if(inHall&&i%4===3){ const b=new THREE.Mesh(new THREE.PlaneGeometry(1.3,2.6),new THREE.MeshToonMaterial({map:BANNERTEX,gradientMap:GRAD,color:C(0xffffff),transparent:true,side:THREE.DoubleSide,alphaTest:.5})); b.position.set(f.x+f.nx*.12,fy+4.2,f.z+f.nz*.12); b.rotation.y=yaw; world.add(b); const rod=M(G.cyl(.05,.05,1.7,6),mat(0xe0b040),f.x+f.nx*.12,fy+5.5,f.z+f.nz*.12); rod.rotation.y=yaw; rod.rotation.z=PI/2; world.add(rod); bannerMeshes.push(b); } });
+  world.userData.torchProcs=torchProcs; world.userData.bannerMeshes=bannerMeshes;   // a handle so a map can swap the painted banners for real art (56-thronedecor.js), same idea as railMeshes/floorMesh
   (MAP.roofs||[]).forEach(([x0,x1,z0,z1])=>{ const y=(MAP.pillarH||6)+1.0; const w=(x1-x0+1)*CELL, d=(z1-z0+1)*CELL; const r=M(G.box(w,.45,d),mat(0x2a1f2c),(cw(x0)+cw(x1))/2,y,(cwz(z0)+cwz(z1))/2); world.add(r); world.add(M(G.box(w,.12,d),mat(0x4a4262),(cw(x0)+cw(x1))/2,y+.28,(cwz(z0)+cwz(z1))/2)); });   // covered walkways: a slab on the colonnade
   (MAP.trees||[]).forEach(([x,z])=>{ const g=new THREE.Group(); g.position.set(cw(x),hgt[idx(x,z)]||0,cwz(z)); g.add(M(G.cyl(.22,.3,2.2,7),mat(0x5a3a22),0,1.1,0)); [[0,2.6,0,1.5],[.7,2.2,.4,1.0],[-.6,2.3,-.5,1.0],[0,3.5,0,1.1]].forEach(([ox,oy,oz,r])=>g.add(M(G.sph(r,8,6),mat(0x2f6a2a),ox,oy,oz))); world.add(outline(g)); });   // trees in the court
   // a castle's outside: battlements on every wall, towers with pennants, the keep rising behind the ward, the gate arch with its
@@ -634,7 +634,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=81;
+const BUILD=83;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),

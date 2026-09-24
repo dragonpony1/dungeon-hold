@@ -1,9 +1,10 @@
-// ===== THE NINJA'S BO STAFF, BY HAND: the new rig's baked walk reads like the staff is a cane (planted and poked
-// with every step) and its attack drops into a low, slow crouch — not what a "quick and close" fighter should look
-// like next to the other three heroes. Same technique as the witch's own hand-made strike (72-witchswing.js, now
-// dormant): aim the arm bones at a world-space direction each frame, blended in on top of whatever the mixer is
-// already doing, instead of trusting the baked clip's own arm motion. The legs keep running the baked Walk/Run
-// clip untouched — only the two arms (and the staff riding on them) are ours.
+// ===== THE NINJA'S BO STAFF, BY HAND: built when the rig's baked walk read like the staff was a cane (planted and
+// poked with every step) and its attack dropped into a low, slow crouch. Same technique as the witch's own
+// hand-made strike (72-witchswing.js, also dormant): aim the arm bones at a world-space direction each frame,
+// blended in on top of whatever the mixer is already doing, instead of trusting the baked clip's own arm motion.
+// Now that real Mixamo walk/run/attack clips have replaced the Meshy originals, hold()/strike() are left in but
+// only called for idle — walk and attack run fully on their own baked clips again, so their real arm motion
+// actually shows. Kept, not deleted: a fallback if a future baked clip needs the same fix a different hero got.
 (function(){
 const _f=new THREE.Vector3(), _u=new THREE.Vector3(0,1,0), _l=new THREE.Vector3(), _d=new THREE.Vector3(), _a=new THREE.Vector3(), _b=new THREE.Vector3(), _c=new THREE.Vector3(), _q=new THREE.Quaternion(), _pw=new THREE.Quaternion(), _bw=new THREE.Quaternion(), _r=new THREE.Quaternion();
 function isNinja(){ return window.__heroes&&window.__heroes.pick()==='ninja'; }
@@ -33,10 +34,9 @@ function strike(p){ const B=bones(); if(!B) return; const yaw=hero.yaw; _f.set(M
 // standing frame in it to freeze on, so pin it to the one point (t=1.0s) where it's at least fully risen and
 // composed, not mid-rise off the floor. The arms are already fully overridden by hold() below regardless.
 const IDLE_FREEZE_T=1.0;
-{ const prev=heroModelUpdate; heroModelUpdate=function(dt){ const ninja=isNinja(); const act=(ninja&&GLBH)?GLBH.actions.attack:null; if(act) GLBH.actions.attack=null; prev(dt); if(act) GLBH.actions.attack=act;
-    if(!ninja||!GLBH||!useGLB||hero.dead>0) return;
+{ const prev=heroModelUpdate; heroModelUpdate=function(dt){ prev(dt);
+    const ninja=isNinja(); if(!ninja||!GLBH||!useGLB||hero.dead>0) return;
     const idleSt=hero.grounded&&!hero.moving&&hero.swingT<0;
     if(idleSt&&GLBH.actions.idle&&GLBH.actions.idle.timeScale!==0){ const a=GLBH.actions.idle; a.time=IDLE_FREEZE_T; a.timeScale=0; a.setEffectiveWeight(1); }
-    if(hero.swingT>=0) strike(Math.min(1,hero.swingT/swingDur())); else if(hero.grounded) hold(1); }; }
-{ const prev=hitFrac; hitFrac=function(){ return (isNinja()&&useGLB&&GLBH)?.55:prev(); }; }   // the blow lands at the snap
+    if(idleSt) hold(1); }; }
 })();
