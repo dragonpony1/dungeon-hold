@@ -27,8 +27,16 @@ function strike(p){ const B=bones(); if(!B) return; const yaw=hero.yaw; _f.set(M
   let w,dir; if(p<.35){ w=smooth(p/.12); dir=W; } else if(p<.55){ const t=(p-.35)/.2; w=1; dir=new THREE.Vector3().copy(W).lerp(S,1-Math.pow(1-t,3)).normalize(); } else { w=1-smooth((p-.65)/.35); dir=S; }
   if(w<=0){ hold(1); return; } aim(B.ru,B.rf,dir,w); aim(B.rf,B.rh,dir,w);
   const ldir=new THREE.Vector3().copy(dir).addScaledVector(_l,.5).normalize(); aim(B.lu,B.lf,ldir,w); aim(B.lf,B.lh,ldir,w); }
+// the baked "Idle" clip turned out not to be an idle loop at all — it's the Meshy rig's Arise (stand-up) clip,
+// which opens flat on the ground and spends its whole 2s cycle rising and re-settling into a crouch, never
+// holding still — that's the "constantly doing something" that made it impossible to evaluate. There's no good
+// standing frame in it to freeze on, so pin it to the one point (t=1.0s) where it's at least fully risen and
+// composed, not mid-rise off the floor. The arms are already fully overridden by hold() below regardless.
+const IDLE_FREEZE_T=1.0;
 { const prev=heroModelUpdate; heroModelUpdate=function(dt){ const ninja=isNinja(); const act=(ninja&&GLBH)?GLBH.actions.attack:null; if(act) GLBH.actions.attack=null; prev(dt); if(act) GLBH.actions.attack=act;
     if(!ninja||!GLBH||!useGLB||hero.dead>0) return;
+    const idleSt=hero.grounded&&!hero.moving&&hero.swingT<0;
+    if(idleSt&&GLBH.actions.idle&&GLBH.actions.idle.timeScale!==0){ const a=GLBH.actions.idle; a.time=IDLE_FREEZE_T; a.timeScale=0; a.setEffectiveWeight(1); }
     if(hero.swingT>=0) strike(Math.min(1,hero.swingT/swingDur())); else if(hero.grounded) hold(1); }; }
 { const prev=hitFrac; hitFrac=function(){ return (isNinja()&&useGLB&&GLBH)?.55:prev(); }; }   // the blow lands at the snap
 })();
