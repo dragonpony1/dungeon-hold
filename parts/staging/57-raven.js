@@ -1,11 +1,13 @@
-// ===== THE RAVEN: a terminal that flies in during the build phase, landing on a waist-high gnarled perch that
-// stands on the floor near the crystal (which always stands at world (0,0), so this works on every map with no
-// per-map wiring) — no wall-hugging, no depth-matching headaches, just a simple floor spot clear of foot traffic.
+// ===== THE RAVEN: a terminal that flies in during the build phase, landing on a waist-high gnarled perch — backed
+// against a wall on a map that sets MAP.raven (cx,cz,face), or a plain floor spot beside the crystal otherwise
+// (the crystal always stands at world (0,0), so that fallback lands somewhere sane with no per-map wiring).
 // Pops in fast when the phase turns to 'build' and pops out just as fast the moment the horn sounds or the run
 // ends. For now E near it just opens the same character sheet Tab does — the I-menu tavern and the E-upgrade
 // prompt elsewhere are untouched. More of the raven's own interface (beyond the sheet) is still to come.
 (function(){
-const NEAR=3.6, RX=2.5, RZ=2, PERCH_H=1.0;   // a simple fixed floor spot beside the crystal — no wall search needed now that the raven has its own ground-standing perch
+const NEAR=3.6, PERCH_H=1.0;
+const RAVEN_CFG=MAP.raven||null;
+const RX=RAVEN_CFG?cw(RAVEN_CFG.cx):2.5, RZ=RAVEN_CFG?cwz(RAVEN_CFG.cz):2, RFACE=RAVEN_CFG?RAVEN_CFG.face:0;
 const baseY=floorH(RX,RZ);
 // the perch: a gnarled dead-wood post, twisted and knobby, waist high
 const perch=(()=>{ const g=new THREE.Group(); const bark=mat(0x6a4e34), barkD=mat(0x543922);   // lighter weathered wood, not the near-black it started as — it read as a dark blob against the floor
@@ -31,7 +33,7 @@ function ravenUpdate(dt){ if(!wrap) return;
   if(state==='in'){ pop=Math.min(1,pop+dt*4.5); wrap.visible=true; if(pop>=1) state='perched'; }
   else if(state==='out'){ pop=Math.max(0,pop-dt*4.5); if(pop<=0){ state='hidden'; wrap.visible=false; } }
   if(state==='hidden') return;
-  wrap.position.set(RX,ravenY(),RZ); wrap.rotation.y=Math.sin(S.t*1.1)*.1; wrap.rotation.z=Math.sin(S.t*1.7)*.04;
+  wrap.position.set(RX,ravenY(),RZ); wrap.rotation.y=RFACE+Math.sin(S.t*1.1)*.1; wrap.rotation.z=Math.sin(S.t*1.7)*.04;
   wrap.scale.setScalar(state==='perched'?1:easeOutBack(pop)); }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); ravenUpdate(dt); }; }
 { const ph=Meta.hud; Meta.hud=()=>{ ph(); if(near()&&!placing&&!Meta.isOpen()){ const el=$('prompt'); const want='E  the raven (character sheet)  ·  H  switch hero'; if(el.textContent!==want) el.textContent=want; } }; }
