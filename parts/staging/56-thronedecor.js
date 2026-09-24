@@ -41,10 +41,14 @@ if(MAP.throne){
   Object.entries(LANES).forEach(([k,l])=>{ loadThroneProp('throne-door.glb',3.4,wrap=>{
     const y=hgt[idx(l.cx,l.cz)]||0, fx=Math.sin(l.face), fz=Math.cos(l.face);   // the portal's own arch sits at local z=-1.1; the door stands a little further back, past the swirl
     place(wrap,cw(l.cx)-fx*2.0,y,cwz(l.cz)-fz*2.0,l.face+PI); }); });
-  // the ornate raked railing, matched to a stair's own pitch: one on each side of every flight in the hall, six flights in all
+  // the ornate raked railing, matched to a stair's own pitch: one on each side of every flight in the hall, six
+  // flights in all. Both sides use the SAME yaw, not mirrored left/right — a Y-axis rotation on an asymmetric raked
+  // model (it has a thick post at its low end, an open baluster run at its high end) swaps which end is which, so
+  // opposite yaws put one side's post at the top of the flight instead of the bottom. PI/2 is the orientation that
+  // puts the post at the flight's low end (larger world Z, since every throne-room flight rises toward -Z).
   function railFlight(xLo,xHi,zTop){
     loadThroneProp('throne-railing.glb',2.6,wrap=>place(wrap,cw(xLo)-.3,hgt[idx(xLo,zTop)],cwz(zTop),PI/2));
-    loadThroneProp('throne-railing.glb',2.6,wrap=>place(wrap,cw(xHi)+.3,hgt[idx(xHi,zTop)],cwz(zTop),-PI/2));
+    loadThroneProp('throne-railing.glb',2.6,wrap=>place(wrap,cw(xHi)+.3,hgt[idx(xHi,zTop)],cwz(zTop),PI/2));
   }
   railFlight(11,15,10);                    // the fourth flight, up the middle to the throne
   railFlight(4,7,17); railFlight(19,22,17); // the twin third flights, one up each wall
