@@ -47,4 +47,19 @@ for(let i=1;i<=4;i++) fetchDefGLB('frost',ASSET('frost-'+i+'.glb'),i-1);   // th
 // the acorn the cannon fires: Meshy's acorn, toon-shaded, ~0.34 tall; the procedural one until it lands
 { let tpl=null; const proc=acornMesh; fetchBytes(ASSET('acorn.glb')).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,.64); toonify(root,fit.scale); const w=fit.wrap; w.children[0].position.y-=.32; tpl=w; }catch(e){ console.warn('acorn model',e); } },e=>console.warn('acorn model',e))).catch(e=>console.warn('acorn model',e));
   acornMesh=function(){ if(!tpl) return proc(); const g=tpl.clone(); g.rotation.set(rnd()*6,rnd()*6,0); return g; }; }
+// the bolt the ballista fires: Meshy's model comes standing up (head at +Y, fletching at -Y, the usual export
+// convention for a narrow prop), so it's rotated onto its side before fitting so its shaft runs along Z, forward,
+// matching the procedural bolt's own convention — the caller then aims it with a plain yaw/pitch rotation. Not run
+// through fitModel: that scales to a target Y (height), which is wrong for something meant to lie flat — this
+// scales to a target length along Z instead, and centres the model instead of bottom-pivoting it, since a flying
+// bolt is aimed from its middle, not stood on a floor.
+{ let tpl=null; const proc=harpoonMesh;
+  fetchBytes(ASSET('ballista-bolt.glb')).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
+      const root=gltf.scene||gltf.scenes[0]; root.rotation.x=-PI/2; root.updateMatrixWorld(true);
+      const box=new THREE.Box3().setFromObject(root); const size=box.getSize(new THREE.Vector3());
+      const sc=1.5/Math.max(size.z,1e-6), ctr=box.getCenter(new THREE.Vector3());
+      const inner=new THREE.Group(); inner.add(root); inner.scale.setScalar(sc); inner.position.set(-ctr.x*sc,-ctr.y*sc,-ctr.z*sc);
+      toonify(root,sc); const w=new THREE.Group(); w.add(inner); tpl=w;
+    }catch(e){ console.warn('ballista bolt model',e); } },e=>console.warn('ballista bolt model',e))).catch(e=>console.warn('ballista bolt model',e));
+  harpoonMesh=function(){ if(!tpl) return proc(); return tpl.clone(); }; }
 window.__defglb={load:loadDefGLB,fetch:fetchDefGLB,list:()=>Object.fromEntries(Object.entries(DEFGLB).map(([k,v])=>[k,v.map(t=>t?{scale:+t.scale.toFixed(3),turn:t.turn}:null)]))};
