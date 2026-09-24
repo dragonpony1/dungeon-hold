@@ -626,13 +626,13 @@ function finishDeath(){ S.phase='dead'; droneOff(); setMusic('none'); sting(); i
 function startDeathCut(killer){ const k=(killer&&!killer.dead)?killer:null; deathCut={t:0,dur:2,killer:k,eye:null,eye2:null,look:null}; if(k&&k.mdl&&k.mdl.glb&&k.mdl.actions&&k.mdl.actions.attack){ k.swing=0; mobPlay(k.mdl,'attack',{restart:true,fade:0,speed:.5}); } S.phase='deathcut'; }
 function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c.killer; if(k&&!k.dead&&k.mdl) mobAnim(k,dt);
   const cy=crystalG.position.y+2.5; const kx=k?k.x:0, kz=k?k.z:2.5, ky=k?k.y+(k.h||1.6)*.55:cy;
-  if(!c.eye){ const dl=Math.hypot(kx,kz)||1, nx=kx/dl, nz=kz/dl, px=-nz, pz=nx; c.eye=[nx*1.2+px*2.3,Math.max(cy,ky)+.3,nz*1.2+pz*2.3]; c.look=[kx*.4,(cy+ky)/2,kz*.4]; c.eye2=[lerp(c.eye[0],c.look[0],.3),lerp(c.eye[1],c.look[1],.15),lerp(c.eye[2],c.look[2],.3)]; }
+  if(!c.eye){ const dl=Math.hypot(kx,kz)||1, nx=kx/dl, nz=kz/dl, px=-nz, pz=nx; c.eye=[nx*1.7+px*3.3,Math.max(cy,ky)+.5,nz*1.7+pz*3.3]; c.look=[kx*.4,(cy+ky)/2,kz*.4]; c.eye2=[lerp(c.eye[0],c.look[0],.3),lerp(c.eye[1],c.look[1],.15),lerp(c.eye[2],c.look[2],.3)]; }
   const p=Math.min(1,c.t/c.dur); camera.position.set(lerp(c.eye[0],c.eye2[0],p),lerp(c.eye[1],c.eye2[1],p),lerp(c.eye[2],c.eye2[2],p)); camera.lookAt(c.look[0],c.look[1],c.look[2]);
   crystalShake=.45; if(c.t>=c.dur) finishDeath(); }
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=58;
+const BUILD=59;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),

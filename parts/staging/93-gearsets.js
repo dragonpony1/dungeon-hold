@@ -9,7 +9,7 @@ const packOf=it=>{ const n=it&&Meta.sets.setOf(it); return n&&PACKS[n]||null; };
 const worn=()=>Meta.sets.active().filter(a=>PACKS[a.name]).map(a=>({pack:PACKS[a.name],tier:a.tier}));
 // ---- the Void: dark runed pieces that burn violet. Rare+ only, from wave 4 (5% of such drops, +1 point a wave, 15% cap), worth ×3.
 addSet({name:'of the Void',ic:'🌌',col:0x8a3dff,css:'#c070ff',emissive:0x5a2bd0,minR:2,chance:w=>w>=4?Math.min(.15,.05+.01*(w-4)):0,valueMul:3,
-  three:{dmg:.15,fam:.20},five:{dmg:.15,fam:.20},text:['+15% hero damage · +20% familiar damage','+15% hero damage · +20% familiar damage · VOID RIFT: every hit tears a rift — 40% of the blow to all within 3 units, and they crawl for 2 s'],
+  three:{dmg:.15,fam:.15,tow:.12},five:{dmg:.25,fam:.25,tow:.20},text:['+15% hero damage · +15% familiar damage · +12% defense damage','+25% hero damage · +25% familiar damage · +20% defense damage · VOID RIFT: every hit tears a rift — 40% of the blow to all within 3 units, and they crawl for 2 s'],
   models:{sword:'holy',staff:'staff-void',bow:'bow-void',armor:'stand-void'}, art:{sword:'item-void-sword.png',staff:'item-void-staff.png',armor:'item-void-armor.png',charm:'item-void-charm.png',amulet:'item-void-amulet.png'},   // 2-D card art for the bag, the shop and the sheet (assets/); the emoji stands in until a file is there
   sfx:()=>{ beep(98,.9,'sine',.13,-30); beep(196,.7,'triangle',.05,0); setTimeout(()=>beep(1046,.35,'sine',.045,900),80); setTimeout(()=>beep(1568,.5,'sine',.035,1400),220); noise(.5,.04,6000); },
   onHit:(e,dmg)=>{ const r=rift(e,Math.round(dmg*.4*10)/10); riftFx(e.x,e.y||0,e.z,0x8a3dff); SFX.rift(); return r; }});
@@ -40,7 +40,8 @@ function artHtml(it,slot){ const em=SICON[(it&&it.slot)||slot]||''; const a=item
 // a small round badge in the corner, the set's own icon on the set's own colour — so a set piece reads as one at a
 // glance in the bag/shop/sheet, not just from its "of the ..." name text
 if(typeof tvCard==='function'){ const prev=tvCard; tvCard=function(it,from,extra){ let html=prev(it,from,extra).replace('<span class="ic">'+SICON[it.slot]+'</span>','<span class="ic">'+artHtml(it)+'</span>');
-  const d=packOf(it); if(d) html=html.replace(/^(<div class="tv-card[^>]*>)/,'$1<span class="tv-setbadge" style="color:'+d.css+'" title="Part of a set: '+it.name.replace(/"/g,'&quot;')+'">'+d.ic+'</span>');
+  const d=packOf(it); if(d){ html=html.replace(/^<div class="tv-card([^"]*)"/,'<div class="tv-card$1" style="border-color:'+d.css+'"');
+    html=html.replace(/^(<div class="tv-card[^>]*>)/,'$1<span class="tv-setbadge" style="color:'+d.css+'" title="Part of a set: '+it.name.replace(/"/g,'&quot;')+'">'+d.ic+'</span>'); }
   return html; }; }
 // ---- the full-set aura: a thin shell in the set's colour around the hero's own model (additive, drawn behind the surface,
 // so only a faint rim shows), on while all five pieces are worn; the sheet's portrait sees it too
@@ -50,13 +51,21 @@ const AURA_VS='uniform float t;\nvoid main(){ vec3 p=position+normal*t; gl_Posit
 const AURA_FS='uniform vec3 col; uniform float op;\nvoid main(){ gl_FragColor=vec4(col,op); }';
 function auraMat(col,skinned,t){ return new THREE.ShaderMaterial({side:THREE.BackSide,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,skinning:!!skinned,uniforms:{t:{value:t},col:{value:new THREE.Color(col)},op:{value:.32}},vertexShader:skinned?AURA_VS_SKIN:AURA_VS,fragmentShader:AURA_FS}); }
 function auraClear(){ for(const g of AURA.meshes){ if(g.parent) g.parent.remove(g); g.material.dispose(); } AURA.meshes=[]; AURA.root=null; AURA.col=null; }
-function auraUpdate(){ const full=worn().find(w=>w.tier>=5&&w.pack.col); const root=(useGLB&&GLBH)?GLBH.root:(typeof H!=='undefined'?H.g:null); const col=full?full.pack.col:null;
+function fullPack(){ const w=worn().find(x=>x.tier>=5&&x.pack.col); return w?w.pack:null; }
+function auraUpdate(){ const pk=fullPack(); const root=(useGLB&&GLBH)?GLBH.root:(typeof H!=='undefined'?H.g:null); const col=pk?pk.col:null;
   if(!col||!root){ if(AURA.meshes.length) auraClear(); return; }
   if(AURA.root!==root||AURA.col!==col){ auraClear(); const sc=(useGLB&&GLBH&&GLBH.scale)||1, t=.05/sc; root.traverse(m=>{ if(!m.isMesh||m.userData.isOL||m.userData.noOL||m.isSprite||m.userData.setGlow) return; if(/lash|handle/.test(m.parent&&m.parent.name||'')) return; let g; if(m.isSkinnedMesh){ g=new THREE.SkinnedMesh(m.geometry,auraMat(col,true,t)); g.bind(m.skeleton,m.bindMatrix); } else g=new THREE.Mesh(m.geometry,auraMat(col,false,t)); g.userData.isOL=true; g.userData.setGlow=true; g.frustumCulled=false; g.renderOrder=2; AURA.meshes.push(g); }); AURA.root=root; AURA.col=col;
     root.traverse(m=>{ if(m.isMesh&&!m.userData.isOL&&!m.userData.setGlow){ const g=AURA.meshes.find(x=>x.geometry===m.geometry&&!x.parent); if(g) m.add(g); } }); }
   const op=.26+.08*Math.sin(S.t*2.2); for(const g of AURA.meshes) g.material.uniforms.op.value=op; }
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); auraUpdate(); }; }
-Meta.packs={of:packOf,list:()=>Object.keys(PACKS),get:n=>PACKS[n],add:addSet,art:itemArt,artHtml,aura:()=>({on:AURA.meshes.length>0,col:AURA.col,meshes:AURA.meshes.length,attached:AURA.meshes.filter(g=>g.parent).length})};
+// ---- the same power, on the ground: every defense the hero has placed carries a rune ring in the set's colour while
+// the full set is worn — on/off follows the set, so unequipping a piece (or selling the tower) clears it right away
+const DEF_RING_GEO=new THREE.RingGeometry(.7,.92,28);
+function defRingUpdate(){ const pk=fullPack(); const col=pk?pk.col:null;
+  for(const d of defs){ if(col){ if(!d.setRing||d.setRingCol!==col){ if(d.setRing){ d.mdl.remove(d.setRing); d.setRing.material.dispose(); } const rad=Math.max(1.15,(DEFS[d.kind].top||1.5)*.75); const m=new THREE.Mesh(DEF_RING_GEO,fxMat(col,.5)); m.rotation.x=-PI/2; m.position.y=.07; m.scale.set(rad,rad,1); m.userData.noOL=true; d.mdl.add(m); d.setRing=m; d.setRingCol=col; }
+      d.setRing.material.opacity=.35+.2*Math.sin(S.t*2.4+d.x+d.z); }
+    else if(d.setRing){ d.mdl.remove(d.setRing); d.setRing.material.dispose(); d.setRing=null; d.setRingCol=null; } } }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); auraUpdate(); defRingUpdate(); }; }
+Meta.packs={of:packOf,list:()=>Object.keys(PACKS),get:n=>PACKS[n],add:addSet,art:itemArt,artHtml,aura:()=>({on:AURA.meshes.length>0,col:AURA.col,meshes:AURA.meshes.length,attached:AURA.meshes.filter(g=>g.parent).length}),defRings:()=>defs.filter(d=>d.setRing).length};
 window.__void={NAME:'of the Void',isVoid:it=>packOf(it)===PACKS['of the Void'],chance:w=>PACKS['of the Void'].chance(w===undefined?effWave():w),lvl:()=>{ const a=Meta.sets.active().find(x=>x.name==='of the Void'); return a?a.tier:0; },make:it=>makeSet(it,PACKS['of the Void']),fx:()=>FX.length,rift};
 window.__packs=Meta.packs;
 })();
