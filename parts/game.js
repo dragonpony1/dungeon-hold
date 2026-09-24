@@ -634,7 +634,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=76;
+const BUILD=77;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
