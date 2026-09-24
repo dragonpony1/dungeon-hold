@@ -45,30 +45,34 @@ if(MAP.throne){
   railFlight(4,7,17); railFlight(19,22,17); // the twin third flights, one up each wall
   railFlight(11,15,24);                     // the second flight, up the middle
   railFlight(4,7,31); railFlight(19,22,31); // the twin first flights, up from the floor
-  // the floor motif: the wood-and-gem dais tile, laid big (two cells a tile) over every flat walkable cell of the
-  // whole hall — the dais, every landing, the galleries, the runner down the middle — not just the small patch under the crystal
+  // the wall faces that already carry the game's own painted arched window (every sixth hall face — see the
+  // "pillars, props, torches, banners" block in game.js): the wall/window motif below steers clear of these so it
+  // never plasters a stone panel or a second window half over the ones already there
+  const WIN=new Set(); { const [hx0,hx1,hz0,hz1]=MAP.hall; let k=0;
+    wallFaces.forEach(f=>{ if(!(f.cx>=hx0&&f.cx<=hx1&&f.cz>=hz0&&f.cz<=hz1)) return; k++; if(k%6===2) WIN.add(f); }); }
+  // the floor motif: the wood-and-gem dais tile, one per walkable flat cell (a hair oversized so neighbours overlap
+  // and hide the seams) — the dais, every landing, the galleries, the runner down the middle, the whole hall's
+  // floor, not just the small patch under the crystal. One tile a cell (not a 2-cell block) so odd-width rooms —
+  // the 3-wide dais column included — never leave a stripe of the old floor showing between misaligned blocks.
   { const FLOORTYPES=new Set([T.FLOOR,T.CARPET,T.DAIS]);
-    loadThroneProp('throne-floor.glb',4.5,wrap=>{ wrap.rotation.x=-PI/2;
-      for(let cz=2;cz<=44;cz+=2) for(let cx=1;cx<GW-1;cx+=2){
-        let ok=true, h0=null;
-        for(let dz=0;dz<2&&ok;dz++) for(let dx=0;dx<2&&ok;dx++){ const xx=cx+dx, zz=cz+dz; if(!inb(xx,zz)){ ok=false; break; }
-          const i=idx(xx,zz); if(!FLOORTYPES.has(grid[i])||rampA[i]){ ok=false; break; }
-          const hv=hgt[i]; if(h0===null) h0=hv; else if(Math.abs(hv-h0)>.05){ ok=false; break; } }
-        if(!ok) continue;
-        const t=wrap.clone(); t.position.set(cw(cx+.5),h0+.02,cwz(cz+.5)); world.add(t);
+    loadThroneProp('throne-floor.glb',2.7,wrap=>{ wrap.rotation.x=-PI/2;
+      for(let cz=2;cz<=44;cz++) for(let cx=0;cx<GW;cx++){ const i=idx(cx,cz);
+        if(!FLOORTYPES.has(grid[i])||rampA[i]) continue;
+        const t=wrap.clone(); t.position.set(cw(cx),hgt[i]+.02,cwz(cz)); world.add(t);
       } }); }
-  // the wall motif: the stone panel, laid big over every real wall face of the hall (found from the engine's own
-  // wall geometry, so it lines up exactly) — the back wall behind the throne, every landing's walls, the stairwells, all of it
-  loadThroneProp('throne-panel2.glb',5.5,wrap=>{
-    wallFaces.forEach(w=>{ if(w.cz<2||w.cz>44) return;
-      const runAxisVal=(w.nz!==0)?w.cx:w.cz; if(runAxisVal%3!==0) return;
+  // the wall motif: the stone panel, over every real wall face of the hall that doesn't already carry a painted
+  // window (found from the engine's own wall geometry, so it lines up exactly) — two tall tiles per face reach
+  // most of the way up, so the old bare marble wall doesn't still show through in patches between them
+  loadThroneProp('throne-panel2.glb',9,wrap=>{
+    wallFaces.forEach(w=>{ if(w.cz<2||w.cz>44||WIN.has(w)) return;
       const baseY=hgt[idx(w.cx,w.cz)]||0, yaw=Math.atan2(w.nx,w.nz);
-      [2.4,7.4,12.4].forEach(dy=>{ const t=wrap.clone(); t.position.set(w.x+w.nx*.18,baseY+dy,w.z+w.nz*.18); t.rotation.y=yaw; world.add(t); }); });
+      [4.5,13.5].forEach(dy=>{ const t=wrap.clone(); t.position.set(w.x+w.nx*.18,baseY+dy,w.z+w.nz*.18); t.rotation.y=yaw; world.add(t); }); });
   });
-  // the stained-glass window, the same big stretch-tile treatment as the wall panel but sparser — spaced around the
-  // whole hall's walls, each one glowing, so the room gets real ambient light instead of just the torches
+  // the stained-glass window, the same stretch-tile treatment as the wall panel but sparser — an accent spaced
+  // around the hall, each one glowing for ambient light, always clear of the game's own painted windows so it
+  // never lands on top of one
   loadThroneProp('throne-window.glb',4.2,wrap=>{
-    wallFaces.forEach(w=>{ if(w.cz<4||w.cz>44) return; if(Math.abs(w.cx-tx)<=5&&w.cz<=4) return;   // skip right behind the throne — the big dramatic window's already there
+    wallFaces.forEach(w=>{ if(w.cz<4||w.cz>44||WIN.has(w)) return; if(Math.abs(w.cx-tx)<=5&&w.cz<=4) return;   // skip right behind the throne — the big dramatic window's already there
       const runAxisVal=(w.nz!==0)?w.cx:w.cz; if(((runAxisVal%8)+8)%8!==3) return;
       const baseY=hgt[idx(w.cx,w.cz)]||0, yaw=Math.atan2(w.nx,w.nz);
       const t=wrap.clone(); t.position.set(w.x+w.nx*.2,baseY+4.2,w.z+w.nz*.2); t.rotation.y=yaw; world.add(t);

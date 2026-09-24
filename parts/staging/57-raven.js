@@ -6,7 +6,8 @@
 // untouched. More of the raven's own interface (beyond the sheet) is still to come.
 (function(){
 const NEAR=3.6; let RX=1.8, RZ=-2.0;   // off to the side and back against the wall behind the crystal, clear of it and of foot traffic
-(function findPerch(){ let z=-.5; while(z>-40&&!wallAt(0,z-.5)) z-=.5; RZ=z-.7; RX=wallAt(1.8,z-.5)?1.8:0; })();   // the depth is the proven search (straight behind the crystal); slide sideways off it only once that same depth is confirmed still against a wall there too
+function solidWall(x,z){ const t=gat(wc(x),wcz(z)); return t===T.WALL||t===T.PILLAR||t===T.PROP; }   // wallAt() also counts the crystal's own cell as solid, which stopped this search one step out and sat the raven right against the crystal instead of the real wall behind it
+(function findPerch(){ let z=-.5; while(z>-40&&!solidWall(0,z-.5)) z-=.5; RZ=z-.7; RX=solidWall(1.8,z-.5)?1.8:0; })();   // the depth is the proven search (straight behind the crystal, past it); slide sideways off it only once that same depth is confirmed still against a wall there too
 let wrap=null, state='hidden', pop=0, lastPhase=null;
 fetchBytes(ASSET('raven.glb')).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
     const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,2.8); toonify(root,fit.scale);
