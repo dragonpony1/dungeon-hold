@@ -63,12 +63,8 @@ if(MAP.throne){
   loadThroneProp('throne-window.glb',5.0,wrap=>place(wrap,tx0,ty0+3.6,tz0-.8,0));
   */
   loadThroneProp('throne-crest.glb',2.2,wrap=>place(wrap,tx0,ty0+7.6,tz0-.8,0));
-  /* lit torches flanking the window — pulled out alongside it, same reason.
-  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ warmGlow(wrap); place(wrap,tx0-3.4,ty0+3.0,tz0-.8,0);
-    const l=new THREE.PointLight(C(0xff8a2a),4,11,2); l.position.set(-.1,.3,.3); wrap.add(l); });
-  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ warmGlow(wrap); place(wrap,tx0+3.4,ty0+3.0,tz0-.8,0);
-    const l=new THREE.PointLight(C(0xff8a2a),4,11,2); l.position.set(.1,.3,.3); wrap.add(l); });
-  */
+  // the old flanking pair is gone: real sconces now go up everywhere the pulled procedural torch used to stand —
+  // see the dense wall+pillar placement below, once WIN (the painted-window face set) exists to steer clear of.
   // a portrait on the left wall, a scepter rack on the right — the room's own trophies
   loadThroneProp('throne-portrait.glb',2.2,wrap=>place(wrap,cw(6),ty0+2.3,tz0+1.5,-PI/2));
   loadThroneProp('throne-scepter.glb',2.0,wrap=>place(wrap,cw(20),ty0+2.3,tz0+1.5,PI/2));
@@ -121,6 +117,19 @@ if(MAP.throne){
   // never plasters a stone panel or a second window half over the ones already there
   const WIN=new Set(); { const [hx0,hx1,hz0,hz1]=MAP.hall; let k=0;
     wallFaces.forEach(f=>{ if(!(f.cx>=hx0&&f.cx<=hx1&&f.cz>=hz0&&f.cz<=hz1)) return; k++; if(k%6===2) WIN.add(f); }); }
+  // real Meshy sconces, one fetch cloned everywhere: densely across the walls at the same one-in-four-faces cadence
+  // the pulled procedural torch used (game.js), skipping the same painted-window faces it always skipped — so the
+  // whole hall is lit by real art, as often as that placeholder bracket was, not just a pair by the throne. One
+  // also rides each of the ten runed pillars, mounted facing the aisle so it isn't hidden behind the column.
+  loadThroneProp('throne-sconce.glb',1.5,wrap=>{ warmGlow(wrap);
+    let k=0; wallFaces.forEach(f=>{ k++; if(WIN.has(f)) return; if(k%4!==1) return;
+      const yaw=Math.atan2(f.nx,f.nz), fy=hgt[idx(f.cx,f.cz)]||0;
+      const t=wrap.clone(); t.position.set(f.x+f.nx*.18,fy+3.1,f.z+f.nz*.18); t.rotation.y=yaw; world.add(t);
+      const l=new THREE.PointLight(C(0xffa040),5,13,2); l.position.set(f.nx*.15,.3,f.nz*.15); t.add(l); });
+    MAP.pillars.forEach(([px,pz])=>{ const nx=px<tx?-1:1, fy=hgt[idx(px,pz)]||0;
+      const t=wrap.clone(); t.position.set(cw(px)+nx*.78,fy+3.0,cwz(pz)); t.rotation.y=Math.atan2(nx,0); world.add(t);
+      const l=new THREE.PointLight(C(0xffa040),5,13,2); l.position.set(nx*.15,.3,0); t.add(l); });
+  });
   // the floor motif: the wood-and-gem dais tile, one per walkable flat cell (a hair oversized so neighbours overlap
   // and hide the seams) — the dais, every landing, the galleries, the runner down the middle, the whole hall's
   // floor, not just the small patch under the crystal. One tile a cell (not a 2-cell block) so odd-width rooms —
