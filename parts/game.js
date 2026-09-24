@@ -634,7 +634,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=73;
+const BUILD=74;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -751,7 +751,7 @@ function updateCamera(dt){
 }
 
 // ================= ENEMIES =================
-function spawnEnemy(kind,lane){ const L=LANES[lane]||LANES.N; const m=makeMob(kind); const cfg=MOBS[kind]; const w=Math.max(0,effWave()-1); const hpm=(1+.22*w)*(1+.08*gearScore()/100); /* waves get harder by wave, not by what you wear — good gear should feel good */ const dmm=1+.08*w;
+function spawnEnemy(kind,lane){ const L=LANES[lane]||LANES.N; const m=makeMob(kind); const cfg=MOBS[kind]; const w=Math.max(0,effWave()-1); const hpm=(1+.22*w)*(1+.08*gearScore()/100); /* waves get harder by wave, not by what you wear — good gear should feel good */ const dmm=(1+.08*w)*(S.wave===1?.65:1);   // a map's own wave 1 hits 35% softer — the count and HP still scale off the campaign-wide wave (wbase carries a later map in hard), just not the damage on the wave you're still getting your bearings on
   const e={kind,x:cw(L.cx)+R(-.6,.6),y:0,z:cwz(L.cz)+R(-.6,.6),hp:Math.round(cfg.hp*hpm),max:Math.round(cfg.hp*hpm),spd:cfg.spd*R(.9,1.1)*(1+.02*w),dmg:Math.round(cfg.dmg*dmm),cd:cfg.cd,atk:R(0,.5),r:m.r,h:m.h,mdl:m,sc:m.g.scale.x,ph:rnd()*6,yaw:L.face,dead:0,mana:cfg.mana,ranged:cfg.ranged||0,pop:0,squash:0,swing:-1,walking:false,sx:0,sz:0,shoutT:0,fly:cfg.fly||0}; if(e.fly) e.y=e.fly;
   e.roar=(m.glb&&m.actions.shout)?0:-1;   // a mini-boss roars when it first comes into view (and again, enraged, at half health) — see ogreRoar
   m.g.position.set(e.x,0,e.z); m.g.rotation.y=e.yaw; scene.add(m.g); enemies.push(e); const p=portals.find(p=>p.k===lane); if(p) p.pulse=1; return e; }
