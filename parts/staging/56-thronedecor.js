@@ -30,8 +30,8 @@ if(MAP.throne){
   // two armored guardian statues flanking the dais, big enough to loom, facing the hall the same way the throne does
   for(const dx of [-2.8,2.8]) loadThroneProp('throne-statue.glb',4.0,wrap=>place(wrap,tx0+dx,ty0,tz0+.4,0));
   // the stained-glass window on the wall behind the throne, a crest above it — the dramatic backlight the throne sits under
-  loadThroneProp('throne-window.glb',5.0,wrap=>place(wrap,tx0,ty0+3.6,tz0-.85,0));
-  loadThroneProp('throne-crest.glb',2.2,wrap=>place(wrap,tx0,ty0+7.6,tz0-.85,0));
+  loadThroneProp('throne-window.glb',5.0,wrap=>place(wrap,tx0,ty0+3.6,tz0-.5,0));
+  loadThroneProp('throne-crest.glb',2.2,wrap=>place(wrap,tx0,ty0+7.6,tz0-.5,0));
   // lit torches flanking the window — real point lights now, not just dark geometry, so the sconces actually read as
   // lit. Pulled out well clear of the wall (the dense wall-panel tiling now sits almost flush with the wall itself,
   // so the old depth left them sunk behind it)
@@ -80,6 +80,7 @@ if(MAP.throne){
   // the hall's fixed ceiling height, however many 9-tall tiles that takes, so it reaches the floor everywhere,
   // landings included, instead of stopping partway down
   loadThroneProp('throne-panel2.glb',9,wrap=>{
+    wrap.children[0].scale.z*=.25;   // a real wall panel doesn't get thicker just because it's taller: fitModel scales depth right along with height, which at 9 tall left it sticking 0.7+ units proud of the wall — enough to bury the sconces and window mounted on the same wall. Flatten it back to a believable relief.
     wallFaces.forEach(w=>{ if(w.cz<2||w.cz>44||WIN.has(w)) return;
       const baseY=hgt[idx(w.cx,w.cz)]||0, yaw=Math.atan2(w.nx,w.nz), span=WALLH-baseY;
       for(let dy=0;dy<span;dy+=9){ const t=wrap.clone(); t.position.set(w.x+w.nx*.18,baseY+dy,w.z+w.nz*.18); t.rotation.y=yaw; world.add(t); } });
