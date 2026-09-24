@@ -74,6 +74,12 @@ if(MAP.throne){
   (world.userData.chandelierProcs||[]).forEach(ch=>{ ch.visible=false; });
   MAP.chandeliers.forEach(([chx,chz])=>loadThroneProp('chandelier.glb',3.2,wrap=>{ place(wrap,chx,13.8,chz,0);
     const l=new THREE.PointLight(C(0xffb05a),2.2,14,2); l.position.set(0,1,0); wrap.add(l); }));
+  // the real runed pillars, replacing the procedural stone columns at the same ten spots. One fetch, cloned per spot
+  // (unlike the chandeliers above — only 3 of those, but 10 of these, so it's worth not re-fetching the model ten
+  // times). Target height matches the procedural ones exactly: PH (the shaft) + the base/capital's own 1 unit.
+  (world.userData.pillarProcs||[]).forEach(p=>{ p.visible=false; });
+  { const PH=MAP.pillarH||6; loadThroneProp('throne-pillar.glb',PH+1,wrap=>{
+      MAP.pillars.forEach(([px,pz])=>{ const t=wrap.clone(); t.position.set(cw(px),hgt[idx(px,pz)]||0,cwz(pz)); world.add(t); }); }); }
   // the ornate raked railing, matched to a stair's own pitch: one on each side of every flight in the hall, six
   // flights in all. Both sides use the SAME yaw, not mirrored left/right — a Y-axis rotation on an asymmetric raked
   // model (it has a thick post at its low end, an open baluster run at its high end) swaps which end is which, so

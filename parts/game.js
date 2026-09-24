@@ -352,8 +352,9 @@ function makeTorch(){ const g=new THREE.Group(); g.add(M(G.box(.14,.14,.34),mat(
   g.add(M(G.cyl(.09,.07,.14,7),mat(0x3a3348),0,.56,.45));
   const f=M(G.cone(.17,.5,7),basic(0xff7a1a),0,.85,.46); f.userData.noOL=true; const f2=M(G.cone(.09,.34,7),basic(0xffd060),0,.82,.46); f2.userData.noOL=true; g.add(f,f2); const gl=glow(0xff8a2a,2.6,.7); gl.position.set(0,.9,.46); g.add(gl); flames.push({f,f2,p:rnd()*9}); return g; }
 { // pillars
-  const PH=MAP.pillarH||6; MAP.pillars.forEach(([x,z])=>{ const g=new THREE.Group(); g.position.set(cw(x),hgt[idx(x,z)]||0,cwz(z));
-    g.add(M(G.box(2,.5,2),mat(0x4a4262),0,.25,0)); g.add(M(G.cyl(.62,.7,PH,12),mat(0x5a5276),0,.5+PH/2,0)); g.add(M(G.box(2,.5,2),mat(0x4a4262),0,PH+.75,0)); g.add(M(G.box(1.6,.2,1.6),mat(0xe0b040),0,.6,0)); world.add(g); });
+  const PH=MAP.pillarH||6; const pillarProcs=[]; MAP.pillars.forEach(([x,z])=>{ const g=new THREE.Group(); g.position.set(cw(x),hgt[idx(x,z)]||0,cwz(z));
+    g.add(M(G.box(2,.5,2),mat(0x4a4262),0,.25,0)); g.add(M(G.cyl(.62,.7,PH,12),mat(0x5a5276),0,.5+PH/2,0)); g.add(M(G.box(2,.5,2),mat(0x4a4262),0,PH+.75,0)); g.add(M(G.box(1.6,.2,1.6),mat(0xe0b040),0,.6,0)); world.add(g); pillarProcs.push(g); });
+  world.userData.pillarProcs=pillarProcs;
   // props: barrels & crates in the hall corners
   MAP.barrels.forEach(([x,z])=>{ const g=new THREE.Group(); g.position.set(cw(x),0,cwz(z)); const bm=mat(0x7a4f2c), band=mat(0x2b2540);
     [[-.4,0,-.3],[.45,0,.35],[0,1.1,0]].forEach(([bx,by,bz])=>{ const b=new THREE.Group(); b.position.set(bx,by+.55,bz); b.add(M(G.cyl(.42,.42,1.1,10),bm)); b.add(M(G.cyl(.45,.45,.1,10),band,0,.35,0)); b.add(M(G.cyl(.45,.45,.1,10),band,0,-.35,0)); g.add(b); }); world.add(outline(g)); });
@@ -619,7 +620,7 @@ function hurtCrystal(dmg){ if(S.phase==='dead'||S.phase==='won') return; S.cryst
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=53;
+const BUILD=54;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -817,8 +818,10 @@ function updateDefs(dt){ const trampled=[];
   for(const d of defs) d.buff=0; for(const t of defs){ if(t.kind!=='totem'||t.pop<1) continue; const r=stat(t,'range'), b=stat(t,'buff'); for(const d of defs){ if(d===t||d.kind==='totem') continue; if(Math.hypot(d.x-t.x,d.z-t.z)<=r) d.buff=Math.max(d.buff,b); } }
   for(const d of defs){ const cfg=DEFS[d.kind]; d.pop=Math.min(1,d.pop+dt*4); const s=(d.pop<1?easeOutBack(d.pop):1)*(d.kind==='slice'?stat(d,'range')/cfg.range:(1+.07*(d.lvl-1))); d.mdl.scale.set(s,s,s); d.cd-=dt; d.shake=Math.max(0,d.shake-dt); d.recoil=Math.max(0,d.recoil-dt*4);
     d.mdl.position.set(d.x+(d.shake>0?(rnd()-.5)*.12:0),d.base,d.z+(d.shake>0?(rnd()-.5)*.12:0));
-    if(d.kind==='harpoon'||d.kind==='ball'||d.kind==='acorn'){ const half=arcOf(d)*PI/360; let best=null, bd=stat(d,'range'); for(const e of enemies){ if(e.dead) continue; const dd=Math.hypot(e.x-d.x,e.z-d.z); if(dd<bd&&Math.abs(angDiff(d.rot,Math.atan2(e.x-d.x,e.z-d.z)))<=half&&los(d.x,d.z,e.x,e.z)){ bd=dd; best=e; } }
-      if(best){ const ty=Math.atan2(best.x-d.x,best.z-d.z); d.yaw=angLerp(d.yaw,ty,1-Math.exp(-7*dt)); if(d.kind==='harpoon'){ const tp=clamp(Math.atan2((best.y+best.h*.55)-(d.base+1.35),Math.max(1,Math.hypot(best.x-d.x,best.z-d.z))),-.6,1.1); d.pitch=lerp(d.pitch||0,tp,1-Math.exp(-7*dt)); } /* a ballista tilts to a drake in the air or a mob on a landing */ if(d.cd<=0&&Math.abs(angDiff(d.yaw,ty))<.25){ d.cd=stat(d,'cd'); fire(d,best); } } else { d.yaw=angLerp(d.yaw,d.rot,1-Math.exp(-2*dt)); if(d.kind==='harpoon') d.pitch=lerp(d.pitch||0,0,1-Math.exp(-2*dt)); }
+    if(d.kind==='harpoon'||d.kind==='ball'||d.kind==='acorn'){ const half=arcOf(d)*PI/360, range=stat(d,'range'); let best=null, bestProg=1e18;   // among everything in range/arc/sight, engage whoever is furthest along toward the crystal (path distance, not raw distance to this tower) — a tower otherwise happily plinks the mob that wandered nearest to IT while one about to breach sits in range ignored
+      for(const e of enemies){ if(e.dead) continue; const dd=Math.hypot(e.x-d.x,e.z-d.z); if(dd>range||Math.abs(angDiff(d.rot,Math.atan2(e.x-d.x,e.z-d.z)))>half||!los(d.x,d.z,e.x,e.z)) continue;
+        const prog=(e.fly?flowFly:flowFree).dist[idx(wc(e.x),wcz(e.z))]; const key=prog>=0?prog:1e6+dd; if(key<bestProg){ bestProg=key; best=e; } }
+      if(best){ const ty=Math.atan2(best.x-d.x,best.z-d.z); d.yaw=angLerp(d.yaw,ty,1-Math.exp(-7*dt)); if(d.kind==='harpoon'){ const tp=clamp(Math.atan2((best.y+best.h*.55)-(d.base+1.35),Math.max(.4,Math.hypot(best.x-d.x,best.z-d.z))),-1.2,1.3); d.pitch=lerp(d.pitch||0,tp,1-Math.exp(-7*dt)); }   /* wide vertical reach (+-69-75deg) and a lower distance floor: a mob standing right under or right above the tower on the next step still needs a steep shot, not the shallow one a far-off target gets; a ballista also tilts to a drake in the air or a mob on a landing */ if(d.cd<=0&&Math.abs(angDiff(d.yaw,ty))<.25){ d.cd=stat(d,'cd'); fire(d,best); } } else { d.yaw=angLerp(d.yaw,d.rot,1-Math.exp(-2*dt)); if(d.kind==='harpoon') d.pitch=lerp(d.pitch||0,0,1-Math.exp(-2*dt)); }
       d.yaw=d.rot+clamp(angDiff(d.rot,d.yaw),-half,half);
       const y=d.mdl.userData.yoke; y.rotation.y=d.yaw-d.rot; if(d.kind==='harpoon') (d.mdl.userData.pitch||y).rotation.x=-(d.pitch||0); /* the Meshy ballista hinges its bow assembly on the pedestal; the procedural one tilts its yoke */ if(d.kind==='ball'){ if(d.mdl.userData.arm) d.mdl.userData.arm.rotation.x=-.9+d.recoil*2.0; d.mdl.userData.ball.visible=d.cd<cfg.cd*.5; } else { y.position.z=-d.recoil*.22; d.mdl.userData.hp.visible=d.cd<cfg.cd*.45; } }
     else if(d.kind==='slice'){ const rr=stat(d,'range'); const near=[]; for(const e of enemies){ if(!e.dead&&!e.fly&&Math.hypot(e.x-d.x,e.z-d.z)<rr+e.r*.5) near.push(e); }
