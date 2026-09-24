@@ -10,7 +10,7 @@ const worn=()=>Meta.sets.active().filter(a=>PACKS[a.name]).map(a=>({pack:PACKS[a
 // ---- the Void: dark runed pieces that burn violet. Rare+ only, from wave 4 (5% of such drops, +1 point a wave, 15% cap), worth ×3.
 addSet({name:'of the Void',ic:'🌌',col:0x8a3dff,css:'#c070ff',emissive:0x5a2bd0,minR:2,chance:w=>w>=4?Math.min(.15,.05+.01*(w-4)):0,valueMul:3,
   three:{dmg:.15,fam:.20},five:{dmg:.15,fam:.20},text:['+15% hero damage · +20% familiar damage','+15% hero damage · +20% familiar damage · VOID RIFT: every hit tears a rift — 40% of the blow to all within 3 units, and they crawl for 2 s'],
-  models:{sword:'holy',staff:'staff-void',bow:'bow-void'}, art:{sword:'item-void-sword.png',staff:'item-void-staff.png',armor:'item-void-armor.png',charm:'item-void-charm.png',amulet:'item-void-amulet.png'},   // 2-D card art for the bag, the shop and the sheet (assets/); the emoji stands in until a file is there
+  models:{sword:'holy',staff:'staff-void',bow:'bow-void',armor:'stand-void'}, art:{sword:'item-void-sword.png',staff:'item-void-staff.png',armor:'item-void-armor.png',charm:'item-void-charm.png',amulet:'item-void-amulet.png'},   // 2-D card art for the bag, the shop and the sheet (assets/); the emoji stands in until a file is there
   sfx:()=>{ beep(98,.9,'sine',.13,-30); beep(196,.7,'triangle',.05,0); setTimeout(()=>beep(1046,.35,'sine',.045,900),80); setTimeout(()=>beep(1568,.5,'sine',.035,1400),220); noise(.5,.04,6000); },
   onHit:(e,dmg)=>{ const r=rift(e,Math.round(dmg*.4*10)/10); riftFx(e.x,e.y||0,e.z,0x8a3dff); SFX.rift(); return r; }});
 // ---- the buffs: percentages on the same multiplier hook as skills, keyed by the set so nothing reads them as flat points
