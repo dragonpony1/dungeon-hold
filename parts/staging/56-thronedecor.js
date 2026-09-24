@@ -22,6 +22,13 @@ if(MAP.throne){
   function purpleGlow(root){ root.traverse(o=>{ const m=o.isMesh&&o.material; if(!m||m.userData.__pg) return; m.userData.__pg=true;
     m.onBeforeCompile=sh=>{ sh.fragmentShader=sh.fragmentShader.replace('#include <emissivemap_fragment>',
       '#include <emissivemap_fragment>\n  { float pf=clamp(diffuseColor.b-diffuseColor.g,0.0,1.0)*clamp(diffuseColor.r-diffuseColor.g+0.25,0.0,1.0); totalEmissiveRadiance += vec3(0.62,0.2,0.98)*pf*1.7; }'); }; }); }
+  // a flat warm floor added to whatever emissive a model already has — for pieces whose own base colour is dark
+  // enough to blend into the dark wall around it (clearing the panel geometrically wasn't enough; the sconces read
+  // as buried purely because there's no contrast between them and the stone), so silhouette and colour temperature
+  // carry the separation instead of brightness alone
+  function warmGlow(root){ root.traverse(o=>{ const m=o.isMesh&&o.material; if(!m||m.userData.__wg) return; m.userData.__wg=true;
+    m.onBeforeCompile=sh=>{ sh.fragmentShader=sh.fragmentShader.replace('#include <emissivemap_fragment>',
+      '#include <emissivemap_fragment>\n  totalEmissiveRadiance += vec3(.22,.11,.03);'); }; }); }
   function loadThroneProp(name,targetH,cb){ fetchBytes(ASSET(name)).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
       const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,targetH); toonify(root,fit.scale); purpleGlow(root); cb(fit.wrap);
     }catch(e){ console.warn('throne decor '+name,e); } },e=>console.warn('throne decor '+name,e))).catch(e=>console.warn('throne decor '+name,e)); }
@@ -34,13 +41,14 @@ if(MAP.throne){
   loadThroneProp('throne-window.glb',5.0,wrap=>place(wrap,tx0,ty0+3.6,tz0-.15,0));
   loadThroneProp('throne-crest.glb',2.2,wrap=>place(wrap,tx0,ty0+7.6,tz0-.15,0));
   // lit torches flanking the window — real point lights now, not just dark geometry, so the sconces actually read as
-  // lit. Pulled out well clear of the wall (clearing the panel's own front face wasn't enough on its own — these
-  // are fairly flat/compact models, so even clear of the panel they still read as hugging the wall; pushed out
-  // further, level with the throne itself, to actually stand proud of it)
-  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ place(wrap,tx0-3.4,ty0+3.0,tz0+.35,0);
-    const l=new THREE.PointLight(C(0xff8a2a),2.6,11,2); l.position.set(-.1,.3,.3); wrap.add(l); });
-  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ place(wrap,tx0+3.4,ty0+3.0,tz0+.35,0);
-    const l=new THREE.PointLight(C(0xff8a2a),2.6,11,2); l.position.set(.1,.3,.3); wrap.add(l); });
+  // lit, and pulled out well clear of the wall. Neither actually fixed the "buried" look: the fixture's own base
+  // colour is nearly as dark as the stone around it, so even with clean geometric separation there was no contrast
+  // to see it by. warmGlow gives the fixture itself a warm self-lit floor so its silhouette reads against the wall
+  // regardless of external light.
+  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ warmGlow(wrap); place(wrap,tx0-3.4,ty0+3.0,tz0+.35,0);
+    const l=new THREE.PointLight(C(0xff8a2a),4,11,2); l.position.set(-.1,.3,.3); wrap.add(l); });
+  loadThroneProp('throne-sconce.glb',1.4,wrap=>{ warmGlow(wrap); place(wrap,tx0+3.4,ty0+3.0,tz0+.35,0);
+    const l=new THREE.PointLight(C(0xff8a2a),4,11,2); l.position.set(.1,.3,.3); wrap.add(l); });
   // a portrait on the left wall, a scepter rack on the right — the room's own trophies
   loadThroneProp('throne-portrait.glb',2.2,wrap=>place(wrap,cw(6),ty0+2.3,tz0+1.5,-PI/2));
   loadThroneProp('throne-scepter.glb',2.0,wrap=>place(wrap,cw(20),ty0+2.3,tz0+1.5,PI/2));
