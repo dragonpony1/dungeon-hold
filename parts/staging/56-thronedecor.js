@@ -87,7 +87,12 @@ if(MAP.throne){
   function railFlight(xLo,xHi,zTop){
     loadThroneProp('throne-railing.glb',2.6,wrap=>place(wrap,cw(xLo)-.3,hgt[idx(xLo,zTop)],cwz(zTop),PI/2));
     loadThroneProp('throne-railing.glb',2.6,wrap=>place(wrap,cw(xHi)+.3,hgt[idx(xHi,zTop)],cwz(zTop),PI/2));
-    railBox(cw(xLo)-.3,cwz(zTop),1.3,true,hgt[idx(xLo,zTop)]); railBox(cw(xHi)+.3,cwz(zTop),1.3,true,hgt[idx(xHi,zTop)]);
+    // the raked railing model runs the whole flight (three rows, the same span every flight in this hall climbs),
+    // but the collision used to be one box near the top row only — solid there, nothing the rest of the way down,
+    // which is exactly why jumping onto it only worked "about half way". One box per row instead, each at that
+    // row's own floorH (the flight is a ramp: height changes row to row), so the whole rail is solid, not just its crest
+    const lx=cw(xLo)-.3, hx=cw(xHi)+.3;
+    for(let r=0;r<3;r++){ const wz=cwz(zTop+r); railBox(lx,wz,1,true,floorH(lx,wz)); railBox(hx,wz,1,true,floorH(hx,wz)); }
   }
   railFlight(11,15,10);                    // the fourth flight, up the middle to the throne
   railFlight(4,7,17); railFlight(19,22,17); // the twin third flights, one up each wall

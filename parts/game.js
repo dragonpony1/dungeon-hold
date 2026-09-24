@@ -634,7 +634,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=77;
+const BUILD=78;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -809,8 +809,10 @@ function footprintCells(kind,x,z,yaw){ const cells=[idx(wc(x),wcz(z))]; if(kind=
 function aimPoint(){ const fx=Math.sin(cam.yaw), fz=Math.cos(cam.yaw);
   if(!TOUCH){ const dir=new THREE.Vector3(); camera.getWorldDirection(dir); if(dir.y<-.02){ const t=(camera.position.y-hero.y)/-dir.y; let px=camera.position.x+dir.x*t, pz=camera.position.z+dir.z*t; const dx=px-hero.x, dz=pz-hero.z, d=Math.hypot(dx,dz); const md=Math.min(8,Math.max(1.6,d)); if(d>.01){ px=hero.x+dx/d*md; pz=hero.z+dz/d*md; } return [px,pz]; } }
   return [hero.x+fx*3.2,hero.z+fz*3.2]; }
-function standH(cells){ let h=-1e9; for(const i of cells) h=Math.max(h,rampA[i]?rampH[i]:hgt[i]); return h>-1e8?h:0; }   // where a defense stands: the highest step under its footprint (a flight's upper step)
-function placeDefAt(kind,x,z,rot){ const cfg=DEFS[kind]; const cx=wc(x), cz=wcz(z); const cells=footprintCells(kind,x,z,rot||0).filter(i=>walk(grid[i])&&!defAt[i]); const base=standH(cells);
+function standH(cells,x,z){ let h=-1e9; for(const i of cells) h=Math.max(h,rampA[i]?rampH[i]:hgt[i]);
+  if(x!==undefined) for(const b of RAILBOXES){ const m=.7; if(x>=b.x0-m&&x<=b.x1+m&&z>=b.z0-m&&z<=b.z1+m) h=Math.max(h,b.top); }   // a real railing (throne room only) can be built on, not just walked over — the margin is wider than the rail's own thin collision box, since a player aiming from a few steps back needs a real target to land on, not a 0.44-unit line
+  return h>-1e8?h:0; }
+function placeDefAt(kind,x,z,rot){ const cfg=DEFS[kind]; const cx=wc(x), cz=wcz(z); const cells=footprintCells(kind,x,z,rot||0).filter(i=>walk(grid[i])&&!defAt[i]); const base=standH(cells,x,z);
   const d={kind,cx,cz,cells,x,z,base,rot:rot||0,hp:cfg.hp,max:cfg.hp,top:cfg.top+base,cd:R(.2,cfg.cd),yaw:rot||0,mdl:makeDef(kind,false),pop:0,recoil:0,spin:0,shake:0,lvl:1,spent:cfg.mana};
   d.mdl.position.set(d.x,base,d.z); d.mdl.rotation.y=d.rot; scene.add(d.mdl); defs.push(d); for(const i of cells) defAt[i]=d; S.du+=cfg.du; S.mana-=cfg.mana; reflow(); SFX.place(); return d; }
 function placeDef(kind,cx,cz,rot){ const t=gat(cx,cz); if(!(t===T.FLOOR||t===T.CARPET)||footprintCells(kind,cw(cx),cwz(cz),rot||0).some(i=>!walk(grid[i]))) return null; /* the same 'can't build there' as the ghost: floor or carpet, stairs included */ return placeDefAt(kind,cw(cx),cwz(cz),rot||0); }
@@ -990,7 +992,7 @@ function updateGhost(){ if(!placing) return; const [px,pz]=placeStage===1?anchor
   const yaw=placeStage===1?anchorYaw:cam.yaw+ghostRot; const cells=footprintCells(placing,px,pz,yaw); const heroCell=idx(wc(hero.x),wcz(hero.z));
   if(!(t===T.FLOOR||t===T.CARPET)||cells.some(i=>!walk(grid[i]))) reason="Can't build there"; else if(cells.some(i=>defAt[i])) reason='Already occupied'; else if(cells.includes(heroCell)||Math.hypot(px-hero.x,pz-hero.z)<1.1) reason="You're standing there"; else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units'; else if(S.mana<cfg.mana) reason='Not enough mana'; else if(enemies.some(e=>!e.dead&&Math.hypot(e.x-px,e.z-pz)<2.2)) reason='Enemy too close';
   ghostOk=!reason; ghostReason=reason; ghostCell=[cx,cz]; ghostPos=[px,pz]; ghostYaw=yaw;
-  ghost.position.set(px,standH(cells),pz); ghost.rotation.y=ghostYaw; const m=ghostOk?GHOST_OK:GHOST_BAD; ghost.traverse(o=>{ if(o.isMesh) o.material=m; });
+  ghost.position.set(px,standH(cells,px,pz),pz); ghost.rotation.y=ghostYaw; const m=ghostOk?GHOST_OK:GHOST_BAD; ghost.traverse(o=>{ if(o.isMesh) o.material=m; });
   if(ghostSector){ ghostSector.position.set(px,baseFloor(px,pz),pz); ghostSector.rotation.y=ghostYaw; tintSector(ghostSector,ghostOk?0x40ff80:0xff3030); } }
 function confirmPlace(){ if(!placing) return; if(!ghostOk){ toast(ghostReason); return; }
   if(placeStage===0){ anchorPos=[ghostPos[0],ghostPos[1]]; anchorYaw=ghostYaw; placeStage=1; SFX.hit(); updateGhost(); return; }   // first click: set it down
@@ -1069,7 +1071,7 @@ function frame(now){ requestAnimationFrame(frame); const dt=Math.min(.05,(now-la
 requestAnimationFrame(frame);
 
 // ================= TEST HOOK =================
-window.__dd={S,hero,cam,enemies,defs,projs,orbs,loot,grid,DEFS,MOBS,stat,mobSpd,gear:()=>gear,rollItem,dropLoot,resetGear,heroStat,heroMult,heroDmg,kill,Meta,SLOTS,applyGear,saveGear,pickup,tierOf,statStr,RNAME,RCSS,loadHeroGLB,toggleHero,ghost:()=>placing?{x:ghostPos[0],z:ghostPos[1],yaw:ghostYaw,ok:ghostOk,why:ghostReason,stage:placeStage,dist:Math.hypot(ghostPos[0]-hero.x,ghostPos[1]-hero.z),sector:!!ghostSector&&ghostSector.children.length>0}:null,rotateGhost,unstick,music:()=>({on:musicOn,mode:musicMode,step:mStep}),hoverSector:()=>!!hoverSector,heroModel:()=>GLBH?{label:GLBH.label,useGLB,clips:Object.keys(GLBH.map),cur:GLBH.cur?GLBH.cur.getClip().name:null,scale:GLBH.scale,height:GLBH.height,visible:GLBH.wrap.visible}:null,mobTemplate:k=>MOBGLB[k],scene,mobModel:k=>MOBGLB[k]?{clips:Object.keys(MOBGLB[k].map),scale:MOBGLB[k].scale}:null,mobState:e=>e&&e.mdl&&e.mdl.glb?{cur:e.mdl.cur?e.mdl.cur.getClip().name:null,time:e.mdl.cur?e.mdl.cur.time:0}:null,setHeroYaw:d=>{ heroYawOff=d; },deathCut:()=>deathCut,camPos:()=>({x:camera.position.x,y:camera.position.y,z:camera.position.z}),hurtCrystal,SFX,
+window.__dd={S,hero,cam,enemies,defs,projs,orbs,loot,grid,DEFS,MOBS,stat,mobSpd,gear:()=>gear,rollItem,dropLoot,resetGear,heroStat,heroMult,heroDmg,kill,Meta,SLOTS,applyGear,saveGear,pickup,tierOf,statStr,RNAME,RCSS,loadHeroGLB,toggleHero,ghost:()=>placing?{x:ghostPos[0],z:ghostPos[1],yaw:ghostYaw,ok:ghostOk,why:ghostReason,stage:placeStage,dist:Math.hypot(ghostPos[0]-hero.x,ghostPos[1]-hero.z),sector:!!ghostSector&&ghostSector.children.length>0}:null,rotateGhost,unstick,music:()=>({on:musicOn,mode:musicMode,step:mStep}),hoverSector:()=>!!hoverSector,heroModel:()=>GLBH?{label:GLBH.label,useGLB,clips:Object.keys(GLBH.map),cur:GLBH.cur?GLBH.cur.getClip().name:null,scale:GLBH.scale,height:GLBH.height,visible:GLBH.wrap.visible}:null,mobTemplate:k=>MOBGLB[k],scene,mobModel:k=>MOBGLB[k]?{clips:Object.keys(MOBGLB[k].map),scale:MOBGLB[k].scale}:null,mobState:e=>e&&e.mdl&&e.mdl.glb?{cur:e.mdl.cur?e.mdl.cur.getClip().name:null,time:e.mdl.cur?e.mdl.cur.time:0}:null,setHeroYaw:d=>{ heroYawOff=d; },deathCut:()=>deathCut,camPos:()=>({x:camera.position.x,y:camera.position.y,z:camera.position.z}),hurtCrystal,SFX,rails:()=>RAILBOXES.map(b=>({x0:+b.x0.toFixed(2),x1:+b.x1.toFixed(2),z0:+b.z0.toFixed(2),z1:+b.z1.toFixed(2),top:+b.top.toFixed(2)})),
   start:()=>{ if(S.phase==='start'){ S.phase='build'; $('start').classList.add('hide'); cam.x=hero.x; cam.y=hero.y+5; cam.z=hero.z+8; cam.d=cam.dist; } },
   startWave, place:(k,cx,cz,rot)=>placeDef(k,cx,cz,rot||0), spawn:spawnEnemy, select, confirmPlace, swing, repair, upgrade, sell, jump, setKeys:(o)=>Object.assign(K,o), r:renderer,
   step:(dt,n)=>{ for(let i=0;i<(n||1);i++) update(dt||1/60); },
