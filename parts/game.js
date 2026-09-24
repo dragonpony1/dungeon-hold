@@ -575,8 +575,8 @@ const joy={x:0,y:0,id:null,ox:0,oy:0}; let lookId=null, lookX=0, lookY=0;
 function angDiff(a,b){ let d=(b-a)%TAU; if(d>PI) d-=TAU; if(d<-PI) d+=TAU; return d; }
 function angLerp(a,b,t){ return a+angDiff(a,b)*t; }
 function easeOutBack(t){ const c=1.7; return 1+(c+1)*Math.pow(t-1,3)+c*Math.pow(t-1,2); }
-const RAILBOXES=[];   // thin collision boxes along edges where a real railing model stands (56-thronedecor.js pushes these); empty on every other map, so this is a no-op there
-function solidAt(x,z,y,forHero){ const cx=wc(x),cz=wcz(z); const t=gat(cx,cz); if(forHero?heroSolid(t):!(walk(t)||(y>=1e5&&t===T.WATER))) return true; /* a flyer (y far above) may cross the moat */ if(baseFloor(x,z)>y+.62) return true; /* a ledge taller than a step: no climbing it (a jumping hero clears what it can) */ if(forHero) for(let i=0;i<RAILBOXES.length;i++){ const b=RAILBOXES[i]; if(x>=b.x0&&x<=b.x1&&z>=b.z0&&z<=b.z1) return true; } /* hero only: a mob's pathing already avoids these edges via the height-diff check above, and a box that's fine for the hero's own width can still clip a mob's path along a narrow stair */ const d=inb(cx,cz)?defAt[idx(cx,cz)]:null; if(d){ if(d.kind==='slice'||y>d.top+.3) return false; return forHero?y<d.top-.25:true; } return false; }
+const RAILBOXES=[];   // thin collision boxes along edges where a real railing model stands (56-thronedecor.js pushes these, each with its own .top); empty on every other map, so this is a no-op there
+function solidAt(x,z,y,forHero){ const cx=wc(x),cz=wcz(z); const t=gat(cx,cz); if(forHero?heroSolid(t):!(walk(t)||(y>=1e5&&t===T.WATER))) return true; /* a flyer (y far above) may cross the moat */ if(baseFloor(x,z)>y+.62) return true; /* a ledge taller than a step: no climbing it (a jumping hero clears what it can) */ if(forHero) for(let i=0;i<RAILBOXES.length;i++){ const b=RAILBOXES[i]; if(x>=b.x0&&x<=b.x1&&z>=b.z0&&z<=b.z1&&y<b.top-.25) return true; } /* hero only, and only below its guard height: a jump can clear the rail and land on it (floorAt), same "stand on top" rule as a short defense — a mob's pathing already avoids these edges via the height-diff check above, and a box that's fine for the hero's own width can still clip a mob's path along a narrow stair */ const d=inb(cx,cz)?defAt[idx(cx,cz)]:null; if(d){ if(d.kind==='slice'||y>d.top+.3) return false; return forHero?y<d.top-.25:true; } return false; }
 const ARC=[[1,0],[-1,0],[0,1],[0,-1],[.71,.71],[-.71,.71],[.71,-.71],[-.71,-.71]];
 function moveCircle(e,dx,dz,r,forHero){ const y=e.fly?1e6:(e.y||0); let nx=e.x+dx, ok=true; for(const a of ARC){ if(solidAt(nx+a[0]*r,e.z+a[1]*r,y,forHero)){ ok=false; break; } } if(ok) e.x=nx;
   let nz=e.z+dz; ok=true; for(const a of ARC){ if(solidAt(e.x+a[0]*r,nz+a[1]*r,y,forHero)){ ok=false; break; } } if(ok) e.z=nz; }
@@ -584,7 +584,7 @@ function wallAt(x,z){ const t=gat(wc(x),wcz(z)); return t===T.WALL||t===T.PILLAR
 // floor height at a point: raised floors, and stairs as two flat steps per cell (climbing them bobs a little, like stairs do)
 function floorH(x,z){ const cx=wc(x),cz=wcz(z); if(!inb(cx,cz)) return 0; const i=idx(cx,cz), a=rampA[i]; if(!a) return hgt[i]; const fx=(x+OX)/CELL-cx, fz=(z+OZ)/CELL-cz; const t=a===1?1-fz:a===2?fz:a===3?fx:1-fx; return rampL[i]+(rampH[i]-rampL[i])*(t<.5?.5:1); }
 function baseFloor(x,z){ return floorH(x,z); }   // the crystal's cells are level with the floor around them
-function floorAt(x,z,y){ const cx=wc(x),cz=wcz(z); let f=baseFloor(x,z); const d=inb(cx,cz)?defAt[idx(cx,cz)]:null; if(d&&y>=d.top-.25) f=Math.max(f,d.top); return f; }
+function floorAt(x,z,y){ const cx=wc(x),cz=wcz(z); let f=baseFloor(x,z); const d=inb(cx,cz)?defAt[idx(cx,cz)]:null; if(d&&y>=d.top-.25) f=Math.max(f,d.top); for(let i=0;i<RAILBOXES.length;i++){ const b=RAILBOXES[i]; if(x>=b.x0&&x<=b.x1&&z>=b.z0&&z<=b.z1&&y>=b.top-.25) f=Math.max(f,b.top); } return f; }
 function floatText(x,y,z,txt,col){ floats.push({x,y,z,txt,col:col||'#fff',t:0}); }
 function banner(t,sub){ $('banner').innerHTML=t+'<small>'+(sub||'')+'</small>'; $('banner').style.opacity=1; bannerT=3.4; }
 function toast(t){ $('toast').textContent=t; $('toast').style.opacity=1; toastT=2.2; }
@@ -619,7 +619,7 @@ function hurtCrystal(dmg){ if(S.phase==='dead'||S.phase==='won') return; S.cryst
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=52;
+const BUILD=53;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),

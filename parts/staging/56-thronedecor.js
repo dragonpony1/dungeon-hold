@@ -35,8 +35,12 @@ if(MAP.throne){
   const place=(wrap,x,y,z,yaw)=>{ wrap.position.set(x,y,z); if(yaw) wrap.rotation.y=yaw; world.add(wrap); };
   // a thin collision box under a railing piece, so the hero can't just walk through it and off the drop it marks —
   // RAILBOXES (game.js) is otherwise empty on every map, so this only ever matters here. alongZ: true for a piece
-  // whose long axis runs along world Z (a raked stair rail); false for one running along X (the straight banister)
-  const railBox=(cx,cz,halfLen,alongZ)=>{ const t=.22; RAILBOXES.push(alongZ?{x0:cx-t,x1:cx+t,z0:cz-halfLen,z1:cz+halfLen}:{x0:cx-halfLen,x1:cx+halfLen,z0:cz-t,z1:cz+t}); };
+  // whose long axis runs along world Z (a raked stair rail); false for one running along X (the straight banister).
+  // baseY is the floor the piece stands on; .top (baseY+RAIL_H) is its guard height — solidAt only blocks the hero
+  // below that, and floorAt lets them land on it above it, the same "stand on a short defense" rule already used
+  // elsewhere, so a jump clears the rail (or lands balanced on top of it) instead of hitting an invisible wall.
+  const RAIL_H=1.15;
+  const railBox=(cx,cz,halfLen,alongZ,baseY)=>{ const t=.22; RAILBOXES.push(Object.assign(alongZ?{x0:cx-t,x1:cx+t,z0:cz-halfLen,z1:cz+halfLen}:{x0:cx-halfLen,x1:cx+halfLen,z0:cz-t,z1:cz+t},{top:baseY+RAIL_H})); };
   // the throne itself: real Meshy art replaces the procedural stone seat once it loads
   loadThroneProp('throne-seat.glb',3.2,wrap=>{ const proc=world.userData.throneProc; if(proc) proc.visible=false; place(wrap,tx0,ty0,tz0,0); });
   // two armored guardian statues flanking the dais, big enough to loom, facing the hall the same way the throne does
@@ -78,7 +82,7 @@ if(MAP.throne){
   function railFlight(xLo,xHi,zTop){
     loadThroneProp('throne-railing.glb',2.6,wrap=>place(wrap,cw(xLo)-.3,hgt[idx(xLo,zTop)],cwz(zTop),PI/2));
     loadThroneProp('throne-railing.glb',2.6,wrap=>place(wrap,cw(xHi)+.3,hgt[idx(xHi,zTop)],cwz(zTop),PI/2));
-    railBox(cw(xLo)-.3,cwz(zTop),1.3,true); railBox(cw(xHi)+.3,cwz(zTop),1.3,true);
+    railBox(cw(xLo)-.3,cwz(zTop),1.3,true,hgt[idx(xLo,zTop)]); railBox(cw(xHi)+.3,cwz(zTop),1.3,true,hgt[idx(xHi,zTop)]);
   }
   railFlight(11,15,10);                    // the fourth flight, up the middle to the throne
   railFlight(4,7,17); railFlight(19,22,17); // the twin third flights, one up each wall
@@ -98,7 +102,7 @@ if(MAP.throne){
           if(theirs<0||mine<theirs+1.5) continue;
           const ex=nx?X0+(nx>0?CELL:0):cw(cx), ez=nz?Z0+(nz>0?CELL:0):cwz(cz);
           const t=wrap.clone(); t.position.set(ex-nx*.15,mine,ez-nz*.15); t.rotation.y=nz?0:PI/2; world.add(t);
-          railBox(ex-nx*.15,ez-nz*.15,1,!!nx);
+          railBox(ex-nx*.15,ez-nz*.15,1,!!nx,mine);
         } } }); }
   // the wall faces that already carry the game's own painted arched window (every sixth hall face — see the
   // "pillars, props, torches, banners" block in game.js): the wall/window motif below steers clear of these so it
