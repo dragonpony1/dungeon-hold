@@ -58,10 +58,7 @@ if(MAP.throne){
   // the true wall was the only way to clear it. That bug's long fixed, but these never got moved back: they've been
   // floating .85 units out in the open room ever since, with the now-correctly-flush wall panel visible behind them —
   // "attached to the wall behind the wall". tz0-.8 lands them back on the real wall face, matching everything else.
-  /* pulled out for a clean look at the bare wall behind the throne while we re-figure sconce/window placement — see
-     the matching pull-out below for the ambient copies. Re-enable once the wall itself checks out.
   loadThroneProp('throne-window.glb',5.0,wrap=>place(wrap,tx0,ty0+3.6,tz0-.8,0));
-  */
   loadThroneProp('throne-crest.glb',2.2,wrap=>place(wrap,tx0,ty0+7.6,tz0-.8,0));
   // the old flanking pair is gone: real sconces now go up everywhere the pulled procedural torch used to stand —
   // see the dense wall+pillar placement below, once WIN (the painted-window face set) exists to steer clear of.
@@ -136,14 +133,19 @@ if(MAP.throne){
   // throne and crystal. Each claims its wall face in WIN so the stone wall-panel motif below leaves it alone.
   if(WINDOWTEX){
     const pick=(arr,n)=>{ const out=[]; if(!arr.length) return out; const step=Math.max(1,Math.floor(arr.length/n)); for(let i=0;i<n&&i*step<arr.length;i++) out.push(arr[i*step]); return out; };
-    const sideFaces=wallFaces.filter(f=>Math.abs(f.nx)>.5&&!WIN.has(f)&&f.cz>=8&&f.cz<=40);
+    // the ambient windows (game.js, every sixth hall face) carry crimson drapes flanking the pane by 1.75 either side —
+    // WIN alone only rules out the exact same face, so a custom window picked a face just one or two cells from an
+    // ambient one and ended up with that window's own drape (sometimes its pane too) sharing its wall space: looked
+    // through the new "sky" window and saw the old stained one and its drape behind it. Keep a real gap from any WIN face.
+    const clearOfWin=f=>{ for(const w of WIN){ if(Math.hypot(f.cx-w.cx,f.cz-w.cz)<=2) return false; } return true; };   // 2 cells (4 world units) clears even the wide window's 3.2 span against a drape's 2.25 reach, with a little to spare — 3 cells was overkill and starved the near-throne pool (already tight) of any candidate at all
+    const sideFaces=wallFaces.filter(f=>Math.abs(f.nx)>.5&&!WIN.has(f)&&clearOfWin(f)&&f.cz>=11&&f.cz<=40);   // starts three cells past the near-throne pool below (cz 6-8): close enough and a tall window landing right at that boundary reaches back through it via clearOfWin and empties it out
     const tallSpots=[...pick(sideFaces.filter(f=>f.nx<0),2),...pick(sideFaces.filter(f=>f.nx>0),2)];
     tallSpots.forEach(f=>{ const yaw=Math.atan2(f.nx,f.nz), fy=hgt[idx(f.cx,f.cz)]||0, wh=Math.min(9,WALLH-fy-1.5);
       const w=new THREE.Mesh(new THREE.PlaneGeometry(3.2,wh),new THREE.MeshBasicMaterial({map:WINDOWTEX,transparent:true,alphaTest:.5,side:THREE.DoubleSide}));
       w.position.set(f.x+f.nx*.22,fy+wh/2+.8,f.z+f.nz*.22); w.rotation.y=yaw; w.userData.noOL=true; world.add(w);
       const l=new THREE.PointLight(C(0x8fb8ff),1.6,12,2); l.position.set(f.nx*1.2,0,f.nz*1.2); w.add(l); WIN.add(f); });
-    const nearWest=wallFaces.filter(f=>f.nx<0&&!WIN.has(f)&&f.cz>=6&&f.cz<=8), nearEast=wallFaces.filter(f=>f.nx>0&&!WIN.has(f)&&f.cz>=6&&f.cz<=8);   // past z 4, clear of the pillar row that stands right at the wall there
-    const nearBack=wallFaces.filter(f=>f.nz<0&&!WIN.has(f)&&Math.abs(f.cx-tx)>2&&f.cz<=4);
+    const nearWest=wallFaces.filter(f=>f.nx<0&&!WIN.has(f)&&clearOfWin(f)&&f.cz>=6&&f.cz<=8), nearEast=wallFaces.filter(f=>f.nx>0&&!WIN.has(f)&&clearOfWin(f)&&f.cz>=6&&f.cz<=8);   // past z 4, clear of the pillar row that stands right at the wall there
+    const nearBack=wallFaces.filter(f=>f.nz<0&&!WIN.has(f)&&clearOfWin(f)&&Math.abs(f.cx-tx)>2&&f.cz<=4);
     const topSpots=[...pick(nearBack,1),...pick(nearWest,1),...pick(nearEast,1)];
     topSpots.forEach(f=>{ const yaw=Math.atan2(f.nx,f.nz);   // WALLH is the hall's one shared ceiling height, not per-landing — no baseY added here, unlike the tall run above
       const w=new THREE.Mesh(new THREE.PlaneGeometry(1.3,3.2),new THREE.MeshBasicMaterial({map:WINDOWTEX,transparent:true,alphaTest:.5,side:THREE.DoubleSide}));
