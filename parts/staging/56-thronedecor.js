@@ -9,6 +9,11 @@
 // additions alongside them, not replacements, so nothing elsewhere can break.
 if(MAP.throne){
   const [tx,tz]=MAP.throne; const tx0=cw(tx), tz0=cwz(tz), ty0=hgt[idx(tx,tz)];
+  // the stair treads share their mesh with the raised floors (game.js), so the floor motif's own tiles — which
+  // skip stair cells, since a flat tile can't sit right on a stepped surface — leave the treads showing that
+  // mesh's original cream marble. Retinting the whole mesh gold covers just the stairs in practice: everywhere
+  // else it's hidden under a floor tile sitting a hair above it.
+  if(world.userData.floorMesh) world.userData.floorMesh.material.color.set(C(0xe0b040));
   // every gem/gold accent baked into these models' textures gets a little self-glow, so the purple shows up even in shadow
   function purpleGlow(root){ root.traverse(o=>{ const m=o.isMesh&&o.material; if(!m||m.userData.__pg) return; m.userData.__pg=true;
     m.onBeforeCompile=sh=>{ sh.fragmentShader=sh.fragmentShader.replace('#include <emissivemap_fragment>',

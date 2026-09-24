@@ -327,7 +327,7 @@ const wallFaces=[];
       const E=[[1,0,[X0+CELL,Z0+f0*CELL],[X0+CELL,Z0+f1*CELL],Hc(cx,cz,.99,fm),Hc(cx+1,cz,.01,fm)],[-1,0,[X0,Z0+f1*CELL],[X0,Z0+f0*CELL],Hc(cx,cz,.01,fm),Hc(cx-1,cz,.99,fm)],[0,1,[X0+f1*CELL,Z0+CELL],[X0+f0*CELL,Z0+CELL],Hc(cx,cz,fm,.99),Hc(cx,cz+1,fm,.01)],[0,-1,[X0+f0*CELL,Z0],[X0+f1*CELL,Z0],Hc(cx,cz,fm,.01),Hc(cx,cz-1,fm,.99)]];
       for(const [nx,nz,A,B,mine,theirs] of E){ if(theirs<0||mine<=theirs+.01) continue; side(A,B,theirs,mine,nx,nz); }
       if(a){ const lo=Hc(cx,cz,alongZ?fm:(a===3?.49:.51),alongZ?(a===1?.51:.49):fm), hi=Hc(cx,cz,alongZ?fm:(a===3?.51:.49),alongZ?(a===1?.49:.51):fm); if(hi>lo+.01){ const A=alongZ?[X0+f0*CELL,Z0+CELL/2]:[X0+CELL/2,Z0+f0*CELL], B=alongZ?[X0+f1*CELL,Z0+CELL/2]:[X0+CELL/2,Z0+f1*CELL]; const nx=a===3?-1:a===4?1:0, nz=a===1?1:a===2?-1:0; side(nx===-1||nz===-1?B:A,nx===-1||nz===-1?A:B,lo,hi,nx,nz); } } } }
-  if(tv){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(tp,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(tn,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(tu,2)); g.setIndex(ti); world.add(new THREE.Mesh(g,new THREE.MeshToonMaterial({map:FLOORTEX,gradientMap:GRAD,color:C(0xffffff),side:THREE.DoubleSide})));
+  if(tv){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(tp,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(tn,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(tu,2)); g.setIndex(ti); const floorMesh=new THREE.Mesh(g,new THREE.MeshToonMaterial({map:FLOORTEX,gradientMap:GRAD,color:C(0xffffff),side:THREE.DoubleSide})); world.add(floorMesh); world.userData.floorMesh=floorMesh;   // a handle so a map can retint its own stair treads (56-thronedecor.js) without a second mesh
     const sg=new THREE.BufferGeometry(); sg.setAttribute('position',new THREE.Float32BufferAttribute(sp,3)); sg.setAttribute('normal',new THREE.Float32BufferAttribute(sn,3)); sg.setIndex(si); world.add(new THREE.Mesh(sg,mat((MAP.style&&MAP.style.marble)?0x7a6e62:HASWATER?0x4d4b52:0x3e3450,{side:THREE.DoubleSide}))); }
   if(MAP.style&&MAP.style.rails){ const P=[], RX=[], RZ=[];   // a balustrade along every drop of a step and a half or more: a post each half cell on the edge, a gold rail between
     for(let cz=0;cz<GH;cz++) for(let cx=0;cx<GW;cx++){ const i=idx(cx,cz); if(grid[i]===T.WALL||(hgt[i]<=0&&!rampA[i])) continue; const X0=cw(cx)-CELL/2, Z0=cwz(cz)-CELL/2;
@@ -614,7 +614,7 @@ function hurtCrystal(dmg){ if(S.phase==='dead'||S.phase==='won') return; S.cryst
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=36;
+const BUILD=37;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
