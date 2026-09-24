@@ -575,7 +575,7 @@ const Meta={
   update:dt=>{}, hud:()=>{}, open:()=>{}, isOpen:()=>false };
 let spawnQ=[], placing=null, ghost=null, ghostRot=0, ghostCell=null, ghostPos=[0,0], ghostOk=false, ghostReason='', ghostYaw=0;
 let placeStage=0, anchorPos=null, anchorYaw=0;   // 0: ghost follows your aim · 1: set down, rotating in place
-let bannerT=0, toastT=0, dmgFlash=0, crystalShake=0, camShake=0, introA=0, locked=false, edgeX=.5, mouseDown=false;
+let bannerT=0, toastT=0, dmgFlash=0, crystalShake=0, camShake=0, introA=0, locked=false, edgeX=.5, mouseDown=false, deathCut=null;
 const joy={x:0,y:0,id:null,ox:0,oy:0}; let lookId=null, lookX=0, lookY=0;
 
 function angDiff(a,b){ let d=(b-a)%TAU; if(d>PI) d-=TAU; if(d<-PI) d+=TAU; return d; }
@@ -617,15 +617,22 @@ function heroUpdate(dt){
   heroModelUpdate(dt);
 }
 function jump(){ if(hero.grounded&&hero.dead<=0&&S.phase!=='start'){ hero.vy=10.6; hero.grounded=false; SFX.jump(); } }
-function swing(){ if(hero.swingT>=0||hero.dead>0||S.phase==='start'||S.phase==='dead'||S.phase==='won') return; hero.swingT=0; hero.hitDone=false; SFX.swing(); if(!hero.moving) hero.yaw=cam.yaw;
+function swing(){ if(hero.swingT>=0||hero.dead>0||S.phase==='start'||S.phase==='dead'||S.phase==='won'||S.phase==='deathcut') return; hero.swingT=0; hero.hitDone=false; SFX.swing(); if(!hero.moving) hero.yaw=cam.yaw;
   if(useGLB&&GLBH&&GLBH.actions.attack) playHero('attack',{restart:true,fade:.05,speed:GLBH.map.attack.duration/swingDur()}); }
 function hitCone(){ const fx=Math.sin(hero.yaw), fz=Math.cos(hero.yaw); let n=0; for(const e of enemies){ if(e.dead) continue; const dx=e.x-hero.x, dz=e.z-hero.z, d=Math.hypot(dx,dz); if(d<(hero.reach||2.4)+e.r&&(dx*fx+dz*fz)/Math.max(d,.01)>.4){ hurt(e,heroDmg(),fx*1.4,fz*1.4); n++; } } if(n) SFX.hit(); }
 function hurtHero(dmg){ if(hero.dead>0) return; dmg=Math.max(1,Math.round(dmg*(1-Math.min(75,heroStat('def'))/100))); hero.hp-=dmg; hero.hurtT=3; flashDmg(); SFX.hurt(); if(hero.hp<=0){ hero.hp=0; hero.dead=4; toast('You fell! Back in 4 seconds…'); H.g.visible=false; heroShadow.visible=false; } }
-function hurtCrystal(dmg){ if(S.phase==='dead'||S.phase==='won') return; S.crystal-=dmg; flashDmg(); SFX.crystal(); crystalShake=.4; if(S.crystal<=0){ S.crystal=0; S.phase='dead'; droneOff(); setMusic('none'); sting(); if(document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play'); if(!Meta.onRunEnd(S.wave)){ $('deadwave').textContent=S.wave; $('dead').classList.remove('hide'); } } }
+function hurtCrystal(dmg,killer){ if(S.phase==='dead'||S.phase==='won'||S.phase==='deathcut') return; S.crystal-=dmg; flashDmg(); SFX.crystal(); crystalShake=.4; if(S.crystal<=0){ S.crystal=0; startDeathCut(killer); } }
+function finishDeath(){ S.phase='dead'; droneOff(); setMusic('none'); sting(); if(document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play'); if(!Meta.onRunEnd(S.wave)){ $('deadwave').textContent=S.wave; $('dead').classList.remove('hide'); } deathCut=null; }
+function startDeathCut(killer){ const k=(killer&&!killer.dead)?killer:null; deathCut={t:0,dur:2,killer:k,eye:null,eye2:null,look:null}; if(k&&k.mdl&&k.mdl.glb&&k.mdl.actions&&k.mdl.actions.attack){ k.swing=0; mobPlay(k.mdl,'attack',{restart:true,fade:0,speed:.5}); } S.phase='deathcut'; }
+function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c.killer; if(k&&!k.dead&&k.mdl) mobAnim(k,dt);
+  const cy=crystalG.position.y+2.5; const kx=k?k.x:0, kz=k?k.z:2.5, ky=k?k.y+(k.h||1.6)*.55:cy;
+  if(!c.eye){ const dl=Math.hypot(kx,kz)||1, nx=kx/dl, nz=kz/dl, px=-nz, pz=nx; c.eye=[nx*1.2+px*2.3,Math.max(cy,ky)+.3,nz*1.2+pz*2.3]; c.look=[kx*.4,(cy+ky)/2,kz*.4]; c.eye2=[lerp(c.eye[0],c.look[0],.3),lerp(c.eye[1],c.look[1],.15),lerp(c.eye[2],c.look[2],.3)]; }
+  const p=Math.min(1,c.t/c.dur); camera.position.set(lerp(c.eye[0],c.eye2[0],p),lerp(c.eye[1],c.eye2[1],p),lerp(c.eye[2],c.eye2[2],p)); camera.lookAt(c.look[0],c.look[1],c.look[2]);
+  crystalShake=.45; if(c.t>=c.dur) finishDeath(); }
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=57;
+const BUILD=58;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -750,7 +757,7 @@ function kill(e){ e.dead=.001; S.kills++; spawnOrbs(e.x,e.z,e.mana); rollDrop(e)
 function attack(e,tg){ e.swing=0; e.pending=tg; }
 function landHit(e,tg){
   if(tg.kind==='hero'){ if(hero.dead<=0) hurtHero(e.dmg); }
-  else if(tg.kind==='crystal'){ if(tg.ranged) fireArrow(e,0,2.6,0,{kind:'crystal'}); else hurtCrystal(e.dmg); }
+  else if(tg.kind==='crystal'){ if(tg.ranged) fireArrow(e,0,2.6,0,{kind:'crystal'}); else hurtCrystal(e.dmg,e); }
   else if(tg.kind==='def'){ const d=tg.obj; if(!defs.includes(d)) return; if(tg.ranged) fireArrow(e,d.x,1.0,d.z,{kind:'def',obj:d}); else { hurtDef(d,e.dmg); if(d.kind==='spike') hurt(e,Math.round(DEFS.spike.thorns*(1+heroStat('tow')/100)),0,0); } } }
 function updateEnemies(dt){
   const alive=enemies.filter(e=>!e.dead);
@@ -820,7 +827,7 @@ function stat(d,k){ const cfg=DEFS[d.kind], l=d.lvl||1; if(k==='dmg') return Mat
 function upCost(d){ return 100*(d.lvl||1); }
 function upgrade(){ const d=nearestDef(3.4); if(!d) return; if(d.hp<d.max){ repair(); return; } if(d.lvl>=MAXLVL){ toast('Already Mark '+MARK[MAXLVL]+' — that is as good as it gets'); return; } const cost=upCost(d); if(S.mana<cost){ toast('Need '+cost+' mana to upgrade'); return; }
   S.mana-=cost; d.spent+=cost; d.lvl++; d.max=Math.round(DEFS[d.kind].hp*(1+.4*(d.lvl-1))); d.hp=d.max; d.pop=0; const ring=M(new THREE.TorusGeometry(d.kind==='spike'?1.1:.98,.045,6,18),mat(d.lvl>=MAXLVL?0xd8322c:0xe0b040),0,.16+.1*(d.lvl-2),0); ring.rotation.x=PI/2; d.mdl.add(ring); SFX.place(); floatText(d.x,d.top+.9,d.z,'MARK '+MARK[d.lvl]+(DEFS[d.kind].arcs?'  ·  '+arcOf(d)+'° cone':''),'#e8b94a'); floatText(d.x,d.top+1.7,d.z,'-'+cost+' ◆ mana','#5ee9ff'); toast(DEFS[d.kind].name+' → Mark '+MARK[d.lvl]+'  ·  '+cost+' mana spent'); if(hoverFor===d){ if(hoverSector) scene.remove(hoverSector); hoverSector=null; hoverFor=null; } }
-function fireArrow(e,x,y,z,hit){ const splash=MOBS[e.kind]&&MOBS[e.kind].splash||0; const m=splash?grenadeMesh():arrowMesh(); scene.add(m); const x0=e.x, y0=e.y+1.2*e.sc, z0=e.z; const dur=Math.hypot(x-x0,z-z0)/(splash?13:18); projs.push({kind:'arrow',x0,y0,z0,x1:x,y1:y,z1:z,t:0,dur:Math.max(.2,dur),dmg:e.dmg,hit,mesh:m,splash}); }   // a splash-tagged mob throws a grenade, slower and heavier than a plain shot
+function fireArrow(e,x,y,z,hit){ const splash=MOBS[e.kind]&&MOBS[e.kind].splash||0; const m=splash?grenadeMesh():arrowMesh(); scene.add(m); const x0=e.x, y0=e.y+1.2*e.sc, z0=e.z; const dur=Math.hypot(x-x0,z-z0)/(splash?13:18); projs.push({kind:'arrow',x0,y0,z0,x1:x,y1:y,z1:z,t:0,dur:Math.max(.2,dur),dmg:e.dmg,hit,mesh:m,splash,owner:e}); }   // a splash-tagged mob throws a grenade, slower and heavier than a plain shot
 // the floor ring the four elemental halos share: a glow ring at the reach, a small inner spinner — same idea as the
 // totem/frost aura but flatter and lower, since these stand barely off the ground (top .08) instead of being a spire
 function auraRing(d,rr,col,active,s){ let a=d.mdl.userData.aura; if(!a){ a=new THREE.Group(); const ring=new THREE.Mesh(new THREE.RingGeometry(.94,1,48),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); ring.rotation.x=-PI/2; ring.userData.noOL=true; a.add(ring); const inner=new THREE.Mesh(new THREE.RingGeometry(.2,.24,24),ring.material.clone()); inner.rotation.x=-PI/2; inner.userData.noOL=true; a.add(inner); a.userData.ring=ring; a.userData.inner=inner; d.mdl.add(a); d.mdl.userData.aura=a; }
@@ -871,8 +878,8 @@ function updateProj(dt){
       if(hit){ turnipSplat(p); dead=true; } else { p.mesh.rotation.x+=dt*5; p.mesh.position.set(p.x,p.y,p.z); } }
     else if(p.kind==='splat'){ p.t+=dt; const k=p.t/.4; p.mesh.scale.set(2.2+k*2.8,2.2+k*2.8,1); p.mesh.material.opacity=.7*(1-k); dead=p.t>=.4; }
     else { p.t+=dt/p.dur; const t=Math.min(1,p.t); const x=lerp(p.x0,p.x1,t), z=lerp(p.z0,p.z1,t), y=lerp(p.y0,p.y1,t)+Math.sin(t*PI)*1.4; p.mesh.position.set(x,y,z); const t2=Math.min(1,t+.05); p.mesh.lookAt(lerp(p.x0,p.x1,t2),lerp(p.y0,p.y1,t2)+Math.sin(t2*PI)*1.4,lerp(p.z0,p.z1,t2));
-      if(p.t>=1){ dead=true; if(p.hit.kind==='crystal') hurtCrystal(p.dmg); else if(p.hit.obj&&defs.includes(p.hit.obj)) hurtDef(p.hit.obj,p.dmg);
-        if(p.splash){ grenadeBurst(p.x1,p.y1,p.z1); const hitCrystal=Math.hypot(p.x1,p.z1)<p.splash; if(hitCrystal&&p.hit.kind!=='crystal') hurtCrystal(Math.round(p.dmg*.6*10)/10); for(const d2 of defs){ if(d2===p.hit.obj) continue; if(Math.hypot(d2.x-p.x1,d2.z-p.z1)<p.splash+.6) hurtDef(d2,Math.round(p.dmg*.6*10)/10); } } /* the grenade bursts: everything nearby (not just what it was aimed at) takes half again what it hit */ } }
+      if(p.t>=1){ dead=true; if(p.hit.kind==='crystal') hurtCrystal(p.dmg,p.owner); else if(p.hit.obj&&defs.includes(p.hit.obj)) hurtDef(p.hit.obj,p.dmg);
+        if(p.splash){ grenadeBurst(p.x1,p.y1,p.z1); const hitCrystal=Math.hypot(p.x1,p.z1)<p.splash; if(hitCrystal&&p.hit.kind!=='crystal') hurtCrystal(Math.round(p.dmg*.6*10)/10,p.owner); for(const d2 of defs){ if(d2===p.hit.obj) continue; if(Math.hypot(d2.x-p.x1,d2.z-p.z1)<p.splash+.6) hurtDef(d2,Math.round(p.dmg*.6*10)/10); } } /* the grenade bursts: everything nearby (not just what it was aimed at) takes half again what it hit */ } }
     if(dead){ scene.remove(p.mesh); projs.splice(i,1); } }
 }
 function spawnOrbs(x,z,n){ for(let k=0;k<n;k++){ const a=rnd()*TAU; const o={x,y:.8,z,vx:Math.cos(a)*2.5,vy:4+rnd()*2.5,vz:Math.sin(a)*2.5,mesh:orbMesh(),t:0}; o.mesh.position.set(x,.8,z); scene.add(o.mesh); orbs.push(o); } }
@@ -970,7 +977,7 @@ function winMap(){ S.phase='won'; cancelPlace(); banner('HALL HELD','the horde b
   setTimeout(()=>{ if(S.phase!=='won') return; const shown=Meta.onRunEnd(effWave(),{won:true,map:MAPI,mapName:MAP.name,hasNext:MAPI+1<MAPS.length}); if(!shown){ $('deadwave').textContent=S.wave; $('dead').classList.remove('hide'); } },2400); }
 
 // ================= PLACEMENT / REPAIR / SELL =================
-function select(kind){ if(S.phase==='start'||S.phase==='dead'||S.phase==='won') return; if(placing===kind){ cancelPlace(); return; } cancelPlace(); placing=kind; ghost=makeDef(kind,true); scene.add(ghost); const cfg=DEFS[kind]; ghostSector=sectorMesh(cfg.range||0,cfg.arc||360,0x40ff80); scene.add(ghostSector); ghostRot=0; placeStage=0; anchorPos=null; updateGhost(); }
+function select(kind){ if(S.phase==='start'||S.phase==='dead'||S.phase==='won'||S.phase==='deathcut') return; if(placing===kind){ cancelPlace(); return; } cancelPlace(); placing=kind; ghost=makeDef(kind,true); scene.add(ghost); const cfg=DEFS[kind]; ghostSector=sectorMesh(cfg.range||0,cfg.arc||360,0x40ff80); scene.add(ghostSector); ghostRot=0; placeStage=0; anchorPos=null; updateGhost(); }
 function cancelPlace(){ if(ghost){ scene.remove(ghost); ghost=null; } if(ghostSector){ scene.remove(ghostSector); ghostSector=null; } placing=null; placeStage=0; anchorPos=null; }
 function updateHoverSector(){ const d=placing?null:nearestDef(3.4); if(d!==hoverFor){ if(hoverSector){ scene.remove(hoverSector); hoverSector=null; } hoverFor=d; if(d&&DEFS[d.kind].range){ hoverSector=sectorMesh(stat(d,'range'),arcOf(d),0xe8b94a); hoverSector.position.set(d.x,d.base,d.z); hoverSector.rotation.y=d.rot; scene.add(hoverSector); } } }
 function unstick(){ if(placeStage===1){ placeStage=0; anchorPos=null; ghostRot=anchorYaw-cam.yaw; } }
@@ -1029,7 +1036,7 @@ addEventListener('keydown',e=>{ const c=e.code; if(Meta.isOpen()) return; if(c==
 addEventListener('keyup',e=>{ const c=e.code; if(c==='KeyW'||c==='ArrowUp') K.w=0; if(c==='KeyS'||c==='ArrowDown') K.s=0; if(c==='KeyA') K.a=0; if(c==='KeyD') K.d=0; if(c==='ShiftLeft'||c==='ShiftRight') K.shift=0; if(c==='ArrowLeft') K.tl=0; if(c==='ArrowRight') K.tr=0; });
 addEventListener('blur',()=>{ for(const k in K) K[k]=0; });
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-canvas.addEventListener('mousedown',e=>{ if(TOUCH||S.phase==='start'||S.phase==='dead'||S.phase==='won'||Meta.isOpen()) return; mouseDown=true; if(!locked&&canvas.requestPointerLock) canvas.requestPointerLock();
+canvas.addEventListener('mousedown',e=>{ if(TOUCH||S.phase==='start'||S.phase==='dead'||S.phase==='won'||S.phase==='deathcut'||Meta.isOpen()) return; mouseDown=true; if(!locked&&canvas.requestPointerLock) canvas.requestPointerLock();
   if(e.button===0){ if(placing) confirmPlace(); else swing(); } else if(e.button===2){ if(placing){ if(placeStage===1) unstick(); else cancelPlace(); } else swing(); } });
 addEventListener('mouseup',()=>{ mouseDown=false; });
 addEventListener('mousemove',e=>{ if(TOUCH||S.phase==='start'||Meta.isOpen()) return; edgeX=e.clientX/innerWidth; const dx=e.movementX||0, dy=e.movementY||0; if(placing&&placeStage===1){ anchorYaw-=dx*SENS*1.6; return; } cam.yaw-=dx*SENS; cam.pitch=clamp(cam.pitch+dy*SENS,.1,1.15); });
@@ -1049,6 +1056,7 @@ $('playbtn').addEventListener('click',play); $('tavbtn').addEventListener('click
 
 // ================= MAIN LOOP =================
 function update(dt){ if(S.phase==='start'){ updateFx(dt); updateCamera(dt); return; }
+  if(S.phase==='deathcut'){ updateFx(dt); updateDeathCut(dt); updateHUD(); return; }
   if(S.phase!=='dead'&&S.phase!=='won'&&!Meta.isOpen()){ /* the tavern pauses the hall: nothing walks, swings or fires behind the overlay */ if(!TOUCH&&!locked&&S.phase!=='start'){ if(edgeX<.1) cam.yaw+=1.6*dt; else if(edgeX>.9) cam.yaw-=1.6*dt; } if(K.tl) cam.yaw+=2.2*dt; if(K.tr) cam.yaw-=2.2*dt;
     heroUpdate(dt); updateDefs(dt); updateEnemies(dt); updateProj(dt); updateOrbs(dt); updateLoot(dt); updateWave(dt); updateGhost(); updateHoverSector(); Meta.update(dt); }
   updateFx(dt); updateCamera(dt); updateHUD(); Meta.hud(); }
@@ -1057,7 +1065,7 @@ function frame(now){ requestAnimationFrame(frame); const dt=Math.min(.05,(now-la
 requestAnimationFrame(frame);
 
 // ================= TEST HOOK =================
-window.__dd={S,hero,cam,enemies,defs,projs,orbs,loot,grid,DEFS,MOBS,stat,mobSpd,gear:()=>gear,rollItem,dropLoot,resetGear,heroStat,heroMult,heroDmg,kill,Meta,SLOTS,applyGear,saveGear,pickup,tierOf,statStr,RNAME,RCSS,loadHeroGLB,toggleHero,ghost:()=>placing?{x:ghostPos[0],z:ghostPos[1],yaw:ghostYaw,ok:ghostOk,why:ghostReason,stage:placeStage,dist:Math.hypot(ghostPos[0]-hero.x,ghostPos[1]-hero.z),sector:!!ghostSector&&ghostSector.children.length>0}:null,rotateGhost,unstick,music:()=>({on:musicOn,mode:musicMode,step:mStep}),hoverSector:()=>!!hoverSector,heroModel:()=>GLBH?{label:GLBH.label,useGLB,clips:Object.keys(GLBH.map),cur:GLBH.cur?GLBH.cur.getClip().name:null,scale:GLBH.scale,height:GLBH.height,visible:GLBH.wrap.visible}:null,mobTemplate:k=>MOBGLB[k],scene,mobModel:k=>MOBGLB[k]?{clips:Object.keys(MOBGLB[k].map),scale:MOBGLB[k].scale}:null,mobState:e=>e&&e.mdl&&e.mdl.glb?{cur:e.mdl.cur?e.mdl.cur.getClip().name:null,time:e.mdl.cur?e.mdl.cur.time:0}:null,setHeroYaw:d=>{ heroYawOff=d; },
+window.__dd={S,hero,cam,enemies,defs,projs,orbs,loot,grid,DEFS,MOBS,stat,mobSpd,gear:()=>gear,rollItem,dropLoot,resetGear,heroStat,heroMult,heroDmg,kill,Meta,SLOTS,applyGear,saveGear,pickup,tierOf,statStr,RNAME,RCSS,loadHeroGLB,toggleHero,ghost:()=>placing?{x:ghostPos[0],z:ghostPos[1],yaw:ghostYaw,ok:ghostOk,why:ghostReason,stage:placeStage,dist:Math.hypot(ghostPos[0]-hero.x,ghostPos[1]-hero.z),sector:!!ghostSector&&ghostSector.children.length>0}:null,rotateGhost,unstick,music:()=>({on:musicOn,mode:musicMode,step:mStep}),hoverSector:()=>!!hoverSector,heroModel:()=>GLBH?{label:GLBH.label,useGLB,clips:Object.keys(GLBH.map),cur:GLBH.cur?GLBH.cur.getClip().name:null,scale:GLBH.scale,height:GLBH.height,visible:GLBH.wrap.visible}:null,mobTemplate:k=>MOBGLB[k],scene,mobModel:k=>MOBGLB[k]?{clips:Object.keys(MOBGLB[k].map),scale:MOBGLB[k].scale}:null,mobState:e=>e&&e.mdl&&e.mdl.glb?{cur:e.mdl.cur?e.mdl.cur.getClip().name:null,time:e.mdl.cur?e.mdl.cur.time:0}:null,setHeroYaw:d=>{ heroYawOff=d; },deathCut:()=>deathCut,camPos:()=>({x:camera.position.x,y:camera.position.y,z:camera.position.z}),hurtCrystal,
   start:()=>{ if(S.phase==='start'){ S.phase='build'; $('start').classList.add('hide'); cam.x=hero.x; cam.y=hero.y+5; cam.z=hero.z+8; cam.d=cam.dist; } },
   startWave, place:(k,cx,cz,rot)=>placeDef(k,cx,cz,rot||0), spawn:spawnEnemy, select, confirmPlace, swing, repair, upgrade, sell, jump, setKeys:(o)=>Object.assign(K,o), r:renderer,
   step:(dt,n)=>{ for(let i=0;i<(n||1);i++) update(dt||1/60); },
