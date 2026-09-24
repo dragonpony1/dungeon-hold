@@ -73,7 +73,12 @@ flights, one up each wall, to the lower landing (two up); a single flight up the
 (six up), and one last flight up the middle brings it together at the throne platform (eight up) with the crystal and the
 throne. Feeder gates open onto the landings as the waves go — the east lower landing from wave 3, the west landing from
 5, the east upper landing from 6 — each with a shorter climb than the last; balustrades line every drop; `throne-test.mjs`
-checks all of it and takes the `throne-*.png` shots), 3 The Cloister Court (outdoors under a night sky: a sunken court, a covered
+checks all of it and takes the `throne-*.png` shots. `56-thronedecor.js` dresses it with real Meshy art, gated to
+`MAP.throne` so nothing else is touched: a throne (hides the procedural stone seat), two guardian statues, a
+stained-glass window and a beast-head crest on the wall behind it, twin torch sconces, a portrait and a spear rack on
+the side walls, a real door standing in the alcove behind each gate's portal swirl, the ornate railing model flanking
+the top of the main stair, wood-and-gem floor tiles over the dais under the crystal and throne, and stone wall tiles
+on the wall behind it), 3 The Cloister Court (outdoors under a night sky: a sunken court, a covered
 colonnade a step and a half up with four flights down, trees, three corner gates), 4 The Great Feast Hall (three long
 tables with benches and candles, four hearths, the crystal on the high-table dais, doors east, north and south), 5 The
 Drawbridge (outdoors, 50×56: the castle's outer ward behind a curtain wall, a moat four cells wide across the whole map, the

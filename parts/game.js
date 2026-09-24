@@ -398,10 +398,10 @@ function makeTorch(){ const g=new THREE.Group(); g.add(M(G.box(.14,.14,.34),mat(
       world.add(outline(g)); run=null; }; for(let x=x0;x<=x1;x++){ if(gaps.includes(x)){ flush(); continue; } if(!run) run=[x,x]; else run[1]=x; } flush(); });   // feast tables: planks, benches, plates, mugs and candles
   (MAP.hearths||[]).forEach(([x,z,yaw])=>{ const g=new THREE.Group(); g.position.set(cw(x),0,cwz(z)); g.rotation.y=yaw; const stone=mat(0x4a4262); g.add(M(G.box(4.2,3.4,1.2),stone,0,1.7,-.4)); g.add(M(G.box(4.6,.3,1.5),mat(0x5a5276),0,3.5,-.4)); g.add(M(G.box(2.4,2.0,.8),mat(0x1a1420),0,1.0,0));
     const f=M(G.cone(.6,1.3,7),basic(0xff7a1a),0,.8,.1); f.userData.noOL=true; const f2=M(G.cone(.32,.9,7),basic(0xffd060),0,.75,.12); f2.userData.noOL=true; g.add(f,f2); flames.push({f,f2,p:1.7}); const gl=glow(0xff8a2a,5,.7); gl.position.set(0,1.2,.2); g.add(gl); [[-.7,.3,.1],[.6,.3,.15]].forEach(([lx,ly,lz])=>{ const lg=M(G.cyl(.12,.12,1.2,6),mat(0x5a3a22),lx,ly,lz); lg.rotation.z=PI/2; g.add(lg); }); world.add(outline(g)); });   // great hearths
-  if(MAP.throne){ const [tx,tz]=MAP.throne; const g=new THREE.Group(); g.position.set(cw(tx),hgt[idx(tx,tz)],cwz(tz)); const st=mat(0x4a4262), gd=mat(0xe0b040), rd=mat(0xa01c28), dk=mat(0x2b2540);   // the throne: a wide stone seat, tall back, gold trim, red cushion, facing the hall
+  if(MAP.throne){ const [tx,tz]=MAP.throne; const g=new THREE.Group(); g.position.set(cw(tx),hgt[idx(tx,tz)],cwz(tz)); const st=mat(0x4a4262), gd=mat(0xe0b040), rd=mat(0xa01c28), dk=mat(0x2b2540);   // the throne: a wide stone seat, tall back, gold trim, red cushion, facing the hall — a Meshy model hides this and stands in its place when it loads (56-thronedecor.js)
     g.add(M(G.box(4.2,.35,3.2),st,0,.17,.2)); g.add(M(G.box(2.6,1.0,1.9),dk,0,.85,-.1)); g.add(M(G.box(2.4,.28,1.6),rd,0,1.45,0)); g.add(M(G.box(3.0,3.6,.5),dk,0,2.6,-1.15)); g.add(M(G.box(2.6,3.2,.12),rd,0,2.7,-.85)); g.add(M(G.box(3.2,.2,.6),gd,0,4.45,-1.15));
     for(const sx of [-1,1]){ g.add(M(G.box(.4,.7,1.9),dk,sx*1.5,1.55,-.1)); g.add(M(G.box(.5,.12,2.0),gd,sx*1.5,1.95,-.1)); g.add(M(G.sph(.28,8,6),gd,sx*1.4,4.7,-1.15)); g.add(M(G.cyl(.16,.2,.9,7),gd,sx*1.45,.8,.9)); }
-    world.add(outline(g)); }
+    world.add(outline(g)); world.userData.throneProc=g; }
   // chandelier over the north half of the hall
   for(const [chx,chz] of (MAP.chandeliers||[MAP.chandelier])){ const ch=new THREE.Group(); ch.position.set(chx,WALLH-1.8,chz); const ring=M(new THREE.TorusGeometry(1.6,.09,6,18),mat(0x2b2540)); ring.rotation.x=PI/2; ch.add(ring); ch.add(M(G.cyl(.03,.03,1.8,5),mat(0x2b2540),0,.9,0));
   for(let k=0;k<6;k++){ const a=k/6*TAU; ch.add(M(G.cyl(.06,.06,.32,6),mat(0xf4ead0),Math.cos(a)*1.6,.2,Math.sin(a)*1.6)); const f=M(G.cone(.08,.24,6),basic(0xffd060),Math.cos(a)*1.6,.48,Math.sin(a)*1.6); f.userData.noOL=true; ch.add(f); flames.push({f,f2:f,p:k}); } const cg=glow(0xffb05a,3,.5); cg.position.y=.4; ch.add(cg); world.add(ch); }
@@ -614,7 +614,7 @@ function hurtCrystal(dmg){ if(S.phase==='dead'||S.phase==='won') return; S.cryst
 
 // ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=32;
+const BUILD=33;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
