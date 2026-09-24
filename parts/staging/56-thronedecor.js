@@ -37,6 +37,19 @@ if(MAP.throne){
   function loadThroneProp(name,targetH,cb){ fetchBytes(ASSET(name)).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
       const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,targetH); toonify(root,fit.scale); purpleGlow(root); cb(fit.wrap);
     }catch(e){ console.warn('throne decor '+name,e); } },e=>console.warn('throne decor '+name,e))).catch(e=>console.warn('throne decor '+name,e)); }
+  // fitModel always scales a model to a target HEIGHT (its own Y extent) — right for anything that stands
+  // upright (a statue, a banner, a floor tile stood on end and rotated flat afterward), wrong for a model
+  // that's already lying flat as authored, where Y is its thin dimension, not its size. Scaling that by "make
+  // Y equal 4" tried to stretch a few centimetres of thickness up to 4 units, and dragged X and Z (a uniform
+  // scale) out to over a hundred — a slab far bigger than the room, thick enough to read as a low ceiling
+  // (build 83's "ceiling under a carpet"). This fits by X (the model's long edge) instead.
+  function loadThronePropW(name,targetW,cb){ fetchBytes(ASSET(name)).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
+      const root=gltf.scene||gltf.scenes[0]; root.updateMatrixWorld(true);
+      const box=new THREE.Box3().setFromObject(root), size=box.getSize(new THREE.Vector3());
+      const sc=targetW/Math.max(size.x,1e-6), cx=(box.min.x+box.max.x)/2, cz=(box.min.z+box.max.z)/2;
+      const inner=new THREE.Group(); inner.add(root); inner.scale.setScalar(sc); inner.position.set(-cx*sc,-box.min.y*sc,-cz*sc);
+      const wrap=new THREE.Group(); wrap.add(inner); toonify(root,sc); purpleGlow(root); cb(wrap);
+    }catch(e){ console.warn('throne decor '+name,e); } },e=>console.warn('throne decor '+name,e))).catch(e=>console.warn('throne decor '+name,e)); }
   const place=(wrap,x,y,z,yaw)=>{ wrap.position.set(x,y,z); if(yaw) wrap.rotation.y=yaw; world.add(wrap); };
   // a thin collision box under a railing piece, so the hero can't just walk through it and off the drop it marks —
   // RAILBOXES (game.js) is otherwise empty on every map, so this only ever matters here. alongZ: true for a piece
@@ -194,9 +207,11 @@ if(MAP.throne){
       if(grid[i]!==T.CARPET||rampA[i]) continue;
       const t=wrap.clone(); t.position.set(cw(cx),hgt[i]+.03,cwz(cz)); world.add(t);
     } });
-  // one rug, laid once as a real accent piece rather than tiled — centred on the dais before the throne, long axis
-  // running with the hall's own north-south spine (the model's long axis is local X; PI/2 turns it to world Z)
-  loadThroneProp('throne-rug.glb',4.0,wrap=>place(wrap,tx0,ty0+.03,cwz(6),PI/2));
+  // one rug per landing, laid across the walkway between flights — not the dais (that wasn't the plan; the first
+  // pass put a single one there, at a badly broken scale that read as a low ceiling — see loadThronePropW above).
+  // the three landings each have a front walk the full width of the hall, where the two side flights and the
+  // middle one all meet; the rug's long axis (local X) already runs that way at yaw 0, no rotation needed.
+  [15,22,29].forEach(lz=>loadThronePropW('throne-rug.glb',8.0,wrap=>place(wrap,tx0,hgt[idx(tx,lz)]+.03,cwz(lz),0)));
   /* the ambient stained-glass windows tiled around the hall — pulled out with the pair behind the throne, same
      re-figuring-placement reason. The wall panel motif right above stays on, so the bare wall is still visible.
   loadThroneProp('throne-window.glb',4.2,wrap=>{
