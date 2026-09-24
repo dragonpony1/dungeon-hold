@@ -8,7 +8,7 @@
 const NEAR=3.6, RX=2.5, RZ=2, PERCH_H=1.0;   // a simple fixed floor spot beside the crystal — no wall search needed now that the raven has its own ground-standing perch
 const baseY=floorH(RX,RZ);
 // the perch: a gnarled dead-wood post, twisted and knobby, waist high
-const perch=(()=>{ const g=new THREE.Group(); const bark=mat(0x2b2018), barkD=mat(0x1c150f);
+const perch=(()=>{ const g=new THREE.Group(); const bark=mat(0x6a4e34), barkD=mat(0x543922);   // lighter weathered wood, not the near-black it started as — it read as a dark blob against the floor
   const segs=5; let x=0,z=0,y=0;
   for(let i=0;i<segs;i++){ const h=PERCH_H/segs, r0=.13-i*.016, r1=.13-(i+1)*.016, dx=Math.sin(i*1.7)*.05, dz=Math.cos(i*2.1)*.05;
     const seg=M(G.cyl(Math.max(r1,.02),Math.max(r0,.03),h,7),bark,x+dx/2,y+h/2,z+dz/2); seg.rotation.z=Math.sin(i*1.3)*.12; seg.rotation.x=Math.cos(i*1.9)*.1; g.add(seg); x+=dx; z+=dz; y+=h; }
