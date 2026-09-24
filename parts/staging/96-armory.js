@@ -7,8 +7,8 @@
 (function(){
 const CAP=8, ARM_CSS='.tb.no{color:#ff6a5a!important;border-color:#ff6a5a!important}';
 { const st=document.createElement('style'); st.textContent=ARM_CSS; document.head.appendChild(st); }
-function reqFor(it){ return Math.max(1,Math.round((it.lvl||1)*.8+(it.rarity|0))); }
-function ensureReq(it){ if(it&&typeof it==='object'&&!Number.isFinite(it.req)) it.req=reqFor(it); return it; }
+function reqFor(it){ return Math.max(1,Math.round((it.lvl||1)*.3+(it.rarity|0))); }   // was *.8: a drop's level tracks the wave (effWave), which outruns hero level fast — by the throne room's own waves the drop level is already ~14 while a hero levelling at the normal kill/wave-held XP rate is only around 5, so *.8 (req ~11-15) locked out nearly everything. *.3 (req ~4-8 at that point) keeps common/uncommon in reach at your actual level and still makes rares and up something to grow into
+function ensureReq(it){ if(it&&typeof it==='object') it.req=reqFor(it); return it; }   // always recompute, not just when missing — a saved item's req is derived (lvl+rarity), not frozen at drop time, so a formula tweak like the one above reaches gear already in someone's bag, not just new drops
 { const prev=fixItem; fixItem=function(it){ const r=prev(it); ensureReq(it); return r; }; }   // legacy pieces (bag, stock, drops) get theirs on the way through
 { const prev=rollItem; rollItem=function(a,b,c){ return ensureReq(prev(a,b,c)); }; }
 for(const it of Meta.bag()) ensureReq(it); for(const s of SLOTS) if(gear[s]) ensureReq(gear[s]); (Meta.stock()||[]).forEach(ensureReq);
