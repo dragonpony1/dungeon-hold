@@ -126,7 +126,7 @@ if(MAP.throne){
       const yaw=Math.atan2(f.nx,f.nz), fy=hgt[idx(f.cx,f.cz)]||0;
       const t=wrap.clone(); t.position.set(f.x+f.nx*.18,fy+3.1,f.z+f.nz*.18); t.rotation.y=yaw; world.add(t);
       const l=new THREE.PointLight(C(0xffa040),5,13,2); l.position.set(f.nx*.15,.3,f.nz*.15); t.add(l); });
-    MAP.pillars.forEach(([px,pz])=>{ const nx=px<tx?-1:1, fy=hgt[idx(px,pz)]||0;
+    MAP.pillars.forEach(([px,pz])=>{ const nx=px<tx?1:-1, fy=hgt[idx(px,pz)]||0;   // medial face — toward the centre aisle, not out toward the wall where no one walks
       const t=wrap.clone(); t.position.set(cw(px)+nx*.78,fy+3.0,cwz(pz)); t.rotation.y=Math.atan2(nx,0); world.add(t);
       const l=new THREE.PointLight(C(0xffa040),5,13,2); l.position.set(nx*.15,.3,0); t.add(l); });
   });
