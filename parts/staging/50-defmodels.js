@@ -43,7 +43,7 @@ fetchDefGLB('spike',ASSET('hedge.glb'),0);   // the bramble hedge (Meshy), all m
 for(let i=1;i<=4;i++) fetchDefGLB('acorn',ASSET('cannon-'+i+'.glb'),i-1);   // the acorn cannon (Meshy) Mark I..IV; Mark V keeps the tier-4 look
 for(let i=1;i<=4;i++) fetchDefGLB('slice',ASSET('mushroom-'+i+'.glb'),i-1);   // the mushroom ring (Meshy) Mark I..IV; Mark V keeps the tier-4 look
 for(let i=1;i<=4;i++) fetchDefGLB('totem',ASSET('totem-'+i+'.glb'),i-1);   // the rune totem (Meshy) Mark I..IV; Mark V keeps the tier-4 look
-// the frost spire has no Meshy art yet: drop frost-1..4.glb into assets/ and add its fetch line here
+for(let i=1;i<=4;i++) fetchDefGLB('frost',ASSET('frost-'+i+'.glb'),i-1);   // the frost spire (Meshy, "cold tower") Mark I..IV; Mark V keeps the tier-4 look
 // the acorn the cannon fires: Meshy's acorn, toon-shaded, ~0.34 tall; the procedural one until it lands
 { let tpl=null; const proc=acornMesh; fetchBytes(ASSET('acorn.glb')).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,.64); toonify(root,fit.scale); const w=fit.wrap; w.children[0].position.y-=.32; tpl=w; }catch(e){ console.warn('acorn model',e); } },e=>console.warn('acorn model',e))).catch(e=>console.warn('acorn model',e));
   acornMesh=function(){ if(!tpl) return proc(); const g=tpl.clone(); g.rotation.set(rnd()*6,rnd()*6,0); return g; }; }
