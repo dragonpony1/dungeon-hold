@@ -49,7 +49,18 @@
 // range-ring/cost-prompt affordance standing near a real defense (toast feedback only), the reticle never locks
 // for a guest (window.__aim.pick() scans the local, always-empty `enemies`, so every guest shot is free-aim), and
 // nobody but the host ever SEES a guest's bolt/arrow fly (bolts/arrows were never synced to other screens, even
-// the host's own -- a pre-existing gap this phase didn't create or close).
+// the host's own -- a pre-existing gap this phase didn't create or close). Phase 10 gives co-op an actual
+// title-screen UI to reach any of this -- every phase before now only ever exposed it as a window.__net.host()/
+// .join() console API, unusable by an ordinary player. HOST A GAME / JOIN A FRIEND buttons (parts/head.html's
+// #start screen) wrap that same API: hosting shows the real room code and waits for the player to choose ENTER
+// THE HALL; joining takes a typed code, shows a real error on a bad one, and auto-enters on success. Caught one
+// real, pre-existing bug: game.js's own keydown handler already calls play() on Enter/Space while S.phase==='start',
+// with no check for whether an input has focus -- unguarded, typing a code and hitting Enter to submit it would
+// ALSO fire that. Fixed with stopPropagation() on the join input's own keydown, the same idiom 60-lootfeel.js/
+// 65-tavernroom.js already use for their own inputs/overlays. peerOpts above already took a {host,port,path}
+// override for tests; TEST_PEER_OPTS below reads it from the page's own query string (?peerhost=&peerport=&
+// peerpath=) so coop-titleui-test.mjs can point the REAL buttons at a local signaling server instead of the public
+// broker, without this module needing a second code path for tests vs. real play.
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -87,6 +98,45 @@ function leave(){ conns.forEach(c=>c.close()); conns.clear(); if(peer) peer.dest
 window.__net={ host, join, leave, send, onMessage, role:()=>role, peers:()=>[...conns.keys()],
   hostId:()=>role==='guest'?[...conns.keys()][0]||null:null,   // a guest only ever has the one connection — a convenience name for it, same id __party keys its puppet under
   myId:()=>peer&&peer.id };
+
+// title-screen host/join UI: co-op was previously a window.__net-only API, no in-game way for an ordinary player
+// to actually use it -- these two buttons and their small panels (parts/head.html's #start screen) are that
+// entry point. Wired here rather than game.js, same "co-op UI lives in this module" reasoning as everything else.
+// A host gets shown their room code (PeerJS's own generated id, left to auto-generate -- nothing for them to
+// invent or agree on beforehand) with a copy-to-clipboard tap and a manual "enter the hall" step, so the code
+// stays on screen until they've actually shared it; a guest just types the code they were given and connects
+// straight in. game.js's own keydown handler (the Enter/Space -> play() branch, gated on S.phase==='start' with
+// no check for whether an input has focus) would otherwise also fire while typing a code that happens to include
+// a space, or on the Enter that's meant to submit it -- guarded the same way 60-lootfeel.js/65-tavernroom.js's own
+// input-conflicting hotkeys already are, with stopPropagation on the input's own keydown before it can bubble.
+// peerOpts is normally omitted (Peer's own default: the public 0.peerjs.com broker) -- a ?peerhost=&peerport=
+// override exists purely so a test harness can point these same real buttons at a local signaling server instead,
+// the same test-only escape hatch host()/join() themselves already take as a parameter.
+const TEST_PEER_OPTS=Q.get('peerhost')?{host:Q.get('peerhost'),port:+Q.get('peerport')||9000,path:Q.get('peerpath')||'/peerjs'}:undefined;
+{ const hostbtn=$('hostbtn'), joinbtn=$('joinbtn'), coopRow=$('coopRow'), hostPanel=$('hostPanel'), hostMsg=$('hostMsg'),
+    joinPanel=$('joinPanel'), joinCode=$('joinCode'), joinGoBtn=$('joinGoBtn'), joinMsg=$('joinMsg');
+  hostbtn.addEventListener('click',()=>{
+    coopRow.classList.add('hide'); hostPanel.classList.remove('hide'); hostMsg.textContent='Opening the gate…';
+    window.__net.host(undefined,(err,id)=>{
+      if(err){ hostMsg.textContent="Couldn't open a game — try again?"; hostPanel.classList.add('hide'); coopRow.classList.remove('hide'); return; }
+      hostMsg.innerHTML='Share this code with your friend:<br><span class="netCode" id="hostCode">'+id+'</span><br><button class="big" id="hostEnterBtn">▶ ENTER THE HALL</button>';
+      $('hostCode').addEventListener('click',()=>{ const c=$('hostCode'); try{ navigator.clipboard.writeText(id); c.textContent='copied!'; setTimeout(()=>{ c.textContent=id; },900); }catch(e){} });
+      $('hostEnterBtn').addEventListener('click',play);
+    },TEST_PEER_OPTS);
+  });
+  joinbtn.addEventListener('click',()=>{ coopRow.classList.add('hide'); joinPanel.classList.remove('hide'); joinCode.focus(); });
+  function doJoin(){
+    const code=joinCode.value.trim(); if(!code) return;
+    joinMsg.textContent='Connecting…'; joinMsg.classList.remove('err'); joinGoBtn.disabled=true;
+    window.__net.join(code,err=>{
+      joinGoBtn.disabled=false;
+      if(err){ joinMsg.textContent="Couldn't connect — check the code and try again."; joinMsg.classList.add('err'); return; }
+      play();
+    },TEST_PEER_OPTS);
+  }
+  joinGoBtn.addEventListener('click',doJoin);
+  joinCode.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter'){ e.preventDefault(); doJoin(); } });
+}
 
 // ---- phase 3/4: every hero in the hall, broadcast a few times a second and rendered as a puppet on every OTHER
 // screen. Phase 3 was just the host's own hero; phase 4 adds every guest's, host-simulated from input they send —

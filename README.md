@@ -265,9 +265,9 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 
 - Void set models: the concept art (runed blade, shard charm, galaxy amulet, starless robe) is waiting on Meshy exports;
   until then the Void sword is the holy sword darkened and burning violet. The Void staff is done (`staff-void`, built in code).
-- Co-op, phases 1-9 done — a guest can now join a host's hall, help defend it, fight in it, build in it, and fight AS the
-  gear/skills they actually have equipped, not a flat unequipped baseline, with a ranged guest's shot a real travelling
-  bolt/arrow rather than an instant hit. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
+- Co-op, phases 1-10 done — a guest can now join a host's hall, from the title screen itself, help defend it, fight in it,
+  build in it, and fight AS the gear/skills they actually have equipped, not a flat unequipped baseline, with a ranged
+  guest's shot a real travelling bolt/arrow rather than an instant hit. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
   each loads its own hero GLB through the same fit/toonify/clip-map pipeline the local hero uses, keeps its own
   wrap/mixer/actions, and eases toward whatever position/yaw it's last told (`window.__party.add/remove/setTarget`),
   switching idle/walk/run itself; the local hero has no idea puppets exist. Phase 2 (`99-network.js`): the actual
@@ -483,6 +483,19 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   intermittently letting one section's still-in-flight shot land during a *later* section's assertions instead;
   and its expected damage for a tap shot needed multiplying by `window.__aim.shot().mul` (`TAP_MUL`, ~0.6) since
   the old cone never applied a charge multiplier at all and the real fire path always does, tap included.
+- Co-op, phase 10: an actual title-screen UI to reach any of this — every phase before now only ever exposed co-op
+  as a `window.__net.host()`/`.join()` console API, unusable by anyone who isn't opening dev tools. `parts/head.html`'s
+  `#start` screen gains two buttons, **HOST A GAME** and **JOIN A FRIEND**, wired in `99-network.js` (not `game.js`,
+  same "co-op UI lives in this module" reasoning as everything else here). Hosting shows the real room code PeerJS
+  itself generates — nothing to invent or agree on beforehand — with a tap-to-copy and a manual "▶ ENTER THE HALL"
+  step, so the code stays on screen until it's actually been shared, rather than vanishing the moment hosting
+  succeeds; joining just takes the code a friend sent and connects straight into the hall. One real bug this caught:
+  `game.js`'s own keydown handler already calls `play()` on `Enter`/`Space` while `S.phase==='start'`, with no check
+  for whether an input has focus — unguarded, pressing Enter to submit a join code would ALSO fire that handler.
+  Fixed with `stopPropagation()` on the input's own keydown, the same guard `60-lootfeel.js`/`65-tavernroom.js`'s
+  own input-conflicting hotkeys already use. `coop-titleui-test.mjs` (10/10) drives the real buttons and input
+  Playwright's own way (`.click()`/`.fill()`/`.press()`), not `window.__net` directly — including typing a wrong
+  code first, to prove both the error path and the Enter-key guard hold.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
