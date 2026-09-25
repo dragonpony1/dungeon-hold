@@ -78,12 +78,13 @@ if(MAP.throne){
   // a portrait on the left wall, a scepter rack on the right — the room's own trophies
   loadThroneProp('throne-portrait.glb',2.2,wrap=>place(wrap,cw(6),ty0+2.3,tz0+1.5,-PI/2));
   loadThroneProp('throne-scepter.glb',2.0,wrap=>place(wrap,cw(20),ty0+2.3,tz0+1.5,PI/2));
-  // a real door standing on the room side of each gate, just past the stone arch, its decorated face turned to
-  // meet a hero walking up from the hall — no back-wall alcove to fit inside (its depth isn't even the same at
-  // every gate), just open floor.
+  // a real door hanging right in the archway, on its room-facing side — not out in the open floor a couple of
+  // units clear of it, which just reads as two separate things with a gap between them. The stone arch's own
+  // posts sit at local z -1.4..-0.8 (the alcove side); +.4 puts the door just past their near face, still inside
+  // the frame, decorated face turned to meet a hero walking up from the hall.
   Object.entries(LANES).forEach(([k,l])=>{ loadThroneProp('throne-door.glb',3.6,wrap=>{
     const y=hgt[idx(l.cx,l.cz)]||0, fx=Math.sin(l.face), fz=Math.cos(l.face);
-    place(wrap,cw(l.cx)+fx*1.3,y,cwz(l.cz)+fz*1.3,l.face); }); });
+    place(wrap,cw(l.cx)+fx*.4,y,cwz(l.cz)+fz*.4,l.face); }); });
   // the real hanging chandeliers, replacing the procedural gold rings at the same ceiling spots
   (world.userData.chandelierProcs||[]).forEach(ch=>{ ch.visible=false; });
   MAP.chandeliers.forEach(([chx,chz])=>loadThroneProp('chandelier.glb',3.2,wrap=>{ place(wrap,chx,13.8,chz,0);
