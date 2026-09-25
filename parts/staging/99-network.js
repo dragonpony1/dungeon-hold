@@ -20,12 +20,28 @@
 // "let me get my knight place that, he has fast ballistas" — reverting to the host's own stats automatically once
 // that guest disconnects. game.js has now been touched three times total across this whole effort (phase 6's
 // nearestHero, and phase 7's stat()/oStat/oMult plus repair/upgrade/sell/nearestDef gaining an optional `pos`
-// param), each time narrowly and deliberately. Still open: no gear/skill scaling for a guest's own COMBAT damage
-// or hp (GUEST_DMG/GUEST_MAX_HP below are still flat, unequipped baselines — only a guest's PLACED DEFENSES draw
-// on their real stats so far), nothing carries a guest's gear/skills across sessions (their own browser forgets
-// it the moment they leave), mini-boss roar/aggro shouting still only ever plays for whichever hero it's aimed
-// at, and a guest gets no local range-ring/cost-prompt affordance standing near a real defense (toast feedback
-// only) — deliberately deferred, matching this effort's usual "first cut" scope discipline.
+// param), each time narrowly and deliberately. Phase 8 closes the gap phase 7 left open: a guest's own SIMULATED
+// HERO (not just what they place) now carries their real gear/skills too — "the guest should also carry their own
+// stats, speed, damage, hp, weapon special damages, their equipment should affect their actions". guestInputTick's
+// move speed now reads the same (1+move%)*moveMult formula heroUpdate() (game.js) does; guestHero gains a
+// gear-scaled max hp (applyGear()'s delta-preserving bump on increase) and passive regen (heroUpdate()'s own
+// hurtT-gated tick); hurtGuestHero mitigates by the guest's own def stat, same formula as hurtHero(). A swing's
+// damage and reach now ride the swing message itself, read straight off the guest's own heroDmg()/hero.reach at
+// the moment they swing (see the comment above guestHitCone for why per-swing beats the periodic sync here, and
+// why this is a generalised melee/ranged cone rather than a true projectile port — a ranged guest's shot doesn't
+// travel, single-target, or take a charge multiplier the way a real bolt/arrow does; still open, honestly, same as
+// everything else in this list). game.js itself needed no changes for this phase — heroDmg()/heroStat()/heroMult()
+// were already general enough to call from here. This phase's own testing also turned up a real, pre-existing bug
+// in wire() (phase 2, below): PeerJS's 'open' event can fire more than once for the same DataConnection, and an
+// unguarded second wire() call stacked a second 'data' listener on it, so every message after that point -- ANY
+// one-shot relay, not just 'swing' -- was handled twice (a guest's swing landing for double damage was how this
+// phase's own exact-value tests caught it, intermittently, maybe one run in three). Fixed with a one-line
+// re-entrancy guard; unrelated to everything else in this phase but real enough to fix immediately rather than
+// note and defer. Still open: nothing carries a guest's gear/skills across sessions
+// (their own browser forgets it the moment they leave — task for a later phase), mini-boss roar/aggro shouting
+// still only ever plays for whichever hero it's aimed at, a guest gets no local range-ring/cost-prompt affordance
+// standing near a real defense (toast feedback only), and a ranged guest's attack is the generalised cone above,
+// not the real bolt/arrow flight — deliberately deferred, matching this effort's usual "first cut" scope discipline.
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -37,6 +53,7 @@ function send(type,data,toId){
   conns.forEach(c=>{ if(c.open) c.send(msg); });
 }
 function wire(conn){
+  if(conn.__wired) return; conn.__wired=true;   // PeerJS's own 'open' event can fire more than once for the same DataConnection (seen intermittently in testing, most likely an ICE/negotiation retry) -- unguarded, a second wire() call stacked a second 'data' listener on the same conn, so every message after that point (including a one-shot action like 'swing'/'place'/'defAction') was handled twice
   conn.on('data',raw=>{ try{ const {type,data}=JSON.parse(raw); const h=handlers[type]; if(h) h(data,conn.peer); }catch(e){ console.warn('net parse',e); } });
   conn.on('close',()=>{ conns.delete(conn.peer); const h=handlers.__leave; if(h) h(conn.peer); });
 }
@@ -75,25 +92,31 @@ function heroLabel(pick){ const h=window.__heroes.list().find(h=>h.id===pick); r
 
 // host only: what each connected guest is simulated at, driven by the input they last sent
 const guestIn=new Map();     // id -> latest {w,s,a,d,shift,yaw,pick}
-const guestHero=new Map();   // id -> {x,y,z,yaw,hp,max,dead} the host moves each tick from guestIn, same collision rules as the real hero
-const GUEST_MAX_HP=100, GUEST_REACH=2.4, GUEST_DMG=8;   // hero's own unequipped defaults (game.js: hero={hp:100,max:100,reach:2.4}, heroDmg()'s own base is 8) -- gear/skills aren't wired to a guest hero yet, so this is the honest flat baseline until they are
+const guestHero=new Map();   // id -> {x,y,z,yaw,hp,max,hurtT,dead} the host moves each tick from guestIn, same collision rules as the real hero
+const GUEST_MAX_HP=100, GUEST_REACH=2.4, GUEST_DMG=8;   // hero's own unequipped defaults/fallbacks (game.js: hero={hp:100,max:100,reach:2.4}, heroDmg()'s own base is 8) -- GUEST_MAX_HP now doubles as applyGear()'s own "100" base for the gear-scaled max below; REACH/DMG only matter if a 'swing' somehow arrives without them
 function guestInputTick(dt){
   if(role!=='host') return;
   guestIn.forEach((inp,id)=>{
     let g=guestHero.get(id);
-    if(!g){ const ox=guestHero.size*1.5; g={x:ox,y:0,z:6,yaw:0,hp:GUEST_MAX_HP,max:GUEST_MAX_HP,dead:0,spawnX:ox}; guestHero.set(id,g); }
+    if(!g){ const ox=guestHero.size*1.5; g={x:ox,y:0,z:6,yaw:0,hp:GUEST_MAX_HP,max:GUEST_MAX_HP,hurtT:0,dead:0,spawnX:ox}; guestHero.set(id,g); }
+    const s=guestStats.get(id);
+    // gear-scaled max hp, delta-preserving on increase -- the same pattern applyGear() (game.js) uses for the real hero
+    const newMax=Math.round((GUEST_MAX_HP+(s?s.stat.hp:0))*(s?s.mult.hp:1));
+    if(newMax!==g.max){ if(newMax>g.max) g.hp+=newMax-g.max; g.max=newMax; g.hp=Math.min(g.hp,g.max); }
     // same 4s-then-respawn rule heroUpdate uses for the real hero; no movement while down. Respawns back at this
     // guest's own spawnX (not a recomputed guestHero.size*1.5, which drifts as players join/leave) so two guests
     // who go down around the same time don't stack on the identical point -- and sends the guest their own fresh
     // hp/position so their own client (see 'hp' below) snaps back in step rather than drifting from what they wandered to locally
     if(g.dead>0){ g.dead-=dt; if(g.dead<=0){ g.dead=0; g.hp=g.max; g.x=g.spawnX; g.z=6; g.y=0; send('hp',{hp:g.hp,max:g.max,dead:g.dead,x:g.x,y:g.y,z:g.z},id); } }
     else{
+      g.hurtT-=dt; if(g.hurtT<0&&g.hp<g.max) g.hp=Math.min(g.max,g.hp+(1.5+(s?s.stat.regen:0))*dt);   // passive regen, same base rate and gear scaling as heroUpdate's (game.js)
       let mx=0,mz=0; if(inp.w) mz+=1; if(inp.s) mz-=1; if(inp.d) mx+=1; if(inp.a) mx-=1;
       const len=Math.hypot(mx,mz);
       if(len>.05){ mx/=Math.max(len,1); mz/=Math.max(len,1);
         const fx=Math.sin(inp.yaw), fz=Math.cos(inp.yaw), rx=-Math.cos(inp.yaw), rz=Math.sin(inp.yaw);
-        const vx=fx*mz+rx*mx, vz=fz*mz+rz*mx, spd=7.5*(inp.shift?11/7.5:1);
-        moveCircle(g,vx*spd*dt,vz*spd*dt,.42,true);
+        const vx=fx*mz+rx*mx, vz=fz*mz+rz*mx;
+        const mul=(inp.shift?11:7.5)/7.5*(1+(s?s.stat.move:0)/100)*(s?s.mult.move:1);   // same gear-scaled speed formula heroUpdate uses for the real hero
+        moveCircle(g,vx*7.5*mul*dt,vz*7.5*mul*dt,.42,true);
         g.yaw=angLerp(g.yaw,Math.atan2(vx,vz),1-Math.exp(-12*dt)); }
       g.y=floorAt(g.x,g.z,g.y);
     }
@@ -103,7 +126,12 @@ function guestInputTick(dt){
     window.__party.setTarget(id,g.x,g.z,g.yaw);
   });
 }
-function hurtGuestHero(id,dmg){ const g=guestHero.get(id); if(!g||g.dead>0) return; g.hp-=Math.max(1,Math.round(dmg)); if(g.hp<=0){ g.hp=0; g.dead=4; } send('hp',{hp:g.hp,max:g.max,dead:g.dead,x:g.x,y:g.y,z:g.z},id); }
+function hurtGuestHero(id,dmg){
+  const g=guestHero.get(id); if(!g||g.dead>0) return;
+  const s=guestStats.get(id), def=s?s.stat.def:0;
+  dmg=Math.max(1,Math.round(dmg*(1-Math.min(75,def)/100)));   // same gear-scaled mitigation hurtHero() (game.js) applies to the real hero
+  g.hp-=dmg; g.hurtT=3; if(g.hp<=0){ g.hp=0; g.dead=4; } send('hp',{hp:g.hp,max:g.max,dead:g.dead,x:g.x,y:g.y,z:g.z},id);
+}
 // the guest's own client (see onMessage('hp') below) applies this straight to its own local `hero` -- otherwise the
 // hp/dead this module tracks is host-private, so the one player it's happening to would see none of it: their own
 // health bar, hurt flash/SFX, death toast and movement-freeze-on-death all read the LOCAL hero (game.js), and that
@@ -139,17 +167,33 @@ onMessage('hp',data=>{
 // (swingT was <0, just became 0) apart from a same-frame rejected duplicate (swingT was already 0, still is). Two
 // swing-bound inputs (KeyF/KeyQ/either mouse button, game.js) landing in one frame gap is an ordinary way to mash
 // an attack, and a rejected call sending a spurious 'swing' anyway would double guestHitCone's damage for one swing.
+// dmg and reach ride along on the swing message itself, not the periodic stat sync below: they're read straight off
+// the guest's own live hero (heroDmg()/hero.reach) at the exact moment they swing, exactly like a real local swing
+// would use them, and heroDmg() folds in a swingBase()/.38 ratio tied to which hero GLB and its attack-clip length
+// is actually loaded on THIS client -- something the host has no equivalent of for a guest's puppet, so having the
+// guest compute the final number itself (same idea as the periodic stat/mult below, just per-swing instead of 15Hz)
+// is simpler and more accurate than trying to reconstruct the formula host-side.
 { const origSwing=swing;
-  swing=function(){ const before=hero.swingT; origSwing(); if(role==='guest'&&before<0&&hero.swingT===0) send('swing',{yaw:+cam.yaw.toFixed(3)}); }; }
-function guestHitCone(id,yaw){
+  swing=function(){ const before=hero.swingT; origSwing(); if(role==='guest'&&before<0&&hero.swingT===0) send('swing',{yaw:+cam.yaw.toFixed(3),dmg:Math.round(heroDmg()*10)/10,reach:+(hero.reach||GUEST_REACH).toFixed(2)}); }; }
+// a generalised melee/ranged cone, not a faithful port of the real projectile paths (82-staff.js/83-bow.js): a
+// witch or fighter's actual bolt is a single travelling shot that stops at the first wall or mob it meets, and a
+// troll archer's arrow can pierce on a full draw -- replicating flight time, single-target resolution and the
+// aim-charge multiplier here would mean relaying press/hold/release instead of one swing message, a materially
+// bigger protocol change than "make the guest's own stats matter". What a ranged guest gets instead: the same real,
+// gear-scaled damage and their hero's real (much longer) reach, checked as a wider instant cone -- reach>6 is never
+// true for the melee knight (2.4) and always true for the three ranged picks (18/18/24), so it's a clean split on
+// hero type without a second table to keep in sync with 70-hero2.js's own. A "first cut", same as the rest of this
+// effort's -- honestly noted, not silently passed off as the real thing.
+function guestHitCone(id,yaw,dmg,reach){
   const g=guestHero.get(id); if(!g||g.dead>0) return;
+  const r=reach||GUEST_REACH, d=dmg||GUEST_DMG, cone=r>6?.75:.4;   // .75/.4: the same cone widths 83-bow.js/game.js's own hitCone() use for a ranged pick vs a melee one
   const fx=Math.sin(yaw), fz=Math.cos(yaw); let n=0;
-  for(const e of enemies){ if(e.dead) continue; const dx=e.x-g.x, dz=e.z-g.z, d=Math.hypot(dx,dz);
-    if(d<GUEST_REACH+e.r&&(dx*fx+dz*fz)/Math.max(d,.01)>.4){ hurt(e,GUEST_DMG,fx*1.4,fz*1.4); n++; } }
+  for(const e of enemies){ if(e.dead) continue; const dx=e.x-g.x, dz=e.z-g.z, dd=Math.hypot(dx,dz);
+    if(dd<r+e.r&&(dx*fx+dz*fz)/Math.max(dd,.01)>cone){ hurt(e,d,fx*1.4,fz*1.4); n++; } }
   if(n) SFX.hit();
 }
-onMessage('swing',(data,fromId)=>{ guestHitCone(fromId,data.yaw); });
-const guestStats=new Map();   // id -> {stat:{tow,trate,tarea},mult:{tow,tcd,aoe}} -- this guest's OWN gear/skill numbers, last reported
+onMessage('swing',(data,fromId)=>{ guestHitCone(fromId,data.yaw,data.dmg,data.reach); });
+const guestStats=new Map();   // id -> {stat:{tow,trate,tarea,move,def,hp,regen},mult:{tow,tcd,aoe,move,hp}} -- this guest's OWN gear/skill numbers, last reported
 onMessage('input',(data,fromId)=>{ guestIn.set(fromId,data); if(data.stat&&data.mult) guestStats.set(fromId,{stat:data.stat,mult:data.mult}); });
 Meta.defOwnerStat=(id,k)=>{ const s=guestStats.get(id); return s?s.stat[k]:undefined; };
 Meta.defOwnerMult=(id,k)=>{ const s=guestStats.get(id); return s?s.mult[k]:undefined; };
@@ -176,17 +220,19 @@ onMessage('heroes',data=>{
 });
 
 // guest only: this client's own keys and look, sent to the host a few times a second -- the same K/cam.yaw the
-// local hero already moves from (heroUpdate, above), just relayed instead of applied here. Piggybacks the six
+// local hero already moves from (heroUpdate, above), just relayed instead of applied here. Piggybacks the
 // heroStat/heroMult numbers a defense's own stat() (game.js) reads, computed from THIS client's own real gear and
 // skills -- small, cheap to include every tick, and keeps a guest-placed defense's buffs live without a separate
-// message type or having to reimplement gear-scoring on the host.
+// message type or having to reimplement gear-scoring on the host. Also carries the guest's own COMBAT-relevant
+// numbers (move/def/hp/regen) that guestInputTick/hurtGuestHero above now read for their own hero, not just what
+// they place -- dmg and reach travel separately, on the swing message itself (see the comment above guestHitCone).
 let syncTIn=0;
 function guestSendInput(dt){
   if(role!=='guest') return;
   syncTIn+=dt; if(syncTIn<1/15) return; syncTIn=0;
   send('input',{w:K.w?1:0,s:K.s?1:0,a:K.a?1:0,d:K.d?1:0,shift:K.shift?1:0,yaw:+cam.yaw.toFixed(3),pick:window.__heroes.pick(),
-    stat:{tow:heroStat('tow'),trate:heroStat('trate'),tarea:heroStat('tarea')},
-    mult:{tow:heroMult('tow'),tcd:heroMult('tcd'),aoe:heroMult('aoe')}});
+    stat:{tow:heroStat('tow'),trate:heroStat('trate'),tarea:heroStat('tarea'),move:heroStat('move'),def:heroStat('def'),hp:heroStat('hp'),regen:heroStat('regen')},
+    mult:{tow:heroMult('tow'),tcd:heroMult('tcd'),aoe:heroMult('aoe'),move:heroMult('move'),hp:heroMult('hp')}});
 }
 
 // ---- phase 5: the host's real crystal/wave state, so a guest is helping defend ONE hall rather than tracking a

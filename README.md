@@ -265,7 +265,8 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 
 - Void set models: the concept art (runed blade, shard charm, galaxy amulet, starless robe) is waiting on Meshy exports;
   until then the Void sword is the holy sword darkened and burning violet. The Void staff is done (`staff-void`, built in code).
-- Co-op, phases 1-7 done — a guest can now join a host's hall, help defend it, fight in it, and build in it. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
+- Co-op, phases 1-8 done — a guest can now join a host's hall, help defend it, fight in it, build in it, and fight AS the
+  gear/skills they actually have equipped, not a flat unequipped baseline. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
   each loads its own hero GLB through the same fit/toonify/clip-map pipeline the local hero uses, keeps its own
   wrap/mixer/actions, and eases toward whatever position/yaw it's last told (`window.__party.add/remove/setTarget`),
   switching idle/walk/run itself; the local hero has no idea puppets exist. Phase 2 (`99-network.js`): the actual
@@ -402,13 +403,45 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   already captured to relay. `coop-defplace-test.mjs` and `coop-defplace-fix-test.mjs` (13/13 each) prove the
   placement/repair/upgrade/sell relay, the owner-stat scaling (checked against the exact formula, not just "did
   it change"), stats reverting on disconnect, and every one of the trust-boundary fixes above, directly.
-  **Still open, honestly**: no gear/skill scaling for a guest's own COMBAT damage or hp — `GUEST_DMG`/
-  `GUEST_MAX_HP` are still flat, unequipped baselines (only a guest's *placed defenses* draw on their real stats
-  so far); nothing about a guest's gear/skills carries across sessions, since their own browser forgets it the
-  moment they disconnect (a persistent-loadout design is the next thing queued); a mini-boss's roar is still a
-  cue for whoever it's aimed at, not a shared HUD/SFX moment; and a guest gets no local range-ring/cost-prompt
-  affordance standing near a real defense (`nearestDef`'s HUD-facing callers were never made position-aware) —
-  they have to already know to press E/X and read the toast, unlike the host's own equivalent local UI.
+  A guest's own COMBAT damage/hp was still flat/unequipped at this point (`GUEST_DMG`/`GUEST_MAX_HP`) — only
+  *placed defenses* drew on their real stats so far — fixed next, in phase 8.
+- Co-op, phase 8: a guest's own SIMULATED HERO now scales with their real gear/skills too, closing the gap phase 7
+  left open — "the guest should also carry their own stats, speed, damage, hp, weapon special damages, their
+  equipment should affect their actions." `guestInputTick`'s move speed now reads the exact `(1+move%)*moveMult`
+  formula `heroUpdate()` uses; `guestHero` gains a gear-scaled max hp (the same delta-preserving bump on increase
+  `applyGear()` gives the real hero — heal on a hp buff only by the difference, not to full) and passive regen
+  (`heroUpdate()`'s own post-hit-cooldown tick, base rate plus the guest's own `regen` stat); `hurtGuestHero`
+  mitigates incoming damage by the guest's own `def` stat, same formula as `hurtHero()`. A swing's damage and reach
+  now ride the `'swing'` message itself — read straight off the guest's own `heroDmg()`/`hero.reach` at the moment
+  they swing, since `heroDmg()` folds in a GLB-attack-clip-duration ratio the host has no equivalent of for a
+  guest's puppet, so having the guest compute the final number client-side (same idea as the periodic stat sync,
+  just per-swing) is simpler than reconstructing the formula host-side. A witch/fighter/troll archer guest now
+  genuinely threatens from range (reach 18/18/24) instead of only within melee's 2.4, using a generalised
+  melee/ranged cone rather than a faithful port of the real bolt/arrow flight — no travel time, no single-target
+  stop-on-first-hit, no charge multiplier, deliberately, since replicating that would mean relaying press/hold/
+  release instead of one message, a materially bigger protocol change than "make the guest's own stats matter."
+  `game.js` itself needed zero changes this phase — every formula it called was already general enough. Testing
+  this phase's exact-value assertions (a +100 move stat doubling walk speed; a +50 hp stat bumping max by exactly
+  50 while preserving an existing deficit; a +60 def stat mitigating 50 raw damage down to exactly 20; regen
+  matching `1.5+regen` per second) turned up a real, pre-existing transport bug: PeerJS's own `'open'` event can
+  fire twice for one `DataConnection`, and `wire()` (phase 2) wasn't guarding against being called twice for the
+  same connection — a second call stacked a second `'data'` listener, so every message after that (not just
+  `'swing'` — `'place'`/`'defAction'` too) was handled twice. Surfaced intermittently (roughly one test run in
+  three) as a guest's swing landing for exactly double damage; fixed with a one-line re-entrancy guard on `wire()`.
+  This phase's own testing also exposed real measurement traps worth naming for whoever writes the next co-op
+  test: `game.js`'s own `requestAnimationFrame` loop keeps calling `update(dt)` with REAL wall-clock time
+  underneath any test driving the sim through explicit `step()` calls, unless `window.__freeze` is set — without
+  it, the real sleeps a multi-page WebRTC test needs between ticks (for messages to actually arrive) let a stray
+  extra tick or two of real-time movement sneak in on top of the intended tick count, which is exactly what was
+  inflating an early version of this phase's move-speed ratio test on some runs. `coop-herostats-test.mjs` (14/14)
+  covers all of the above, including the `wire()` regression, against exact formulas throughout — not just "did it
+  change."
+  **Still open, honestly**: nothing about a guest's gear/skills carries across sessions, since their own browser
+  forgets it the moment they disconnect (a persistent-loadout design is the next thing queued); a mini-boss's roar
+  is still a cue for whoever it's aimed at, not a shared HUD/SFX moment; a guest gets no local range-ring/
+  cost-prompt affordance standing near a real defense (`nearestDef`'s HUD-facing callers were never made
+  position-aware) — they have to already know to press E/X and read the toast; and a ranged guest's attack is the
+  generalised cone above, not a real single-target, travelling, wall-blocking bolt or arrow.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
