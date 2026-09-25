@@ -574,7 +574,8 @@ const Meta={
   mult:k=>0,            // multiplicative bonus from skills for a key: 'dmg','hp','spd','move','tow','tcd','aoe','mana' (0.25 = +25%)
   onPickup:it=>false,   // return true when the module took the item (into the bag); false = old behaviour (auto equip / sell)
   onKill:e=>{}, onWaveHeld:w=>{}, onRunEnd:w=>false,   // onRunEnd: true when the module shows its own run-summary/tavern screen
-  update:dt=>{}, hud:()=>{}, open:()=>{}, isOpen:()=>false };
+  update:dt=>{}, hud:()=>{}, open:()=>{}, isOpen:()=>false,
+  heroes:()=>[] };   // co-op: other players' heroes an enemy should also be able to notice, each {x,y,z,isDead:()=>bool,hurt:dmg=>void} — empty outside a hosted session (99-network.js)
 let spawnQ=[], placing=null, ghost=null, ghostRot=0, ghostCell=null, ghostPos=[0,0], ghostOk=false, ghostReason='', ghostYaw=0;
 let placeStage=0, anchorPos=null, anchorYaw=0;   // 0: ghost follows your aim · 1: set down, rotating in place
 let bannerT=0, toastT=0, dmgFlash=0, crystalShake=0, camShake=0, introA=0, locked=false, edgeX=.5, mouseDown=false, deathCut=null;
@@ -634,7 +635,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=111;
+const BUILD=112;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -761,13 +762,22 @@ function hurt(e,dmg,kx,kz){ if(e.dead) return; e.hp-=dmg; e.squash=1; floatText(
 function kill(e){ e.dead=.001; S.kills++; spawnOrbs(e.x,e.z,e.mana); rollDrop(e); Meta.onKill(e); if(e.kind==='ogre'||e.kind==='orc'||e.kind==='drake'||e.kind==='troll'||e.kind==='trollboss') SFX.bigDie(); else SFX.die(); }
 function attack(e,tg){ e.swing=0; e.pending=tg; }
 function landHit(e,tg){
-  if(tg.kind==='hero'){ if(hero.dead<=0) hurtHero(e.dmg); }
+  if(tg.kind==='hero'){ if(!tg.hero.isDead()) tg.hero.hurt(e.dmg); }
   else if(tg.kind==='crystal'){ if(tg.ranged) fireArrow(e,0,2.6,0,{kind:'crystal'}); else hurtCrystal(e.dmg,e); }
   else if(tg.kind==='def'){ const d=tg.obj; if(!defs.includes(d)) return; if(tg.ranged) fireArrow(e,d.x,1.0,d.z,{kind:'def',obj:d}); else { hurtDef(d,e.dmg); if(d.kind==='spike') hurt(e,Math.round(DEFS.spike.thorns*(1+heroStat('tow')/100)),0,0); } } }
+// co-op: which hero (the local one, or another player's, via Meta.heroes()) is nearest and close enough for e to
+// notice at all — same melee-proximity check the local hero always had, just no longer hardcoded to just it
+function nearestHero(e,extra){
+  let best=null, bd=e.r+1.1;
+  if(hero.dead<=0){ const hd=Math.hypot(hero.x-e.x,hero.z-e.z); if(hd<bd&&hero.y-e.y<1.4){ best={x:hero.x,y:hero.y,z:hero.z,isDead:()=>hero.dead>0,hurt:hurtHero}; bd=hd; } }
+  for(const h of extra){ if(h.isDead()) continue; const hd=Math.hypot(h.x-e.x,h.z-e.z); if(hd<bd&&h.y-e.y<1.4){ best=h; bd=hd; } }
+  return best;
+}
 function updateEnemies(dt){
   const alive=enemies.filter(e=>!e.dead);
   for(const a of alive){ a.sx=0; a.sz=0; }
   for(let i=0;i<alive.length;i++) for(let j=i+1;j<alive.length;j++){ const a=alive[i], b=alive[j]; const dx=b.x-a.x, dz=b.z-a.z, d=Math.hypot(dx,dz), min=(a.r+b.r)*.9; if(d<min&&d>.001){ const p=(min-d)/min*3; a.sx-=dx/d*p; a.sz-=dz/d*p; b.sx+=dx/d*p; b.sz+=dz/d*p; } }
+  const extraHeroes=Meta.heroes();   // co-op: fetched once per tick, not per enemy -- at co-op's scale (a handful of enemies, at most three guests) this loop is trivial either way, but no reason to rebuild it enemies.length times
   for(let i=enemies.length-1;i>=0;i--){ const e=enemies[i]; const g=e.mdl.g;
     if(e.dead){ e.dead+=dt;
       if(e.fly){ e.y=Math.max(baseFloor(e.x,e.z),e.y-9*dt); g.position.y=e.y; g.rotation.z+=dt*2.5; }   // a dead flyer drops
@@ -775,8 +785,15 @@ function updateEnemies(dt){
       const s=Math.max(0,1-e.dead/.3)*e.sc; g.scale.set(s*1.3,s*.6,s*1.3); if(e.dead>.3){ scene.remove(g); enemies.splice(i,1); } continue; }
     e.pop=Math.min(1,e.pop+dt*3); e.atk-=dt; e.slowT=Math.max(0,(e.slowT||0)-dt); e.chillT=Math.max(0,(e.chillT||0)-dt); if(!e.chillT) e.chillK=1; if(e.swing>=0){ e.swing+=dt; if(e.pending&&e.swing>=.2){ const tg=e.pending; e.pending=null; landHit(e,tg); } if(e.swing>.4) e.swing=-1; }
     if(e.poisonT>0){ e.poisonT-=dt; e.poisonTick=(e.poisonTick||0)-dt; if(e.poisonTick<=0){ e.poisonTick=.5; hurt(e,e.poisonDmg*.5,0,0); } } e.confuseT=Math.max(0,(e.confuseT||0)-dt);   // the venom halo's lingering DOT (keeps ticking after a mob leaves the ring) and the dazzling halo's wander timer
-    let target=null; const hd=Math.hypot(hero.x-e.x,hero.z-e.z);
-    if(hero.dead<=0&&hd<e.r+1.1&&hero.y-e.y<1.4) target={kind:'hero',x:hero.x,z:hero.z,reach:e.r+1.3};
+    let target=null;
+    // co-op: the roar/enrage check below wants the nearest hero at ANY range (not nearestHero's own tight melee-
+    // proximity cap), and which one it is, so its line-of-sight check looks at the right position -- otherwise a
+    // mini-boss fought entirely by a guest, off in another lane, never notices or enrages, since hd/hero.x/hero.z
+    // stayed hardcoded to whichever hero this machine's own local `hero` binding happens to be (the host's own)
+    let hd=Math.hypot(hero.x-e.x,hero.z-e.z), hx=hero.x, hz=hero.z;
+    for(const h of extraHeroes){ if(h.isDead()) continue; const hd2=Math.hypot(h.x-e.x,h.z-e.z); if(hd2<hd){ hd=hd2; hx=h.x; hz=h.z; } }
+    const nh=nearestHero(e,extraHeroes);
+    if(nh) target={kind:'hero',x:nh.x,z:nh.z,reach:e.r+1.3,hero:nh};
     else if(e.fly){ const ci=idx(wc(e.x),wcz(e.z)); const n=flowFly.nxt[ci]; const cr={kind:'crystal',x:0,z:0,reach:2.9+e.r}; target=(ci===GOAL||n===GOAL)?cr:(n>=0?{kind:'move',x:cw(n%GW),z:cwz((n/GW)|0)}:null); }   // straight over stairs, ledges and defenses
     else { const ci=idx(wc(e.x),wcz(e.z)); let n=flowDef.nxt[ci]; const cr={kind:'crystal',x:0,z:0,reach:2.9+e.r};
       // defenses in the way get smashed, not politely walked around: if going round costs more than this mob's patience
@@ -785,7 +802,7 @@ function updateEnemies(dt){
       if(ci===GOAL||n===GOAL) target=cr; else if(n>=0&&!smash) target={kind:'move',x:cw(n%GW),z:cwz((n/GW)|0)};
       else { n=flowFree.nxt[ci]; if(n===GOAL) target=cr; else if(n>=0){ const d=defAt[n]; target=(d&&d.kind!=='slice')?{kind:'def',obj:d,x:d.x,z:d.z,reach:1.35+e.r}:{kind:'move',x:cw(n%GW),z:cwz((n/GW)|0)}; } } }
     if(e.ranged&&target&&target.kind!=='hero'){ let best=null, bd=e.ranged; for(const d of defs){ if(d.kind==="spike"||d.kind==="slice") continue; const dd=Math.hypot(d.x-e.x,d.z-e.z); if(dd<bd&&los(e.x,e.z,d.x,d.z)){ bd=dd; best={kind:"def",obj:d,x:d.x,z:d.z}; } } const cd=Math.hypot(e.x,e.z); if(cd<e.ranged&&los(e.x,e.z,0,0)) best={kind:'crystal',x:0,z:0}; if(best){ best.reach=e.ranged-1; best.ranged=true; target=best; } }
-    if(e.roar===0&&((hd<14&&los(e.x,e.z,hero.x,hero.z))||Math.hypot(e.x,e.z)<12)) ogreRoar(e,1); else if(e.roar===1&&e.hp<=e.max*.5) ogreRoar(e,2);
+    if(e.roar===0&&((hd<14&&los(e.x,e.z,hx,hz))||Math.hypot(e.x,e.z)<12)) ogreRoar(e,1); else if(e.roar===1&&e.hp<=e.max*.5) ogreRoar(e,2);
     if(e.kind==='trollboss'){ e.healT=(e.healT===undefined?0:e.healT)-dt; if(e.healT<=0){ const cfg=MOBS.trollboss; let healed=0; for(const o of enemies){ if(o===e||o.dead||o.hp>=o.max) continue; if(Math.hypot(o.x-e.x,o.z-e.z)>cfg.healR) continue; const before=o.hp; o.hp=Math.min(o.max,o.hp+cfg.healAmt); if(o.hp>before){ floatText(o.x,o.y+o.h+.3,o.z,'+'+Math.round(o.hp-before),'#8ef4c0'); healed++; } } if(healed) healPulse(e); e.healT=cfg.healCd; } }   // the healer's pulse: any wounded mob nearby is mended — kill this one first or the horde outlasts you
     if(e.shoutT>0){ e.shoutT-=dt; target=null; }
     e.walking=false;

@@ -10,9 +10,13 @@
 // enemies AND defenses now render as read-only puppets on a guest's screen (the guest's OWN local `enemies`/`defs`
 // are still fully real and simulated underneath — nothing spawns or gets placed into them unless the guest starts
 // their own wave or builds their own defense, both still possible locally but pointless since they're not what's
-// drawn or shared). World-sync is done; nobody can fight yet: enemies don't notice a guest and a guest can't swing,
-// place a defense, take damage or be healed (updateEnemies and hurtHero still only know the host's own `hero`) —
-// that's combat, phase 6, still fully open.
+// drawn or shared). World-sync is done. Phase 6 is combat: the host's real enemies now notice and can damage a
+// guest's hero too (Meta.heroes()/nearestHero(), game.js — the one and only core-file touch this whole effort has
+// needed), and a guest can swing and damage the host's real enemies (guestHitCone below, reusing hurt() unchanged).
+// A guest's own hp/death is synced back down to their own client (the 'hp' handler below) so their own screen shows
+// it too, not just the host's private bookkeeping. Still open: no gear/skill scaling for a guest's damage or
+// defense (GUEST_DMG/GUEST_MAX_HP below are flat, unequipped baselines), no defense-placement by guests, and mini-
+// boss roar/aggro shouting still only ever plays for whichever hero it's aimed at, not a HUD/SFX cue for anyone else.
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -62,26 +66,80 @@ function heroLabel(pick){ const h=window.__heroes.list().find(h=>h.id===pick); r
 
 // host only: what each connected guest is simulated at, driven by the input they last sent
 const guestIn=new Map();     // id -> latest {w,s,a,d,shift,yaw,pick}
-const guestHero=new Map();   // id -> {x,y,z,yaw} the host moves each tick from guestIn, same collision rules as the real hero
+const guestHero=new Map();   // id -> {x,y,z,yaw,hp,max,dead} the host moves each tick from guestIn, same collision rules as the real hero
+const GUEST_MAX_HP=100, GUEST_REACH=2.4, GUEST_DMG=8;   // hero's own unequipped defaults (game.js: hero={hp:100,max:100,reach:2.4}, heroDmg()'s own base is 8) -- gear/skills aren't wired to a guest hero yet, so this is the honest flat baseline until they are
 function guestInputTick(dt){
   if(role!=='host') return;
   guestIn.forEach((inp,id)=>{
     let g=guestHero.get(id);
-    if(!g){ g={x:guestHero.size*1.5,y:0,z:6,yaw:0}; guestHero.set(id,g); }
-    let mx=0,mz=0; if(inp.w) mz+=1; if(inp.s) mz-=1; if(inp.d) mx+=1; if(inp.a) mx-=1;
-    const len=Math.hypot(mx,mz);
-    if(len>.05){ mx/=Math.max(len,1); mz/=Math.max(len,1);
-      const fx=Math.sin(inp.yaw), fz=Math.cos(inp.yaw), rx=-Math.cos(inp.yaw), rz=Math.sin(inp.yaw);
-      const vx=fx*mz+rx*mx, vz=fz*mz+rz*mx, spd=7.5*(inp.shift?11/7.5:1);
-      moveCircle(g,vx*spd*dt,vz*spd*dt,.42,true);
-      g.yaw=angLerp(g.yaw,Math.atan2(vx,vz),1-Math.exp(-12*dt)); }
-    g.y=floorAt(g.x,g.z,g.y);
+    if(!g){ const ox=guestHero.size*1.5; g={x:ox,y:0,z:6,yaw:0,hp:GUEST_MAX_HP,max:GUEST_MAX_HP,dead:0,spawnX:ox}; guestHero.set(id,g); }
+    // same 4s-then-respawn rule heroUpdate uses for the real hero; no movement while down. Respawns back at this
+    // guest's own spawnX (not a recomputed guestHero.size*1.5, which drifts as players join/leave) so two guests
+    // who go down around the same time don't stack on the identical point -- and sends the guest their own fresh
+    // hp/position so their own client (see 'hp' below) snaps back in step rather than drifting from what they wandered to locally
+    if(g.dead>0){ g.dead-=dt; if(g.dead<=0){ g.dead=0; g.hp=g.max; g.x=g.spawnX; g.z=6; g.y=0; send('hp',{hp:g.hp,max:g.max,dead:g.dead,x:g.x,y:g.y,z:g.z},id); } }
+    else{
+      let mx=0,mz=0; if(inp.w) mz+=1; if(inp.s) mz-=1; if(inp.d) mx+=1; if(inp.a) mx-=1;
+      const len=Math.hypot(mx,mz);
+      if(len>.05){ mx/=Math.max(len,1); mz/=Math.max(len,1);
+        const fx=Math.sin(inp.yaw), fz=Math.cos(inp.yaw), rx=-Math.cos(inp.yaw), rz=Math.sin(inp.yaw);
+        const vx=fx*mz+rx*mx, vz=fz*mz+rz*mx, spd=7.5*(inp.shift?11/7.5:1);
+        moveCircle(g,vx*spd*dt,vz*spd*dt,.42,true);
+        g.yaw=angLerp(g.yaw,Math.atan2(vx,vz),1-Math.exp(-12*dt)); }
+      g.y=floorAt(g.x,g.z,g.y);
+    }
     // the host renders every guest as a puppet on its own screen too, straight from the state it just simulated —
     // no need to round-trip its own broadcast, which never loops back to the sender anyway
     if(!window.__party.list().includes(id)) window.__party.add(id,HERO_GLB[inp.pick]||'witch.glb',heroLabel(inp.pick));
     window.__party.setTarget(id,g.x,g.z,g.yaw);
   });
 }
+function hurtGuestHero(id,dmg){ const g=guestHero.get(id); if(!g||g.dead>0) return; g.hp-=Math.max(1,Math.round(dmg)); if(g.hp<=0){ g.hp=0; g.dead=4; } send('hp',{hp:g.hp,max:g.max,dead:g.dead,x:g.x,y:g.y,z:g.z},id); }
+// the guest's own client (see onMessage('hp') below) applies this straight to its own local `hero` -- otherwise the
+// hp/dead this module tracks is host-private, so the one player it's happening to would see none of it: their own
+// health bar, hurt flash/SFX, death toast and movement-freeze-on-death all read the LOCAL hero (game.js), and that
+// local hero's own enemies array stays empty (a guest can't start a wave), so hurtHero() never fires through real
+// local gameplay -- targeted (toId) rather than broadcast, since nobody else needs to know a guest's own raw hp
+window.__combat={ guestHero:id=>{ const g=guestHero.get(id); return g?{x:+g.x.toFixed(2),z:+g.z.toFixed(2),hp:g.hp,max:g.max,dead:g.dead}:null; } };   // guestHero itself is this module's own private state (not re-exposed anywhere else, deliberately -- other modules reach it only through Meta.heroes()); this is purely a test hook
+// co-op combat, part 1: enemies can now notice and damage a guest's hero, not just the host's own -- Meta.heroes()
+// (game.js) is the hook updateEnemies/landHit read every tick; each entry closes over a live guestHero record, so
+// isDead()/hurt() always reflect the CURRENT state at the moment an attack actually lands, not a stale snapshot
+// taken when the enemy first picked its target
+Meta.heroes=()=>[...guestHero.entries()].map(([id,g])=>({x:g.x,y:g.y,z:g.z,isDead:()=>g.dead>0,hurt:dmg=>hurtGuestHero(id,dmg)}));
+// guest only: the host's authoritative hp/dead/position for THIS client's own hero, applied straight onto the local
+// `hero` object -- reusing the exact same side effects hurtHero()/heroUpdate() already use for the real hero
+// (flashDmg/SFX.hurt/the fall toast on death, the respawn toast/model-show/position-snap on recovery) so a guest's
+// own screen finally shows what's already true on the host, rather than a permanently-full health bar that never
+// moves. Local `hero.dead` is then left to count down on its own too (heroUpdate runs unconditionally every tick
+// regardless of role) in parallel with the host's own guestHero.dead countdown -- both start from the same value
+// at nearly the same real time, so the two respawns land within a network round-trip of each other; harmless, and
+// this message is what corrects it either way once it arrives.
+onMessage('hp',data=>{
+  if(role!=='guest') return;
+  const wasDead=hero.dead>0;
+  if(data.dead>0&&!wasDead){ hero.hp=0; hero.dead=data.dead; hero.hurtT=3; flashDmg(); SFX.hurt(); toast('You fell! Back in 4 seconds…'); H.g.visible=false; heroShadow.visible=false; }
+  else if(data.dead<=0&&wasDead){ hero.dead=0; hero.hp=data.max; hero.max=data.max; hero.x=data.x; hero.z=data.z; hero.y=data.y; hero.vy=0; H.g.visible=!useGLB; heroShadow.visible=true; if(GLBH){ GLBH.wrap.visible=useGLB; playHero('idle',{restart:true}); } toast('Back on your feet!'); }
+  else if(data.dead<=0&&data.hp<hero.hp){ hero.hp=data.hp; hero.hurtT=3; flashDmg(); SFX.hurt(); }
+  else hero.hp=data.hp;
+});
+// co-op combat, part 2: a guest's own swing, relayed to the host -- swing() is a plain top-level function (game.js),
+// so this reassigns the same binding the swing key, click handler and window.__dd.swing all already look up by
+// name (the same monkey-patch trick startWave uses in the phase-5 section above), rather than editing game.js.
+// hero.swingT is captured BEFORE calling the original, not after: swing()'s own guard rejects a call made while
+// swingT is already >=0, leaving swingT unchanged -- so checking only the post-call value can't tell a fresh swing
+// (swingT was <0, just became 0) apart from a same-frame rejected duplicate (swingT was already 0, still is). Two
+// swing-bound inputs (KeyF/KeyQ/either mouse button, game.js) landing in one frame gap is an ordinary way to mash
+// an attack, and a rejected call sending a spurious 'swing' anyway would double guestHitCone's damage for one swing.
+{ const origSwing=swing;
+  swing=function(){ const before=hero.swingT; origSwing(); if(role==='guest'&&before<0&&hero.swingT===0) send('swing',{yaw:+cam.yaw.toFixed(3)}); }; }
+function guestHitCone(id,yaw){
+  const g=guestHero.get(id); if(!g||g.dead>0) return;
+  const fx=Math.sin(yaw), fz=Math.cos(yaw); let n=0;
+  for(const e of enemies){ if(e.dead) continue; const dx=e.x-g.x, dz=e.z-g.z, d=Math.hypot(dx,dz);
+    if(d<GUEST_REACH+e.r&&(dx*fx+dz*fz)/Math.max(d,.01)>.4){ hurt(e,GUEST_DMG,fx*1.4,fz*1.4); n++; } }
+  if(n) SFX.hit();
+}
+onMessage('swing',(data,fromId)=>{ guestHitCone(fromId,data.yaw); });
 onMessage('input',(data,fromId)=>{ guestIn.set(fromId,data); });
 
 let syncT=0;

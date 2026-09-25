@@ -265,7 +265,7 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 
 - Void set models: the concept art (runed blade, shard charm, galaxy amulet, starless robe) is waiting on Meshy exports;
   until then the Void sword is the holy sword darkened and burning violet. The Void staff is done (`staff-void`, built in code).
-- Co-op, phases 1-4 done, phase 5 (world sync) underway, combat still open. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
+- Co-op, phases 1-6 done — a guest can now join a host's hall, help defend it, and actually fight in it. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
   each loads its own hero GLB through the same fit/toonify/clip-map pipeline the local hero uses, keeps its own
   wrap/mixer/actions, and eases toward whatever position/yaw it's last told (`window.__party.add/remove/setTarget`),
   switching idle/walk/run itself; the local hero has no idea puppets exist. Phase 2 (`99-network.js`): the actual
@@ -294,8 +294,8 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   crystal/waves/defenses actually shared needs those core single-player combat/targeting functions to learn there's
   more than one hero, which is a bigger, riskier change than any of phases 1-4 (all four were bolt-on modules that
   never touched game.js's own combat code) — split into phase 5 (sync the host's real world to a guest's screen,
-  read-only, now COMPLETE) and phase 6 (let a guest actually fight in it, still fully open), so each ships and
-  tests on its own.
+  read-only) and phase 6 (let a guest actually fight in it) — both now COMPLETE — so each shipped and tested on
+  its own.
   Phase 5, crystal/wave slice (`99-network.js`'s `hostBroadcastWorld`): a guest is helping the host defend ONE
   hall, not tracking a private one of their own — the host's real crystal HP and wave/phase reach the guest's HUD
   (`window.__world.host()`), drawn by a `Meta.hud` override laid down *after* `updateHUD`'s own now-irrelevant
@@ -329,9 +329,41 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   despite being a classic script) — fixed by splicing `window.__dd.defs` directly, which exercises the same
   broadcast path without needing that access; and the test's own tick budget (copied from the faster hero/enemy
   suites) wasn't enough simulated time to reach the defense broadcast's slower 2Hz threshold — fixed by giving it
-  more ticks. **World-sync (phase 5) is done**: a guest now sees everything happening in the host's hall. Nobody
-  can fight yet either way — that's phase 6, the one remaining piece, and the biggest architectural step so far
-  since it means touching `updateEnemies`/`hurtHero`/`landHit` directly rather than staying a bolt-on module.
+  more ticks. **World-sync (phase 5) is done**: a guest now sees everything happening in the host's hall.
+  Phase 6 (`99-network.js` + a small, deliberate touch to `game.js` itself): combat. The host's real enemies now
+  notice and can damage a guest's hero, not just the host's own — `game.js` gets a new `Meta.heroes` hook (the
+  same chainable-override pattern every other hook in this codebase uses, just the first phase that needed a new
+  one) that `99-network.js` fills with live `{x,y,z,isDead,hurt}` entries per connected guest, and `updateEnemies`'s
+  melee-proximity check (`nearestHero`, new) picks whichever hero — the host's own or any guest's — is actually
+  closest, instead of a hardcoded single `hero`. This is the one and only time this whole co-op effort has touched
+  `game.js`'s own combat code directly, rather than staying a bolt-on module — every earlier phase managed without
+  it. A guest can also swing and damage the host's real enemies: `swing()` gets monkey-patched to relay a `'swing'`
+  message (the same top-level-rebinding trick `startWave` already uses), and the host's `guestHitCone` reimplements
+  `hitCone`'s own forward-cone check for an arbitrary attacker, calling the exact same `hurt(e,dmg,kx,kz)` unchanged.
+  `coop-combat-test.mjs` proves both directions end to end over a real WebRTC handshake.
+  Before shipping, this diff went through an adversarial multi-lens code review (four independent review passes,
+  each finding adversarially re-verified) precisely because it was the first phase to touch `game.js` — and it
+  earned that caution: the review found five real, reproducible defects, not style nits. (1) A guest's own hp/death
+  was tracked correctly on the host but never sent back to the guest's own screen — their health bar stayed
+  permanently full and no hurt/death feedback ever played, because `hostBroadcastHeroes`'s existing roster
+  broadcast deliberately skips a client's own entry (`if(h.id===mine) return`), and a guest's local `hero` never
+  takes damage through its own, always-empty local simulation. (2) The same missing wire meant a guest's own local
+  position permanently diverged from the host's authoritative one the first time they died, since the host's
+  respawn snap never reached them. (3) `swing()`'s relay could double-send the `'swing'` message for one physical
+  swing if two swing-bound inputs (an ordinary way to mash an attack key) landed in the same animation frame,
+  doubling melee damage. (4) Two guests respawning around the same time stacked at the identical fixed spawn
+  point, since the per-guest spread offset was only ever applied once, at first connection. (5) The ogre/trollboss
+  roar-and-enrage trigger still checked distance to the host's own hero only, so a mini-boss fought entirely by a
+  guest never roared or enraged. All five are fixed: a targeted `'hp'` message now applies a guest's own hp/dead/
+  position straight onto their local `hero`, reusing `hurtHero`/`heroUpdate`'s own flash/SFX/toast/respawn side
+  effects so it looks and feels identical to the real thing; the swing relay now captures `swingT` *before* calling
+  the original (a same-frame rejected duplicate can't be mistaken for a fresh swing); each guest's spawn offset is
+  now persisted on their record and reused on every respawn, not just the first; and the roar/enrage check now
+  finds whichever hero (host's or any guest's) is actually nearest. `coop-combat-fix-test.mjs` (host + two guests)
+  proves all five fixes directly. **Still open, honestly**: no gear/skill scaling for a guest's own damage or
+  defense — `GUEST_DMG`/`GUEST_MAX_HP` are flat, unequipped baselines until per-player loadouts exist; a guest
+  still can't place a defense; and a mini-boss's roar is a cue for whoever it's aimed at, not yet a shared HUD/SFX
+  moment for the rest of the hall.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
