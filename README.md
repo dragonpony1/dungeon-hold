@@ -265,8 +265,13 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 
 - Void set models: the concept art (runed blade, shard charm, galaxy amulet, starless robe) is waiting on Meshy exports;
   until then the Void sword is the holy sword darkened and burning violet. The Void staff is done (`staff-void`, built in code).
-- Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); co-op (a room server on Cloudflare Durable
-  Objects, host-authoritative); touch buttons for pause and the sheet on iPad.
+- Co-op, phase 1 (`98-party.js`): other players' heroes render alongside the local one — each loads its own hero GLB
+  through the same fit/toonify/clip-map pipeline the local hero uses, keeps its own wrap/mixer/actions, and eases
+  toward whatever position/yaw it's last told (`window.__party.add/remove/setTarget`), switching idle/walk/run
+  itself. Nothing here talks to a network yet — `setTarget` is called from a test script today, a data-channel
+  handler later; the local hero has no idea puppets exist. Phase 2+: the actual host-authoritative WebRTC transport
+  (a free public signaling broker, no server of our own), guest input relay, and a shared crystal/waves/defenses run.
+- Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
   tower — the seven unnamed `Meshy_AI_model.glb` files are the drake, three ballista marks, the acorn cannon and the barkeep;
