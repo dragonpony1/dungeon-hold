@@ -265,7 +265,7 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 
 - Void set models: the concept art (runed blade, shard charm, galaxy amulet, starless robe) is waiting on Meshy exports;
   until then the Void sword is the holy sword darkened and burning violet. The Void staff is done (`staff-void`, built in code).
-- Co-op, phases 1-4 done, combat/targeting still open. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
+- Co-op, phases 1-4 done, phase 5 (world sync) underway, combat still open. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
   each loads its own hero GLB through the same fit/toonify/clip-map pipeline the local hero uses, keeps its own
   wrap/mixer/actions, and eases toward whatever position/yaw it's last told (`window.__party.add/remove/setTarget`),
   switching idle/walk/run itself; the local hero has no idea puppets exist. Phase 2 (`99-network.js`): the actual
@@ -293,7 +293,19 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   a defense, take damage or be healed; gear-driven move speed isn't wired to guest heroes either. Making the
   crystal/waves/defenses actually shared needs those core single-player combat/targeting functions to learn there's
   more than one hero, which is a bigger, riskier change than any of phases 1-4 (all four were bolt-on modules that
-  never touched game.js's own combat code).
+  never touched game.js's own combat code) — split into phase 5 (sync the host's real world to a guest's screen,
+  read-only) and phase 6 (let a guest actually fight in it), so each ships and tests on its own.
+  Phase 5, crystal/wave slice (`99-network.js`'s `hostBroadcastWorld`): a guest is helping the host defend ONE
+  hall, not tracking a private one of their own — the host's real crystal HP and wave/phase reach the guest's HUD
+  (`window.__world.host()`), drawn by a `Meta.hud` override laid down *after* `updateHUD`'s own now-irrelevant
+  pass, the same non-invasive hook trick every module in this codebase already uses. Starting a wave is the host's
+  call alone: `startWave` gets monkey-patched from the module (reassigning the same top-level binding every call
+  site — the G key, the wave button, `window.__dd.startWave` — already looks up by name) rather than editing
+  game.js, so a guest's own `startWave()` is a no-op with a toast. `coop-world-test.mjs` proves the guest's actual
+  HUD (`#cbar`'s width, `#wavet`/`#phaset` text) matches the host's real numbers, and that the guest's own local
+  `S.crystal`/`S.wave` stay untouched underneath (still running, just no longer what's displayed — the next slice
+  is syncing the host's real enemies and defenses to render there too, and turning the guest's own local ones off
+  for real, not just hiding them from the HUD).
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

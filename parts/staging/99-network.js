@@ -1,12 +1,15 @@
-// ===== NETWORK: phases 2-4 of co-op. Phase 2 is the transport — PeerJS (vendored in head.html, window.Peer) talks
+// ===== NETWORK: phases 2-5 of co-op. Phase 2 is the transport — PeerJS (vendored in head.html, window.Peer) talks
 // to its free public signaling broker (0.peerjs.com) so two browsers can find each other and open a WebRTC data
 // channel directly between them: no server of our own to run. One player hosts — their own peer id becomes the
 // room code — and up to three more join by connecting to that code. Phase 3 broadcast the host's own hero over
 // that pipe, rendered by a guest as a party puppet (98-party.js) — the same setTarget(id,x,z,yaw) call a test
 // script used to drive in phase 1. Phase 4 closes the loop: a guest's own keys and look are relayed to the host,
 // which simulates a real, collision-respecting hero for them and folds it into the same broadcast, so every screen
-// renders every OTHER player. Still open: guest actions (combat, placing defenses) and enemies noticing anyone but
-// the host's own hero — both need the single-player combat/targeting code to learn there's more than one hero.
+// renders every OTHER player. Phase 5 (this slice — crystal/wave state only) starts making it ONE hall rather than
+// several private ones playing side by side: a guest's HUD shows the host's real crystal HP and wave/phase, and
+// only the host can start a wave. A guest's own enemies/crystal are still fully real and locally simulated for
+// now (updateEnemies and hurtHero don't yet know about anyone but the host's own `hero`) — syncing the host's real
+// enemies and defenses to render on a guest's screen, and turning the guest's own local versions off, is next.
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -108,6 +111,35 @@ function guestSendInput(dt){
   send('input',{w:K.w?1:0,s:K.s?1:0,a:K.a?1:0,d:K.d?1:0,shift:K.shift?1:0,yaw:+cam.yaw.toFixed(3),pick:window.__heroes.pick()});
 }
 
+// ---- phase 5: the host's real crystal/wave state, so a guest is helping defend ONE hall rather than tracking a
+// private one of their own that nobody else can see or that means anything. The guest's own S.crystal/S.wave never
+// move (nothing spawns into their local `enemies` unless THEY start a wave, which is disabled below) — the HUD
+// numbers a guest actually sees come from here instead, laid down by Meta.hud AFTER updateHUD's own now-irrelevant
+// pass runs, the same override trick every hook in this codebase uses rather than editing game.js's own functions.
+let hostWorld=null;
+window.__world={ host:()=>hostWorld };
+let syncTW=0;
+function hostBroadcastWorld(dt){
+  if(role!=='host'||!conns.size) return;
+  syncTW+=dt; if(syncTW<1/10) return; syncTW=0;   // crystal/wave state changes slowly; 10Hz is plenty
+  send('world',{crystal:S.crystal,crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,waveTotal:MAP.waves,mapName:MAP.name});
+}
+onMessage('world',data=>{ hostWorld=data; });
+
+// starting a wave is the host's call alone -- a guest is visiting the host's hall, not running a second one next to
+// it. startWave is a plain top-level function (game.js), so this reassigns the same binding every call site already
+// looks up by name (the G key, the wave button, window.__dd.startWave) rather than touching game.js itself.
+{ const origStartWave=startWave;
+  startWave=function(){ if(role==='guest'){ toast("Only the host can start the wave — you're helping defend their hall"); return; } origStartWave(); }; }
+
+{ const prevH=Meta.hud; Meta.hud=()=>{ prevH();
+  if(role==='guest'&&hostWorld){ const w=hostWorld;
+    $('cbar').style.width=Math.max(0,w.crystal/w.crystalMax*100)+'%';
+    if(w.phase==='wave'){ $('wavet').textContent='WAVE '+w.wave+' / '+w.waveTotal; $('phaset').textContent='Helping defend the hall'; }
+    else if(w.phase==='build'){ $('wavet').textContent=w.wave?'HALL HELD — BUILD PHASE':'BUILD PHASE'; $('phaset').textContent='Only the host can start the next wave'; }
+    else if(w.phase==='won'){ $('wavet').textContent='HALL HELD — '+w.mapName+' CLEARED'; $('phaset').textContent=''; }
+    else if(w.phase==='dead'){ $('wavet').textContent='THE CRYSTAL FELL'; $('phaset').textContent=''; } } }; }
+
 onMessage('__leave',fromId=>{ window.__party.remove(fromId); guestIn.delete(fromId); guestHero.delete(fromId); });
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); guestInputTick(dt); hostBroadcastHeroes(dt); guestSendInput(dt); }; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); guestInputTick(dt); hostBroadcastHeroes(dt); hostBroadcastWorld(dt); guestSendInput(dt); }; }
 })();
