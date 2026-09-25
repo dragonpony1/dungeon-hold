@@ -1,6 +1,6 @@
 # Dungeon Hold
 
-A Dungeon Defenders–style 3D tower defense: a gnome warden, a crystal to hold, five original defenses, a loot loop with a
+A Dungeon Defenders–style 3D tower defense: a gnome hero, a crystal to hold, five original defenses, a loot loop with a
 physical tavern (locker, barkeep, trainer, anvil), six familiars, Meshy-made models. Three.js r128, plain JavaScript, one
 page plus an `assets/` folder. Desktop first, tablet at most.
 
@@ -8,7 +8,7 @@ Live build: https://claude.ai/artifact/Y8nkfEsKZyvLESKRs7n9Zj (build 32; a secon
 
 ## Layout
 
-- `parts/head.html` — page shell, CSS, start/dead screens, the baked gnome/goblin/squire models (base64), Three.js r128 + GLTFLoader (CSP-safe patch).
+- `parts/head.html` — page shell, CSS, start/dead screens, the baked goblin fallback model (base64), Three.js r128 + GLTFLoader (CSP-safe patch).
 - `parts/game.js` — the game: grid, hero, mobs, defenses, projectiles, loot, HUD, hero/mob GLB fitting (`fitModel`, `toonify`, `cloneSkinned`).
 - `parts/modules/` — meta game written against `parts/DESIGN.md`: `10-meta.js` (bag, gold, xp, skills, shop), `20-tavern.js` (overlay UI), `30-familiar.js` (procedural pet + bolt).
 - `parts/staging/` — later modules, same script scope, loaded after `modules/`: music, defense models, castle crystal, loot feel, tavern room, character sheet (Tab), hero v2, swords in hand, familiars v2 (Meshy models + per-kind attacks), casino mana sound, the forge (item upgrades).
@@ -117,7 +117,7 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 
 ## Heroes, weapons, sets
 
-- `70-hero2.js` holds `HEROES` (Gnome Warden with a sword and reach 2.4, Gnome Battle Witch with a battle staff that shoots, reach 9, Troll Archer with a longbow, reach 12); the start screen
+- `70-hero2.js` holds `HEROES` (Gnome Battle Witch with a battle staff that shoots, reach 18, Troll Archer with a longbow, reach 24); the start screen
   picks one (saved as `ddHero`); a pick swaps the model live. The start screen also has a testing line: unlock all maps,
   auto-mana (orbs fly to you from anywhere), +1000 gold, ↻ fresh reload (a plain reload; the page's URL is left alone since a host may sign it; saves kept) and wipe saves (two clicks: forgets every `dd*` key, then reloads fresh).
 - `82-staff.js` — battle staffs built in code, no model to load: six kinds (`hazel`, `copper`, `runed`, `storm`, `battle` for
@@ -126,7 +126,7 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   like a loaded sword; `userData.proc` skips the material conversion and gets the scaled ink outline), animated by part
   name (`animFor`) so a mounted clone turns its crystal and orbits its motes too. `fireBolt` throws a spark of the staff's
   colour that bursts on the first wall, ledge or floor; `__staff.plant/fire/fireFromHand/clear` are the design bench and
-  `probes/staffshot.mjs` renders the row, a bolt, a burst and the staff in the Warden's hand (`__weapons.force(name)`
+  `probes/staffshot.mjs` renders the row, a bolt, a burst and the staff in the hero's hand (`__weapons.force(name)`
   mounts any weapon regardless of gear). The staff is strictly the witch's weapon: with one in hand her swing throws a
   bolt from the crystal (`hitCone` is wrapped: aimed at the nearest mob in the cone within `hero.reach`, it hurts the first
   mob it meets for `heroDmg()` and bursts there); `staffFor(item)` picks the staff by forge tier, or the set's own

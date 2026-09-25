@@ -1,7 +1,7 @@
 // ===== VISIBLE WEAPONS: the weapon in the hero's hand is the weapon you wear. Sword models live in assets/ and staffs are
 // built in code (82-staff.js); either is mounted on the hero's hand bone at the mount the model carries (an empty node:
 // position = grip, +Y = the blade or staff axis, name = length in cm). A sword mount takes swords, a staff mount staffs —
-// the same item shows as a sword on the Warden and a staff on the Witch, so loot is shared and each holds their own kind.
+// the same item shows as a sword on a sword-wielding hero and a staff on the Witch, so loot is shared and each holds their own kind.
 (function(){
 const SWORDS={rusty:'sword-rusty.glb',venom:'sword-venom.glb',frost:'sword-frost.glb',flame:'sword-flame.glb',holy:'sword-holy.glb'};
 const GRIP_F=0.17;                        // the fist closes this far up the sword from the pommel (fraction of its full length)

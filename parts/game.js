@@ -1,6 +1,6 @@
 
 /* DUNGEON HOLD — a Dungeon Defenders style hall in the Gnome's Tower world.
-   Third-person squire, hero-sized defenses, goblin waves. Single file, Three.js r128 inlined. */
+   Third-person hero, hero-sized defenses, goblin waves. Single file, Three.js r128 inlined. */
 (function(){
 'use strict';
 const Q=new URLSearchParams(location.search), SILENT=Q.has('silent');
@@ -539,7 +539,7 @@ function grenadeMesh(){ const g=new THREE.Group(); const o=new THREE.Mesh(new TH
 function orbMesh(){ const g=new THREE.Group(); const o=new THREE.Mesh(new THREE.OctahedronGeometry(.16,0),basic(0x7af4ff)); o.userData.noOL=true; g.add(o); g.add(glow(0x4ae6ff,1.2,.7)); g.userData.o=o; return g; }
 
 // ================= GAME STATE =================
-// the Warden's defenses. Internal keys are historical; the names are what the player sees.
+// the defenses. Internal keys are historical; the names are what the player sees.
 const DEFS={
   harpoon:{name:'Ballista',ic:'🏹',du:4,mana:60,hp:90,top:1.6,range:22,arc:16,arcs:[16,22,28,34,40],cd:1.6,dmg:6},        // single bolt, long range; cone widens with each of its four upgrades
   acorn:{name:'Acorn Cannon',ic:'🌰',du:3,mana:45,hp:80,top:1.4,range:12,rangeUp:1.5,arc:70,cd:1.1,dmg:3,shots:3},          // a hollow oak stump that sprays three bouncing acorns in a cone
@@ -632,9 +632,9 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
   const p=Math.min(1,c.t/c.dur); camera.position.set(lerp(c.eye[0],c.eye2[0],p),lerp(c.eye[1],c.eye2[1],p),lerp(c.eye[2],c.eye2[2],p)); camera.lookAt(c.look[0],c.look[1],c.look[2]);
   crystalShake=.45; if(c.t>=c.dur) finishDeath(); }
 
-// ================= GLB HERO (built-in squire, or drop any .glb on the page) =================
+// ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=98;
+const BUILD=99;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -677,7 +677,7 @@ function setHeroGLB(gltf,label,quiet){ const root=gltf.scene||gltf.scenes[0]; if
     for(const t of c.tracks){ if(!/(Hand|Arm|arm|hand).*\.quaternion$/.test(t.name)) continue; const v=t.values, tm=t.times;
       for(let i=1;i<tm.length;i++){ const d=Math.abs(v[(i-1)*4]*v[i*4]+v[(i-1)*4+1]*v[i*4+1]+v[(i-1)*4+2]*v[i*4+2]+v[(i-1)*4+3]*v[i*4+3]); const ang=2*Math.acos(Math.min(1,d)); const sp=ang/Math.max(1e-4,tm[i]-tm[i-1]); if(sp>best){ best=sp; bt=tm[i]; } } }
     if(best>0) hitF=Math.min(.65,Math.max(.25,bt/c.duration)); }
-  if(GLBH){ scene.remove(GLBH.wrap); GLBH.mixer.stopAllAction(); GLBH.root.traverse(o=>{ if(!o.isMesh) return; if(!o.userData.isOL&&o.geometry) o.geometry.dispose(); const mats=Array.isArray(o.material)?o.material:[o.material]; mats.forEach(m=>{ if(m&&m.map&&!o.userData.isOL) m.map.dispose(); if(m) m.dispose(); }); }); }   // the replaced model (baked squire, or an earlier drop) frees its GPU memory
+  if(GLBH){ scene.remove(GLBH.wrap); GLBH.mixer.stopAllAction(); GLBH.root.traverse(o=>{ if(!o.isMesh) return; if(!o.userData.isOL&&o.geometry) o.geometry.dispose(); const mats=Array.isArray(o.material)?o.material:[o.material]; mats.forEach(m=>{ if(m&&m.map&&!o.userData.isOL) m.map.dispose(); if(m) m.dispose(); }); }); }   // the replaced model (an earlier hero, or an earlier drop) frees its GPU memory
   GLBH={wrap:fit.wrap,root,mixer,actions,map,cur:null,label,scale:fit.scale,height:fit.height,attackDur,hitFrac:hitF}; scene.add(fit.wrap); useGLB=true; H.g.visible=false; heroYawOff=0;
   if(actions.idle) playHero('idle',{fade:0}); if(!quiet) toast('Hero model: '+label+' · clips: '+(Object.keys(map).join(', ')||'none')); }
 function playHero(name,o){ if(!GLBH) return; const a=GLBH.actions[name]; if(!a) return; o=o||{}; if(GLBH.cur===a&&!o.restart) return; const prev=GLBH.cur; GLBH.cur=a; a.reset(); a.timeScale=o.speed||1; a.setEffectiveWeight(1); if(prev&&prev!==a){ if(o.fade) a.crossFadeFrom(prev,o.fade,false); else prev.stop(); } a.play(); }
@@ -702,9 +702,11 @@ const ASSET_STAMPS=/*STAMPS*/{};   // per-file content stamps, filled in by the 
 const ASSET=n=>ASSET_STAMPS[n]&&/\.glb$/.test(n)?'assets/'+n.replace(/\.glb$/,'')+'.'+ASSET_STAMPS[n]+'.glb.txt':'assets/'+n+(/\.glb$/.test(n)?'.txt':'');   // a model's file name carries its content stamp (witch.1a2b3c4d.glb.txt): a re-export is a new file, and no cache anywhere can hand out the old one
 function fetchRetry(url,tries){ return fetch(url).then(r=>{ if(!r.ok&&tries>1&&r.status!==404) throw new Error('HTTP '+r.status); return r; }).catch(e=>{ if(tries<=1) throw e; return new Promise(res=>setTimeout(res,600*(4-tries))).then(()=>fetchRetry(url,tries-1)); }); }   // three goes at each file, a beat apart: one dropped fetch must not cost the hero model
 function fetchBytes(url){ if(!HAS_ASSETS) return new Promise(()=>{}); const plain=url.replace(/\.[0-9a-f]{8}\.glb\.txt$/,'.glb.txt'); return fetchRetry(url,3).then(r=>r.ok||plain===url?r:fetchRetry(plain,2)).catch(()=>fetchRetry(plain,2)).then(r=>{   /* the unstamped file is kept alongside as a fallback */ if(!r.ok) throw new Error('HTTP '+r.status+' '+url); if(!/\.txt(\?|$)/.test(url)) return r.arrayBuffer(); return r.text().then(t=>{ const b=atob(t.replace(/\s+/g,'')); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u.buffer; }); }); }
-// the hero model is either baked into the page (SQUIRE_GLB_B64) or fetched from assets/ next to it
-if(typeof SQUIRE_GLB_B64!=='undefined'){ try{ const u=Uint8Array.from(atob(SQUIRE_GLB_B64),c=>c.charCodeAt(0)); loadHeroGLB(u.buffer,'Gnome Warden (Meshy)',true); }catch(e){} }
-else fetchBytes(ASSET('gnome.glb')).then(buf=>loadHeroGLB(buf,'Gnome Warden (Meshy)',true)).catch(e=>{ heroLoadError=String(e&&e.message||e); heroStatus('hero model failed: '+heroLoadError); });
+// the hero model itself is fetched by installHero() (70-hero2.js, runs right after this) — H.g (the plain
+// primitive hero) covers the moment before that fetch resolves, same as it always covers a hero switch mid-game.
+// A second, separate fetch here used to race it for a "faster" placeholder (an embedded, synchronous blob in the
+// old build); once both became async fetches of comparable speed, whichever's own GLTFLoader.parse() callback
+// happened to land second would silently clobber the other's already-loaded hero. Not worth the race.
 
 // ================= GLB MOBS =================
 // three's SkeletonUtils.clone, inlined: a rigged model cloned so each copy animates on its own skeleton

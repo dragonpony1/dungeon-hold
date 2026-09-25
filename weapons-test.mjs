@@ -1,4 +1,12 @@
+// RETIRED: this suite exercises the generic sword weapon-mount (a plain weaponMount_N on the RightHand), which the
+// Gnome Warden was the only hero to carry. Warden is gone (see parts/staging/70-hero2.js); the two remaining heroes
+// carry their own staffMount/bowMount instead, so a visible sword-in-hand is no longer reachable by any hero in the
+// current roster. Left in place (not deleted) in case a future sword-wielding hero brings weaponMount_N back — at
+// that point these checks (tier scaling, grip fit, glow sprite, name→look mapping) are still the right ones to run,
+// just point the hero-wait condition at that hero's label instead of the old "v2" marker below.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
+console.log("SKIP weapons-test.mjs: no hero in the current roster carries a plain sword mount (see header comment)");
+process.exit(0);
 const SP=process.env.SP; const server=await serve(8846);
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const page=await browser.newPage({viewport:{width:960,height:600}}); const errors=[]; page.on("pageerror",e=>errors.push(String(e))); page.on("console",m=>{ if(m.type()==="error"||m.type()==="warning") errors.push(m.text().slice(0,200)); });
