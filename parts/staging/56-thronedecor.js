@@ -78,10 +78,13 @@ if(MAP.throne){
   // a portrait on the left wall, a scepter rack on the right — the room's own trophies
   loadThroneProp('throne-portrait.glb',2.2,wrap=>place(wrap,cw(6),ty0+2.3,tz0+1.5,-PI/2));
   loadThroneProp('throne-scepter.glb',2.0,wrap=>place(wrap,cw(20),ty0+2.3,tz0+1.5,PI/2));
-  // a real door standing behind each gate's swirling portal, facing the same way the gate does
-  Object.entries(LANES).forEach(([k,l])=>{ loadThroneProp('throne-door.glb',3.4,wrap=>{
-    const y=hgt[idx(l.cx,l.cz)]||0, fx=Math.sin(l.face), fz=Math.cos(l.face);   // the portal's own arch sits at local z=-1.1; the door stands a little further back, past the swirl
-    place(wrap,cw(l.cx)-fx*2.0,y,cwz(l.cz)-fz*2.0,l.face+PI); }); });
+  // a real door standing behind each gate's swirling portal, facing the same way the gate does. The spawn alcove
+  // behind a gate is shallow (one cell, ~2 units, before the true back wall) — a thin flush panel sitting close to
+  // the portal's own arch (local z=-1.1) reads as a door in the opening; the old thicker model stood a full 2 units
+  // back and ended up inside or past that back wall, invisible from the room.
+  Object.entries(LANES).forEach(([k,l])=>{ loadThroneProp('throne-door.glb',3.6,wrap=>{
+    const y=hgt[idx(l.cx,l.cz)]||0, fx=Math.sin(l.face), fz=Math.cos(l.face);
+    place(wrap,cw(l.cx)-fx*1.0,y,cwz(l.cz)-fz*1.0,l.face+PI); }); });
   // the real hanging chandeliers, replacing the procedural gold rings at the same ceiling spots
   (world.userData.chandelierProcs||[]).forEach(ch=>{ ch.visible=false; });
   MAP.chandeliers.forEach(([chx,chz])=>loadThroneProp('chandelier.glb',3.2,wrap=>{ place(wrap,chx,13.8,chz,0);
