@@ -87,5 +87,6 @@ const ATTACK_TURN=-PI/2; let DRAW=0;
 Object.keys(BOW_KINDS).forEach(k=>{ window.__weapons.register('bow-'+k,()=>makeBow(k)); });   // served by the weapon mount like a loaded sword
 window.__bow={kinds:()=>Object.keys(BOW_KINDS),info:k=>Object.assign({kind:k},BOW_KINDS[k]),make:makeBow,bowFor,arrows:()=>ARROWS.length,plant:plantBow,planted:()=>PLANTED.length,clear:()=>{ PLANTED.forEach(g=>scene.remove(g)); PLANTED.length=0; },
   fire:(g,dx,dy,dz)=>fireArrow(g.userData.kind,gripWorld(g),new THREE.Vector3(dx,dy||0,dz),ARROW_V),
-  fireFromHand:(dx,dy,dz)=>{ const wo=window.__weapons.mounted(); if(!(wo&&/^bow-/.test(wo.name))) return null; return fireArrow(wo.userData.kind,gripWorld(wo),new THREE.Vector3(dx,dy||0,dz),ARROW_V); },draw:()=>+DRAW.toFixed(2),turn:()=>+heroYawOff.toFixed(2)};
+  fireFromHand:(dx,dy,dz)=>{ const wo=window.__weapons.mounted(); if(!(wo&&/^bow-/.test(wo.name))) return null; return fireArrow(wo.userData.kind,gripWorld(wo),new THREE.Vector3(dx,dy||0,dz),ARROW_V); },draw:()=>+DRAW.toFixed(2),turn:()=>+heroYawOff.toFixed(2),
+  fireArrow,ARROW_V};   // raw (kind,fromVec3,dirVec3,speed,opts) and the base speed constant -- no live bow model needed, unlike fire()/fireFromHand() above; 99-network.js spawns a guest's shot straight from their host-tracked position this way
 })();

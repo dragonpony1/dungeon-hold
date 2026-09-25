@@ -60,5 +60,6 @@ function staffHeadWorld(g){ return headOf(g).getWorldPosition(new THREE.Vector3(
 window.__staff={kinds:()=>Object.keys(STAFF_KINDS),info:k=>Object.assign({kind:k},STAFF_KINDS[k]),make:makeStaff,plant:plantStaff,clear:()=>{ PLANTED.forEach(g=>scene.remove(g)); PLANTED.length=0; },
   fire:(g,dx,dy,dz)=>{ const from=staffHeadWorld(g); return fireBolt(g.userData.kind,from,new THREE.Vector3(dx,dy||0,dz),22); },
   fireFromHand:(dx,dy,dz)=>{ const wo=window.__weapons.mounted(); if(!(wo&&/^staff-/.test(wo.name))) return null; return fireBolt(wo.userData.kind,staffHeadWorld(wo),new THREE.Vector3(dx,dy||0,dz),22); },
-  bolts:()=>BOLTS.length,bursts:()=>BURSTS.length,staffFor,planted:()=>PLANTED.length};
+  bolts:()=>BOLTS.length,bursts:()=>BURSTS.length,staffFor,planted:()=>PLANTED.length,
+  fireBolt};   // raw (kind,fromVec3,dirVec3,speed,opts) -- no live staff model needed, unlike fire()/fireFromHand() above; 99-network.js spawns a guest's shot straight from their host-tracked position this way
 })();

@@ -265,8 +265,9 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 
 - Void set models: the concept art (runed blade, shard charm, galaxy amulet, starless robe) is waiting on Meshy exports;
   until then the Void sword is the holy sword darkened and burning violet. The Void staff is done (`staff-void`, built in code).
-- Co-op, phases 1-8 done — a guest can now join a host's hall, help defend it, fight in it, build in it, and fight AS the
-  gear/skills they actually have equipped, not a flat unequipped baseline. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
+- Co-op, phases 1-9 done — a guest can now join a host's hall, help defend it, fight in it, build in it, and fight AS the
+  gear/skills they actually have equipped, not a flat unequipped baseline, with a ranged guest's shot a real travelling
+  bolt/arrow rather than an instant hit. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
   each loads its own hero GLB through the same fit/toonify/clip-map pipeline the local hero uses, keeps its own
   wrap/mixer/actions, and eases toward whatever position/yaw it's last told (`window.__party.add/remove/setTarget`),
   switching idle/walk/run itself; the local hero has no idea puppets exist. Phase 2 (`99-network.js`): the actual
@@ -436,11 +437,11 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   inflating an early version of this phase's move-speed ratio test on some runs. `coop-herostats-test.mjs` (14/14)
   covers all of the above, including the `wire()` regression, against exact formulas throughout — not just "did it
   change."
-  **Still open, honestly**: a mini-boss's roar is still a cue for whoever it's aimed at, not a shared HUD/SFX
-  moment; a guest gets no local range-ring/cost-prompt affordance standing near a real defense (`nearestDef`'s
-  HUD-facing callers were never made position-aware) — they have to already know to press E/X and read the toast;
-  and a ranged guest's attack is the generalised cone above, not a real single-target, travelling, wall-blocking
-  bolt or arrow.
+  A ranged guest's attack was still the generalised cone above at this point, not a real single-target, travelling
+  bolt or arrow — fixed next, in phase 9. **Still open, honestly**: a mini-boss's roar is still a cue for whoever
+  it's aimed at, not a shared HUD/SFX moment; a guest gets no local range-ring/cost-prompt affordance standing near
+  a real defense (`nearestDef`'s HUD-facing callers were never made position-aware) — they have to already know to
+  press E/X and read the toast.
 - Persistent per-player loadouts: this was flagged as still-needed work after phase 7, on the assumption that a
   guest's gear/skills only ever lived in this co-op module's own live state and would vanish the moment they
   disconnected. That assumption was wrong, and `loadout-persist-test.mjs` (9/9) proves it empirically rather than
@@ -452,6 +453,36 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   touches `localStorage` or calls `Meta.reset()`/`resetGear()` on join. A guest's own browser already saves and
   loads their gear/gold/skills exactly like single-player, whether or not they ever join anyone's hall. Nothing
   needed to be built — this was a verification task, not an implementation one.
+- Co-op, phase 9: a ranged guest's shot (witch/fighter's staff bolt, troll archer's bow arrow) is now a REAL
+  projectile — it travels, stops at the first wall or mob it meets, and pierces on a full draw — not phase 8's
+  generalised instant-hit cone. The trick that made this cheap rather than "a materially bigger protocol change":
+  `boltsUpdate`/`arrowsUpdate` (82-staff.js/83-bow.js) were already wired into `Meta.update` unconditionally, on
+  every page regardless of role, so once the host spawns a guest's shot into its own `BOLTS`/`ARROWS` array (via
+  `fireBolt`/`fireArrow`, now exported raw from those files — no live weapon model needed, unlike the `fire()`/
+  `fireFromHand()` they already exposed), the existing per-tick collision/wall-block/pierce loop just carries it,
+  hurting the host's real `enemies` exactly as it would the host's own shot — nothing about those update loops
+  needed to change. The relay moved from `swing()`'s press moment to `hitCone()`'s own release moment (a new,
+  further-out wrap around `hitCone()`, melee guests untouched, still relayed at press via `swing()` as before) —
+  the only point a held shot's final aim and charge are actually known, and where the real local fire already
+  happens too. The guest computes every derived number itself (damage, speed, lifespan, splash/pierce, visual
+  size) using 82-staff.js's/83-bow.js's own `hitCone()` formulas at that exact moment, same "guest computes the
+  real number, host just uses it" pattern phase 8 established for damage. One real limitation carried over
+  honestly: `window.__aim.pick()` (the reticle's lock-on) always returns `null` for a guest, since it scans the
+  *local* `enemies` array (`game.js`) a guest never has real enemies in — every guest shot is free-aim
+  (`window.__aim.dir3()`), never a homing lock, even standing right next to a mob; not a bug this phase introduced,
+  just not something it fixed either. Also true, and also pre-existing: nobody but the host ever *sees* a guest's
+  bolt/arrow fly — bolts/arrows were never synced to other screens at all, even for the host's own shots.
+  `coop-projectile-test.mjs` (11/11) tests exactly the properties that distinguish a real projectile from the old
+  cone rather than re-proving damage math coop-herostats-test.mjs already covers: a tap shot hits the nearer of two
+  enemies in its path and stops there, damage doesn't land until the shot has had time to travel, and a real
+  full-charge draw (driven through `window.__aim.press()`/`release()`, the only place in either suite that
+  actually exercises the hold-and-charge state — calling `swing()` directly, as every other test in both suites
+  does, never engages it at all) pierces through to a second enemy that a tap shot couldn't reach. Updating
+  `coop-herostats-test.mjs` for the new mechanic also caught two real test bugs of its own, not production code:
+  its old 30-tick wait was long enough for the instant cone but too short for a real bolt to fire and travel,
+  intermittently letting one section's still-in-flight shot land during a *later* section's assertions instead;
+  and its expected damage for a tap shot needed multiplying by `window.__aim.shot().mul` (`TAP_MUL`, ~0.6) since
+  the old cone never applied a charge multiplier at all and the real fire path always does, tap included.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

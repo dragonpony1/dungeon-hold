@@ -98,13 +98,22 @@ check("guest's own heroDmg() reflects the +50 dmg weapon (sanity: not the flat 8
 const posBeforeD=await hostPage.evaluate(id=>window.__combat.guestHero(id),guestId);
 await guestPage.evaluate(()=>window.__dd.setCam(0,.42,8));   // cam.yaw=0 -> the swing message's yaw points straight down +Z from the guest's own tracked position
 await hostPage.evaluate(pos=>{ const e=window.__dd.spawn('goblin','N'); e.x=pos.x; e.z=pos.z+10; e.y=0; e.hp=9999; e.max=9999; e.dmg=0; e.atk=999; e.__coopId='farTarget'; },posBeforeD);   // this is a target for the guest's OUTGOING damage only -- e.atk=999 keeps its own attack cooldown from ever reaching 0, so it can't land so much as the guaranteed Math.max(1,...) minimum hit on the guest (same floor hurtHero() itself has) once repositioned into melee range below; dmg:0 is redundant belt-and-braces
+// phase 9: this is now a REAL bolt, not an instant hit -- it has to actually fly the 10 units (spd~26 tap-speed,
+// so ~0.4s) plus the fire-delay before hitCone()'s release fires it at all (~0.1-0.2s), so the wait below is much
+// longer than the old instant-cone version needed. Also, calling swing() directly (not through a real mouse/touch
+// press) never engages 84-aim.js's hold-and-charge state at all (HOLD.on stays false the whole time -- src is ''
+// with nothing held), so this always fires as an immediate TAP shot: window.__aim.shot().mul is TAP_MUL (a real,
+// live-read multiplier, not a hardcoded guess), and expectedDmg has to include it -- the old (pre-phase-9) cone
+// path never multiplied by charge at all, so the un-multiplied heroDmg() used to be the right expectation.
+const shotMul=await guestPage.evaluate(()=>window.__aim.shot().mul);
+const expectedWitchDmg=Math.round(expectedDmg*shotMul*10)/10;
 const farHpBefore=await hostPage.evaluate(()=>window.__dd.enemies.find(e=>e.__coopId==='farTarget').hp);
 await guestPage.evaluate(()=>window.__dd.swing());   // default hero is the witch (ranged, reach 18) -- 70-hero2.js's own default pick
-await tickBoth(6,5);
+await tickBoth(20,5);   // 100 ticks (~1.7s): comfortably covers fire-delay + travel time, and safely exceeds the bolt's own ~0.7s max lifespan either way (hit or expire), so nothing is left in flight to contaminate the knight section below
 const farHpAfterWitch=await hostPage.evaluate(()=>{ const e=window.__dd.enemies.find(e=>e.__coopId==='farTarget'); return e?e.hp:null; });
-check("a ranged hero (witch, reach 18) hits a target 10 units away, for their own real gear-scaled damage",
-  farHpAfterWitch!==null&&near(farHpBefore-farHpAfterWitch,expectedDmg,.15),
-  JSON.stringify({farHpBefore,farHpAfterWitch,expectedDmg,delta:farHpAfterWitch!==null?farHpBefore-farHpAfterWitch:null}));
+check("a ranged hero (witch, reach 18) hits a target 10 units away, for their own real gear-scaled damage (a real travelling bolt, not an instant cone)",
+  farHpAfterWitch!==null&&near(farHpBefore-farHpAfterWitch,expectedWitchDmg,.15),
+  JSON.stringify({farHpBefore,farHpAfterWitch,expectedWitchDmg,shotMul,delta:farHpAfterWitch!==null?farHpBefore-farHpAfterWitch:null}));
 
 await guestPage.evaluate(()=>window.__heroes.select('knight'));   // installHero() sets hero.reach synchronously (game.js GLB load is async, reach isn't)
 const knightReach=await guestPage.evaluate(()=>window.__dd.hero.reach);

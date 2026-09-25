@@ -37,11 +37,19 @@
 // one-shot relay, not just 'swing' -- was handled twice (a guest's swing landing for double damage was how this
 // phase's own exact-value tests caught it, intermittently, maybe one run in three). Fixed with a one-line
 // re-entrancy guard; unrelated to everything else in this phase but real enough to fix immediately rather than
-// note and defer. Still open: nothing carries a guest's gear/skills across sessions
-// (their own browser forgets it the moment they leave — task for a later phase), mini-boss roar/aggro shouting
-// still only ever plays for whichever hero it's aimed at, a guest gets no local range-ring/cost-prompt affordance
-// standing near a real defense (toast feedback only), and a ranged guest's attack is the generalised cone above,
-// not the real bolt/arrow flight — deliberately deferred, matching this effort's usual "first cut" scope discipline.
+// note and defer. (Persistent per-player loadouts, flagged as still-needed after phase 7, turned out to already be
+// solved -- ddMeta/ddGear, parts/modules/10-meta.js and game.js, save to localStorage on every change already,
+// independent of this whole module; loadout-persist-test.mjs proves it.) Phase 9 replaces phase 8's generalised
+// ranged cone with a REAL bolt/arrow: a witch/fighter/troll archer guest's shot now travels, stops at the first
+// wall or mob it meets, and pierces on a full draw, by spawning it into the host's own BOLTS/ARROWS (82-staff.js's
+// fireBolt/83-bow.js's fireArrow, now exported raw) so the update loops already wired into Meta.update carry it
+// forward unchanged. Relayed at hitCone()'s own release moment (a new, further-out hitCone wrap below), not
+// swing()'s press moment -- the only point a held shot's final aim/charge is known. Still open: mini-boss
+// roar/aggro shouting still only ever plays for whichever hero it's aimed at, a guest gets no local
+// range-ring/cost-prompt affordance standing near a real defense (toast feedback only), the reticle never locks
+// for a guest (window.__aim.pick() scans the local, always-empty `enemies`, so every guest shot is free-aim), and
+// nobody but the host ever SEES a guest's bolt/arrow fly (bolts/arrows were never synced to other screens, even
+// the host's own -- a pre-existing gap this phase didn't create or close).
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -172,26 +180,69 @@ onMessage('hp',data=>{
 // would use them, and heroDmg() folds in a swingBase()/.38 ratio tied to which hero GLB and its attack-clip length
 // is actually loaded on THIS client -- something the host has no equivalent of for a guest's puppet, so having the
 // guest compute the final number itself (same idea as the periodic stat/mult below, just per-swing instead of 15Hz)
-// is simpler and more accurate than trying to reconstruct the formula host-side.
+// is simpler and more accurate than trying to reconstruct the formula host-side. Ranged (bow/staff) guests are
+// carved out of this path entirely below (phase 9) -- swing() fires at PRESS time, before any charge/aim-adjustment
+// has happened, which is right for melee (swing lands almost immediately) but wrong for a held shot.
 { const origSwing=swing;
-  swing=function(){ const before=hero.swingT; origSwing(); if(role==='guest'&&before<0&&hero.swingT===0) send('swing',{yaw:+cam.yaw.toFixed(3),dmg:Math.round(heroDmg()*10)/10,reach:+(hero.reach||GUEST_REACH).toFixed(2)}); }; }
-// a generalised melee/ranged cone, not a faithful port of the real projectile paths (82-staff.js/83-bow.js): a
-// witch or fighter's actual bolt is a single travelling shot that stops at the first wall or mob it meets, and a
-// troll archer's arrow can pierce on a full draw -- replicating flight time, single-target resolution and the
-// aim-charge multiplier here would mean relaying press/hold/release instead of one swing message, a materially
-// bigger protocol change than "make the guest's own stats matter". What a ranged guest gets instead: the same real,
-// gear-scaled damage and their hero's real (much longer) reach, checked as a wider instant cone -- reach>6 is never
-// true for the melee knight (2.4) and always true for the three ranged picks (18/18/24), so it's a clean split on
-// hero type without a second table to keep in sync with 70-hero2.js's own. A "first cut", same as the rest of this
-// effort's -- honestly noted, not silently passed off as the real thing.
+  swing=function(){ const before=hero.swingT; origSwing(); if(role==='guest'&&before<0&&hero.swingT===0&&!(window.__aim&&window.__aim.kind())) send('swing',{yaw:+cam.yaw.toFixed(3),dmg:Math.round(heroDmg()*10)/10,reach:+(hero.reach||GUEST_REACH).toFixed(2)}); }; }
+// the melee cone: still not a faithful port of anything, just a straightforward "who's in front of me" check, same
+// as the real local hitCone() (game.js) a melee hero uses -- ranged guests no longer come through here (phase 9,
+// below, gives them a real bolt/arrow instead), so GUEST_REACH/GUEST_DMG's own fallbacks now only ever matter for
+// a 'swing' that somehow arrives with no dmg/reach at all.
 function guestHitCone(id,yaw,dmg,reach){
   const g=guestHero.get(id); if(!g||g.dead>0) return;
-  const r=reach||GUEST_REACH, d=dmg||GUEST_DMG, cone=r>6?.75:.4;   // .75/.4: the same cone widths 83-bow.js/game.js's own hitCone() use for a ranged pick vs a melee one
+  const r=reach||GUEST_REACH, d=dmg||GUEST_DMG;
   const fx=Math.sin(yaw), fz=Math.cos(yaw); let n=0;
   for(const e of enemies){ if(e.dead) continue; const dx=e.x-g.x, dz=e.z-g.z, dd=Math.hypot(dx,dz);
-    if(dd<r+e.r&&(dx*fx+dz*fz)/Math.max(dd,.01)>cone){ hurt(e,d,fx*1.4,fz*1.4); n++; } }
+    if(dd<r+e.r&&(dx*fx+dz*fz)/Math.max(dd,.01)>.4){ hurt(e,d,fx*1.4,fz*1.4); n++; } }
   if(n) SFX.hit();
 }
+// phase 9: a ranged guest's shot is now a REAL bolt/arrow, not an instant cone -- it travels, stops at the first
+// wall or mob it meets, and a full-draw arrow pierces, exactly like the host's own local shots (82-staff.js's
+// fireBolt/83-bow.js's fireArrow, now exported raw for this reason). The trick: boltsUpdate/arrowsUpdate are
+// ALREADY wired into Meta.update unconditionally (both files), on every page regardless of role -- so once the
+// host spawns one of the guest's shots into its own BOLTS/ARROWS via the same fireBolt/fireArrow the host's own
+// hitCone() calls, the existing per-tick collision/wall-block/pierce loop just carries it, hurting the host's REAL
+// enemies exactly as it would for the host's own shot. Nothing about boltsUpdate/arrowsUpdate needed to change.
+// The guest computes every derived number itself (dmg, speed, lifespan, splash/pierce, visual size) using the
+// exact same formulas 82-staff.js/83-bow.js's own hitCone() overrides use, at the exact moment their OWN shot
+// fires -- not swing()'s press-time, but hitCone() itself, hooked one layer further out below, which is where the
+// real local fire happens too (after any charge/hold completes). This is also the earliest point aim-adjustment
+// during a held shot is reflected, and the only point a full-draw arrow's pierce/a full-charge bolt's splash are
+// known. window.__aim.pick() (the reticle's locked target) always returns null for a guest, since it scans the
+// LOCAL `enemies` array (game.js) a guest never has real enemies in -- not a bug introduced here, just why every
+// guest shot below is a free-aim ray (window.__aim.dir3()), never a homing lock, even standing right next to a mob.
+{ const prevHitCone=hitCone;
+  hitCone=function(){
+    if(role==='guest'){
+      const A=window.__aim, rk=A&&A.kind();
+      if(rk&&!A.holding()){   // the real release moment: HOLD.on is already false by the time hitCone() reaches the actual fire (84-aim.js's own hitCone wrapper only lets this through once a held shot's release() has run)
+        const wo=window.__weapons.mounted();
+        if(wo){
+          const isStaff=/^staff-/.test(wo.name);
+          const d3=A.dir3(), sh=A.shot(), range=hero.reach||(isStaff?9:12);
+          const spd=isStaff?26*(1+.35*sh.c):window.__bow.ARROW_V*(1+.45*sh.c);   // same speed formulas 82-staff.js/83-bow.js's own hitCone() overrides use
+          send('shot',{wtype:isStaff?'bolt':'arrow',kind:wo.userData.kind,
+            dmg:Math.round(heroDmg()*sh.mul*10)/10,
+            dir:{x:+d3.fx.toFixed(3),y:+d3.fy.toFixed(3),z:+d3.fz.toFixed(3)},
+            spd:+spd.toFixed(2), life:+((range+1)/spd).toFixed(3),
+            size:+(isStaff?1+.7*sh.c:1+.4*sh.c).toFixed(2),
+            splash:isStaff&&sh.full?1.9:0, pierce:!isStaff&&sh.full?2:0});
+        }
+      }
+    }
+    return prevHitCone();   // the guest's own local shot still fires too (their own screen's real visual/audio), against their own empty local `enemies` -- cosmetic only, the message above is what actually hurts anything
+  };
+}
+function hostGuestShot(data,fromId){
+  const g=guestHero.get(fromId); if(!g||g.dead>0) return;
+  const from=new THREE.Vector3(g.x,g.y+(data.wtype==='bolt'?1.3:1.1),g.z);   // an approximate hand/head height -- the host has no bone-accurate rig for a guest's puppet to read the real one from, same "good enough to read as real" tradeoff the mob/def puppets already make
+  const dir=new THREE.Vector3(data.dir.x,data.dir.y,data.dir.z);
+  const opts={dmg:data.dmg,life:data.life,size:data.size,splash:data.splash,pierce:data.pierce};
+  if(data.wtype==='bolt') window.__staff.fireBolt(data.kind,from,dir,data.spd,opts);
+  else window.__bow.fireArrow(data.kind,from,dir,data.spd,opts);
+}
+onMessage('shot',(data,fromId)=>hostGuestShot(data,fromId));
 onMessage('swing',(data,fromId)=>{ guestHitCone(fromId,data.yaw,data.dmg,data.reach); });
 const guestStats=new Map();   // id -> {stat:{tow,trate,tarea,move,def,hp,regen},mult:{tow,tcd,aoe,move,hp}} -- this guest's OWN gear/skill numbers, last reported
 onMessage('input',(data,fromId)=>{ guestIn.set(fromId,data); if(data.stat&&data.mult) guestStats.set(fromId,{stat:data.stat,mult:data.mult}); });
