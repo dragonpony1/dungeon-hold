@@ -265,18 +265,23 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 
 - Void set models: the concept art (runed blade, shard charm, galaxy amulet, starless robe) is waiting on Meshy exports;
   until then the Void sword is the holy sword darkened and burning violet. The Void staff is done (`staff-void`, built in code).
-- Co-op, phases 1-2 done, 3+ open. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
+- Co-op, phases 1-3 done, 4+ open. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
   each loads its own hero GLB through the same fit/toonify/clip-map pipeline the local hero uses, keeps its own
   wrap/mixer/actions, and eases toward whatever position/yaw it's last told (`window.__party.add/remove/setTarget`),
   switching idle/walk/run itself; the local hero has no idea puppets exist. Phase 2 (`99-network.js`): the actual
   transport — PeerJS (vendored in `head.html`, MIT, sets `window.Peer`) opens a real WebRTC data channel between two
   browsers via its free public signaling broker (`0.peerjs.com`), no server of our own to run. One player hosts —
   their peer id is the room code — up to three more join by connecting to it; `window.__net.host/join/send/
-  onMessage/leave` is the whole surface, and nothing here is wired to the sim yet. `network-test.mjs` proves a real
-  handshake and message round-trip end to end, against a throwaway local signaling server (`npm i peer`, the
-  official PeerJS server package — same client code path and protocol as the public broker, just no public network
-  needed to test it; skips cleanly if that dev-only package isn't installed). Phase 3+: the host broadcasts sim
-  state, guests render it and send their own input back, a shared crystal/waves/defenses run.
+  onMessage/leave` is the whole surface. `network-test.mjs` proves a real handshake and message round-trip end to
+  end, against a throwaway local signaling server (`npm i peer`, the official PeerJS server package — same client
+  code path and protocol as the public broker, just no public network needed to test it; skips cleanly if that
+  dev-only package isn't installed). Phase 3 (`99-network.js`'s `hostBroadcastHero`): the first real payload over
+  that pipe — the host sends its own hero's x/z/yaw and hero pick 15 times a second, and every guest renders it as
+  a phase-1 party puppet (`onMessage('hero',...)` calls the same `setTarget` a test script used to drive one).
+  `coop-test.mjs` proves it end to end: a puppet grows at the host's position, keeps live-updating to a second
+  position rather than sticking at the first, and disappears cleanly when the host leaves — all against the same
+  local signaling server as phase 2's suite. Phase 4+: guests send their own input back to the host, so a shared
+  crystal/waves/defenses can actually run.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

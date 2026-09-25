@@ -57,3 +57,4 @@ check("no page errors",realErrors.length===0,realErrors.slice(0,5).join(" | "));
 
 await browser.close(); server.close(); sig.close?.();
 console.log(results.filter(Boolean).length+"/"+results.length+" passed");
+process.exit(results.some(r=>!r)?1:0);   // a lingering WebRTC/signaling socket can otherwise keep the event loop alive well past the real result
