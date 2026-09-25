@@ -294,7 +294,8 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   crystal/waves/defenses actually shared needs those core single-player combat/targeting functions to learn there's
   more than one hero, which is a bigger, riskier change than any of phases 1-4 (all four were bolt-on modules that
   never touched game.js's own combat code) — split into phase 5 (sync the host's real world to a guest's screen,
-  read-only) and phase 6 (let a guest actually fight in it), so each ships and tests on its own.
+  read-only, now COMPLETE) and phase 6 (let a guest actually fight in it, still fully open), so each ships and
+  tests on its own.
   Phase 5, crystal/wave slice (`99-network.js`'s `hostBroadcastWorld`): a guest is helping the host defend ONE
   hall, not tracking a private one of their own — the host's real crystal HP and wave/phase reach the guest's HUD
   (`window.__world.host()`), drawn by a `Meta.hud` override laid down *after* `updateHUD`'s own now-irrelevant
@@ -313,9 +314,24 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   so a flying enemy (the drake, spawned at `e.fly`'s altitude) would have rendered as if walking on the ground —
   fixed by syncing `y` like everything else; and `coop-mobsync-test.mjs`'s first draft compared a puppet's tracked
   position against the real enemy's position *at spawn time*, which fails as soon as the enemy starts walking its
-  flow-field path — fixed by comparing against the host's current position instead. Defenses are the one piece of
-  world-sync still open (so a guest currently watches enemies path around obstacles they can't see); nobody can
-  fight yet either way — that's phase 6, once world-sync is done.
+  flow-field path — fixed by comparing against the host's current position instead.
+  Phase 5, defenses slice (`99-network.js`'s `hostBroadcastDefs`/`window.__defsync`) — **this completes world-sync**:
+  the host's real defenses render as read-only puppets too, so enemies visibly path around something instead of
+  invisible obstacles. `makeDef(kind,ghost,lvl)` is fully monkey-patched by `50-defmodels.js` into the same kind of
+  synchronous, GLB-aware builder `makeMob` is (`defTemplate(kind,lvl)` picks whatever's loaded), a drop-in parallel.
+  A defense never moves once placed, so a puppet snaps straight to its spot with no easing, and only ever rebuilds
+  if its level changes — the same thing `reskinDefs` does to the real one on an upgrade. `y` (elevation, not just
+  x/z) mattered again here, the same lesson as flying enemies: a defense on the throne room's dais or stairs needs
+  its real height. Deliberately skipped for this first cut: aiming (the yoke turning to track a target), recoil,
+  and the aura defenses' glow ring (`defRingUpdate`, `93-gearsets.js`) — a puppet just sits at its placed position
+  and rotation. Two test-harness bugs turned up writing `coop-defsync-test.mjs`: `window.removeDef` turned out not
+  to be globally reachable the way an earlier test assumed (game.js's own functions don't leak onto `window`
+  despite being a classic script) — fixed by splicing `window.__dd.defs` directly, which exercises the same
+  broadcast path without needing that access; and the test's own tick budget (copied from the faster hero/enemy
+  suites) wasn't enough simulated time to reach the defense broadcast's slower 2Hz threshold — fixed by giving it
+  more ticks. **World-sync (phase 5) is done**: a guest now sees everything happening in the host's hall. Nobody
+  can fight yet either way — that's phase 6, the one remaining piece, and the biggest architectural step so far
+  since it means touching `updateEnemies`/`hurtHero`/`landHit` directly rather than staying a bolt-on module.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

@@ -5,13 +5,14 @@
 // that pipe, rendered by a guest as a party puppet (98-party.js) — the same setTarget(id,x,z,yaw) call a test
 // script used to drive in phase 1. Phase 4 closes the loop: a guest's own keys and look are relayed to the host,
 // which simulates a real, collision-respecting hero for them and folds it into the same broadcast, so every screen
-// renders every OTHER player. Phase 5 starts making it ONE hall rather than several private ones playing side by
-// side: a guest's HUD shows the host's real crystal HP and wave/phase, only the host can start a wave, and now the
-// host's real enemies render as read-only puppets on a guest's screen too (the guest's OWN local `enemies` are
-// still fully real and simulated underneath — nothing spawns into them unless the guest starts their own wave,
-// which is disabled — they're just not what's drawn). Defenses aren't synced yet, and nobody can fight: enemies
-// don't notice a guest and a guest can't swing, place a defense, take damage or be healed (updateEnemies and
-// hurtHero still only know the host's own `hero`) — that's combat, the next phase, once world-sync is done.
+// renders every OTHER player. Phase 5 makes it ONE hall rather than several private ones playing side by side: a
+// guest's HUD shows the host's real crystal HP and wave/phase, only the host can start a wave, and the host's real
+// enemies AND defenses now render as read-only puppets on a guest's screen (the guest's OWN local `enemies`/`defs`
+// are still fully real and simulated underneath — nothing spawns or gets placed into them unless the guest starts
+// their own wave or builds their own defense, both still possible locally but pointless since they're not what's
+// drawn or shared). World-sync is done; nobody can fight yet: enemies don't notice a guest and a guest can't swing,
+// place a defense, take damage or be healed (updateEnemies and hurtHero still only know the host's own `hero`) —
+// that's combat, phase 6, still fully open.
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -183,6 +184,41 @@ onMessage('enemies',data=>{
   [...MOBPUP.keys()].forEach(id=>{ if(!ids.has(id)) mobPuppetRemove(id); });   // a dead or despawned enemy just stops being in the list -- same roster-diff removal 99-network.js already uses for heroes
 });
 
-onMessage('__leave',fromId=>{ window.__party.remove(fromId); guestIn.delete(fromId); guestHero.delete(fromId); [...MOBPUP.keys()].forEach(mobPuppetRemove); });
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); guestInputTick(dt); hostBroadcastHeroes(dt); hostBroadcastWorld(dt); hostBroadcastEnemies(dt); mobPuppetsTick(dt); guestSendInput(dt); }; }
+// ---- phase 5, defenses slice: the host's real defenses, read-only on every guest's screen — the last piece of
+// world-sync. makeDef(kind,ghost,lvl) is fully monkey-patched by 50-defmodels.js into the same kind of synchronous,
+// GLB-aware builder makeMob is (defTemplate(kind,lvl) picks whatever's loaded, falling back to the procedural
+// shape) — a drop-in parallel. Unlike heroes or enemies, a defense never moves once placed, so there's no easing:
+// a puppet snaps straight to its spot and only ever rebuilds if its level changes (mirroring how reskinDefs
+// rebuilds the real thing on an upgrade or a late-loading model). y matters here too, the same lesson as flying
+// enemies — a defense standing on the throne room's dais or stairs (base, not just x/z) needs its real elevation,
+// or it would render as if planted in the floor below it. Deliberately skipped for this first cut: aiming (the
+// yoke turning toward a target), recoil, and the aura defenses' glow ring (defRingUpdate, 93-gearsets.js) — a
+// puppet just sits at its placed position and rotation, which is enough for enemies to visibly path around it.
+const DEFPUP=new Map();   // id -> {kind,lvl,mdl}
+function defPuppetAdd(id,kind,lvl,x,y,z,rot){
+  const m=makeDef(kind,false,lvl); m.position.set(x,y,z); m.rotation.y=rot; scene.add(m);
+  DEFPUP.set(id,{kind,lvl,mdl:m});
+}
+function defPuppetRemove(id){ const p=DEFPUP.get(id); if(!p) return; scene.remove(p.mdl); DEFPUP.delete(id); }   // no manual dispose, same reasoning as mob puppets: the real defs array's own removeDef never disposes either
+window.__defsync={ list:()=>[...DEFPUP.keys()], get:id=>{ const p=DEFPUP.get(id); if(!p) return null; return {id,kind:p.kind,lvl:p.lvl,x:+p.mdl.position.x.toFixed(2),y:+p.mdl.position.y.toFixed(2),z:+p.mdl.position.z.toFixed(2)}; } };
+let nextDefId=1, syncTD=0;
+function hostBroadcastDefs(dt){
+  if(role!=='host'||!conns.size) return;
+  syncTD+=dt; if(syncTD<.5) return; syncTD=0;   // static once placed -- 2Hz is plenty to catch a new one, an upgrade, or one destroyed
+  const list=defs.map(d=>{ if(!d.__coopId) d.__coopId='d'+(nextDefId++);
+    return {id:d.__coopId,kind:d.kind,lvl:d.lvl||1,x:+d.x.toFixed(2),y:+d.base.toFixed(2),z:+d.z.toFixed(2),rot:+d.rot.toFixed(2)}; });
+  send('defs',{list});
+}
+onMessage('defs',data=>{
+  const ids=new Set();
+  data.list.forEach(d=>{ ids.add(d.id);
+    let p=DEFPUP.get(d.id);
+    if(!p){ defPuppetAdd(d.id,d.kind,d.lvl,d.x,d.y,d.z,d.rot); return; }
+    if(p.lvl!==d.lvl){ scene.remove(p.mdl); p.mdl=makeDef(d.kind,false,d.lvl); p.mdl.position.set(d.x,d.y,d.z); p.mdl.rotation.y=d.rot; scene.add(p.mdl); p.lvl=d.lvl; }
+  });
+  [...DEFPUP.keys()].forEach(id=>{ if(!ids.has(id)) defPuppetRemove(id); });   // sold or destroyed on the host -- same roster-diff removal as heroes and enemies
+});
+
+onMessage('__leave',fromId=>{ window.__party.remove(fromId); guestIn.delete(fromId); guestHero.delete(fromId); [...MOBPUP.keys()].forEach(mobPuppetRemove); [...DEFPUP.keys()].forEach(defPuppetRemove); });
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); guestInputTick(dt); hostBroadcastHeroes(dt); hostBroadcastWorld(dt); hostBroadcastEnemies(dt); hostBroadcastDefs(dt); mobPuppetsTick(dt); guestSendInput(dt); }; }
 })();
