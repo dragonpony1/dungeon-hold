@@ -60,7 +60,21 @@
 // 65-tavernroom.js already use for their own inputs/overlays. peerOpts above already took a {host,port,path}
 // override for tests; TEST_PEER_OPTS below reads it from the page's own query string (?peerhost=&peerport=&
 // peerpath=) so coop-titleui-test.mjs can point the REAL buttons at a local signaling server instead of the public
-// broker, without this module needing a second code path for tests vs. real play.
+// broker, without this module needing a second code path for tests vs. real play. Phase 11 fixes two real bugs a
+// real two-player test (title-screen UI, phase 10, a real host + a real guest on separate devices) turned up that
+// nothing scripted so far had caught: a guest's own hits were real -- landing on the host's actual enemies, for
+// real damage -- but their screen never showed it, since hurt()'s floatText/SFX.hit are purely local to whoever's
+// simulating the hit (the host); a guest's puppet enemy just silently lost hp with zero feedback until it eventually
+// vanished, dead. Read by an actual player as "it's all basically cosmetic." Fixed by adding hp to
+// hostBroadcastEnemies's payload and diffing it puppet-side, in onMessage('enemies',...): the SAME floatText/
+// SFX.hit every local hit already uses, now guest-side too, no new message type or per-swing attribution needed.
+// Second: when the host's real crystal fell (or their last wave broke), the HOST got dropped to the SHATTERED/HALL
+// HELD screen alone -- a guest's own local S.phase never moves through 'deathcut'/'dead'/'won' at all (only the
+// host's real hurtCrystal/winMap do that), so a guest just kept standing in a now-frozen, empty hall with no idea
+// the run was over. onMessage('world',...) already told a guest's HUD the hall fell (the wavet/phaset text); it
+// just never told a guest's own GAME. guestShowRunEnd reuses the same #dead overlay finishDeath()/winMap() already
+// show solo, retitled for a guest (never Meta.onRunEnd -- that's the single-player reward/campaign-progress hook,
+// scored off THIS client's own wave/gear, not something the host's outcome should trigger for a guest at all).
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -349,7 +363,36 @@ function hostBroadcastWorld(dt){
   syncTW+=dt; if(syncTW<1/10) return; syncTW=0;   // crystal/wave state changes slowly; 10Hz is plenty
   send('world',{crystal:S.crystal,crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,waveTotal:MAP.waves,mapName:MAP.name,mana:S.mana,du:S.du,duCap:DU_CAP});
 }
+// a guest's own local S.phase never actually moves through 'deathcut'/'dead'/'won' -- only the HOST's real crystal
+// hitting 0, or its real last wave breaking, does that (hurtCrystal/winMap, game.js), and neither one so much as
+// knows a guest exists. The HUD override above already told a guest's SCREEN the hall fell or held (the wavet/
+// phaset text), but nothing ever told a guest's own GAME that the run was over -- so they just kept standing in an
+// empty, frozen hall while the host got dropped straight to the SHATTERED/HALL HELD screen alone. This can't just
+// piggyback on hostBroadcastWorld above, tempting as that looked: update() (game.js) stops calling Meta.update() --
+// and everything inside it, hostBroadcastWorld included -- the INSTANT S.phase becomes 'deathcut', and never
+// resumes once it's 'dead' either (the whole hall, guest puppets included, correctly freezes for the host's own
+// death cutscene, then just... stays frozen, forever, for everyone, since nothing ever broadcasts again). A real
+// two-player test written against that assumption caught it immediately: the guest's own phase never moved. Fixed
+// with an explicit one-shot message sent directly from finishDeath()/winMap() themselves (monkey-patched below,
+// same trick as startWave/swing/hitCone elsewhere in this file) rather than waiting for a periodic broadcast that
+// silently stops firing at the exact moment it matters most. Reusing the same #dead overlay finishDeath()/winMap()
+// already show solo, retitled for a guest (never Meta.onRunEnd -- that's the single-player reward/campaign-progress
+// hook, scored off THIS client's own wave/gear, not something the host's outcome should trigger for a guest at all).
+let guestRunEnded=false;
+function guestShowRunEnd(w){
+  guestRunEnded=true; S.phase=w.phase; cancelPlace(); droneOff(); setMusic('none');
+  if(document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play');
+  if(w.phase==='won'){ SFX.held(); $('deadh1').textContent='HALL HELD'; $('deadh2').textContent=w.mapName+' is cleared'; }
+  else { sting(); $('deadh1').textContent='SHATTERED'; $('deadh2').textContent='THE HALL FELL ON WAVE '+w.wave; }
+  $('deadp').textContent='Your own gear, gold and skills stay with you. Go again.';
+  $('nextmapbtn').style.display='none'; $('dead').classList.remove('hide');
+}
 onMessage('world',data=>{ hostWorld=data; });
+onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded) guestShowRunEnd(data); });
+{ const origFinishDeath=finishDeath;
+  finishDeath=function(){ origFinishDeath(); if(role==='host') send('runEnd',{phase:'dead',wave:S.wave}); }; }
+{ const origWinMap=winMap;
+  winMap=function(){ origWinMap(); if(role==='host') send('runEnd',{phase:'won',wave:S.wave,mapName:MAP.name}); }; }
 
 // starting a wave is the host's call alone -- a guest is visiting the host's hall, not running a second one next to
 // it. startWave is a plain top-level function (game.js), so this reassigns the same binding every call site already
@@ -384,7 +427,8 @@ function mobPuppetAdd(id,kind){
   MOBPUP.set(id,p); return p;
 }
 function mobPuppetRemove(id){ const p=MOBPUP.get(id); if(!p) return; scene.remove(p.mdl.g); MOBPUP.delete(id); }   // no manual geometry/material dispose: makeMob's rigs are built the same way spawnEnemy's are, and the game's own enemy despawn (updateEnemies) never disposes them either -- they're shared/cached per kind, not per-instance
-window.__mobsync={ list:()=>[...MOBPUP.keys()], get:id=>{ const p=MOBPUP.get(id); if(!p) return null; return {id,kind:p.kind,x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2),yaw:+p.yaw.toFixed(2),walking:p.walking}; } };
+let mobHitFeedback=0;   // how many times a guest's own screen has shown "something just hit this" -- a test hook, not gameplay state
+window.__mobsync={ list:()=>[...MOBPUP.keys()], get:id=>{ const p=MOBPUP.get(id); if(!p) return null; return {id,kind:p.kind,x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2),yaw:+p.yaw.toFixed(2),walking:p.walking,hp:p.hp}; }, hitFeedback:()=>mobHitFeedback };
 function mobPuppetsTick(dt){
   MOBPUP.forEach(p=>{ const k=1-Math.exp(-10*dt); const m=p.mdl;
     p.x=lerp(p.x,p.tx,k); p.y=lerp(p.y,p.ty,k); p.z=lerp(p.z,p.tz,k); p.yaw=angLerp(p.yaw,p.tyaw,k);
@@ -399,14 +443,23 @@ function hostBroadcastEnemies(dt){
   if(role!=='host'||!conns.size) return;
   syncTE+=dt; if(syncTE<1/12) return; syncTE=0;
   const list=enemies.filter(e=>!e.dead).map(e=>{ if(!e.__coopId) e.__coopId='e'+(nextEnemyId++);
-    return {id:e.__coopId,kind:e.kind,x:+e.x.toFixed(2),y:+e.y.toFixed(2),z:+e.z.toFixed(2),yaw:+e.yaw.toFixed(2),walking:!!e.walking}; });   // y matters for flyers (drake etc, spawned at e.fly's altitude) -- without it they'd render as if grounded
+    return {id:e.__coopId,kind:e.kind,x:+e.x.toFixed(2),y:+e.y.toFixed(2),z:+e.z.toFixed(2),yaw:+e.yaw.toFixed(2),walking:!!e.walking,hp:+e.hp.toFixed(1)}; });   // y matters for flyers (drake etc, spawned at e.fly's altitude) -- without it they'd render as if grounded; hp is new (see below)
   send('enemies',{list});
 }
+// hp above is new: real hits (guestHitCone, hostGuestShot's bolts/arrows) already land on the host's REAL enemies --
+// the damage was never fake -- but nothing ever told a GUEST's screen that anything happened. hurt() (game.js)
+// spawns its floatText/SFX.hit purely on the HOST's own local scene; a guest's puppet enemy just sat there
+// unchanged until it eventually vanished from the roster, dead. A real player testing this read it exactly right:
+// "basically cosmetic" -- their swing landed, for real, but they had zero way to see or hear that it did. Comparing
+// each puppet's previously-known hp against what just arrived reconstructs "something hit this" without any new
+// message type or per-swing attribution back to a specific guest -- same floatText/SFX.hit every local hit already uses.
 onMessage('enemies',data=>{
   const ids=new Set();
   data.list.forEach(e=>{ ids.add(e.id);
-    let p=MOBPUP.get(e.id); if(!p){ p=mobPuppetAdd(e.id,e.kind); p.x=p.tx=e.x; p.y=p.ty=e.y; p.z=p.tz=e.z; p.yaw=p.tyaw=e.yaw; }   // snap on first sight, no popping in from the origin
-    p.tx=e.x; p.ty=e.y; p.tz=e.z; p.tyaw=e.yaw; p.walking=e.walking; });
+    let p=MOBPUP.get(e.id);
+    if(!p){ p=mobPuppetAdd(e.id,e.kind); p.x=p.tx=e.x; p.y=p.ty=e.y; p.z=p.tz=e.z; p.yaw=p.tyaw=e.yaw; p.hp=e.hp; }   // snap on first sight, no popping in from the origin, and no false "hit" flash for however damaged it already was
+    else if(e.hp<p.hp-.05){ floatText(p.x,p.y+1.5,p.z,String(Math.round((p.hp-e.hp)*10)/10),'#ffd060'); SFX.hit(); mobHitFeedback++; }
+    p.tx=e.x; p.ty=e.y; p.tz=e.z; p.tyaw=e.yaw; p.walking=e.walking; p.hp=e.hp; });
   [...MOBPUP.keys()].forEach(id=>{ if(!ids.has(id)) mobPuppetRemove(id); });   // a dead or despawned enemy just stops being in the list -- same roster-diff removal 99-network.js already uses for heroes
 });
 

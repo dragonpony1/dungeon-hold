@@ -506,6 +506,31 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   reads a model's base color map, so the original metallicRoughness texture was dead weight from the start, not
   just oversized). `portal-test.mjs` (5/5) proves the pop-in/pop-out lifecycle and that it sits at a distinct spot
   from the raven, not on top of it.
+- Co-op, phase 11: two real bugs a real two-player test (title-screen UI, separate devices, an actual host + an
+  actual guest) turned up that nothing scripted so far had caught, since every earlier co-op suite reads damage/hp
+  through `window.__dd`/`window.__combat` directly rather than checking what a GUEST's own screen actually shows.
+  First: a guest's hits were always real — landing on the host's actual enemies, for real damage — but `hurt()`'s
+  `floatText`/`SFX.hit` are purely local to whoever is simulating the hit (the host); a guest's own puppet enemy
+  just silently lost hp with zero feedback until it eventually vanished, dead. A real player read this exactly
+  right: "it's all basically cosmetic." Fixed by adding `hp` to `hostBroadcastEnemies`'s payload and diffing it
+  puppet-side in `onMessage('enemies',...)` — the same `floatText`/`SFX.hit` every local hit already uses, now
+  guest-side too, no new message type or per-swing attribution needed. Second, and the more interesting bug: when
+  the host's real crystal died (or their last wave held), the HOST alone got dropped to the SHATTERED/HALL HELD
+  screen — a guest just kept standing in a now-frozen, empty hall with no idea the run was over. The first fix
+  attempt (piggyback the phase onto the existing `hostBroadcastWorld` 10Hz broadcast) looked right and *tested*
+  right in isolation, but failed for a specific, structural reason `coop-feedback-test.mjs` caught: `update()`
+  (`game.js`) stops calling `Meta.update()` — and everything inside it, `hostBroadcastWorld` included — the instant
+  `S.phase` becomes `'deathcut'`, and never resumes once it's `'dead'` either. The hall correctly freezes for the
+  host's own death cutscene, then just stays frozen, forever, for everyone, since nothing ever broadcasts again.
+  Fixed with an explicit one-shot `'runEnd'` message sent directly from `finishDeath()`/`winMap()` themselves
+  (monkey-patched, same trick as `startWave`/`swing`/`hitCone` elsewhere in this file), which doesn't depend on
+  `Meta.update` at all — `send()` writes straight to the data channel the moment it's called. `guestShowRunEnd`
+  reuses the same `#dead` overlay `finishDeath()`/`winMap()` already show solo, retitled for a guest (never
+  `Meta.onRunEnd` — that's the single-player reward/campaign-progress hook, scored off THIS client's own wave/gear,
+  not something the host's outcome should trigger for a guest at all). `coop-feedback-test.mjs` (18/18) proves both:
+  a guest's own `hitFeedback()` counter and puppet hp catch up the moment their swing lands; the guest's own
+  `S.phase` moves to `'dead'`/`'won'` and shows the right overlay text the moment the host's real run ends either
+  way, driven through the actual `hurtCrystal()`/last-wave-cleared paths, not a direct phase-assignment shortcut.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
