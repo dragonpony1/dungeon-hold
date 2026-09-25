@@ -496,6 +496,16 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   own input-conflicting hotkeys already use. `coop-titleui-test.mjs` (10/10) drives the real buttons and input
   Playwright's own way (`.click()`/`.fill()`/`.press()`), not `window.__net` directly — including typing a wrong
   code first, to prove both the error path and the Enter-key guard hold.
+- The hideout portal (`58-portal.js`, new): a crystal archway that pops in during the build phase and back out at
+  the horn, mirroring the raven's own lifecycle (`57-raven.js`) exactly — same `easeOutBack` pop, same
+  `MAP.portal||null` per-map placement with a fallback beside the crystal, tucked out of the way the same way the
+  raven is. Visual only, deliberately: no E-prompt, no interaction, no hideout behind it yet — that's its own
+  separate, still-in-progress piece of work; this module only makes the portal itself show up where it'll
+  eventually lead. `parts/assets/hideout-portal.glb` is a Meshy export shrunk from 21MB to 1.2MB the same way
+  `meshy/merge-static.mjs`'s static-prop pipeline would (512px texture, no metal/rough map — `toonify()` only ever
+  reads a model's base color map, so the original metallicRoughness texture was dead weight from the start, not
+  just oversized). `portal-test.mjs` (5/5) proves the pop-in/pop-out lifecycle and that it sits at a distinct spot
+  from the raven, not on top of it.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

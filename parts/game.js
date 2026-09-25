@@ -96,6 +96,7 @@ const MAPS=[
   lanes:{S:{cx:13,cz:47,face:PI,name:'South',from:1}, EA:{cx:25,cz:29,face:-PI/2,name:'East lower landing',from:3}, W:{cx:1,cz:22,face:PI/2,name:'West landing',from:5}, EC:{cx:25,cz:15,face:-PI/2,name:'East upper landing',from:6}},   // from: the map's wave the gate first opens on
   hall:[4,22,3,44],pillars:[[6,4],[20,4],[7,12],[19,12],[6,26],[20,26],[7,38],[19,38],[7,42],[19,42]],barrels:[[4,44],[22,44]],crates:[[4,36],[22,36]],chandeliers:[[0,18],[0,46],[0,68]],beams:{zs:[-2,12,26,38,52,66],w:40},tavern:{dx:4,dz:21},throne:[13,3],noTavern:true,
   raven:{cx:9,cz:3,face:0},   // against the back wall behind the crystal, off to the west of the throne itself and clear of the flanking pillars (at x 6 and 20, z 4) — facing 0 (+z, south) so it looks out into the room
+  portal:{cx:17,cz:3,face:0},   // mirrored to the east of the crystal, same back wall row as the raven and clear of the same flanking pillars — the two sit symmetrically, neither in the other's way
   lights:[{cx:6,cz:4,up:4.2,c:0xff8a2a,i:1.4,d:15},{cx:20,cz:4,up:4.2,c:0xff8a2a,i:1.4,d:15},{cx:6,cz:9,up:4,c:0xff8a2a,i:1.3,d:14},{cx:20,cz:9,up:4,c:0xff8a2a,i:1.3,d:14},[0,11.2,0,0x4ae6ff,1.3,15],
    {cx:6,cz:12,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:12,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:15,up:3.6,c:0xffb05a,i:1.2,d:14},{cx:25,cz:15,up:3.4,c:0xc040ff,i:.9,d:10},
    {cx:6,cz:19,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:19,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:22,up:3.6,c:0xffb05a,i:1.2,d:14},{cx:1,cz:22,up:3.4,c:0xc040ff,i:.9,d:10},
@@ -636,7 +637,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=116;
+const BUILD=117;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
