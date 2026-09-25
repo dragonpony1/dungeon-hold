@@ -5,11 +5,13 @@
 // that pipe, rendered by a guest as a party puppet (98-party.js) — the same setTarget(id,x,z,yaw) call a test
 // script used to drive in phase 1. Phase 4 closes the loop: a guest's own keys and look are relayed to the host,
 // which simulates a real, collision-respecting hero for them and folds it into the same broadcast, so every screen
-// renders every OTHER player. Phase 5 (this slice — crystal/wave state only) starts making it ONE hall rather than
-// several private ones playing side by side: a guest's HUD shows the host's real crystal HP and wave/phase, and
-// only the host can start a wave. A guest's own enemies/crystal are still fully real and locally simulated for
-// now (updateEnemies and hurtHero don't yet know about anyone but the host's own `hero`) — syncing the host's real
-// enemies and defenses to render on a guest's screen, and turning the guest's own local versions off, is next.
+// renders every OTHER player. Phase 5 starts making it ONE hall rather than several private ones playing side by
+// side: a guest's HUD shows the host's real crystal HP and wave/phase, only the host can start a wave, and now the
+// host's real enemies render as read-only puppets on a guest's screen too (the guest's OWN local `enemies` are
+// still fully real and simulated underneath — nothing spawns into them unless the guest starts their own wave,
+// which is disabled — they're just not what's drawn). Defenses aren't synced yet, and nobody can fight: enemies
+// don't notice a guest and a guest can't swing, place a defense, take damage or be healed (updateEnemies and
+// hurtHero still only know the host's own `hero`) — that's combat, the next phase, once world-sync is done.
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -140,6 +142,47 @@ onMessage('world',data=>{ hostWorld=data; });
     else if(w.phase==='won'){ $('wavet').textContent='HALL HELD — '+w.mapName+' CLEARED'; $('phaset').textContent=''; }
     else if(w.phase==='dead'){ $('wavet').textContent='THE CRYSTAL FELL'; $('phaset').textContent=''; } } }; }
 
-onMessage('__leave',fromId=>{ window.__party.remove(fromId); guestIn.delete(fromId); guestHero.delete(fromId); });
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); guestInputTick(dt); hostBroadcastHeroes(dt); hostBroadcastWorld(dt); guestSendInput(dt); }; }
+// ---- phase 5, enemies slice: the host's real enemies, read-only puppets on every guest's screen. makeMob(kind) is
+// synchronous (MOBGLB is pre-fetched at page load, game.js) so a puppet can be built the instant it's first seen,
+// same as 98-party.js does for heroes — but unlike a hero puppet, a mob puppet eases toward its target with a
+// simple exponential lerp rather than a capped linear speed, since mob speeds vary a lot by kind and status
+// effects (slow/chill) that this slice doesn't track; good enough to read as movement, not meant to be exact.
+// Animation is deliberately simpler than mobAnim (game.js): idle vs walking only, no shout/attack/death clips —
+// mobAnim needs a fairly complete fake-enemy shape (e.swing, e.shoutT, mobSpd(e)'s slow/chill state) that isn't
+// worth building yet for a puppet nobody can hurt or be hurt by until combat (the next phase) exists.
+const MOBPUP=new Map();   // id -> {kind,mdl,x,y,z,yaw,tx,ty,tz,tyaw,walking,ph}
+function mobPuppetAdd(id,kind){
+  const m=makeMob(kind); scene.add(m.g);
+  const p={kind,mdl:m,x:0,y:0,z:0,yaw:0,tx:0,ty:0,tz:0,tyaw:0,walking:false,ph:0};
+  MOBPUP.set(id,p); return p;
+}
+function mobPuppetRemove(id){ const p=MOBPUP.get(id); if(!p) return; scene.remove(p.mdl.g); MOBPUP.delete(id); }   // no manual geometry/material dispose: makeMob's rigs are built the same way spawnEnemy's are, and the game's own enemy despawn (updateEnemies) never disposes them either -- they're shared/cached per kind, not per-instance
+window.__mobsync={ list:()=>[...MOBPUP.keys()], get:id=>{ const p=MOBPUP.get(id); if(!p) return null; return {id,kind:p.kind,x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2),yaw:+p.yaw.toFixed(2),walking:p.walking}; } };
+function mobPuppetsTick(dt){
+  MOBPUP.forEach(p=>{ const k=1-Math.exp(-10*dt); const m=p.mdl;
+    p.x=lerp(p.x,p.tx,k); p.y=lerp(p.y,p.ty,k); p.z=lerp(p.z,p.tz,k); p.yaw=angLerp(p.yaw,p.tyaw,k);
+    if(m.glb){ const A=m.actions; const name=p.walking?(A.walk?'walk':(A.run?'run':null)):'idle'; if(name&&A[name]) mobPlay(m,name,{fade:.15}); m.mixer.update(dt); }
+    else { p.ph+=dt*(p.walking?9:0); const w=p.walking?1:0;
+      if(m.legs){ m.legs[0].rotation.x=Math.sin(p.ph)*.8*w; m.legs[1].rotation.x=-Math.sin(p.ph)*.8*w; }
+      if(m.arms){ m.arms[0].rotation.x=-Math.sin(p.ph)*.6*w; m.arms[1].rotation.x=Math.sin(p.ph)*.6*w; } }
+    m.g.position.set(p.x,p.y,p.z); m.g.rotation.y=p.yaw; });
+}
+let nextEnemyId=1, syncTE=0;
+function hostBroadcastEnemies(dt){
+  if(role!=='host'||!conns.size) return;
+  syncTE+=dt; if(syncTE<1/12) return; syncTE=0;
+  const list=enemies.filter(e=>!e.dead).map(e=>{ if(!e.__coopId) e.__coopId='e'+(nextEnemyId++);
+    return {id:e.__coopId,kind:e.kind,x:+e.x.toFixed(2),y:+e.y.toFixed(2),z:+e.z.toFixed(2),yaw:+e.yaw.toFixed(2),walking:!!e.walking}; });   // y matters for flyers (drake etc, spawned at e.fly's altitude) -- without it they'd render as if grounded
+  send('enemies',{list});
+}
+onMessage('enemies',data=>{
+  const ids=new Set();
+  data.list.forEach(e=>{ ids.add(e.id);
+    let p=MOBPUP.get(e.id); if(!p){ p=mobPuppetAdd(e.id,e.kind); p.x=p.tx=e.x; p.y=p.ty=e.y; p.z=p.tz=e.z; p.yaw=p.tyaw=e.yaw; }   // snap on first sight, no popping in from the origin
+    p.tx=e.x; p.ty=e.y; p.tz=e.z; p.tyaw=e.yaw; p.walking=e.walking; });
+  [...MOBPUP.keys()].forEach(id=>{ if(!ids.has(id)) mobPuppetRemove(id); });   // a dead or despawned enemy just stops being in the list -- same roster-diff removal 99-network.js already uses for heroes
+});
+
+onMessage('__leave',fromId=>{ window.__party.remove(fromId); guestIn.delete(fromId); guestHero.delete(fromId); [...MOBPUP.keys()].forEach(mobPuppetRemove); });
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); guestInputTick(dt); hostBroadcastHeroes(dt); hostBroadcastWorld(dt); hostBroadcastEnemies(dt); mobPuppetsTick(dt); guestSendInput(dt); }; }
 })();

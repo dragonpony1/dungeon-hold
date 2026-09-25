@@ -303,9 +303,19 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   site — the G key, the wave button, `window.__dd.startWave` — already looks up by name) rather than editing
   game.js, so a guest's own `startWave()` is a no-op with a toast. `coop-world-test.mjs` proves the guest's actual
   HUD (`#cbar`'s width, `#wavet`/`#phaset` text) matches the host's real numbers, and that the guest's own local
-  `S.crystal`/`S.wave` stay untouched underneath (still running, just no longer what's displayed — the next slice
-  is syncing the host's real enemies and defenses to render there too, and turning the guest's own local ones off
-  for real, not just hiding them from the HUD).
+  `S.crystal`/`S.wave` stay untouched underneath (still running, just no longer what's displayed).
+  Phase 5, enemies slice (`99-network.js`'s `hostBroadcastEnemies`/`window.__mobsync`): the host's real enemies now
+  render as read-only puppets on a guest's screen too, not just an empty hall under a ticking HUD. `makeMob(kind)`
+  is synchronous (`MOBGLB` is pre-fetched at page load) so a puppet builds the instant it's first seen, the same as
+  a hero puppet (`98-party.js`) — but its animation is deliberately simpler (idle vs walking only, no shout/attack/
+  death clips): `mobAnim` needs a fairly complete fake-enemy shape that isn't worth building for a puppet nobody
+  can hurt or be hurt by yet. Two real bugs turned up building this slice: the broadcast originally left out `y`,
+  so a flying enemy (the drake, spawned at `e.fly`'s altitude) would have rendered as if walking on the ground —
+  fixed by syncing `y` like everything else; and `coop-mobsync-test.mjs`'s first draft compared a puppet's tracked
+  position against the real enemy's position *at spawn time*, which fails as soon as the enemy starts walking its
+  flow-field path — fixed by comparing against the host's current position instead. Defenses are the one piece of
+  world-sync still open (so a guest currently watches enemies path around obstacles they can't see); nobody can
+  fight yet either way — that's phase 6, once world-sync is done.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
