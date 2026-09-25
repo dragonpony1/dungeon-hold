@@ -38,6 +38,8 @@ jobs:
         run: touch dist/.nojekyll
       - name: Setup Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true   # this repo has never had Pages turned on before; enablement defaults to false, which fails "Get Pages site" on a first-ever run
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
