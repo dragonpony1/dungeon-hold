@@ -66,7 +66,7 @@ function defCard(){ if(!dcEl){ const anchor=$('herostats')||$('xpline')||$('gear
   const d=(S.phase==='build'||S.phase==='wave')&&!placing?nearestDef(3.4):null; if(!d){ if(dcKey){ dcKey=''; dcEl.classList.remove('show'); } return; }
   const cfg=DEFS[d.kind]; const rows=[]; const R=(l,v)=>rows.push('<div class="dc-r"><i>'+l+'</i><b>'+v+'</b></div>');
   R('❤ Health','<span class="dc-hp">'+Math.ceil(d.hp)+'</span> / '+d.max);
-  if(cfg.dmg!==undefined) R('⚔ Damage',stat(d,'dmg')); if(cfg.cd!==undefined) R('⚡ Rate',(1/stat(d,'cd')).toFixed(2)+'/s'); if(cfg.range) R('📏 Range',Math.round(stat(d,'range')*10)/10); if(cfg.arcs||(cfg.arc&&cfg.arc<360)) R('◔ Cone',arcOf(d)+'°'); if(cfg.thorns) R('🌵 Thorns',Math.round(cfg.thorns*(1+heroStat('tow')/100))); R('🌱 Roots',cfg.du);
+  if(cfg.dmg!==undefined) R('⚔ Damage',stat(d,'dmg')); if(cfg.cd!==undefined) R('⚡ Rate',(1/stat(d,'cd')).toFixed(2)+'/s'); if(cfg.range) R('📏 Range',Math.round(stat(d,'range')*10)/10); if(cfg.arcs||(cfg.arc&&cfg.arc<360)) R('◔ Cone',arcOf(d)+'°'); if(cfg.thorns) R('🌵 Thorns',Math.round(cfg.thorns*(1+oStat(d,'tow')/100))); R('🌱 Roots',cfg.du);
   // what E and X do here, and what they cost — the numbers the player asked for
   if(d.hp<d.max){ R('🔧 Repair · E',Math.ceil((d.max-d.hp)/8)+' ◆ mana'); }
   if(d.lvl<MAXLVL){ const l0=d.lvl; d.lvl=l0+1; const nd=cfg.dmg!==undefined?stat(d,'dmg'):null, nr=cfg.range?Math.round(stat(d,'range')*10)/10:null, na=cfg.arcs?arcOf(d):null; d.lvl=l0;

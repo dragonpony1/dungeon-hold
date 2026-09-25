@@ -265,7 +265,7 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 
 - Void set models: the concept art (runed blade, shard charm, galaxy amulet, starless robe) is waiting on Meshy exports;
   until then the Void sword is the holy sword darkened and burning violet. The Void staff is done (`staff-void`, built in code).
-- Co-op, phases 1-6 done — a guest can now join a host's hall, help defend it, and actually fight in it. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
+- Co-op, phases 1-7 done — a guest can now join a host's hall, help defend it, fight in it, and build in it. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
   each loads its own hero GLB through the same fit/toonify/clip-map pipeline the local hero uses, keeps its own
   wrap/mixer/actions, and eases toward whatever position/yaw it's last told (`window.__party.add/remove/setTarget`),
   switching idle/walk/run itself; the local hero has no idea puppets exist. Phase 2 (`99-network.js`): the actual
@@ -335,9 +335,9 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   same chainable-override pattern every other hook in this codebase uses, just the first phase that needed a new
   one) that `99-network.js` fills with live `{x,y,z,isDead,hurt}` entries per connected guest, and `updateEnemies`'s
   melee-proximity check (`nearestHero`, new) picks whichever hero — the host's own or any guest's — is actually
-  closest, instead of a hardcoded single `hero`. This is the one and only time this whole co-op effort has touched
-  `game.js`'s own combat code directly, rather than staying a bolt-on module — every earlier phase managed without
-  it. A guest can also swing and damage the host's real enemies: `swing()` gets monkey-patched to relay a `'swing'`
+  closest, instead of a hardcoded single `hero`. This was the first time this co-op effort touched `game.js`'s own
+  combat code directly, rather than staying a bolt-on module — every earlier phase managed without it (phase 7,
+  below, is the second and third time). A guest can also swing and damage the host's real enemies: `swing()` gets monkey-patched to relay a `'swing'`
   message (the same top-level-rebinding trick `startWave` already uses), and the host's `guestHitCone` reimplements
   `hitCone`'s own forward-cone check for an arbitrary attacker, calling the exact same `hurt(e,dmg,kx,kz)` unchanged.
   `coop-combat-test.mjs` proves both directions end to end over a real WebRTC handshake.
@@ -360,10 +360,55 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   the original (a same-frame rejected duplicate can't be mistaken for a fresh swing); each guest's spawn offset is
   now persisted on their record and reused on every respawn, not just the first; and the roar/enrage check now
   finds whichever hero (host's or any guest's) is actually nearest. `coop-combat-fix-test.mjs` (host + two guests)
-  proves all five fixes directly. **Still open, honestly**: no gear/skill scaling for a guest's own damage or
-  defense — `GUEST_DMG`/`GUEST_MAX_HP` are flat, unequipped baselines until per-player loadouts exist; a guest
-  still can't place a defense; and a mini-boss's roar is a cue for whoever it's aimed at, not yet a shared HUD/SFX
-  moment for the rest of the hall.
+  proves all five fixes directly.
+  Phase 7 (`99-network.js` + `game.js`): defense placement, and a design requirement given mid-effort — "let me
+  get my knight place that, he has fast ballistas": a defense a guest places should carry THAT GUEST's own live
+  gear/skill stats, for as long as they're actually connected, not a permanent enchantment. A guest can now place,
+  repair, upgrade and sell REAL defenses on the host's hall, spending the host's own shared mana/DU pool, not a
+  pointless local copy. `placeDefAt` gets the same guest-relay monkey-patch treatment as `swing`; `repair`/`upgrade`/
+  `sell`/`nearestDef` (game.js) gained an optional `pos` parameter defaulting to the local hero, so the host runs
+  the exact same cost/effect math a real click would, from the guest's own host-tracked position, instead of a
+  second, drift-prone copy of it. `upgrade()`'s own binding turned out to already be wrapped by two OTHER modules
+  (a tavern-station UI intercept and the raven's character-sheet shortcut) that take no arguments and don't forward
+  any — reaching it through that chain silently dropped a guest's `pos`, defaulting to the host's own (usually
+  far-away) position and making a guest's upgrade request a silent no-op. Fixed by splitting the real logic into
+  `upgradeDef(pos)`, a name nothing else wraps.
+  Ownership: `stat()` (game.js) now routes a defense's damage/cooldown/range through new `oStat`/`oMult` helpers
+  that check `d.ownerId` (set on a guest-placed defense by the host) via two new chainable `Meta` hooks,
+  `defOwnerStat`/`defOwnerMult`, falling back to the local hero's own numbers exactly as before when there's no
+  live owner — so single-player and host-placed defenses are byte-identical to before this phase. A guest's own
+  six relevant `heroStat`/`heroMult` numbers, computed on THEIR OWN client where their gear is real, piggyback on
+  the existing 15Hz `'input'` message rather than a new message type. When that guest disconnects, their stat
+  snapshot is dropped with their other state, and every defense they placed transparently reverts to the host's
+  own numbers — automatic, no special-case cleanup needed, exactly matching "for as long as they're in the game."
+  Before shipping, this diff got the same adversarial multi-lens review phase 6 did, for the same reason (it
+  touches `game.js` again) — and again earned it: 21 raw findings, all 21 confirmed real on independent
+  verification. The two costliest: the new owner-aware `stat()` routing was applied to damage/cooldown/range but
+  missed two OTHER formulas computing the same stats directly — the trebuchet's splash radius and the spike
+  hedge's thorn counter-damage both still read the HOST's own gear, not the placing guest's (plus the same bug in
+  a cosmetic tooltip) — fixed by routing all three through `oStat`/`oMult` too. The rest were trust-boundary gaps
+  in the new host-side validator, `hostTryPlaceDef`: its "too far away" bound failed OPEN (skipped, not rejected)
+  for a sender the host hadn't yet registered a position for — reproduced live, a crafted `'place'` message landed
+  a defense 45+ units from where a guest claimed to be; it also never rejected a placement overlapping the
+  placer's own tracked position (something the local ghost preview always blocks), never checked the game's own
+  phase (a still-connected guest could keep building after the crystal fell or the map was won), and had no
+  dead-guest gate at all where the parallel repair/upgrade/sell path did. All fixed: the distance check now fails
+  closed, a "You're standing there" check mirrors the local one, a phase gate matches `select()`'s own, and both
+  paths now reject (with a toast explaining why) a guest who's currently down. Smaller UX gaps also fixed: a dead
+  guest's repair/upgrade/sell attempt used to be silently dropped with no feedback at all; and `repair()`/`sell()`
+  only ever gave world-space `floatText` feedback on success (nothing a remote guest's own client renders) — a
+  guest upgrading a damaged defense (which silently redirects into a repair first) got literally no confirmation
+  that anything happened. `hostDefAction` now synthesizes a toast from the real mana change when nothing was
+  already captured to relay. `coop-defplace-test.mjs` and `coop-defplace-fix-test.mjs` (13/13 each) prove the
+  placement/repair/upgrade/sell relay, the owner-stat scaling (checked against the exact formula, not just "did
+  it change"), stats reverting on disconnect, and every one of the trust-boundary fixes above, directly.
+  **Still open, honestly**: no gear/skill scaling for a guest's own COMBAT damage or hp — `GUEST_DMG`/
+  `GUEST_MAX_HP` are still flat, unequipped baselines (only a guest's *placed defenses* draw on their real stats
+  so far); nothing about a guest's gear/skills carries across sessions, since their own browser forgets it the
+  moment they disconnect (a persistent-loadout design is the next thing queued); a mini-boss's roar is still a
+  cue for whoever it's aimed at, not a shared HUD/SFX moment; and a guest gets no local range-ring/cost-prompt
+  affordance standing near a real defense (`nearestDef`'s HUD-facing callers were never made position-aware) —
+  they have to already know to press E/X and read the toast, unlike the host's own equivalent local UI.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

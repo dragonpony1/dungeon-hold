@@ -575,7 +575,8 @@ const Meta={
   onPickup:it=>false,   // return true when the module took the item (into the bag); false = old behaviour (auto equip / sell)
   onKill:e=>{}, onWaveHeld:w=>{}, onRunEnd:w=>false,   // onRunEnd: true when the module shows its own run-summary/tavern screen
   update:dt=>{}, hud:()=>{}, open:()=>{}, isOpen:()=>false,
-  heroes:()=>[] };   // co-op: other players' heroes an enemy should also be able to notice, each {x,y,z,isDead:()=>bool,hurt:dmg=>void} — empty outside a hosted session (99-network.js)
+  heroes:()=>[],   // co-op: other players' heroes an enemy should also be able to notice, each {x,y,z,isDead:()=>bool,hurt:dmg=>void} — empty outside a hosted session (99-network.js)
+  defOwnerStat:(id,k)=>undefined, defOwnerMult:(id,k)=>undefined };   // co-op: a connected guest's own heroStat/heroMult value for a defense they placed — undefined (not 0/1) means "no such live guest", so stat()'s oStat/oMult fall back to the local hero's own numbers (99-network.js)
 let spawnQ=[], placing=null, ghost=null, ghostRot=0, ghostCell=null, ghostPos=[0,0], ghostOk=false, ghostReason='', ghostYaw=0;
 let placeStage=0, anchorPos=null, anchorYaw=0;   // 0: ghost follows your aim · 1: set down, rotating in place
 let bannerT=0, toastT=0, dmgFlash=0, crystalShake=0, camShake=0, introA=0, locked=false, edgeX=.5, mouseDown=false, deathCut=null;
@@ -635,7 +636,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=112;
+const BUILD=113;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -764,7 +765,7 @@ function attack(e,tg){ e.swing=0; e.pending=tg; }
 function landHit(e,tg){
   if(tg.kind==='hero'){ if(!tg.hero.isDead()) tg.hero.hurt(e.dmg); }
   else if(tg.kind==='crystal'){ if(tg.ranged) fireArrow(e,0,2.6,0,{kind:'crystal'}); else hurtCrystal(e.dmg,e); }
-  else if(tg.kind==='def'){ const d=tg.obj; if(!defs.includes(d)) return; if(tg.ranged) fireArrow(e,d.x,1.0,d.z,{kind:'def',obj:d}); else { hurtDef(d,e.dmg); if(d.kind==='spike') hurt(e,Math.round(DEFS.spike.thorns*(1+heroStat('tow')/100)),0,0); } } }
+  else if(tg.kind==='def'){ const d=tg.obj; if(!defs.includes(d)) return; if(tg.ranged) fireArrow(e,d.x,1.0,d.z,{kind:'def',obj:d}); else { hurtDef(d,e.dmg); if(d.kind==='spike') hurt(e,Math.round(DEFS.spike.thorns*(1+oStat(d,'tow')/100)),0,0); } } }
 // co-op: which hero (the local one, or another player's, via Meta.heroes()) is nearest and close enough for e to
 // notice at all — same melee-proximity check the local hero always had, just no longer hardcoded to just it
 function nearestHero(e,extra){
@@ -842,14 +843,27 @@ function fire(d,e){ const cfg=DEFS[d.kind]; const fx=Math.sin(d.yaw), fz=Math.co
   else if(d.kind==='acorn'){ for(let k=0;k<(cfg.shots||3);k++){ const a=d.yaw+(k-1)*.21+R(-.05,.05); const ax=Math.sin(a), az=Math.cos(a); const m=acornMesh(); scene.add(m); projs.push({kind:'acorn',x:d.x+ax*.9,y:d.base+1.25,z:d.z+az*.9,vx:ax*15,vy:2.2,vz:az*15,life:1.3,bounces:0,dmg:stat(d,'dmg'),mesh:m}); } SFX.acorn(); }
   else { // trebuchet: lob a turnip so it lands where the target is heading
     const m=turnipMesh(); scene.add(m); const x0=d.x+fx*.6, z0=d.z+fz*.6, y0=d.base+2.4; const T=clamp(Math.hypot(e.x-x0,e.z-z0)/11,.5,1.6); const lead=(e.walking?mobSpd(e)*T*.8:0); const tx=e.x+Math.sin(e.yaw)*lead, tz=e.z+Math.cos(e.yaw)*lead; /* lead a walking target by most of the flight time */ const fl=baseFloor(tx,tz)+.35; const vy=((fl-y0)+.5*18*T*T)/T;
-    projs.push({kind:'turnip',x:x0,y:y0,z:z0,vx:(tx-x0)/T,vy,vz:(tz-z0)/T,life:T+1,dmg:stat(d,'dmg'),splash:cfg.splash*heroMult('aoe')*(1+heroStat('tarea')/100),mesh:m}); SFX.ball(); } }
+    projs.push({kind:'turnip',x:x0,y:y0,z:z0,vx:(tx-x0)/T,vy,vz:(tz-z0)/T,life:T+1,dmg:stat(d,'dmg'),splash:cfg.splash*oMult(d,'aoe')*(1+oStat(d,'tarea')/100),mesh:m}); SFX.ball(); } }
 function turnipSplat(p){ const fl=baseFloor(p.x,p.z); for(const e of enemies){ if(e.dead||e.fly) continue; const dx=e.x-p.x, dz=e.z-p.z, dd=Math.hypot(dx,dz); if(dd<p.splash+e.r*.5){ const l=Math.max(dd,.01); hurt(e,Math.max(1,Math.round(p.dmg*(1-.5*dd/p.splash)*10)/10),dx/l*.7,dz/l*.7); } }
   SFX.thud(); const fx=glow(0xd9e59a,2.2,.7); fx.position.set(p.x,fl+.3,p.z); scene.add(fx); projs.push({kind:'splat',t:0,mesh:fx}); }
 function grenadeBurst(x,y,z){ SFX.destroy(); const fx=glow(0xb060ff,3.0,.85); fx.position.set(x,y+.2,z); scene.add(fx); projs.push({kind:'splat',t:0,mesh:fx}); }
 function healPulse(e){ SFX.mana(); const fl=baseFloor(e.x,e.z); const fx=glow(0x8ef4c0,e.r*3.2,.75); fx.position.set(e.x,fl+e.h*.5,e.z); scene.add(fx); projs.push({kind:'splat',t:0,mesh:fx}); }
-function stat(d,k){ const cfg=DEFS[d.kind], l=d.lvl||1; if(k==='dmg') return Math.max(1,Math.round(cfg.dmg*(1+.5*(l-1))*(1+heroStat('tow')/100)*heroMult('tow')*(1+(d.buff||0))*10)/10); if(k==='cd') return cfg.cd*Math.pow(.8,l-1)/heroMult('tcd')/(1+heroStat('trate')/100)/(1+(d.buff||0)); if(k==='buff') return (cfg.buff||0)+(cfg.buffUp||0)*(l-1); if(k==='chill') return Math.max(.2,(cfg.chill||1)-(cfg.chillUp||0)*(l-1)); if(k==='range') return ((cfg.range||0)+(cfg.rangeUp!==undefined?cfg.rangeUp:2)*(l-1))*(cfg.arc===360?heroMult('aoe'):1)*(1+heroStat('tarea')/100); return cfg[k]; }
+// co-op: a defense a GUEST placed (d.ownerId set, 99-network.js) draws on THAT player's own tow/trate/tarea gear
+// and skills, not whoever's sitting at the host's own keyboard -- Meta.defOwnerStat/defOwnerMult return undefined
+// for a host-placed defense (d.ownerId unset) or once that guest disconnects, so oStat/oMult transparently fall
+// back to the local hero's own heroStat/heroMult exactly as before -- a defense keeps its placer's buffs only for
+// as long as they're actually in the game
+function oStat(d,k){ const v=d.ownerId?Meta.defOwnerStat(d.ownerId,k):undefined; return v!==undefined?v:heroStat(k); }
+function oMult(d,k){ const v=d.ownerId?Meta.defOwnerMult(d.ownerId,k):undefined; return v!==undefined?v:heroMult(k); }
+function stat(d,k){ const cfg=DEFS[d.kind], l=d.lvl||1; if(k==='dmg') return Math.max(1,Math.round(cfg.dmg*(1+.5*(l-1))*(1+oStat(d,'tow')/100)*oMult(d,'tow')*(1+(d.buff||0))*10)/10); if(k==='cd') return cfg.cd*Math.pow(.8,l-1)/oMult(d,'tcd')/(1+oStat(d,'trate')/100)/(1+(d.buff||0)); if(k==='buff') return (cfg.buff||0)+(cfg.buffUp||0)*(l-1); if(k==='chill') return Math.max(.2,(cfg.chill||1)-(cfg.chillUp||0)*(l-1)); if(k==='range') return ((cfg.range||0)+(cfg.rangeUp!==undefined?cfg.rangeUp:2)*(l-1))*(cfg.arc===360?oMult(d,'aoe'):1)*(1+oStat(d,'tarea')/100); return cfg[k]; }
 function upCost(d){ return 100*(d.lvl||1); }
-function upgrade(){ const d=nearestDef(3.4); if(!d) return; if(d.hp<d.max){ repair(); return; } if(d.lvl>=MAXLVL){ toast('Already Mark '+MARK[MAXLVL]+' — that is as good as it gets'); return; } const cost=upCost(d); if(S.mana<cost){ toast('Need '+cost+' mana to upgrade'); return; }
+// upgrade's own top-level binding gets wrapped by other modules too (tavern stations, the raven's hero-doll panel
+// both intercept the 'E' key's call to it, opening their own UI instead when the player's standing by one of
+// those) -- those wrappers take no arguments and don't forward any, so a co-op caller reaching `upgrade` through
+// that chain would have its `pos` silently dropped. upgradeDef is the actual logic, under a name nothing else
+// wraps, so a host-side guest request can call it directly and skip those (purely single-player-local) UI checks.
+function upgrade(pos){ return upgradeDef(pos); }
+function upgradeDef(pos){ const d=nearestDef(3.4,pos); if(!d) return; if(d.hp<d.max){ repair(pos); return; } if(d.lvl>=MAXLVL){ toast('Already Mark '+MARK[MAXLVL]+' — that is as good as it gets'); return; } const cost=upCost(d); if(S.mana<cost){ toast('Need '+cost+' mana to upgrade'); return; }
   S.mana-=cost; d.spent+=cost; d.lvl++; d.max=Math.round(DEFS[d.kind].hp*(1+.4*(d.lvl-1))); d.hp=d.max; d.pop=0; const ring=M(new THREE.TorusGeometry(d.kind==='spike'?1.1:.98,.045,6,18),mat(d.lvl>=MAXLVL?0xd8322c:0xe0b040),0,.16+.1*(d.lvl-2),0); ring.rotation.x=PI/2; d.mdl.add(ring); SFX.place(); floatText(d.x,d.top+.9,d.z,'MARK '+MARK[d.lvl]+(DEFS[d.kind].arcs?'  ·  '+arcOf(d)+'° cone':''),'#e8b94a'); floatText(d.x,d.top+1.7,d.z,'-'+cost+' ◆ mana','#5ee9ff'); toast(DEFS[d.kind].name+' → Mark '+MARK[d.lvl]+'  ·  '+cost+' mana spent'); if(hoverFor===d){ if(hoverSector) scene.remove(hoverSector); hoverSector=null; hoverFor=null; } }
 function fireArrow(e,x,y,z,hit){ const splash=MOBS[e.kind]&&MOBS[e.kind].splash||0; const m=splash?grenadeMesh():arrowMesh(); scene.add(m); const x0=e.x, y0=e.y+1.2*e.sc, z0=e.z; const dur=Math.hypot(x-x0,z-z0)/(splash?13:18); projs.push({kind:'arrow',x0,y0,z0,x1:x,y1:y,z1:z,t:0,dur:Math.max(.2,dur),dmg:e.dmg,hit,mesh:m,splash,owner:e}); }   // a splash-tagged mob throws a grenade, slower and heavier than a plain shot
 // the floor ring the four elemental halos share: a glow ring at the reach, a small inner spinner — same idea as the
@@ -1016,9 +1030,12 @@ function updateGhost(){ if(!placing) return; const [px,pz]=placeStage===1?anchor
 function confirmPlace(){ if(!placing) return; if(!ghostOk){ toast(ghostReason); return; }
   if(placeStage===0){ anchorPos=[ghostPos[0],ghostPos[1]]; anchorYaw=ghostYaw; placeStage=1; SFX.hit(); updateGhost(); return; }   // first click: set it down
   placeDefAt(placing,ghostPos[0],ghostPos[1],ghostYaw); floatText(ghostPos[0],2.2,ghostPos[1],DEFS[placing].name,'#e8b94a'); cancelPlace(); }
-function nearestDef(rad){ let best=null, bd=rad; for(const d of defs){ const dd=Math.hypot(d.x-hero.x,d.z-hero.z); if(dd<bd){ bd=dd; best=d; } } return best; }
-function repair(){ const d=nearestDef(3.4); if(!d) return; if(d.hp>=d.max){ toast('Already at full health'); return; } const cost=Math.ceil((d.max-d.hp)/8); if(S.mana<cost){ toast('Need '+cost+' mana to repair'); return; } S.mana-=cost; d.hp=d.max; SFX.place(); floatText(d.x,d.top+.8,d.z,'REPAIRED','#5ee9ff'); floatText(d.x,d.top+1.6,d.z,'-'+cost+' ◆ mana','#5ee9ff'); }
-function sell(){ const d=nearestDef(3.4); if(!d) return; const back=Math.round(d.spent*.7); S.mana+=back; removeDef(d); SFX.sell(); floatText(d.x,2,d.z,'+'+back+' mana','#5ee9ff'); }
+// co-op: pos defaults to the local hero so every existing single-player call site (keyboard, prompts, the hover
+// sector) behaves exactly as before — a guest's relayed repair/upgrade/sell just passes their own position instead,
+// reusing this single real implementation rather than a second, drift-prone copy of the cost/effect math
+function nearestDef(rad,pos){ pos=pos||hero; let best=null, bd=rad; for(const d of defs){ const dd=Math.hypot(d.x-pos.x,d.z-pos.z); if(dd<bd){ bd=dd; best=d; } } return best; }
+function repair(pos){ const d=nearestDef(3.4,pos); if(!d) return; if(d.hp>=d.max){ toast('Already at full health'); return; } const cost=Math.ceil((d.max-d.hp)/8); if(S.mana<cost){ toast('Need '+cost+' mana to repair'); return; } S.mana-=cost; d.hp=d.max; SFX.place(); floatText(d.x,d.top+.8,d.z,'REPAIRED','#5ee9ff'); floatText(d.x,d.top+1.6,d.z,'-'+cost+' ◆ mana','#5ee9ff'); }
+function sell(pos){ const d=nearestDef(3.4,pos); if(!d) return; const back=Math.round(d.spent*.7); S.mana+=back; removeDef(d); SFX.sell(); floatText(d.x,2,d.z,'+'+back+' mana','#5ee9ff'); }
 
 // ================= FX / HUD / OVERLAY =================
 function updateFx(dt){ S.t+=dt; const t=S.t;

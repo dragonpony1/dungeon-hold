@@ -11,12 +11,21 @@
 // are still fully real and simulated underneath — nothing spawns or gets placed into them unless the guest starts
 // their own wave or builds their own defense, both still possible locally but pointless since they're not what's
 // drawn or shared). World-sync is done. Phase 6 is combat: the host's real enemies now notice and can damage a
-// guest's hero too (Meta.heroes()/nearestHero(), game.js — the one and only core-file touch this whole effort has
-// needed), and a guest can swing and damage the host's real enemies (guestHitCone below, reusing hurt() unchanged).
-// A guest's own hp/death is synced back down to their own client (the 'hp' handler below) so their own screen shows
-// it too, not just the host's private bookkeeping. Still open: no gear/skill scaling for a guest's damage or
-// defense (GUEST_DMG/GUEST_MAX_HP below are flat, unequipped baselines), no defense-placement by guests, and mini-
-// boss roar/aggro shouting still only ever plays for whichever hero it's aimed at, not a HUD/SFX cue for anyone else.
+// guest's hero too (Meta.heroes()/nearestHero(), game.js), and a guest can swing and damage the host's real
+// enemies (guestHitCone below, reusing hurt() unchanged). A guest's own hp/death is synced back down to their own
+// client (the 'hp' handler below) so their own screen shows it too, not just the host's private bookkeeping.
+// Phase 7 is defense placement: a guest can place, repair, upgrade and sell REAL defenses on the host's hall,
+// spending the host's own shared mana/DU (hostTryPlaceDef/hostDefAction below), and a defense a guest places
+// carries THAT GUEST's own live gear/skill stats (Meta.defOwnerStat/defOwnerMult, game.js's stat()/oStat/oMult) —
+// "let me get my knight place that, he has fast ballistas" — reverting to the host's own stats automatically once
+// that guest disconnects. game.js has now been touched three times total across this whole effort (phase 6's
+// nearestHero, and phase 7's stat()/oStat/oMult plus repair/upgrade/sell/nearestDef gaining an optional `pos`
+// param), each time narrowly and deliberately. Still open: no gear/skill scaling for a guest's own COMBAT damage
+// or hp (GUEST_DMG/GUEST_MAX_HP below are still flat, unequipped baselines — only a guest's PLACED DEFENSES draw
+// on their real stats so far), nothing carries a guest's gear/skills across sessions (their own browser forgets
+// it the moment they leave), mini-boss roar/aggro shouting still only ever plays for whichever hero it's aimed
+// at, and a guest gets no local range-ring/cost-prompt affordance standing near a real defense (toast feedback
+// only) — deliberately deferred, matching this effort's usual "first cut" scope discipline.
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -140,7 +149,10 @@ function guestHitCone(id,yaw){
   if(n) SFX.hit();
 }
 onMessage('swing',(data,fromId)=>{ guestHitCone(fromId,data.yaw); });
-onMessage('input',(data,fromId)=>{ guestIn.set(fromId,data); });
+const guestStats=new Map();   // id -> {stat:{tow,trate,tarea},mult:{tow,tcd,aoe}} -- this guest's OWN gear/skill numbers, last reported
+onMessage('input',(data,fromId)=>{ guestIn.set(fromId,data); if(data.stat&&data.mult) guestStats.set(fromId,{stat:data.stat,mult:data.mult}); });
+Meta.defOwnerStat=(id,k)=>{ const s=guestStats.get(id); return s?s.stat[k]:undefined; };
+Meta.defOwnerMult=(id,k)=>{ const s=guestStats.get(id); return s?s.mult[k]:undefined; };
 
 let syncT=0;
 function hostBroadcastHeroes(dt){
@@ -164,12 +176,17 @@ onMessage('heroes',data=>{
 });
 
 // guest only: this client's own keys and look, sent to the host a few times a second -- the same K/cam.yaw the
-// local hero already moves from (heroUpdate, above), just relayed instead of applied here
+// local hero already moves from (heroUpdate, above), just relayed instead of applied here. Piggybacks the six
+// heroStat/heroMult numbers a defense's own stat() (game.js) reads, computed from THIS client's own real gear and
+// skills -- small, cheap to include every tick, and keeps a guest-placed defense's buffs live without a separate
+// message type or having to reimplement gear-scoring on the host.
 let syncTIn=0;
 function guestSendInput(dt){
   if(role!=='guest') return;
   syncTIn+=dt; if(syncTIn<1/15) return; syncTIn=0;
-  send('input',{w:K.w?1:0,s:K.s?1:0,a:K.a?1:0,d:K.d?1:0,shift:K.shift?1:0,yaw:+cam.yaw.toFixed(3),pick:window.__heroes.pick()});
+  send('input',{w:K.w?1:0,s:K.s?1:0,a:K.a?1:0,d:K.d?1:0,shift:K.shift?1:0,yaw:+cam.yaw.toFixed(3),pick:window.__heroes.pick(),
+    stat:{tow:heroStat('tow'),trate:heroStat('trate'),tarea:heroStat('tarea')},
+    mult:{tow:heroMult('tow'),tcd:heroMult('tcd'),aoe:heroMult('aoe')}});
 }
 
 // ---- phase 5: the host's real crystal/wave state, so a guest is helping defend ONE hall rather than tracking a
@@ -183,7 +200,7 @@ let syncTW=0;
 function hostBroadcastWorld(dt){
   if(role!=='host'||!conns.size) return;
   syncTW+=dt; if(syncTW<1/10) return; syncTW=0;   // crystal/wave state changes slowly; 10Hz is plenty
-  send('world',{crystal:S.crystal,crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,waveTotal:MAP.waves,mapName:MAP.name});
+  send('world',{crystal:S.crystal,crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,waveTotal:MAP.waves,mapName:MAP.name,mana:S.mana,du:S.du,duCap:DU_CAP});
 }
 onMessage('world',data=>{ hostWorld=data; });
 
@@ -199,7 +216,11 @@ onMessage('world',data=>{ hostWorld=data; });
     if(w.phase==='wave'){ $('wavet').textContent='WAVE '+w.wave+' / '+w.waveTotal; $('phaset').textContent='Helping defend the hall'; }
     else if(w.phase==='build'){ $('wavet').textContent=w.wave?'HALL HELD — BUILD PHASE':'BUILD PHASE'; $('phaset').textContent='Only the host can start the next wave'; }
     else if(w.phase==='won'){ $('wavet').textContent='HALL HELD — '+w.mapName+' CLEARED'; $('phaset').textContent=''; }
-    else if(w.phase==='dead'){ $('wavet').textContent='THE CRYSTAL FELL'; $('phaset').textContent=''; } } }; }
+    else if(w.phase==='dead'){ $('wavet').textContent='THE CRYSTAL FELL'; $('phaset').textContent=''; }
+    // the shared hall's real mana/roots, not this guest's own disconnected local numbers -- same source a
+    // guest's placement/repair/upgrade requests actually draw from (hostTryPlaceDef/hostDefAction below)
+    setT('mana',Math.floor(w.mana)); setT('du',w.du+'/'+w.duCap);
+    DEFKEYS.forEach(k=>{ const el=$('slot-'+k), cfg=DEFS[k]; const cls='slot'+(placing===k?' sel':'')+((w.mana<cfg.mana||w.du+cfg.du>w.duCap)?' poor':''); if(el.className!==cls) el.className=cls; }); } }; }
 
 // ---- phase 5, enemies slice: the host's real enemies, read-only puppets on every guest's screen. makeMob(kind) is
 // synchronous (MOBGLB is pre-fetched at page load, game.js) so a puppet can be built the instant it's first seen,
@@ -277,6 +298,83 @@ onMessage('defs',data=>{
   [...DEFPUP.keys()].forEach(id=>{ if(!ids.has(id)) defPuppetRemove(id); });   // sold or destroyed on the host -- same roster-diff removal as heroes and enemies
 });
 
-onMessage('__leave',fromId=>{ window.__party.remove(fromId); guestIn.delete(fromId); guestHero.delete(fromId); [...MOBPUP.keys()].forEach(mobPuppetRemove); [...DEFPUP.keys()].forEach(defPuppetRemove); });
+// ---- phase 7: guest defense placement -- placing, repairing, upgrading and selling a REAL defense on the host's
+// hall, not a pointless one in the guest's own empty local defs. placeDefAt/repair/upgrade/sell are all plain
+// top-level functions (game.js), so a guest's calls are redirected the same monkey-patch way swing/startWave
+// already are; repair/upgrade/sell also gained an optional `pos` parameter in game.js itself (the one and only
+// other core-file touch this effort has needed, alongside phase 6's `nearestHero`) so the host runs the exact same
+// cost/effect math a real click would, from the guest's own tracked position, instead of a second, drift-prone
+// copy of it here. Placement's target cell has nowhere else to come from but the guest's own aim, so it's trusted
+// the same way a guest's swing yaw already is (guestHitCone, above) -- but bounded to a sane radius around the
+// guest's own host-tracked position, so a guest can't insta-build clear across the map.
+{ const origPlaceDefAt=placeDefAt;
+  placeDefAt=function(kind,x,z,rot){
+    if(role==='guest'){ send('place',{kind,x:+x.toFixed(2),z:+z.toFixed(2),yaw:+rot.toFixed(3)}); return null; }
+    return origPlaceDefAt(kind,x,z,rot);
+  }; }
+function hostTryPlaceDef(kind,x,z,yaw,fromId){
+  if(role!=='host') return;
+  const cfg=DEFS[kind]; if(!cfg) return;
+  const g=guestHero.get(fromId);
+  // fail CLOSED, not open: an unregistered guest (no 'input' processed yet) or one still down from a death is
+  // rejected outright rather than skipping the checks below that depend on knowing their real position
+  if(!g){ send('toast','Not ready yet',fromId); return; }
+  if(g.dead>0){ send('toast',"You're down — wait to respawn",fromId); return; }
+  if(S.phase==='start'||S.phase==='dead'||S.phase==='won'||S.phase==='deathcut'){ send('toast','Not right now',fromId); return; }
+  if(Math.hypot(x-g.x,z-g.z)>20){ send('toast','Too far away',fromId); return; }
+  const cx=wc(x), cz=wcz(z), t=gat(cx,cz), cells=footprintCells(kind,x,z,yaw);
+  let reason=null;
+  if(!(t===T.FLOOR||t===T.CARPET)||cells.some(i=>!walk(grid[i]))) reason="Can't build there";
+  else if(cells.some(i=>defAt[i])) reason='Already occupied';
+  else if(cells.includes(idx(wc(g.x),wcz(g.z)))||Math.hypot(x-g.x,z-g.z)<1.1) reason="You're standing there";   // the same self-overlap rule updateGhost (game.js) enforces locally, mirrored here against the guest's own HOST-tracked position
+  else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units';
+  else if(S.mana<cfg.mana) reason='Not enough mana';
+  else if(enemies.some(e=>!e.dead&&Math.hypot(e.x-x,e.z-z)<2.2)) reason='Enemy too close';
+  if(reason){ send('toast',reason,fromId); return; }
+  const d=placeDefAt(kind,x,z,yaw); if(d) d.ownerId=fromId;   // stat() (game.js) reads this via Meta.defOwnerStat/Mult so the defense keeps ITS PLACER's buffs, not the host's own
+}
+onMessage('place',(data,fromId)=>hostTryPlaceDef(data.kind,data.x,data.z,data.yaw,fromId));
+
+{ const origRepair=repair, origUpgrade=upgrade, origSell=sell;
+  repair=function(pos){ if(role==='guest'){ send('defAction',{action:'repair'}); return; } origRepair(pos); };
+  // upgrade's own binding is ALSO where 57-raven.js hooks the 'E' character-sheet shortcut (it has no independent
+  // keydown listener of its own, unlike the tavern stations, which do and so are unaffected by this patch running
+  // outermost/last-loaded) -- relaying unconditionally for a guest would silently break that shortcut every time
+  // they're standing at the raven. window.__raven.near() is already a public check (game.js's own H-key handler
+  // uses it the same way), so let the raven's own wrapper run first when it applies, and only relay otherwise.
+  upgrade=function(pos){ if(role==='guest'){ if(window.__raven&&window.__raven.near()){ origUpgrade(pos); return; } send('defAction',{action:'upgrade'}); return; } origUpgrade(pos); };
+  sell=function(pos){ if(role==='guest'){ send('defAction',{action:'sell'}); return; } origSell(pos); }; }
+// runs the SAME real repair/upgrade/sell a host click would, from the acting guest's own host-tracked position --
+// briefly swapping out toast() to relay whatever it would have said (success or rejection, the exact same text a
+// local click gets) back to the guest who actually asked, instead of it silently appearing on the host's own
+// screen misattributed to them. Safe because these functions are fully synchronous -- nothing else can call
+// toast() between the swap and the restore. Upgrade specifically calls upgradeDef (game.js), not the bare
+// upgrade() binding: other modules (tavern stations, the raven's hero-doll panel) also wrap upgrade() to open
+// their own UI when the LOCAL player is standing by one, and none of those wrappers forward an argument -- a host
+// processing a remote guest's request has no business running those purely local checks anyway.
+function hostDefAction(data,fromId){
+  if(role!=='host') return;
+  const g=guestHero.get(fromId); if(!g) return;
+  if(g.dead>0){ send('toast',"You're down — wait to respawn",fromId); return; }
+  const pos={x:g.x,z:g.z};
+  const origToast=toast; let said=null;
+  toast=msg=>{ said=msg; };
+  const manaBefore=S.mana;
+  try{
+    if(data.action==='repair') repair(pos);
+    else if(data.action==='upgrade') upgradeDef(pos);
+    else if(data.action==='sell') sell(pos);
+  } finally { toast=origToast; }
+  // repair()/sell() (game.js) only give world-space floatText feedback on success, never a toast() call -- nothing
+  // a remote guest's own client ever renders. A mana change with nothing captured means it silently worked, so
+  // synthesize the confirmation a local click's floatText would have shown; upgradeDef already toasts its own
+  // success text, so 'said' is already set for that case and this branch is only reached by repair/sell
+  if(said) send('toast',said,fromId);
+  else if(S.mana!==manaBefore) send('toast',data.action==='sell'?'Sold':'Repaired',fromId);
+}
+onMessage('defAction',(data,fromId)=>hostDefAction(data,fromId));
+onMessage('toast',msg=>{ if(role==='guest') toast(msg); });
+
+onMessage('__leave',fromId=>{ window.__party.remove(fromId); guestIn.delete(fromId); guestHero.delete(fromId); guestStats.delete(fromId); [...MOBPUP.keys()].forEach(mobPuppetRemove); [...DEFPUP.keys()].forEach(defPuppetRemove); });   // guestStats gone -> Meta.defOwnerStat/Mult return undefined for whatever this guest placed -> stat() falls back to the host's own numbers, automatically
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); guestInputTick(dt); hostBroadcastHeroes(dt); hostBroadcastWorld(dt); hostBroadcastEnemies(dt); hostBroadcastDefs(dt); mobPuppetsTick(dt); guestSendInput(dt); }; }
 })();
