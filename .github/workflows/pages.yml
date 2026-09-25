@@ -1,0 +1,47 @@
+name: Deploy to GitHub Pages
+
+# Builds the game the same way `README.md`'s "folder build" does (DIST=./dist EXTRA=./parts/staging node
+# assemble.mjs -- no npm install needed, assemble.mjs only uses Node built-ins) and publishes dist/ as a GitHub
+# Pages site on every push to main, so there's always a plain URL to open on any device -- no Claude account, no
+# sign-in, works for testing co-op between two real devices.
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build the game (index.html + assets)
+        run: DIST=./dist EXTRA=./parts/staging node assemble.mjs
+      - name: Disable Jekyll processing (serve .glb.txt etc. as-is)
+        run: touch dist/.nojekyll
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
