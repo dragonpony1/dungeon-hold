@@ -265,7 +265,7 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 
 - Void set models: the concept art (runed blade, shard charm, galaxy amulet, starless robe) is waiting on Meshy exports;
   until then the Void sword is the holy sword darkened and burning violet. The Void staff is done (`staff-void`, built in code).
-- Co-op, phases 1-3 done, 4+ open. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
+- Co-op, phases 1-4 done, combat/targeting still open. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
   each loads its own hero GLB through the same fit/toonify/clip-map pipeline the local hero uses, keeps its own
   wrap/mixer/actions, and eases toward whatever position/yaw it's last told (`window.__party.add/remove/setTarget`),
   switching idle/walk/run itself; the local hero has no idea puppets exist. Phase 2 (`99-network.js`): the actual
@@ -280,8 +280,20 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   a phase-1 party puppet (`onMessage('hero',...)` calls the same `setTarget` a test script used to drive one).
   `coop-test.mjs` proves it end to end: a puppet grows at the host's position, keeps live-updating to a second
   position rather than sticking at the first, and disappears cleanly when the host leaves — all against the same
-  local signaling server as phase 2's suite. Phase 4+: guests send their own input back to the host, so a shared
-  crystal/waves/defenses can actually run.
+  local signaling server as phase 2's suite. Phase 4 (`99-network.js`'s `guestSendInput`/`guestInputTick`): a
+  guest's own keys and look are relayed to the host, which simulates a real hero for them — `moveCircle`/`floorAt`/
+  `angLerp`, the exact functions `heroUpdate` itself uses, so a guest collides with walls, rails and stairs exactly
+  like the real hero does. The old single-hero broadcast became a roster (`onMessage('heroes',...)`, plural), so
+  every screen renders every OTHER player, guest-to-guest included — a guest only ever learns a fellow guest left
+  by the roster shrinking, since there's no direct connection between two guests to carry a `__leave` event between
+  them. `coop-input-test.mjs` (host + two guests) proves the relay specifically: guest B, with no connection to
+  guest A at all, still sees guest A move and later disappear, purely via the host. **Still open, and it's the
+  real remaining work, not polish:** guests can only walk the hall together so far — `updateEnemies` and
+  `hurtHero` still only know the host's own `hero`, so enemies never notice a guest and a guest can't swing, place
+  a defense, take damage or be healed; gear-driven move speed isn't wired to guest heroes either. Making the
+  crystal/waves/defenses actually shared needs those core single-player combat/targeting functions to learn there's
+  more than one hero, which is a bigger, riskier change than any of phases 1-4 (all four were bolt-on modules that
+  never touched game.js's own combat code).
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
