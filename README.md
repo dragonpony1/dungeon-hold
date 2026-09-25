@@ -117,7 +117,8 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 
 ## Heroes, weapons, sets
 
-- `70-hero2.js` holds `HEROES` (Gnome Battle Witch with a battle staff that shoots, reach 18, Troll Archer with a longbow, reach 24); the start screen
+- `70-hero2.js` holds `HEROES` (Gnome Battle Witch and Gnome Fighter, each a battle staff that shoots, reach 18; Troll Archer
+  with a longbow, reach 24; Gnome Knight with a sword, reach 2.4); all twelve defenses split evenly, three per hero. The start screen
   picks one (saved as `ddHero`); a pick swaps the model live. The start screen also has a testing line: unlock all maps,
   auto-mana (orbs fly to you from anywhere), +1000 gold, ↻ fresh reload (a plain reload; the page's URL is left alone since a host may sign it; saves kept) and wipe saves (two clicks: forgets every `dd*` key, then reloads fresh).
 - `82-staff.js` — battle staffs built in code, no model to load: six kinds (`hazel`, `copper`, `runed`, `storm`, `battle` for
@@ -127,7 +128,8 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   name (`animFor`) so a mounted clone turns its crystal and orbits its motes too. `fireBolt` throws a spark of the staff's
   colour that bursts on the first wall, ledge or floor; `__staff.plant/fire/fireFromHand/clear` are the design bench and
   `probes/staffshot.mjs` renders the row, a bolt, a burst and the staff in the hero's hand (`__weapons.force(name)`
-  mounts any weapon regardless of gear). The staff is strictly the witch's weapon: with one in hand her swing throws a
+  mounts any weapon regardless of gear). The staff mount decides the mechanic, not the hero by id (Gnome Battle Witch and
+  Gnome Fighter both carry one): with a staff in hand a swing throws a
   bolt from the crystal (`hitCone` is wrapped: aimed at the nearest mob in the cone within `hero.reach`, it hurts the first
   mob it meets for `heroDmg()` and bursts there); `staffFor(item)` picks the staff by forge tier, or the set's own
   (`pack.models.staff`, the Void set's `staff-void`).

@@ -1,14 +1,17 @@
 // ===== HEROES: the playable characters, each a Meshy rig fetched from assets/. The pick is saved (ddHero) and can be
-// changed on the start screen; a different hero swaps in live, no reload. The witch fights with a battle staff: her
-// model carries a staffMount in her left hand (meshy/witch3), the weapons module puts a code-built staff there, and
-// her swing throws a bolt (82-staff.js). The Gnome Warden and Gnome Ninja were retired (their Meshy rigs never held
-// up through a full animation pass); the Gnome Knight picks the sword back up on a clean pipeline (build 99+: a
-// trimmed attack window instead of the raw clip, no root motion fighting the jump, a de-biased idle) and reclaims
-// the Warden's old three unlocks from the Troll Archer.
+// changed on the start screen; a different hero swaps in live, no reload. The witch and the fighter both fight with a
+// battle staff: the model carries a staffMount in its grip hand (meshy/witch3's recipe — geometric, no baked-in staff
+// mesh), the weapons module puts a code-built staff there, and a swing throws a bolt (82-staff.js) — same mechanic,
+// different look. The Gnome Warden and Gnome Ninja were retired (their Meshy rigs never held up through a full
+// animation pass); the Gnome Knight and Gnome Fighter each pick a weapon back up on the clean pipeline that replaced
+// them (a trimmed attack window instead of the raw clip, no root motion fighting the jump, a de-biased idle). All
+// twelve defenses split evenly, three per hero: Knight reclaimed the Warden's old three from the Troll Archer, and
+// the Fighter reclaims zap/ember/dazzle — parked on the Witch since the Ninja's removal — from her.
 const HEROES=[
-  {id:'witch', name:'GNOME BATTLE WITCH',sub:'a battle staff that shoots · bolts reach 18',glb:'witch.glb',label:'Gnome Battle Witch (Meshy)',reach:18,unlocks:['frost','ball','slice','zap','ember','dazzle']},
+  {id:'witch', name:'GNOME BATTLE WITCH',sub:'a battle staff that shoots · bolts reach 18',glb:'witch.glb',label:'Gnome Battle Witch (Meshy)',reach:18,unlocks:['frost','ball','slice']},
   {id:'troll', name:'TROLL ARCHER',sub:'a longbow · arrows reach 24',glb:'troll.glb',label:'Troll Archer (Meshy)',reach:24,unlocks:['acorn','snare','venom']},   // doubled from 9/12: both targeting range and projectile flight distance derive from reach (83-bow.js, 82-staff.js), so this doubles how far a ranged hero can actually engage, not just how far the bolt visually flies
-  {id:'knight',name:'GNOME KNIGHT',sub:'sword and shield-arm · the hall\'s keeper',glb:'knight.glb',label:'Gnome Knight (Meshy)',reach:2.4,unlocks:['harpoon','spike','totem']}];
+  {id:'knight',name:'GNOME KNIGHT',sub:'sword and shield-arm · the hall\'s keeper',glb:'knight.glb',label:'Gnome Knight (Meshy)',reach:2.4,unlocks:['harpoon','spike','totem']},
+  {id:'fighter',name:'GNOME FIGHTER',sub:'a battle staff that shoots · bolts reach 18',glb:'fighter.glb',label:'Gnome Fighter (Meshy)',reach:18,unlocks:['zap','ember','dazzle']}];
 let heroPick=(()=>{ try{ return HEROES.find(h=>h.id===localStorage.getItem('ddHero'))||HEROES[0]; }catch(e){ return HEROES[0]; } })();
 function installHero(h){ heroPick=h; try{ localStorage.setItem('ddHero',h.id); }catch(e){} hero.reach=h.reach;
   return fetchBytes(ASSET(h.glb)).then(buf=>{ if(heroPick!==h) return; if(GLBH&&GLBH.label&&!/Meshy/.test(GLBH.label)) return;   // the player dropped their own model meanwhile: keep it
