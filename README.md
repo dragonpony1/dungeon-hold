@@ -265,12 +265,18 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 
 - Void set models: the concept art (runed blade, shard charm, galaxy amulet, starless robe) is waiting on Meshy exports;
   until then the Void sword is the holy sword darkened and burning violet. The Void staff is done (`staff-void`, built in code).
-- Co-op, phase 1 (`98-party.js`): other players' heroes render alongside the local one — each loads its own hero GLB
-  through the same fit/toonify/clip-map pipeline the local hero uses, keeps its own wrap/mixer/actions, and eases
-  toward whatever position/yaw it's last told (`window.__party.add/remove/setTarget`), switching idle/walk/run
-  itself. Nothing here talks to a network yet — `setTarget` is called from a test script today, a data-channel
-  handler later; the local hero has no idea puppets exist. Phase 2+: the actual host-authoritative WebRTC transport
-  (a free public signaling broker, no server of our own), guest input relay, and a shared crystal/waves/defenses run.
+- Co-op, phases 1-2 done, 3+ open. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
+  each loads its own hero GLB through the same fit/toonify/clip-map pipeline the local hero uses, keeps its own
+  wrap/mixer/actions, and eases toward whatever position/yaw it's last told (`window.__party.add/remove/setTarget`),
+  switching idle/walk/run itself; the local hero has no idea puppets exist. Phase 2 (`99-network.js`): the actual
+  transport — PeerJS (vendored in `head.html`, MIT, sets `window.Peer`) opens a real WebRTC data channel between two
+  browsers via its free public signaling broker (`0.peerjs.com`), no server of our own to run. One player hosts —
+  their peer id is the room code — up to three more join by connecting to it; `window.__net.host/join/send/
+  onMessage/leave` is the whole surface, and nothing here is wired to the sim yet. `network-test.mjs` proves a real
+  handshake and message round-trip end to end, against a throwaway local signaling server (`npm i peer`, the
+  official PeerJS server package — same client code path and protocol as the public broker, just no public network
+  needed to test it; skips cleanly if that dev-only package isn't installed). Phase 3+: the host broadcasts sim
+  state, guests render it and send their own input back, a shared crystal/waves/defenses run.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
