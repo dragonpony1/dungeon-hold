@@ -436,12 +436,22 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   inflating an early version of this phase's move-speed ratio test on some runs. `coop-herostats-test.mjs` (14/14)
   covers all of the above, including the `wire()` regression, against exact formulas throughout — not just "did it
   change."
-  **Still open, honestly**: nothing about a guest's gear/skills carries across sessions, since their own browser
-  forgets it the moment they disconnect (a persistent-loadout design is the next thing queued); a mini-boss's roar
-  is still a cue for whoever it's aimed at, not a shared HUD/SFX moment; a guest gets no local range-ring/
-  cost-prompt affordance standing near a real defense (`nearestDef`'s HUD-facing callers were never made
-  position-aware) — they have to already know to press E/X and read the toast; and a ranged guest's attack is the
-  generalised cone above, not a real single-target, travelling, wall-blocking bolt or arrow.
+  **Still open, honestly**: a mini-boss's roar is still a cue for whoever it's aimed at, not a shared HUD/SFX
+  moment; a guest gets no local range-ring/cost-prompt affordance standing near a real defense (`nearestDef`'s
+  HUD-facing callers were never made position-aware) — they have to already know to press E/X and read the toast;
+  and a ranged guest's attack is the generalised cone above, not a real single-target, travelling, wall-blocking
+  bolt or arrow.
+- Persistent per-player loadouts: this was flagged as still-needed work after phase 7, on the assumption that a
+  guest's gear/skills only ever lived in this co-op module's own live state and would vanish the moment they
+  disconnected. That assumption was wrong, and `loadout-persist-test.mjs` (9/9) proves it empirically rather than
+  by re-reading the code: gold, xp/level, spent skill points, equipped gear and the bag itself were *already*
+  fully persistent — `ddMeta`/`ddGear` (`parts/modules/10-meta.js`, `parts/game.js`'s `saveGear`/`loadGear`) save
+  to `localStorage` on every single change (`saveMeta()`/`saveGear()` are called inline from every mutator —
+  `addGold`, `addXP`, `spend`, `equip`/`unequip`, `bagItem`/`onPickup`, `buy`/`sell` — there is no separate "save
+  game" action anywhere), completely independent of `99-network.js` and the co-op networking layer, which never
+  touches `localStorage` or calls `Meta.reset()`/`resetGear()` on join. A guest's own browser already saves and
+  loads their gear/gold/skills exactly like single-player, whether or not they ever join anyone's hall. Nothing
+  needed to be built — this was a verification task, not an implementation one.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
