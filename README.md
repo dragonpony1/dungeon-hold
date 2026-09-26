@@ -872,6 +872,14 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   (map one: 34 MB). The throne room's door (7.6 MB, 4K textures) is fetched once per gate; it and the chandeliers,
   windows and railings should be fetched once and cloned, and the decor textures cut to 1024 px, as map one's doors were.
   The hideout preload now waits for the hall's own "everything", so its ~33 MB never competes with a map still loading.
+- Build 143: from the three-player playtest. A SOUND menu ("adjust efx vs music sound volumes"): the 🎵 button opens it
+  and the pause menu has a SOUND button. It has a Music and an Effects slider, each a gain on its own channel (game.js
+  SFXOUT/MUSOUT: every effect goes through one, the tracks, the procedural themes and the drone through the other),
+  changed live and kept in dd_audio; N and M still switch the music and all sound. The guide is harder to miss ("he
+  almost didn't notice the tool tip on the left"): a bigger card with a solid gold border; a new tip slides in with a
+  gold flash and a soft chime; a tip left undone wiggles and glows after 14 s, then every 10 s; a tick waiting for
+  Enter pulses green. "Archway" became "portal" in the guide and lessons (the doors now stand in archways). Hideout
+  build 21 rides along (gear on furniture sized to each spot).
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Eight more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry. The Holy set is next.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

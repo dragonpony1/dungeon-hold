@@ -35,6 +35,9 @@ const s8=await page.evaluate(async()=>{ const d=window.__dd; for(let i=0;i<100&&
   const shots=(b.shotN||0)-n0, clips=window.__mus.ballistaClips()-c0; d.kill(g); return {placed:true,shots,clips,clipAt,decoded:window.__mus.state().samples}; });
 check("a ballista plays the player's shot clip (assets/sfx-ballista.mp3) on every fourth bolt, the synth on the rest",s8.placed&&s8.shots>=8&&s8.clips===Math.floor(s8.shots/4)&&s8.clipAt!==null&&s8.clipAt%4===0,JSON.stringify(s8));
 { const fsm=await import("fs"); const dist=process.env.DIST||new URL("./dist",import.meta.url).pathname; const f=dist+"/assets/sfx-horn.mp3"; const size=fsm.existsSync(f)?fsm.statSync(f).size:0; check("the horn file ships with the dist, one blast (about 67 KB, not the 745 KB three-blast take)",size>40000&&size<120000,String(size)); }
+// build 143, the sound menu: the music and effects channels exist on the running context and follow the sliders' values
+const mix=await page.evaluate(async()=>{ const S=window.__sound; const b0=S.buses(); S.set('music',.25); S.set('sfx',.6); await new Promise(r=>setTimeout(r,400)); const b1=S.buses(); return {b0,b1,saved:JSON.parse(localStorage.getItem('dd_audio')),playing:window.__mus.state().playing}; });
+check("the sound menu's two channels are live on the running audio: music 0.25 and effects 0.6 after setting them, saved in dd_audio",!!mix.b0&&Math.abs(mix.b1.music-.25)<.03&&Math.abs(mix.b1.sfx-.6)<.03&&mix.saved.music===.25&&mix.saved.sfx===.6,JSON.stringify(mix));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
 check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");

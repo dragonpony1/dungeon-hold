@@ -10,7 +10,7 @@ function musDecode(name,cb){ if(musBuf[name]) return cb(musBuf[name]); const a=A
   musFetch(name,bytes=>{ try{ const pr=a.decodeAudioData(bytes.slice(0),buf=>{ musBuf[name]=buf; const cbs=musDecoding[name]||[]; delete musDecoding[name]; cbs.forEach(f=>f(buf)); },fail); if(pr&&pr.catch) pr.catch(()=>{}); }catch(e){ fail(e); } }); }   // (the callback form also returns a promise; swallow its rejection so a bad file is a warning, not a page error)
 function musStop(){ if(!musNode) return; const n=musNode, g=musGainN, a=ac; musNode=null; musGainN=null; musTrack=null;
   if(a&&g){ g.gain.setTargetAtTime(.0001,a.currentTime,.25); setTimeout(()=>{ try{ n.stop(); n.disconnect(); g.disconnect(); }catch(e){} },1200); } else { try{ n.stop(); }catch(e){} } }
-function musPlay(name){ const a=A(); if(!a) return; musDecode(name,buf=>{ if(musicMode!==name||musTrack===name) return; musStop(); const src=a.createBufferSource(); src.buffer=buf; src.loop=true; const g=a.createGain(); g.gain.setValueAtTime(.0001,a.currentTime); g.gain.exponentialRampToValueAtTime(MUS_VOL,a.currentTime+1.2); src.connect(g).connect(a.destination); src.start(); musNode=src; musGainN=g; musTrack=name; }); }
+function musPlay(name){ const a=A(); if(!a) return; musDecode(name,buf=>{ if(musicMode!==name||musTrack===name) return; musStop(); const src=a.createBufferSource(); src.buffer=buf; src.loop=true; const g=a.createGain(); g.gain.setValueAtTime(.0001,a.currentTime); g.gain.exponentialRampToValueAtTime(MUS_VOL,a.currentTime+1.2); src.connect(g).connect(MUSOUT(a)); src.start(); musNode=src; musGainN=g; musTrack=name; }); }
 const setMusicProc=setMusic;
 setMusic=function(mode){ const want=(musicOn&&!soundOff)?mode:'none';
   if(want!=='none'&&TRACKS[want]){ if(musicMode===want&&(musTrack===want||musDecoding[want])) return; setMusicProc('none'); musicMode=want; musPlay(want); return; }
@@ -22,7 +22,7 @@ for(const k in TRACKS) musFetch(k);
 const SAMPLES={roar:'assets/sfx-ogre-laugh.wav',horn:'assets/sfx-horn.mp3',place:'assets/sfx-place.mp3',ballista:'assets/sfx-ballista.mp3'};   // the ogre's arrival; the START WAVE horn (a ship's horn by Felix Blume, freesound.org, cut to one blast -- build 140)
 const smpBuf={}, smpBytes={};
 function sampleFetch(name){ if(!HAS_ASSETS){ smpBytes[name]=false; return; } if(smpBytes[name]!==undefined) return; smpBytes[name]=null; fetch(SAMPLES[name]).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.arrayBuffer(); }).then(b=>{ smpBytes[name]=b; }).catch(e=>{ console.warn('sfx: could not fetch '+name,e); smpBytes[name]=false; }); }
-function playSample(name,vol,rate){ const a=A(); if(!a) return false; const go=buf=>{ const s=a.createBufferSource(); s.buffer=buf; if(rate) s.playbackRate.value=rate; const g=a.createGain(); g.gain.value=vol||.5; s.connect(g).connect(a.destination); s.start(); };
+function playSample(name,vol,rate){ const a=A(); if(!a) return false; const go=buf=>{ const s=a.createBufferSource(); s.buffer=buf; if(rate) s.playbackRate.value=rate; const g=a.createGain(); g.gain.value=vol||.5; s.connect(g).connect(SFXOUT(a)); s.start(); };
   if(smpBuf[name]){ go(smpBuf[name]); return true; } const bytes=smpBytes[name]; if(!bytes) return false;
   try{ const pr=a.decodeAudioData(bytes.slice(0),buf=>{ smpBuf[name]=buf; go(buf); },e=>{ console.warn('sfx: could not decode '+name,e); smpBytes[name]=false; }); if(pr&&pr.catch) pr.catch(()=>{}); }catch(e){ return false; } return true; }
 for(const k in SAMPLES) sampleFetch(k);

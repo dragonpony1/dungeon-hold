@@ -41,7 +41,15 @@ check("ENTER THE HALL still enters the hall",started==='build',started);
 const pause=await page.evaluate(()=>{ const b=document.getElementById('pausebtn'); const vis=b&&b.getBoundingClientRect().width>0; b.click(); const open=window.__pause.isOpen(); const back=[...document.querySelectorAll('#pause button')].some(x=>/RETURN TO TITLE/.test(x.textContent)); return {vis,open,back}; });
 check("in the hall a ⏸ button sits by the sound button; it opens the pause menu, which offers RETURN TO TITLE SCREEN (no need to close the tab)",pause.vis&&pause.open&&pause.back,JSON.stringify(pause));
 const musb=await page.evaluate(()=>{ window.__pause.close&&window.__pause.close(true); const b=document.getElementById('musbtn'); return {vis:!!b&&b.getBoundingClientRect().width>0,title:b&&b.title}; });
-check("a 🎵 music button sits by them too",musb.vis&&/Music/.test(musb.title),JSON.stringify(musb));
+check("a 🎵 button sits by them too, now the sound menu",musb.vis&&/Sound/.test(musb.title),JSON.stringify(musb));
+// build 143: "a sound menu so you can adjust efx vs music sound volumes"
+const snd=await page.evaluate(async()=>{ const b=document.getElementById('musbtn'); b.click(); await new Promise(r=>setTimeout(r,150)); const m=document.getElementById('sndmenu'); const open=!!m&&!m.classList.contains('hide'); const sl=[...m.querySelectorAll('input[type=range]')].map(r=>r.dataset.k);
+  const mus=m.querySelector('[data-k="music"]'); mus.value='30'; mus.dispatchEvent(new Event('input',{bubbles:true})); const fx=m.querySelector('[data-k="sfx"]'); fx.value='55'; fx.dispatchEvent(new Event('input',{bubbles:true})); await new Promise(r=>setTimeout(r,200));
+  const saved=JSON.parse(localStorage.getItem('dd_audio')); const buses=window.__sound.buses(); const pcts=[...m.querySelectorAll('.pc')].map(p=>p.textContent);
+  document.body.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); await new Promise(r=>setTimeout(r,100)); const closed=m.classList.contains('hide');
+  window.__pause.open(); await new Promise(r=>setTimeout(r,200)); const pb=[...document.querySelectorAll('#pause button')].find(x=>/SOUND/.test(x.textContent)); if(pb) pb.click(); await new Promise(r=>setTimeout(r,150)); const fromPause=!m.classList.contains('hide'); window.__sound.close(); window.__pause.close&&window.__pause.close(true);
+  return {open,sl,saved,buses,pcts,closed,pauseBtn:!!pb,fromPause}; });
+check("the 🎵 button opens a SOUND menu with a Music and an Effects slider; moving them sets the two channels live (music 0.30, effects 0.55) and saves dd_audio; a click elsewhere closes it; the pause menu has a SOUND button that opens it too",snd.open&&snd.sl.join()==='music,sfx'&&snd.saved&&snd.saved.music===.3&&snd.saved.sfx===.55&&(!snd.buses||(Math.abs(snd.buses.music-.3)<.05&&Math.abs(snd.buses.sfx-.55)<.05))&&snd.pcts.join()==='30%,55%'&&snd.closed&&snd.pauseBtn&&snd.fromPause,JSON.stringify(snd));
 await ctx.close();
 // touch wording
 const tctx=await browser.newContext({viewport:{width:900,height:600},hasTouch:true,isMobile:true}); const tp=await open(tctx);

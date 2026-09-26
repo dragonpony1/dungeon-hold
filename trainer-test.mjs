@@ -12,7 +12,7 @@ const PORT=8910, BASE="http://127.0.0.1:"+PORT;
 const server=await serve(PORT,{dist:DIST});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const errors=[];
-async function fresh(ctx,url){ const p=await ctx.newPage(); p.on("pageerror",e=>errors.push(String(e))); await p.goto(BASE+"/"+(url||"?silent&nogate"),{timeout:90000}); await p.waitForFunction(()=>window.__dd&&window.__meta&&window.__trainer&&window.__heroes,null,{timeout:60000}); return p; }
+async function fresh(ctx,url){ const p=await ctx.newPage(); p.on("pageerror",e=>errors.push(String(e))); await p.goto(BASE+"/"+(url||"?silent&nogate"),{timeout:240000}); await p.waitForFunction(()=>window.__dd&&window.__meta&&window.__trainer&&window.__heroes,null,{timeout:180000}); return p; }   /* generous: this suite opens three fresh pages, and a loaded test machine can take minutes over one */
 const view=p=>p.evaluate(()=>({step:window.__trainer.step(),text:window.__trainer.text(),waiting:window.__trainer.waiting(),on:document.getElementById('trainer').classList.contains('on'),n:document.querySelector('#trainer .tn').textContent,phase:window.__dd.S.phase,counts:window.__trainer.counts()}));
 const next=async p=>{ await p.keyboard.press('Enter'); await p.evaluate(()=>window.__dd.step(1/60,20)); };   // the player moves the guide on
 const ctx=await browser.newContext(); const page=await fresh(ctx);
@@ -36,6 +36,11 @@ check("...and ten seconds later it is still waiting: the tips never move on by t
 await next(page);
 const v4=await view(page);
 check("Enter: step 2/8 is one tip — look at the goblin's path, set up a BALLISTA (press 1, then click); the hall lent the mana",!v4.waiting&&v4.n==='2/8'&&/goblin's path/.test(v4.text)&&/BALLISTA/.test(v4.text)&&/press 1/.test(v4.text)&&(await page.evaluate(()=>window.__dd.S.mana))>=60,JSON.stringify(v4));
+// build 143: "he almost didn't notice the tool tip on the left, it needs to be a little more annoying"
+const lk1=await page.evaluate(()=>window.__trainer.look());
+check("a new tip slides in with a gold flash (class new) and the card is bigger (19 px type, 340 px wide, a solid gold border)",/\bnew\b/.test(lk1.cls)&&await page.evaluate(()=>{ const c=getComputedStyle(document.getElementById('trainer')); return parseFloat(c.fontSize)>=19&&parseFloat(c.width)>=330&&parseFloat(c.borderTopWidth)>=3; }),JSON.stringify(lk1));
+const lk2=await page.evaluate(()=>{ window.__dd.step(1/60,Math.round(14.3*60)); return window.__trainer.look(); });   /* the wiggle runs 0.9 s from the 14 s mark */
+check("left undone for 15 s, the tip nudges: a wiggle and glow (class nudge), repeating every 10 s after that",lk2.nudges>=1&&/\bnudge\b/.test(lk2.cls),JSON.stringify(lk2));
 await page.evaluate(()=>{ window.__dd.select('harpoon'); window.__dd.step(1/60,30); });
 const v4b=await view(page);
 check("picking the ballista alone does not tick it: the tip stays until the ballista is really down",v4b.step==='ballista'&&!v4b.waiting&&/goblin's path/.test(v4b.text),JSON.stringify(v4b));
@@ -77,10 +82,10 @@ await ctx2.close();
 // never on a later map; still on map one after it has been held
 const ctx3=await browser.newContext(); const p3=await fresh(ctx3);
 await p3.evaluate(()=>{ try{ localStorage.setItem('ddMapsCleared','1'); }catch(e){} });
-await p3.goto(BASE+"/?silent&nogate&map=1",{timeout:90000}); await p3.waitForFunction(()=>window.__dd&&window.__trainer,null,{timeout:60000});
+await p3.goto(BASE+"/?silent&nogate&map=1",{timeout:240000}); await p3.waitForFunction(()=>window.__dd&&window.__trainer,null,{timeout:180000});
 const later=await p3.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); return {map:window.__dd.map().id,on:document.getElementById('trainer').classList.contains('on'),training:window.__trainer.training()}; });
 check("on map two the guide never shows",!later.on&&!later.training,JSON.stringify(later));
-await p3.goto(BASE+"/?silent&nogate&map=0",{timeout:90000}); await p3.waitForFunction(()=>window.__dd&&window.__trainer,null,{timeout:60000});
+await p3.goto(BASE+"/?silent&nogate&map=0",{timeout:240000}); await p3.waitForFunction(()=>window.__dd&&window.__trainer,null,{timeout:180000});
 const held=await p3.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); return {on:document.getElementById('trainer').classList.contains('on'),training:window.__trainer.training()}; });
 check("back on map one after it has been held the guide still shows (map one is the training ground whoever plays it)",held.on&&held.training,JSON.stringify(held));
 await ctx3.close();
