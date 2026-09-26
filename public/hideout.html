@@ -225,11 +225,11 @@ const MODEL_MAP = {
 // rarity table shared by the cauldron, the gear panel and the shared display — colors match the main game's
 // RCSS table (parts/game.js on the main branch) so a rarity reads the same on both sides of the portal
 const RARITIES = [
-  { id:'common',    name:'Common Gear',    short:'Common',    color:'#d8d8d8' },
-  { id:'uncommon',  name:'Uncommon Gear',  short:'Uncommon',  color:'#5ad05a' },
-  { id:'rare',      name:'Rare Gear',      short:'Rare',      color:'#6aa8ff' },
-  { id:'epic',      name:'Epic Gear',      short:'Epic',      color:'#c070ff' },
-  { id:'legendary', name:'Legendary Gear', short:'Legendary', color:'#ffc040' },
+  { id:'common',    name:'Common Gear',    short:'Common',    color:'#d8d8d8', icon: ITEMS_DIR+'gear_common.png' },
+  { id:'uncommon',  name:'Uncommon Gear',  short:'Uncommon',  color:'#5ad05a', icon: ITEMS_DIR+'gear_uncommon.png' },
+  { id:'rare',      name:'Rare Gear',      short:'Rare',      color:'#6aa8ff', icon: ITEMS_DIR+'gear_rare.png' },
+  { id:'epic',      name:'Epic Gear',      short:'Epic',      color:'#c070ff', icon: ITEMS_DIR+'gear_epic.png' },
+  { id:'legendary', name:'Legendary Gear', short:'Legendary', color:'#ffc040', icon: ITEMS_DIR+'gear_legendary.png' },
 ];
 const RARITY_RANK = { common:0, uncommon:1, rare:2, epic:3, legendary:4 };
 
@@ -990,7 +990,7 @@ function recipeById(id) { return RECIPES.find(r => r.id === id); }
 function recipeInput(r) {
   if (r.kind === 'salvage') {
     const ra = RARITIES.find(x => x.id === r.gear);
-    return { name: ra.name, icon: ITEMS_DIR+'battle_scrap.webp', color: ra.color, get: () => BAG[r.gear] || 0, consume: n => { BAG[r.gear] -= n; writeBag(); } };
+    return { name: ra.name, icon: ra.icon, color: ra.color, get: () => BAG[r.gear] || 0, consume: n => { BAG[r.gear] -= n; writeBag(); } };
   }
   const s = SLUDGE[r.sludge];
   return { name: s.name, icon: s.icon, color: null, get: s.get, consume: n => s.add(-n) };
@@ -1004,7 +1004,7 @@ function renderBagStrip() {
     const pill = document.createElement('div');
     pill.className = 'cpill' + (n ? '' : ' empty');
     pill.style.borderColor = ra.color;
-    pill.innerHTML = '<img src="'+ITEMS_DIR+'battle_scrap.webp"><b style="color:'+ra.color+'">'+n+'</b>';
+    pill.innerHTML = '<img src="'+ra.icon+'"><b style="color:'+ra.color+'">'+n+'</b>';
     attachTooltip(pill, n + ' ' + ra.name);
     el.appendChild(pill);
   });
