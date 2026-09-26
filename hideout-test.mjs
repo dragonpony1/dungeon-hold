@@ -132,6 +132,12 @@ check("standalone: no BACK TO THE HALL button (its own crystal portal is the way
 await page3.close();
 
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
+// the hideout page carries its own build number (hideout build 9+: <meta name="hideout-build">); the assembler stamps it into the game so the status line shows both builds without opening the overlay
+{ const meta=(fs.readFileSync(DIST+"/hideout/index.html","utf8").match(/<meta name="hideout-build" content="(\d+)"/)||[])[1];
+  const p=await newGamePage(); const got=await p.evaluate(()=>({build:window.__hideout.build(),line:document.getElementById("buildline").textContent})); await p.close();
+  check("the embedded hideout page declares its build number in a meta tag",!!meta&&+meta>=9,String(meta));
+  check("the game knows the embedded hideout's build (stamped by assemble.mjs from that meta tag)",String(got.build)===meta,JSON.stringify(got));
+  check("the status line reads 'build N · hideout build M · …' so both builds show at a glance",new RegExp("^build \\d{3,} · hideout build "+meta+" · ").test(got.line),got.line); }
 check("no page errors (game or hideout)",realErrors.length===0,realErrors.slice(0,5).join(" | "));
 await browser.close(); server.close();
 console.log(results.filter(Boolean).length+"/"+results.length+" passed");

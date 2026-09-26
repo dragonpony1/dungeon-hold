@@ -81,5 +81,5 @@ function passThrough(){ go(true); }
 // pulled back out the moment a visit's phase ends for any reason (the horn, the crystal falling, the last wave held).
 // Polled rather than hooked into Meta.update, since update() itself stops running on the dead/won screens.
 setInterval(()=>{ if(wrap&&S.phase!=='build'&&S.phase!=='start') closeHideout(S.phase==='wave'?'The horn sounds — back to the hall!':null); },250);
-window.__hideout={isOpen:()=>!!wrap,open:openHideout,close:()=>closeHideout(),near:portalNear,url:()=>frame?frame.src:null,opens:()=>opens,passThrough,carry:carryGear,lastCarry:()=>lastCarry,readBag,readCarried,BAG_KEY,CARRY_KEY};
+window.__hideout={isOpen:()=>!!wrap,open:openHideout,close:()=>closeHideout(),near:portalNear,url:()=>frame?frame.src:null,opens:()=>opens,passThrough,carry:carryGear,lastCarry:()=>lastCarry,readBag,readCarried,BAG_KEY,CARRY_KEY,build:()=>HIDEOUT_BUILD};
 })();

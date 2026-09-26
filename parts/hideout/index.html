@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
+<meta name="hideout-build" content="9">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
 canvas{display:block}
@@ -45,6 +46,7 @@ canvas{display:block}
 .fgear .swatch{width:100%;aspect-ratio:1;border-radius:8px;margin-bottom:6px;object-fit:contain;background:#150c06;box-sizing:border-box;padding:6px}
 .fgear .fname{font-size:0.85em;font-weight:bold;line-height:1.15}
 .fgear .fsub{font-size:0.7em;margin-top:2px;opacity:0.9}
+#buildTag{position:fixed;bottom:6px;left:8px;color:#fff7;font:11px monospace;pointer-events:none;z-index:11}
 #forgeCraftBtn{display:block;width:100%;border:none;cursor:pointer;padding:14px;border-radius:24px;font-family:inherit;font-weight:bold;font-size:1.15em;letter-spacing:0.04em;color:#3a1808;background:linear-gradient(#ffb347,#d4700f);border:2px solid #ffdca0;box-shadow:inset 0 1px 0 #ffffff77}
 #forgeCraftBtn:hover:not(:disabled){filter:brightness(1.1)}
 #forgeCraftBtn:disabled{cursor:default;opacity:0.45}
@@ -90,12 +92,13 @@ canvas{display:block}
 #tooltip{position:fixed;display:none;z-index:50;background:#150e08;color:#ffe9b0;border:1px solid #a5762a;border-radius:6px;padding:5px 10px;font:bold 13px Georgia,serif;pointer-events:none;box-shadow:0 4px 12px #000a;max-width:220px}
 </style>
 </head><body>
-<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: your gear</div>
+<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: your gear<div id="loadLine" style="margin-top:16px;color:#8cf;font-size:13px">Building the room…</div></div>
 <div id="crosshair"></div>
 <div id="hud">Rare Sludge: <b id="sludge">0</b></div>
 <div id="prompt"></div>
 <div id="msg"></div>
 <div id="tooltip"></div>
+<div id="buildTag"></div>
 <div id="inv"></div>
 <div id="vendWrap"><div id="vendPanel">
   <button id="vendClose">&times;</button>
@@ -143,6 +146,13 @@ canvas{display:block}
 <script src="/vendor/three.min.js"></script>
 <script src="/vendor/GLTFLoader.js"></script>
 <script>
+// Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
+// file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
+// Keep it in step with the <meta name="hideout-build"> tag above.
+const HIDEOUT_BUILD = 9;
+window.HIDEOUT_BUILD = HIDEOUT_BUILD;
+document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
+
 // ============= SAVE DATA =============
 const SAVE_KEY = 'dd_hideout_save_v2';
 const STARTER_ITEMS = ['vending_machine', 'sludge_cauldron', 'ore_forge', 'portal'];
@@ -296,29 +306,52 @@ const ROOM_W = 5, ROOM_D = 4;
 const roomHalfW = ROOM_W*MODW/2, roomHalfD = ROOM_D*MODD/2;
 const colliders = []; // {minX,maxX,minZ,maxZ}
 
+// One fetch + one parse per model file, ever. Every tile or prop that uses a file is a clone of the parsed
+// scene, sharing its geometry and textures — the room is 58 tiles from 6 files, and this used to download
+// and decode all 58.
+const gltfCache = new Map(); // url -> Promise<gltf>
+function loadGltf(url) {
+  if (!gltfCache.has(url)) gltfCache.set(url, new Promise((res, rej) => loader.load(url, res, undefined, rej)));
+  return gltfCache.get(url);
+}
+
 function place(name, rx, ry, pos, scaleY) {
-  loader.load('/assets/hideout/' + name + '.glb', (gltf) => {
-    const obj = gltf.scene;
+  return loadGltf('/assets/hideout/' + name + '.glb').then((gltf) => {
+    const obj = gltf.scene.clone();
     obj.scale.set(SCALE, scaleY || SCALE, SCALE);
     obj.rotation.x = rx; obj.rotation.y = ry;
     const b0 = new THREE.Box3().setFromObject(obj);
     obj.position.set(pos.x - (b0.max.x+b0.min.x)/2, pos.y - b0.min.y, pos.z - (b0.max.z+b0.min.z)/2);
     scene.add(obj);
-  }, undefined, (e)=>console.error(name, e));
+  }, (e) => console.error(name, e));
 }
 
 // generic furniture/prop loader: url is a full path, scale is uniform, sits on its own bottom at pos.y
 function placeProp(url, scale, pos, ry, onLoad) {
-  loader.load(url, (gltf) => {
-    const obj = gltf.scene;
+  return loadGltf(url).then((gltf) => {
+    const obj = gltf.scene.clone();
     obj.scale.setScalar(scale);
     obj.rotation.y = ry || 0;
     const b0 = new THREE.Box3().setFromObject(obj);
     obj.position.set(pos.x - (b0.max.x+b0.min.x)/2, pos.y - b0.min.y, pos.z - (b0.max.z+b0.min.z)/2);
     scene.add(obj);
     if (onLoad) onLoad(obj);
-  }, undefined, (e) => console.error(url, e));
+    return obj;
+  }, (e) => console.error(url, e));
 }
+
+// Load order: the shell (walls, floor, ceiling) is what makes the room feel loaded, so it goes first and
+// alone; the chandelier and placed props wait for it and then trickle in, machines before furniture.
+const SHELL_FILES = ['floor', 'ceiling', 'wall_plain_1', 'wall_plain_2', 'wall_plain_3', 'wall_entrance'];
+let shellDone = 0;
+function renderLoadLine() {
+  const el = document.getElementById('loadLine');
+  el.textContent = shellDone < SHELL_FILES.length
+    ? 'Building the room… ' + Math.round(shellDone / SHELL_FILES.length * 100) + '%'
+    : 'Room ready';
+}
+const shellReady = Promise.all(SHELL_FILES.map(n =>
+  loadGltf('/assets/hideout/' + n + '.glb').then(() => { shellDone++; renderLoadLine(); }, () => { shellDone++; renderLoadLine(); })));
 
 // floor + ceiling tiles
 for (let ix=0; ix<ROOM_W; ix++) for (let iz=0; iz<ROOM_D; iz++) {
@@ -370,7 +403,7 @@ function box(w,h,d,color) {
 
 
 const PROPS_DIR = '/assets/hideout/props/';
-placeProp(PROPS_DIR+'chandelier.glb', 1.0, {x:0, y:GROUND_Y+4.5, z:0}, 0);
+const PROP_PRIORITY = { portal: 0, vending_machine: 1, ore_forge: 1, sludge_cauldron: 1 }; // the things you walk up to first
 
 const SCALE_MAP = { vending_machine: (EYE_HEIGHT/1.90)*3.5*0.75, sludge_cauldron: 2.0, ore_forge: 2.6, portal: 2.0 }; // portal scale kept modest on purpose — easy to bump up once Matt sees it in place
 const DEFAULT_PLACE_SCALE = 1.7; // every Meshy prop is normalized so its longest axis is ~1.9 raw units regardless of what it is, so scale 1.0 reads as toy-sized next to the player
@@ -384,7 +417,7 @@ function spawnPlacedItem(gid, pos, ry) {
   entry.collider = {minX:pos.x-r,maxX:pos.x+r,minZ:pos.z-r,maxZ:pos.z+r};
   colliders.push(entry.collider);
 
-  placeProp(PROPS_DIR + MODEL_MAP[gid], scale, pos, ry, (obj) => {
+  const loaded = placeProp(PROPS_DIR + MODEL_MAP[gid], scale, pos, ry, (obj) => {
     entry.obj = obj;
     if (gid === 'vending_machine') {
       const hit = new THREE.Mesh(new THREE.BoxGeometry(3.6,5.4,2.8), new THREE.MeshBasicMaterial({visible:false}));
@@ -433,6 +466,7 @@ function spawnPlacedItem(gid, pos, ry) {
   scene.add(pickHit);
   entry.pickHit = pickHit;
   pickupables.push(entry);
+  return loaded;
 }
 
 // exits back to the main game — SAVE lives in localStorage on this same origin, so it's already there
@@ -463,11 +497,16 @@ function tryPickup() {
   flashMsg('Picked up ' + GEAR[entry.gid].name);
 }
 
-// re-spawn anything the player freely placed in a previous visit
-SAVE.placed.forEach(p => {
-  if (!MODEL_MAP[p.gid]) return;
-  spawnPlacedItem(p.gid, {x:p.x, y:GROUND_Y, z:p.z}, p.ry);
-});
+// re-spawn anything the player freely placed in a previous visit — after the shell, one at a time so the
+// first machine shows up early instead of everything landing together at the end
+async function loadPropsAfterShell() {
+  await shellReady;
+  placeProp(PROPS_DIR+'chandelier.glb', 1.0, {x:0, y:GROUND_Y+4.5, z:0}, 0);
+  const queue = SAVE.placed.filter(p => MODEL_MAP[p.gid])
+    .sort((a, b) => (PROP_PRIORITY[a.gid] ?? 5) - (PROP_PRIORITY[b.gid] ?? 5));
+  for (const p of queue) await spawnPlacedItem(p.gid, {x:p.x, y:GROUND_Y, z:p.z}, p.ry);
+}
+loadPropsAfterShell();
 
 // shelves (3), each holds one placed gear item
 const shelfDefs = [
@@ -562,13 +601,11 @@ function useShelf(id) {
 }
 
 // ============= FREE PLACEMENT (hotbar -> ghost -> R to turn -> click to lock) =============
-const modelCache = {}; // gid -> loaded source Object3D, cloned per ghost/placement
 let ghost = null, ghostGid = null, ghostRy = 0;
 
 function loadModelFor(gid, cb) {
-  if (modelCache[gid]) { cb(modelCache[gid]); return; }
   if (!MODEL_MAP[gid]) return;
-  loader.load(PROPS_DIR + MODEL_MAP[gid], (gltf) => { modelCache[gid] = gltf.scene; cb(gltf.scene); }, undefined, (e) => console.error(gid, e));
+  loadGltf(PROPS_DIR + MODEL_MAP[gid]).then((gltf) => cb(gltf.scene), (e) => console.error(gid, e));
 }
 
 function makeGhostFrom(source, scale) {
@@ -1107,14 +1144,17 @@ function sfxSweep(f0, f1, dur, type, gain, delay) {
 function sfxClick() { sfxTone(520, 0.06, 'square', 0.08); }
 function sfxCraftBubble() {
   // a cluster of little staggered "bloop" chirps at random pitches — reads as an actual bubbling cauldron, not one blip
-  const bloops = 8;
+  const bloops = 12;
   for (let i = 0; i < bloops; i++) {
-    const delay = i * 0.06 + Math.random()*0.03;
-    const base = 240 + Math.random()*220;
-    sfxSweep(base, base*2.3, 0.16 + Math.random()*0.09, 'sine', 0.08 + Math.random()*0.04, delay);
+    const delay = i * 0.07 + Math.random()*0.035;
+    const base = 220 + Math.random()*240;
+    sfxSweep(base, base*2.3, 0.16 + Math.random()*0.1, 'sine', 0.08 + Math.random()*0.04, delay);
   }
-  sfxTone(170, 0.7, 'sine', 0.05, 0); // low undertone for body/sustain
-  sfxSweep(500, 1100, 0.3, 'sine', 0.06, 0.45); // little flourish near the end
+  // two slow low "glorps" underneath — bigger bubbles breaking the surface
+  sfxSweep(150, 70, 0.28, 'sine', 0.09, 0.18);
+  sfxSweep(130, 60, 0.32, 'sine', 0.09, 0.62);
+  sfxTone(170, 0.95, 'sine', 0.05, 0); // low undertone for body/sustain
+  sfxSweep(500, 1100, 0.3, 'sine', 0.06, 0.7); // little flourish near the end
 }
 function sfxSuccess() { sfxTone(523, 0.12, 'triangle', 0.14); sfxTone(659, 0.12, 'triangle', 0.14, 0.09); sfxTone(784, 0.22, 'triangle', 0.16, 0.18); }
 function sfxFail() { sfxSweep(220, 70, 0.35, 'sawtooth', 0.16); }

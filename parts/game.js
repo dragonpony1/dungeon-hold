@@ -629,7 +629,7 @@ function hurtHero(dmg){ if(hero.dead>0) return; dmg=Math.max(1,Math.round(dmg*(1
 function hurtCrystal(dmg,killer){ if(S.phase==='dead'||S.phase==='won'||S.phase==='deathcut') return; S.crystal-=dmg; flashDmg(); SFX.crystal(); crystalShake=.4; if(S.crystal<=0){ S.crystal=0; startDeathCut(killer); } }
 function finishDeath(){ S.phase='dead'; droneOff(); setMusic('none'); sting(); if(document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play'); if(!Meta.onRunEnd(S.wave)){ $('deadwave').textContent=S.wave; $('dead').classList.remove('hide'); } deathCut=null; }
 function startDeathCut(killer){ const k=(killer&&!killer.dead)?killer:null; deathCut={t:0,dur:2,killer:k,eye:null,eye2:null,look:null}; if(k&&k.mdl&&k.mdl.glb&&k.mdl.actions&&k.mdl.actions.attack){ k.swing=0; mobPlay(k.mdl,'attack',{restart:true,fade:0,speed:.5}); } S.phase='deathcut'; }
-function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c.killer; if(k&&!k.dead&&k.mdl) mobAnim(k,dt);
+function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c.killer; if(k&&!k.dead&&k.mdl&&k.mdl.actions) mobAnim(k,dt);   /* only a rigged (GLB) killer has clips to drive; a mob still on its procedural body while its model is on the way (loading tiers, build 123) used to throw here and stall the death cut */
   const cy=crystalG.position.y+2.5; const kx=k?k.x:0, kz=k?k.z:2.5, ky=k?k.y+(k.h||1.6)*.55:cy;
   if(!c.eye){ const dl=Math.hypot(kx,kz)||1, nx=kx/dl, nz=kz/dl, px=-nz, pz=nx; c.eye=[nx*1.7+px*3.3,Math.max(cy,ky)+.5,nz*1.7+pz*3.3]; c.look=[kx*.4,(cy+ky)/2,kz*.4]; c.eye2=[lerp(c.eye[0],c.look[0],.3),lerp(c.eye[1],c.look[1],.15),lerp(c.eye[2],c.look[2],.3)]; }
   const p=Math.min(1,c.t/c.dur); camera.position.set(lerp(c.eye[0],c.eye2[0],p),lerp(c.eye[1],c.eye2[1],p),lerp(c.eye[2],c.eye2[2],p)); camera.lookAt(c.look[0],c.look[1],c.look[2]);
@@ -637,8 +637,9 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=126;
-function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
+const BUILD=127;
+const HIDEOUT_BUILD=/*HIDEOUT*/0;   // the embedded hideout page's own build number (its <meta name="hideout-build">), stamped in by assemble.mjs when the hideout rides along; 0 in a page without it
+function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+(HIDEOUT_BUILD?' · hideout build '+HIDEOUT_BUILD:'')+' · '+msg; }
 heroStatus('hero model: loading…');   // head.html's own text is a placeholder from an old build; the real number goes up before any model is asked for
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -883,8 +884,12 @@ function upgradeDef(pos){ const d=nearestDef(3.4,pos); if(!d) return; if(d.hp<d.
 function fireArrow(e,x,y,z,hit){ const splash=MOBS[e.kind]&&MOBS[e.kind].splash||0; const m=splash?grenadeMesh():arrowMesh(); scene.add(m); const x0=e.x, y0=e.y+1.2*e.sc, z0=e.z; const dur=Math.hypot(x-x0,z-z0)/(splash?13:18); projs.push({kind:'arrow',x0,y0,z0,x1:x,y1:y,z1:z,t:0,dur:Math.max(.2,dur),dmg:e.dmg,hit,mesh:m,splash,owner:e}); }   // a splash-tagged mob throws a grenade, slower and heavier than a plain shot
 // the floor ring the four elemental halos share: a glow ring at the reach, a small inner spinner — same idea as the
 // totem/frost aura but flatter and lower, since these stand barely off the ground (top .08) instead of being a spire
-function auraRing(d,rr,col,active,s){ let a=d.mdl.userData.aura; if(!a){ a=new THREE.Group(); const ring=new THREE.Mesh(new THREE.RingGeometry(.94,1,48),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); ring.rotation.x=-PI/2; ring.userData.noOL=true; a.add(ring); const inner=new THREE.Mesh(new THREE.RingGeometry(.2,.24,24),ring.material.clone()); inner.rotation.x=-PI/2; inner.userData.noOL=true; a.add(inner); a.userData.ring=ring; a.userData.inner=inner; d.mdl.add(a); d.mdl.userData.aura=a; }
-  a.position.y=.03; a.scale.set(rr/s,1/s,rr/s); a.userData.inner.rotation.z+=(active?2.5:.8)*.016; a.userData.ring.material.opacity=.3+.1*Math.sin(S.t*2.4)+(active?.15:0); }
+const HALO_COL_H=2.4, HALO_COL_OP=.06;   // the halo light column: how tall, and how faint at rest (a little brighter while a mob stands in the ring)
+function auraRing(d,rr,col,active,s){ let a=d.mdl.userData.aura; if(!a){ a=new THREE.Group(); const ring=new THREE.Mesh(new THREE.RingGeometry(.94,1,48),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); ring.rotation.x=-PI/2; ring.userData.noOL=true; a.add(ring); const inner=new THREE.Mesh(new THREE.RingGeometry(.2,.24,24),ring.material.clone()); inner.rotation.x=-PI/2; inner.userData.noOL=true; a.add(inner); a.userData.ring=ring; a.userData.inner=inner;
+    // the column: a faint see-through wall of the halo's own colour standing on the ring, HALO_COL_H tall, brightest at the floor and gone by the top (vertex colours fade to black, and under additive blending black adds nothing) -- a mob walks through it, and from the camera's height it says which halo this is and who is inside it, where the flat ring alone is hidden behind the mobs; kept faint so four overlapping halos never wash out the lane
+    const cg=new THREE.CylinderGeometry(1,1,HALO_COL_H,48,1,true); { const pos=cg.attributes.position, cols=new Float32Array(pos.count*3); for(let i=0;i<pos.count;i++){ const k=Math.max(0,.5-pos.getY(i)/HALO_COL_H); cols[i*3]=cols[i*3+1]=cols[i*3+2]=k*k; } cg.setAttribute('color',new THREE.BufferAttribute(cols,3)); }
+    const column=new THREE.Mesh(cg,new THREE.MeshBasicMaterial({color:col,vertexColors:true,transparent:true,opacity:HALO_COL_OP,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); column.position.y=HALO_COL_H/2; column.userData.noOL=true; a.add(column); a.userData.column=column; d.mdl.add(a); d.mdl.userData.aura=a; }
+  a.position.y=.03; a.scale.set(rr/s,1/s,rr/s); a.userData.inner.rotation.z+=(active?2.5:.8)*.016; a.userData.ring.material.opacity=.3+.1*Math.sin(S.t*2.4)+(active?.15:0); a.userData.column.material.opacity=HALO_COL_OP+.015*Math.sin(S.t*1.7)+(active?.04:0); }
 function updateDefs(dt){ const trampled=[];
   // the totems' rings: every other defense inside one hits harder and faster by the strongest ring it stands in
   for(const d of defs) d.buff=0; for(const t of defs){ if(t.kind!=='totem'||t.pop<1) continue; const r=stat(t,'range'), b=stat(t,'buff'); for(const d of defs){ if(d===t||d.kind==='totem') continue; if(Math.hypot(d.x-t.x,d.z-t.z)<=r) d.buff=Math.max(d.buff,b); } }
@@ -935,10 +940,11 @@ function updateProj(dt){
         if(p.splash){ grenadeBurst(p.x1,p.y1,p.z1); const hitCrystal=Math.hypot(p.x1,p.z1)<p.splash; if(hitCrystal&&p.hit.kind!=='crystal') hurtCrystal(Math.round(p.dmg*.6*10)/10,p.owner); for(const d2 of defs){ if(d2===p.hit.obj) continue; if(Math.hypot(d2.x-p.x1,d2.z-p.z1)<p.splash+.6) hurtDef(d2,Math.round(p.dmg*.6*10)/10); } } /* the grenade bursts: everything nearby (not just what it was aimed at) takes half again what it hit */ } }
     if(dead){ scene.remove(p.mesh); projs.splice(i,1); } }
 }
+const MANA_ORB_MUL=1.25;   // every mob's mana orbs are worth this much more (a playtest ask); one place to retune, and the co-op orb grant reads it too
 function spawnOrbs(x,z,n){ for(let k=0;k<n;k++){ const a=rnd()*TAU; const o={x,y:.8,z,vx:Math.cos(a)*2.5,vy:4+rnd()*2.5,vz:Math.sin(a)*2.5,mesh:orbMesh(),t:0}; o.mesh.position.set(x,.8,z); scene.add(o.mesh); orbs.push(o); } }
 function updateOrbs(dt){
   for(let i=orbs.length-1;i>=0;i--){ const o=orbs[i]; o.t+=dt; const hd=Math.hypot(hero.x-o.x,hero.z-o.z);
-    if(hero.dead<=0&&hd<(window.__autoMana?1e9:3.6)){ const tx=hero.x, ty=hero.y+1, tz=hero.z; const dx=tx-o.x, dy=ty-o.y, dz=tz-o.z, d=Math.hypot(dx,dy,dz); if(d<.7){ const v=Math.round(5*(1+heroStat('mana')/100)*heroMult('mana')*10)/10; S.mana=Math.round((S.mana+v)*10)/10; SFX.mana(); floatText(o.x,o.y+.4,o.z,'+'+v,'#5ee9ff'); scene.remove(o.mesh); orbs.splice(i,1); continue; } const sp=11*dt/d; o.x+=dx*sp; o.y+=dy*sp; o.z+=dz*sp; }
+    if(hero.dead<=0&&hd<(window.__autoMana?1e9:3.6)){ const tx=hero.x, ty=hero.y+1, tz=hero.z; const dx=tx-o.x, dy=ty-o.y, dz=tz-o.z, d=Math.hypot(dx,dy,dz); if(d<.7){ const v=Math.round(5*MANA_ORB_MUL*(1+heroStat('mana')/100)*heroMult('mana')*10)/10; S.mana=Math.round((S.mana+v)*10)/10; SFX.mana(); floatText(o.x,o.y+.4,o.z,'+'+v,'#5ee9ff'); scene.remove(o.mesh); orbs.splice(i,1); continue; } const sp=11*dt/d; o.x+=dx*sp; o.y+=dy*sp; o.z+=dz*sp; }
     else { o.vy-=14*dt; const nx=o.x+o.vx*dt, nz=o.z+o.vz*dt; if(!solidAt(nx,nz,0,true)){ o.x=nx; o.z=nz; } else { o.vx=-o.vx*.5; o.vz=-o.vz*.5; } o.y+=o.vy*dt; const fl=baseFloor(o.x,o.z)+.3; if(o.y<fl){ o.y=fl; o.vy=-o.vy*.4; o.vx*=.7; o.vz*=.7; } }
     o.mesh.position.set(o.x,o.y+Math.sin(o.t*4)*.05,o.z); o.mesh.userData.o.rotation.y+=dt*3; }
 }

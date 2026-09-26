@@ -12,7 +12,7 @@ const settle=()=>page.waitForFunction(()=>window.__tavern.goldShown()===window._
 await page.goto("http://127.0.0.1:8810/?silent&nogate"); await ready(page); await page.waitForTimeout(300);
 // ---- load ----
 const boot=await page.evaluate(()=>({line:document.getElementById('buildline').textContent,meta:window.__meta===window.__dd.Meta,tavern:!!window.__tavern,fam:!!window.__familiar,gold:!!document.getElementById('gold'),xp:!!document.getElementById('xpline'),tv:!!document.getElementById('tavern'),phase:window.__dd.S.phase}));
-check("build line reads build 14+", /build (1[4-9]|[2-9]\d)/.test(boot.line), boot.line);
+check("build line reads build 14+ (three digits since build 100; 'hideout build N' may follow)", /^build (1[4-9]|[2-9]\d|\d{3,})\b/.test(boot.line), boot.line);
 check("modules loaded: Meta hook, tavern DOM, familiar, HUD gold + xp line", boot.meta&&boot.tavern&&boot.fam&&boot.gold&&boot.xp&&boot.tv&&boot.phase==='start', JSON.stringify(boot));
 check("no console errors or warnings on load", errors.length===0&&warns.length===0, [...errors,...warns].join(" | ").slice(0,300));
 // ---- fresh state + the three ways in from the start screen ----
@@ -54,8 +54,8 @@ check("buy refused when poor (reason), buy = 3x value into the bag, stock shrink
 check("restock costs 40*tier, refills 6 (Uncommon+, a Rare+, a familiar, an amulet)", buy.rok&&buy.rc===40&&buy.g1-buy.g2===40&&buy.stock6===6&&buy.minR>=1&&buy.maxR>=2&&buy.slots.includes('familiar')&&buy.slots.includes('amulet'), JSON.stringify(buy).slice(0,300));
 check("shop tier line", /^Tier 1 stock · (reach wave 1 for tier 2|tier 2 wares arrive after this run)$/.test(buy.tier), buy.tier);   // mid-run, once wave 1 is held, the line promises the next tier after the run instead of "reach wave 1"
 // ---- bag full → auto-sell ----
-const full=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; for(const l of d.loot) d.scene.remove(l.mesh); d.loot.length=0; while(M.bag().length<M.BAG_CAP) M.giveItem(d.rollItem(1,'charm',2)); const g0=M.gold(); const it=d.rollItem(2,'amulet',3); d.dropLoot(it,d.hero.x,d.hero.z); d.step(1/60,120); return {bag:M.bag().length,gain:M.gold()-g0,value:it.value,toast:document.getElementById('toast').textContent,loot:d.loot.length}; });
-check("full bag: the item sells itself for its value with the 'Bag is full' toast", full.bag===24&&full.gain===full.value&&/Bag is full/.test(full.toast)&&full.loot===0, JSON.stringify(full));
+const full=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; for(const l of d.loot) d.scene.remove(l.mesh); d.loot.length=0; while(M.bag().length<M.BAG_CAP) M.giveItem(d.rollItem(1,'charm',2)); const g0=M.gold(); const it=d.rollItem(2,'amulet',3); d.dropLoot(it,d.hero.x,d.hero.z); d.step(1/60,120); return {bag:M.bag().length,cap:M.BAG_CAP,gain:M.gold()-g0,value:it.value,toast:document.getElementById('toast').textContent,loot:d.loot.length}; });
+check("full bag: the item sells itself for its value with the 'Bag is full' toast", full.bag===full.cap&&full.gain===full.value&&/Bag is full/.test(full.toast)&&full.loot===0, JSON.stringify(full));
 // ---- respec ----
 const rs=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; M.sellJunk(); M.giveGold(1000); const cost=M.respecCost(), g0=M.gold(), spent=M.spentPoints(); const can=M.canRespec(); const ok=M.respec(); return {cost,level:M.level(),can,ok,spent,points:M.points(),mult:d.heroMult('dmg'),paid:g0-M.gold()}; });
 check("respec refunds all points for 100*level gold", rs.can&&rs.ok&&rs.spent===3&&rs.points===rs.level-1&&rs.mult===1&&rs.cost===100*rs.level&&rs.paid===rs.cost, JSON.stringify(rs));

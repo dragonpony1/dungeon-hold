@@ -40,7 +40,8 @@ node familiar-test.mjs                  # the single-file fallback suite reads $
 ```
 Suites: feat, loot, glb, place, csp, mob, mobpath, meta, tavern, tavernroom, familiar, familiars2, cone, music, defglb,
 ballista, lootfeel, weapons, towers, paperdoll, casino, ogre, forge, fix-r1, fix-r2, heroes, void, sets, throne, campaign, maps,
-moat, aim, newmobs, trollboss, armory, totem, pause, pwa, share, and the verify-* adversarial suites. Run them one at a
+moat, aim, newmobs, trollboss, armory, totem, pause, pwa, share, hideout, loadorder, bagsort, gearlock, coop-rewards,
+voidset, halo-column, and the verify-* adversarial suites. Run them one at a
 time: ten in parallel time out on page loads (the page is 6.8 MB).
 
 ## Adding Meshy art
@@ -263,8 +264,8 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 
 ## Open items
 
-- Void set models: the concept art (runed blade, shard charm, galaxy amulet, starless robe) is waiting on Meshy exports;
-  until then the Void sword is the holy sword darkened and burning violet. The Void staff is done (`staff-void`, built in code).
+- Void set models: the concept art (shard charm, galaxy amulet, starless robe) is waiting on Meshy exports; the Void
+  sword, staff and bow are done, built in code (`94-voidset.js`, `82-staff.js`, `83-bow.js`). The Holy set is next.
 - Co-op, phases 1-10 done — a guest can now join a host's hall, from the title screen itself, help defend it, fight in it,
   build in it, and fight AS the gear/skills they actually have equipped, not a flat unequipped baseline, with a ranged
   guest's shot a real travelling bolt/arrow rather than an instant hit. Phase 1 (`98-party.js`): other players' heroes render alongside the local one —
@@ -676,6 +677,36 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   host's story. `coop-rewards-test.mjs` (16/16) proves a goblin and an ogre are worth 2 and 40 to the guest, a held
   wave pays 15 gold and the guest's xp gain matches the host's exactly, a defeat pays 25 and a map held 25×waves+150
   on the guest's own screen and into its save, and the guest's best wave stays untouched.
+- The Void set fleshed out (`94-voidset.js`, new; `93-gearsets.js`; build 127). Three things it still borrowed are now its own.
+  (1) Its sword: an obsidian blade built in code like the void staff and bow (a violet fuller with runes, a horned iron guard
+  lit at the tips, a wrapped grip, a floating crystal pommel), registered with the weapon mount as `void` so a Void weapon
+  in the knight's hand is no longer the holy blade tinted — `pack.models.sword:'void'`. (2) Its five-piece power on defenses:
+  `pack.defKind` maps a defense kind to a fraction (`{dazzle:.75}`), applied in `stat(d,'dmg')` as a multiplier for a halo
+  that has damage of its own, and — since the Dazzling Halo only confuses — as a LASH for it: while the full set is worn,
+  every dazzle ring the wearer owns also hits everything it dazzles with void energy, 75% of a Storm Halo's blow on a Storm
+  Halo's rhythm, scaled by mark and the owner's defense buffs, with a violet pulse each time it lands. The owner is what
+  matters: the host by its worn sets, a co-op guest by the kind map its client reports (`kind` in the guest's input payload,
+  `Meta.defOwnerKind`), so a friend's halos carry the friend's set, never the host's. (3) Its unlock: the first time all five
+  pieces are worn, a record goes into localStorage `dd_hideout_unlocks` — the hideout's third contract, an object keyed by
+  unlock id (`{id:'stand-void',set,name:'Void Armor Stand',model:'armor-stand-void.glb',at,seen:false,claimed:false}`);
+  the game only ever adds, the hideout flips `seen`/`claimed` — with a toast and a floating VOID ARMOR STAND UNLOCKED. The
+  hideout side (a wall locker that glows while an unlock is unseen, the stand offered as furniture) is the other session's.
+  The set's violet drop column, sound and the hero's aura are 93's and unchanged. Also for play: every mob's mana orbs are
+  worth 25% more (`MANA_ORB_MUL` in game.js, read by the co-op orb grant too). `voidset-test.mjs` (20/20) covers the
+  sword in the knight's hand, the unlock written once and never overwritten, the lash landing on dazzled goblins in solo
+  and co-op (a guest-owned dazzle lashes with the guest's tow, a host-owned one doesn't when only the guest wears the set),
+  no lash at three pieces, and an orb worth 5 × 1.25.
+- Halo light columns (`auraRing` in game.js; build 127): each of the four elemental halos stands a faint see-through column
+  of its own colour on its ring — an open cylinder 2.4 tall, brightest at the floor and gone by the top (vertex colours fade
+  to black, and under additive blending black adds nothing), no depth write so it never hides what walks through it,
+  opacity .06 at rest breathing ±.015 and +.04 while a mob stands inside. It grows with the ring at each mark. From the
+  camera's height it says which halo this is and who is inside it, where the flat ring alone was hidden behind the mobs;
+  kept faint on purpose so four overlapping halos never wash out a lane. The totem and frost spire keep their own aura.
+  `halo-column-test.mjs` (25/25).
+- Hideout copy at `478753a` (hideout build 9: shell-first loading, each model parsed once and cloned, props after the walls;
+  a build number of its own). The assembler now reads the hideout page's `<meta name="hideout-build">` and stamps it into
+  the game (`HIDEOUT_BUILD`), so the status line reads `build 127 · hideout build 9 · …` and Matt can compare the embedded
+  copy with the live page without opening the overlay (`__hideout.build()`; the build fails loudly if the meta is missing).
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

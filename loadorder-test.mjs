@@ -28,7 +28,7 @@ await page.goto(BASE+"/?silent",{timeout:120000,waitUntil:'commit'});
 check("the build-line markup no longer carries the old 'build 21' placeholder",!/id="buildline">[^<]*build 21/.test(fs.readFileSync(DIST+"/index.html","utf8")));
 await page.waitForFunction(()=>window.__dd,null,{timeout:60000});
 const early=await page.evaluate(()=>document.getElementById('buildline').textContent);
-check("the build line shows the real build number as soon as the script runs, before any model has landed",/^build \d{3,} · hero model: loading/.test(early),early);
+check("the build line shows the real build number as soon as the script runs, before any model has landed",/^build \d{3,}( · hideout build \d+)? · hero model: loading/.test(early),early);
 await page.waitForFunction(()=>!/loading…/.test(document.getElementById('buildline').textContent),null,{timeout:90000}).catch(()=>{});
 check("the hero model landed",/hero: /.test(await page.evaluate(()=>document.getElementById('buildline').textContent)));
 
@@ -59,7 +59,7 @@ await sleep(300);
 check("upgrading it to Mark II asks for Mark III next",up.lvl===2&&up.asked.includes('harpoon:2')&&started.some(s=>name(s.u)==='ballista-3'),JSON.stringify(up));
 await page.waitForFunction(()=>{ const l=window.__defglb.list(); return l.harpoon&&l.harpoon[1]; },null,{timeout:30000}).catch(()=>{});
 check("...and the Mark II model actually lands and registers",await page.evaluate(()=>{ const l=window.__defglb.list(); return !!(l.harpoon&&l.harpoon[1]); }));
-check("the build line still reads the real build",/^build \d{3,} · hero: /.test(await page.evaluate(()=>document.getElementById('buildline').textContent)));
+check("the build line still reads the real build",/^build \d{3,}( · hideout build \d+)? · hero: /.test(await page.evaluate(()=>document.getElementById('buildline').textContent)));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
 check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close();

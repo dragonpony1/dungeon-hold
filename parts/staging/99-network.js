@@ -388,9 +388,10 @@ function hostGuestShot(data,fromId){
 onMessage('shot',(data,fromId)=>hostGuestShot(data,fromId));
 onMessage('swing',(data,fromId)=>{ guestHitCone(fromId,data.yaw,data.dmg,data.reach); });
 const guestStats=new Map();   // id -> {stat:{tow,trate,tarea,move,def,hp,regen},mult:{tow,tcd,aoe,move,hp}} -- this guest's OWN gear/skill numbers, last reported
-onMessage('input',(data,fromId)=>{ guestIn.set(fromId,data); if(data.stat&&data.mult) guestStats.set(fromId,{stat:data.stat,mult:data.mult}); });
+onMessage('input',(data,fromId)=>{ guestIn.set(fromId,data); if(data.stat&&data.mult) guestStats.set(fromId,{stat:data.stat,mult:data.mult,kind:data.kind||{}}); });
 Meta.defOwnerStat=(id,k)=>{ const s=guestStats.get(id); return s?s.stat[k]:undefined; };
 Meta.defOwnerMult=(id,k)=>{ const s=guestStats.get(id); return s?s.mult[k]:undefined; };
+Meta.defOwnerKind=(id,kind)=>{ const s=guestStats.get(id); return s?(s.kind&&s.kind[kind])||0:undefined; };   // that guest's own full-set power for this defense kind (94-voidset.js)
 
 let syncT=0;
 function hostBroadcastHeroes(dt){
@@ -426,7 +427,8 @@ function guestSendInput(dt){
   syncTIn+=dt; if(syncTIn<1/15) return; syncTIn=0;
   send('input',{w:K.w?1:0,s:K.s?1:0,a:K.a?1:0,d:K.d?1:0,shift:K.shift?1:0,yaw:+cam.yaw.toFixed(3),pick:window.__heroes.pick(),
     stat:{tow:heroStat('tow'),trate:heroStat('trate'),tarea:heroStat('tarea'),move:heroStat('move'),def:heroStat('def'),hp:heroStat('hp'),regen:heroStat('regen'),mana:heroStat('mana')},
-    mult:{tow:heroMult('tow'),tcd:heroMult('tcd'),aoe:heroMult('aoe'),move:heroMult('move'),hp:heroMult('hp'),mana:heroMult('mana')}});
+    mult:{tow:heroMult('tow'),tcd:heroMult('tcd'),aoe:heroMult('aoe'),move:heroMult('move'),hp:heroMult('hp'),mana:heroMult('mana')},
+    kind:Meta.defKindMap?Meta.defKindMap():{}});   // a full set's per-defense-kind power (94-voidset.js), for the halos this guest places
 }
 
 // ---- phase 5: the host's real crystal/wave state, so a guest is helping defend ONE hall rather than tracking a
@@ -737,7 +739,7 @@ function hostGuestPickupOrb(data,fromId){
   if(role!=='host') return;
   const i=orbs.findIndex(o=>o.__coopId===data.id); if(i<0) return;
   const o=orbs[i]; scene.remove(o.mesh); orbs.splice(i,1);
-  const s=guestStats.get(fromId), v=Math.round(5*(1+(s?s.stat.mana:0)/100)*(s?s.mult.mana:1)*10)/10;   // same formula updateOrbs (game.js) uses for the real hero, now read off THIS guest's own reported mana stat
+  const s=guestStats.get(fromId), v=Math.round(5*MANA_ORB_MUL*(1+(s?s.stat.mana:0)/100)*(s?s.mult.mana:1)*10)/10;   // same formula updateOrbs (game.js) uses for the real hero, now read off THIS guest's own reported mana stat
   guestMana.set(fromId,Math.round(((guestMana.has(fromId)?guestMana.get(fromId):MAP_MANA)+v)*10)/10);
   SFX.mana(); send('orbGrant',{v},fromId);
 }
