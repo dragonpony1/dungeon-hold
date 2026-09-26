@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
+canvas{display:block}
+#hud{position:fixed;top:10px;left:10px;color:#fff;font:14px monospace;background:#000a;padding:8px 12px;border-radius:6px;pointer-events:none}
+#hud b{color:#8f8}
+#crosshair{position:fixed;top:50%;left:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:#fff8;pointer-events:none}
+#prompt{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);color:#fff;font:16px monospace;background:#000c;padding:10px 16px;border-radius:6px;display:none;text-align:center}
+#inv{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;background:#000a;padding:8px;border-radius:8px}
+.slot{width:52px;height:52px;border:2px solid #666;border-radius:6px;display:flex;align-items:center;justify-content:center;font:10px monospace;color:#fff;cursor:pointer;text-align:center;background:#222}
+.slot.sel{border-color:#ff8}
+#start{position:fixed;inset:0;background:#000d;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font:16px monospace;text-align:center;cursor:pointer;z-index:10}
+#start b{font-size:22px;color:#8cf}
+#msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:#ff8;font:20px monospace;background:#000c;padding:14px 20px;border-radius:8px;display:none}
+#vendWrap{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:20}
+#vendPanel{position:relative;width:min(480px,92vw);max-height:90vh;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px #000a;font-family:Georgia,'Times New Roman',serif}
+#vendHeaderImg,#vendFooterImg{display:block;width:100%}
+#vendSludge{position:absolute;left:59%;top:74%;width:14%;height:18%;text-align:center;font-size:1.5em;font-weight:bold;color:#fff2c8;background:#1a1008;border-radius:8px;display:flex;align-items:center;justify-content:center}
+#vendBody{background:linear-gradient(#241811,#1a120b);flex:1;overflow-y:auto;padding:10px 14px}
+#vendBody::-webkit-scrollbar{width:7px}
+#vendBody::-webkit-scrollbar-thumb{background:#7a5a2a;border-radius:4px}
+.vrow{display:flex;align-items:center;gap:10px;padding:8px;margin-bottom:8px;background:linear-gradient(#3a2a1c,#2c1f14);border:1px solid #6b4a24;border-radius:10px}
+.vrow.disabled{filter:grayscale(0.6) brightness(0.75)}
+.vicon{width:52px;height:52px;flex:0 0 auto;object-fit:contain;background:#0d1420;border:2px solid #7a5a2a;border-radius:8px;padding:3px;box-sizing:border-box}
+.vname{flex:1;min-width:0;color:#f0dfc0;font-weight:bold;font-size:1.05em;line-height:1.2}
+.vcost{flex:0 0 auto;display:flex;align-items:center;gap:5px;color:#ffe9b0;font-weight:bold;font-size:1.05em;background:#150e08;border:1px solid #6b4a24;border-radius:6px;padding:4px 8px}
+.vcost img{width:18px;height:18px;object-fit:contain}
+.vredeem{flex:0 0 auto;border:none;cursor:pointer;padding:9px 16px;border-radius:20px;font-family:inherit;font-weight:bold;font-size:0.95em;letter-spacing:0.03em;color:#ffe9b0;background:linear-gradient(#a52a2a,#6b1414);border:1px solid #d4a017;box-shadow:inset 0 1px 0 #ffffff33}
+.vredeem:hover:not(:disabled){filter:brightness(1.18)}
+.vredeem:disabled{cursor:default;opacity:0.5}
+#vendClose{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:#000c;color:#fff;border:2px solid #a55;font:16px monospace;cursor:pointer;z-index:2}
+
+#forgeWrap{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:20}
+#forgePanel{position:relative;width:min(520px,92vw);max-height:90vh;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px #000a;font-family:Georgia,'Times New Roman',serif;background:linear-gradient(#241811,#160d08);border:3px solid #6b3a1a}
+#forgeHeader{background:linear-gradient(#5a2a10,#3a1808);padding:16px 20px 12px;text-align:center;border-bottom:3px solid #a5501a}
+#forgeHeader h1{margin:0;color:#ffcf8a;font-size:1.7em;letter-spacing:0.04em;text-shadow:0 2px 4px #000}
+#forgeHeader p{margin:4px 0 0;color:#d8a878;font-size:0.85em;font-style:italic}
+#forgeInput{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;background:#150c06;border:1px solid #6b3a1a;border-radius:8px;padding:8px 14px;color:#ffdca0;font-weight:bold}
+#forgeInput img{width:26px;height:26px;object-fit:contain}
+#forgeBody{padding:16px 20px;overflow-y:auto}
+#forgeGearGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.fgear{border:2px solid #6b3a1a;border-radius:10px;background:linear-gradient(#3a2a1c,#241811);padding:8px;text-align:center;cursor:pointer;color:#e8c9a0}
+.fgear.sel{border-color:#ffb347;box-shadow:0 0 12px #ff8c3388}
+.fgear .swatch{width:100%;aspect-ratio:1;border-radius:8px;margin-bottom:6px;object-fit:contain;background:#150c06;box-sizing:border-box;padding:6px}
+.fgear .fname{font-size:0.85em;font-weight:bold;line-height:1.15}
+#forgeCraftBtn{display:block;width:100%;border:none;cursor:pointer;padding:14px;border-radius:24px;font-family:inherit;font-weight:bold;font-size:1.15em;letter-spacing:0.04em;color:#3a1808;background:linear-gradient(#ffb347,#d4700f);border:2px solid #ffdca0;box-shadow:inset 0 1px 0 #ffffff77}
+#forgeCraftBtn:hover:not(:disabled){filter:brightness(1.1)}
+#forgeCraftBtn:disabled{cursor:default;opacity:0.45}
+#forgeOutput{margin-top:14px;min-height:70px;border-radius:10px;border:1px dashed #6b3a1a;display:flex;align-items:center;justify-content:center;text-align:center;color:#a88;font-size:0.9em;padding:10px}
+#forgeOutput.success{border-style:solid;border-color:#7fd858;background:#12240f;color:#c8f5b0}
+#forgeOutput.fail{border-style:solid;border-color:#d85858;background:#240f0f;color:#f5b0b0}
+#forgeOutput.unique{border-style:solid;border-color:#ffcf3a;background:linear-gradient(135deg,#3a2a0f,#402050,#0f2a3a);color:#fff2c0;box-shadow:0 0 16px #ffcf3a88;font-weight:bold}
+#forgeClose{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:#000c;color:#fff;border:2px solid #a55;font:16px monospace;cursor:pointer;z-index:2}
+
+#cauldronWrap{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:20}
+#cauldronPanel{position:relative;width:min(560px,94vw);max-height:90vh;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px #000a;font-family:Georgia,'Times New Roman',serif;background:linear-gradient(#241811,#160d10);border:3px solid #6b2a5a}
+#cauldronHeader{background:linear-gradient(#4a1a3a,#2a0f22);padding:16px 20px 12px;text-align:center;border-bottom:3px solid #a5509a}
+#cauldronHeader h1{margin:0;color:#f0b8ff;font-size:1.7em;letter-spacing:0.04em;text-shadow:0 2px 4px #000}
+#cauldronHeader p{margin:4px 0 0;color:#c890c8;font-size:0.85em;font-style:italic}
+#cauldronScrap{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;background:#150c15;border:1px solid #6b2a5a;border-radius:8px;padding:8px 14px;color:#ffdca0;font-weight:bold}
+#cauldronScrap img{width:26px;height:26px;object-fit:contain}
+#cauldronBody{padding:14px 18px;overflow-y:auto}
+.crow{display:flex;align-items:center;gap:8px;padding:8px;margin-bottom:8px;background:linear-gradient(#3a2a3a,#241824);border:1px solid #6b3a5a;border-radius:10px}
+.crow .cslot{display:flex;flex-direction:column;align-items:center;gap:2px;flex:0 0 auto}
+.crow .cicon{width:44px;height:44px;object-fit:contain;background:#0d0a14;border:2px solid #7a5a2a;border-radius:8px}
+.crow .cicon.empty{display:flex;align-items:center;justify-content:center;color:#665;font-size:1.4em;border-style:dashed}
+.crow .cplus, .crow .carrow{flex:0 0 auto;color:#c890c8;font-size:1.2em;font-weight:bold}
+.crow .cqty{background:#000c;color:#ffcf8a;font:bold 10px monospace;border-radius:4px;padding:1px 5px;white-space:nowrap}
+.crow .cqty.short{color:#f5b0b0}
+.crow .cname{flex:1;min-width:0;color:#f0dfc0;font-weight:bold;font-size:0.95em}
+.ccraft{flex:0 0 auto;border:none;cursor:pointer;padding:9px 14px;border-radius:20px;font-family:inherit;font-weight:bold;font-size:0.9em;letter-spacing:0.03em;color:#3a1808;background:linear-gradient(#e08ae0,#a544a5);border:1px solid #ffdca0;box-shadow:inset 0 1px 0 #ffffff77}
+.ccraft:hover:not(:disabled){filter:brightness(1.15)}
+.ccraft:disabled{cursor:default;opacity:0.45}
+#cauldronClose{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:#000c;color:#fff;border:2px solid #a55;font:16px monospace;cursor:pointer;z-index:2}
+
+#gearWrap{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:20}
+#gearPanel{position:relative;width:min(520px,92vw);max-height:90vh;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px #000a;font-family:Georgia,'Times New Roman',serif;background:linear-gradient(#182430,#0d151f);border:3px solid #2a5a7a}
+#gearHeader{background:linear-gradient(#1a3a52,#0d1f2e);padding:16px 20px 12px;text-align:center;border-bottom:3px solid #3a8ab0}
+#gearHeader h1{margin:0;color:#a0e0ff;font-size:1.7em;letter-spacing:0.04em;text-shadow:0 2px 4px #000}
+#gearHeader p{margin:4px 0 0;color:#8ab0c8;font-size:0.85em;font-style:italic}
+#gearBody{padding:16px 20px;overflow-y:auto}
+#gearGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.fgear.unique{border-color:#ffcf3a;box-shadow:0 0 12px #ffcf3a66}
+#gearClose{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:#000c;color:#fff;border:2px solid #a55;font:16px monospace;cursor:pointer;z-index:2}
+#tooltip{position:fixed;display:none;z-index:50;background:#150e08;color:#ffe9b0;border:1px solid #a5762a;border-radius:6px;padding:5px 10px;font:bold 13px Georgia,serif;pointer-events:none;box-shadow:0 4px 12px #000a;max-width:220px}
+</style>
+</head><body>
+<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: your gear</div>
+<div id="crosshair"></div>
+<div id="hud">Rare Sludge: <b id="sludge">0</b></div>
+<div id="prompt"></div>
+<div id="msg"></div>
+<div id="tooltip"></div>
+<div id="inv"></div>
+<div id="vendWrap"><div id="vendPanel">
+  <button id="vendClose">&times;</button>
+  <div style="position:relative">
+    <img id="vendHeaderImg" src="/assets/hideout/ui/trade-o-matic-header.png">
+    <div id="vendSludge"></div>
+  </div>
+  <div id="vendBody"><div id="vendRows"></div></div>
+  <img id="vendFooterImg" src="/assets/hideout/ui/trade-o-matic-footer.png">
+</div></div>
+
+<div id="forgeWrap"><div id="forgePanel">
+  <button id="forgeClose">&times;</button>
+  <div id="forgeHeader">
+    <h1>THE FORGE</h1>
+    <p>Feed it Legendary Sludge. It might feed you back.</p>
+    <div id="forgeInput"><img src="/assets/hideout/items/legendary_sludge.png"> <span id="forgeSludgeText"></span></div>
+  </div>
+  <div id="forgeBody">
+    <div id="forgeGearGrid"></div>
+    <button id="forgeCraftBtn">Craft</button>
+    <div id="forgeOutput">Choose a gear target above, then Craft.</div>
+  </div>
+</div></div>
+
+<div id="cauldronWrap"><div id="cauldronPanel">
+  <button id="cauldronClose">&times;</button>
+  <div id="cauldronHeader">
+    <h1>CAULDRON CART</h1>
+    <p>Turn Battle Scrap into powerful sludge.</p>
+    <div id="cauldronScrap"><img src="/assets/hideout/items/battle_scrap.webp"> <span id="cauldronScrapText"></span></div>
+  </div>
+  <div id="cauldronBody"><div id="cauldronRows"></div></div>
+</div></div>
+
+<div id="gearWrap"><div id="gearPanel">
+  <button id="gearClose">&times;</button>
+  <div id="gearHeader">
+    <h1>YOUR GEAR</h1>
+    <p>Pick a piece, then walk out and click to display it in the Hideout for everyone.</p>
+  </div>
+  <div id="gearBody"><div id="gearGrid"></div></div>
+</div></div>
+
+<script src="/vendor/three.min.js"></script>
+<script src="/vendor/GLTFLoader.js"></script>
+<script>
+// ============= SAVE DATA =============
+const SAVE_KEY = 'dd_hideout_save_v2';
+const STARTER_ITEMS = ['vending_machine', 'sludge_cauldron', 'ore_forge', 'portal'];
+function loadSave(){
+  try {
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (s) {
+      if (!s.placed) s.placed = [];
+      if (s.legendarySludge === undefined) s.legendarySludge = 20; // testing stockpile
+      if (s.battleScrap === undefined) s.battleScrap = 999; // testing stockpile — real source is dungeon-run drops, not built yet
+      if (s.commonSludge === undefined) s.commonSludge = 0;
+      if (s.uncommonSludge === undefined) s.uncommonSludge = 0;
+      if (!s.gear) s.gear = []; // mythic gear the player owns — lives on the player's save, never on a machine (multiple players could share one machine)
+      s.gear.forEach(g => { if (!g.id) g.id = (crypto.randomUUID ? crypto.randomUUID() : 'g'+Math.random().toString(36).slice(2)); }); // stable id so a piece can be selected/removed even as the array shifts
+      // give returning saves any starter item they never had (e.g. the crafting stations used to be fixed room fixtures)
+      STARTER_ITEMS.forEach(gid => {
+        if (!s.inv.includes(gid) && !s.placed.some(p=>p.gid===gid)) s.inv.push(gid);
+      });
+      return s;
+    }
+  } catch(e){}
+  return { sludge: 99999, legendarySludge: 20, battleScrap: 999, commonSludge: 0, uncommonSludge: 0, gear: [], shelves: {}, inv: [...STARTER_ITEMS], placed: [] };
+}
+function writeSave(){ localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); }
+const SAVE = loadSave();
+document.getElementById('sludge').textContent = SAVE.sludge;
+
+// a lightweight per-browser display tag — just so a shared drop can say who left it
+const PLAYER_KEY = 'dd_hideout_player_id';
+let PLAYER_ID = localStorage.getItem(PLAYER_KEY);
+if (!PLAYER_ID) { PLAYER_ID = 'Guest-' + Math.random().toString(36).slice(2,6).toUpperCase(); localStorage.setItem(PLAYER_KEY, PLAYER_ID); }
+
+const ITEMS_DIR = '/assets/hideout/items/';
+const GEAR = {
+  banner:            { name:'Fleur Banner',      icon:ITEMS_DIR+'banner.webp',            cost:4  },
+  barrel:            { name:'Storage Barrel',    icon:ITEMS_DIR+'barrel.webp',            cost:3  },
+  bench:             { name:'Ironwood Bench',    icon:ITEMS_DIR+'bench.webp',             cost:5  },
+  bookshelf_stocked: { name:'Filled Bookshelf',  icon:ITEMS_DIR+'bookshelf_stocked.webp', cost:8  },
+  campfire:          { name:'Stone Campfire',    icon:ITEMS_DIR+'campfire.webp',          cost:6  },
+  small_table:       { name:'Side Table',        icon:ITEMS_DIR+'small_table.webp',       cost:3  },
+  fireplace:         { name:'Stone Fireplace',   icon:ITEMS_DIR+'fireplace.webp',         cost:10 },
+  lantern:           { name:'Hanging Lantern',   icon:ITEMS_DIR+'lantern.webp',           cost:2  },
+  round_rug:         { name:'Heraldic Rug',      icon:ITEMS_DIR+'round_rug.webp',         cost:4  },
+  bookshelf_empty:   { name:'Bare Bookshelf',    icon:ITEMS_DIR+'bookshelf_empty.webp',   cost:5  },
+  chest:             { name:'Banded Chest',      icon:ITEMS_DIR+'chest.webp',             cost:7  },
+  table_stools:      { name:'Table & Stools',    icon:ITEMS_DIR+'table_stools.webp',      cost:6  },
+  torch_sconce:      { name:'Wall Torch',        icon:ITEMS_DIR+'torch_sconce.webp',      cost:2  },
+  display_pedestal:  { name:'Display Pedestal',  icon:ITEMS_DIR+'display_pedestal.webp',  cost:6  },
+  weapon_rack:       { name:'Weapon Rack',       icon:ITEMS_DIR+'weapon_rack.webp',       cost:5  },
+  sludge_cauldron:   { name:'Sludge Cauldron',   icon:ITEMS_DIR+'sludge_cauldron.png',    cost:12 },
+  ore_forge:         { name:'Ore Forge',         icon:ITEMS_DIR+'ore_forge.png',          cost:12 },
+  vending_machine:   { name:'Trade-O-Matic',     icon:ITEMS_DIR+'vending_machine.png',    cost:0, notShop:true },
+  portal:            { name:'Crystal Portal',    icon:ITEMS_DIR+'portal.png',             cost:0, notShop:true },
+};
+
+// which catalog items have a real 3D model to place in the world (some are icon-only so far)
+const MODEL_MAP = {
+  banner: 'banner.glb', barrel: 'barrel.glb', bench: 'bench.glb',
+  bookshelf_stocked: 'bookcase.glb', bookshelf_empty: 'shelf_unit.glb',
+  campfire: 'campfire.glb', fireplace: 'fireplace.glb', lantern: 'lantern.glb',
+  chest: 'chest.glb', table_stools: 'table_stools.glb', torch_sconce: 'torch_sconce.glb',
+  display_pedestal: 'trophy_table.glb', weapon_rack: 'weapon_rack.glb',
+  vending_machine: 'vending_machine.glb',
+  sludge_cauldron: 'sludge_cauldron.glb', ore_forge: 'ore_forge.glb',
+  portal: 'crystal_portal.glb',
+};
+
+// ============= SCENE =============
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0812);
+scene.fog = new THREE.Fog(0x0a0812, 15, 58); // far distance bumped for the bigger room — worst-case corner-to-corner is ~47
+scene.add(new THREE.HemisphereLight(0x9a8ac0, 0x1a1020, 1.1));
+// one torch per quadrant so the now-much-bigger floor doesn't go dark at the edges
+const torch1 = new THREE.PointLight(0xffaa55, 1.2, 18); torch1.position.set(-10.5,4,-7.7); scene.add(torch1);
+const torch2 = new THREE.PointLight(0xffaa55, 1.2, 18); torch2.position.set(10.5,4,7.7); scene.add(torch2);
+const torch3 = new THREE.PointLight(0xffaa55, 1.2, 18); torch3.position.set(-10.5,4,7.7); scene.add(torch3);
+const torch4 = new THREE.PointLight(0xffaa55, 1.2, 18); torch4.position.set(10.5,4,-7.7); scene.add(torch4);
+const chandelierLight = new THREE.PointLight(0xffcc88, 2.6, 24); chandelierLight.position.set(0, 5.5, 0); scene.add(chandelierLight);
+
+const GROUND_Y = 0.4825; // the floor.glb slab has real thickness — its walkable top sits above y=0, not at it
+const EYE_HEIGHT = 2.05; // height of the player's eyes above the ground (used as a "human scale" ratio too)
+
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.05, 100);
+camera.position.set(0, GROUND_Y+EYE_HEIGHT, 4);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = false;
+document.body.appendChild(renderer.domElement);
+
+let active = false, yaw = 0, pitch = 0, suppressStart = false;
+camera.rotation.order = 'YXZ';
+const canvas = renderer.domElement;
+
+document.getElementById('start').addEventListener('click', () => canvas.requestPointerLock());
+document.addEventListener('pointerlockchange', () => {
+  active = document.pointerLockElement === canvas;
+  if (!suppressStart) document.getElementById('start').style.display = active ? 'none' : 'flex';
+  suppressStart = false;
+});
+document.addEventListener('mousemove', e => {
+  if (!active) return;
+  yaw -= e.movementX * 0.0022;
+  pitch -= e.movementY * 0.0022;
+  pitch = Math.max(-1.4, Math.min(1.4, pitch));
+  camera.rotation.set(pitch, yaw, 0);
+});
+camera.rotation.set(pitch, yaw, 0);
+
+// ============= ROOM (5 wide x 4 deep modules) =============
+const loader = new THREE.GLTFLoader();
+const SCALE = 4;
+const MODW = 7.61, MODD = 7.02, WALLH = 7.0;
+const ROOM_W = 5, ROOM_D = 4;
+const roomHalfW = ROOM_W*MODW/2, roomHalfD = ROOM_D*MODD/2;
+const colliders = []; // {minX,maxX,minZ,maxZ}
+
+function place(name, rx, ry, pos, scaleY) {
+  loader.load('/assets/hideout/' + name + '.glb', (gltf) => {
+    const obj = gltf.scene;
+    obj.scale.set(SCALE, scaleY || SCALE, SCALE);
+    obj.rotation.x = rx; obj.rotation.y = ry;
+    const b0 = new THREE.Box3().setFromObject(obj);
+    obj.position.set(pos.x - (b0.max.x+b0.min.x)/2, pos.y - b0.min.y, pos.z - (b0.max.z+b0.min.z)/2);
+    scene.add(obj);
+  }, undefined, (e)=>console.error(name, e));
+}
+
+// generic furniture/prop loader: url is a full path, scale is uniform, sits on its own bottom at pos.y
+function placeProp(url, scale, pos, ry, onLoad) {
+  loader.load(url, (gltf) => {
+    const obj = gltf.scene;
+    obj.scale.setScalar(scale);
+    obj.rotation.y = ry || 0;
+    const b0 = new THREE.Box3().setFromObject(obj);
+    obj.position.set(pos.x - (b0.max.x+b0.min.x)/2, pos.y - b0.min.y, pos.z - (b0.max.z+b0.min.z)/2);
+    scene.add(obj);
+    if (onLoad) onLoad(obj);
+  }, undefined, (e) => console.error(url, e));
+}
+
+// floor + ceiling tiles
+for (let ix=0; ix<ROOM_W; ix++) for (let iz=0; iz<ROOM_D; iz++) {
+  const cx = -roomHalfW + MODW*(ix+0.5), cz = -roomHalfD + MODD*(iz+0.5);
+  place('floor', -Math.PI/2, 0, {x:cx, y:0, z:cz});
+  place('ceiling', -Math.PI/2, 0, {x:cx, y:GROUND_Y+WALLH, z:cz});
+}
+// south wall (entrance centered), north wall, east/west walls
+const plainCycle = ['wall_plain_1','wall_plain_2','wall_plain_3'];
+let pc = 0;
+const doorIx = Math.floor(ROOM_W/2); // keep the entrance centered on the south wall regardless of room width
+for (let ix=0; ix<ROOM_W; ix++) {
+  const cx = -roomHalfW + MODW*(ix+0.5);
+  const isDoor = ix === doorIx;
+  place(isDoor ? 'wall_entrance' : plainCycle[pc++%3], 0, Math.PI, {x:cx, y:GROUND_Y, z: roomHalfD}, isDoor ? SCALE*5.75/4 : SCALE);
+  place(plainCycle[pc++%3], 0, 0, {x:cx, y:GROUND_Y, z: -roomHalfD});
+}
+for (let iz=0; iz<ROOM_D; iz++) {
+  const cz = -roomHalfD + MODD*(iz+0.5);
+  place(plainCycle[pc++%3], 0, Math.PI/2, {x: roomHalfW, y:GROUND_Y, z: cz});
+  place(plainCycle[pc++%3], 0, -Math.PI/2, {x: -roomHalfW, y:GROUND_Y, z: cz});
+}
+// door gap in south wall — a real walkable opening centered on the entrance tile (previous formula
+// left the whole wall solid since nothing had ever needed to walk out the door until now)
+const doorCenterX = -roomHalfW + MODW*(doorIx+0.5), DOOR_HALF_WIDTH = 1.6;
+colliders.push({minX:-roomHalfW, maxX:doorCenterX-DOOR_HALF_WIDTH, minZ:roomHalfD-0.4, maxZ:roomHalfD+0.4});
+colliders.push({minX:doorCenterX+DOOR_HALF_WIDTH, maxX:roomHalfW, minZ:roomHalfD-0.4, maxZ:roomHalfD+0.4});
+colliders.push({minX:-roomHalfW,maxX:roomHalfW,minZ:-roomHalfD-0.4,maxZ:-roomHalfD+0.4});
+colliders.push({minX:roomHalfW-0.4,maxX:roomHalfW+0.4,minZ:-roomHalfD,maxZ:roomHalfD});
+colliders.push({minX:-roomHalfW-0.4,maxX:-roomHalfW+0.4,minZ:-roomHalfD,maxZ:roomHalfD});
+
+// ============= INTERACTABLES =============
+const interactables = []; // {mesh, type, id, onUse}
+const raycaster = new THREE.Raycaster();
+
+function labelSprite(text, color) {
+  const cv = document.createElement('canvas'); cv.width=256; cv.height=64;
+  const g = cv.getContext('2d'); g.fillStyle='rgba(0,0,0,0.55)'; g.fillRect(0,0,256,64);
+  g.font='bold 26px monospace'; g.fillStyle=color||'#fff'; g.textAlign='center'; g.fillText(text,128,40);
+  const tex = new THREE.CanvasTexture(cv);
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({map:tex, depthTest:false}));
+  spr.scale.set(2.2,0.55,1);
+  return spr;
+}
+
+function box(w,h,d,color) {
+  return new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshStandardMaterial({color, roughness:0.6}));
+}
+
+
+const PROPS_DIR = '/assets/hideout/props/';
+placeProp(PROPS_DIR+'chandelier.glb', 1.0, {x:0, y:GROUND_Y+4.5, z:0}, 0);
+
+const SCALE_MAP = { vending_machine: (EYE_HEIGHT/1.90)*3.5*0.75, sludge_cauldron: 2.0, ore_forge: 2.6, portal: 2.0 }; // portal scale kept modest on purpose — easy to bump up once Matt sees it in place
+const DEFAULT_PLACE_SCALE = 1.7; // every Meshy prop is normalized so its longest axis is ~1.9 raw units regardless of what it is, so scale 1.0 reads as toy-sized next to the player
+function scaleFor(gid) { return SCALE_MAP[gid] || DEFAULT_PLACE_SCALE; }
+const pickupables = []; // every freely-placed item can be picked back up, separate from its "use" interaction (if any)
+const RADIUS_MAP = { vending_machine: 2.3, sludge_cauldron: 2.1, ore_forge: 2.4, portal: 1.4 };
+function spawnPlacedItem(gid, pos, ry) {
+  const scale = scaleFor(gid);
+  const r = RADIUS_MAP[gid] || 0.9*scale;
+  const entry = { gid, x: pos.x, z: pos.z, ry, obj: null, useHit: null, light: null };
+  entry.collider = {minX:pos.x-r,maxX:pos.x+r,minZ:pos.z-r,maxZ:pos.z+r};
+  colliders.push(entry.collider);
+
+  placeProp(PROPS_DIR + MODEL_MAP[gid], scale, pos, ry, (obj) => {
+    entry.obj = obj;
+    if (gid === 'vending_machine') {
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(3.6,5.4,2.8), new THREE.MeshBasicMaterial({visible:false}));
+      hit.position.set(pos.x, GROUND_Y+2.7, pos.z);
+      scene.add(hit);
+      entry.useHit = hit;
+      interactables.push({ mesh: hit, prompt: 'E: Use the Trade-O-Matic', onUse: openVending });
+      entry.light = new THREE.PointLight(0xcc88ff, 2.2, 14);
+      entry.light.position.set(pos.x, GROUND_Y+3, pos.z);
+      scene.add(entry.light);
+    }
+    if (gid === 'ore_forge') {
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(4.2,3.2,4.2), new THREE.MeshBasicMaterial({visible:false}));
+      hit.position.set(pos.x, GROUND_Y+1.6, pos.z);
+      scene.add(hit);
+      entry.useHit = hit;
+      interactables.push({ mesh: hit, prompt: 'E: Use the Forge', onUse: openForge });
+      entry.light = new THREE.PointLight(0xff8833, 2.2, 14);
+      entry.light.position.set(pos.x, GROUND_Y+2.5, pos.z);
+      scene.add(entry.light);
+    }
+    if (gid === 'sludge_cauldron') {
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(4.0,3.4,4.0), new THREE.MeshBasicMaterial({visible:false}));
+      hit.position.set(pos.x, GROUND_Y+1.7, pos.z);
+      scene.add(hit);
+      entry.useHit = hit;
+      interactables.push({ mesh: hit, prompt: 'E: Use the Cauldron Cart', onUse: openCauldron });
+      entry.light = new THREE.PointLight(0xcc66ff, 2.2, 14);
+      entry.light.position.set(pos.x, GROUND_Y+2.5, pos.z);
+      scene.add(entry.light);
+    }
+    if (gid === 'portal') {
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(2.4,4.2,1.8), new THREE.MeshBasicMaterial({visible:false}));
+      hit.position.set(pos.x, GROUND_Y+2.1, pos.z);
+      scene.add(hit);
+      entry.useHit = hit;
+      interactables.push({ mesh: hit, prompt: 'E: Step through the portal', onUse: usePortal });
+      entry.light = new THREE.PointLight(0x66ccff, 2.4, 12);
+      entry.light.position.set(pos.x, GROUND_Y+2.2, pos.z);
+      scene.add(entry.light);
+    }
+  });
+
+  const pickHit = new THREE.Mesh(new THREE.BoxGeometry(r*1.8, 3.2, r*1.8), new THREE.MeshBasicMaterial({visible:false}));
+  pickHit.position.set(pos.x, GROUND_Y+1.2, pos.z);
+  scene.add(pickHit);
+  entry.pickHit = pickHit;
+  pickupables.push(entry);
+}
+
+// exits back to the main game — SAVE lives in localStorage on this same origin, so it's already
+// there waiting when index.html loads. There's no entrance portal in the main game yet (separate task).
+function usePortal() {
+  writeSave();
+  window.location.href = '/';
+}
+
+function tryPickup() {
+  raycaster.setFromCamera({x:0,y:0}, camera);
+  const hits = raycaster.intersectObjects(pickupables.map(p => p.pickHit));
+  if (!hits.length || hits[0].distance >= 2.5) return;
+  const entry = pickupables.find(p => p.pickHit === hits[0].object);
+  if (!entry) return;
+  if (entry.isSharedGear) { pickupSharedGear(entry.dropId); return; }
+  if (entry.obj) scene.remove(entry.obj);
+  scene.remove(entry.pickHit);
+  if (entry.useHit) { scene.remove(entry.useHit); interactables.splice(interactables.findIndex(i => i.mesh === entry.useHit), 1); }
+  if (entry.light) scene.remove(entry.light);
+  colliders.splice(colliders.indexOf(entry.collider), 1);
+  pickupables.splice(pickupables.indexOf(entry), 1);
+  const idx = SAVE.placed.findIndex(p => p.gid===entry.gid && p.x===entry.x && p.z===entry.z && p.ry===entry.ry);
+  if (idx >= 0) SAVE.placed.splice(idx, 1);
+  SAVE.inv.push(entry.gid);
+  renderInv(); writeSave();
+  flashMsg('Picked up ' + GEAR[entry.gid].name);
+}
+
+// re-spawn anything the player freely placed in a previous visit
+SAVE.placed.forEach(p => {
+  if (!MODEL_MAP[p.gid]) return;
+  spawnPlacedItem(p.gid, {x:p.x, y:GROUND_Y, z:p.z}, p.ry);
+});
+
+// shelves (3), each holds one placed gear item
+const shelfDefs = [
+  {id:'shelfA', x:-roomHalfW+0.5, z:1.5, ry:Math.PI/2},
+  {id:'shelfB', x:-roomHalfW+0.5, z:-1.0, ry:Math.PI/2},
+  {id:'shelfC', x:roomHalfW-0.5, z:1.8, ry:-Math.PI/2},
+];
+const shelfGroups = {};
+shelfDefs.forEach(sd => {
+  const g = new THREE.Group(); g.position.set(sd.x, GROUND_Y+1.1, sd.z); g.rotation.y = sd.ry;
+  const board = box(1.3,0.08,0.4,0x7a5a3a); g.add(board);
+  g.add((() => { const s = labelSprite(sd.id.toUpperCase(), '#aef'); s.position.set(0,0.6,0); return s; })());
+  // invisible hitbox taller than the thin board so a level look still hits it
+  const hit = new THREE.Mesh(new THREE.BoxGeometry(1.3,1.0,0.4), new THREE.MeshBasicMaterial({visible:false}));
+  hit.position.y = 0.35; g.add(hit);
+  scene.add(g);
+  shelfGroups[sd.id] = g;
+  interactables.push({ mesh: hit, prompt: null, shelfId: sd.id, onUse: () => useShelf(sd.id) });
+  renderShelf(sd.id);
+});
+
+const texLoader = new THREE.TextureLoader();
+const iconTexCache = {};
+function iconTexture(gid) {
+  if (!iconTexCache[gid]) iconTexCache[gid] = texLoader.load(GEAR[gid].icon);
+  return iconTexCache[gid];
+}
+
+function renderShelf(id) {
+  const g = shelfGroups[id];
+  if (g.__item) { g.remove(g.__item); g.__item = null; }
+  const gearId = SAVE.shelves[id];
+  if (gearId && GEAR[gearId]) {
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({map: iconTexture(gearId)}));
+    spr.position.set(0,0.42,0); spr.scale.set(0.55,0.55,1);
+    g.add(spr); g.__item = spr;
+  }
+}
+
+let selectedGear = null;
+function renderInv() {
+  const el = document.getElementById('inv'); el.innerHTML = '';
+  SAVE.inv.forEach((gid, i) => {
+    const d = document.createElement('div');
+    d.className = 'slot' + (selectedGear===gid ? ' sel' : '');
+    d.style.position = 'relative';
+    d.innerHTML = '<img src="'+GEAR[gid].icon+'" style="width:100%;height:100%;object-fit:contain">'
+      + (i < 9 ? '<span style="position:absolute;top:2px;left:4px;font:11px monospace;color:#fff;text-shadow:0 0 3px #000">'+(i+1)+'</span>' : '');
+    d.onclick = () => { selectedGear = (selectedGear===gid) ? null : gid; selectedDropGearId = null; renderInv(); };
+    attachTooltip(d, GEAR[gid].name);
+    el.appendChild(d);
+  });
+}
+renderInv();
+
+function selectHotbarIndex(i) {
+  if (i < 0 || i >= SAVE.inv.length) return;
+  const gid = SAVE.inv[i];
+  selectedGear = (selectedGear === gid) ? null : gid;
+  renderInv();
+}
+document.addEventListener('keydown', e => {
+  if (e.key >= '1' && e.key <= '9') selectHotbarIndex(e.key.charCodeAt(0) - 49);
+});
+window.addEventListener('wheel', e => {
+  if (!active) return;
+  e.preventDefault();
+  if (ghost) { ghostRy += (e.deltaY > 0 ? 1 : -1) * 0.12; return; } // smooth turn while actively placing something
+  if (dropGhost) { dropGhostRy += (e.deltaY > 0 ? 1 : -1) * 0.12; return; }
+  if (!SAVE.inv.length) return;
+  let idx = selectedGear ? SAVE.inv.indexOf(selectedGear) : -1;
+  idx = (idx + (e.deltaY > 0 ? 1 : -1) + SAVE.inv.length) % SAVE.inv.length;
+  selectedGear = SAVE.inv[idx];
+  renderInv();
+}, { passive: false });
+
+function useShelf(id) {
+  if (SAVE.shelves[id]) {
+    const gid = SAVE.shelves[id];
+    delete SAVE.shelves[id];
+    SAVE.inv.push(gid);
+    flashMsg('Took ' + GEAR[gid].name + ' off the shelf');
+  } else if (selectedGear) {
+    SAVE.shelves[id] = selectedGear;
+    SAVE.inv.splice(SAVE.inv.indexOf(selectedGear),1);
+    flashMsg('Placed ' + GEAR[selectedGear].name + ' on ' + id);
+    selectedGear = null;
+  } else {
+    flashMsg('Select an item from your inventory first');
+  }
+  renderShelf(id); renderInv(); writeSave();
+}
+
+// ============= FREE PLACEMENT (hotbar -> ghost -> R to turn -> click to lock) =============
+const modelCache = {}; // gid -> loaded source Object3D, cloned per ghost/placement
+let ghost = null, ghostGid = null, ghostRy = 0;
+
+function loadModelFor(gid, cb) {
+  if (modelCache[gid]) { cb(modelCache[gid]); return; }
+  if (!MODEL_MAP[gid]) return;
+  loader.load(PROPS_DIR + MODEL_MAP[gid], (gltf) => { modelCache[gid] = gltf.scene; cb(gltf.scene); }, undefined, (e) => console.error(gid, e));
+}
+
+function makeGhostFrom(source, scale) {
+  const clone = source.clone(true);
+  clone.scale.setScalar(scale || 1.0);
+  clone.traverse(o => {
+    if (o.isMesh) {
+      o.material = o.material.clone();
+      o.material.transparent = true;
+      o.material.opacity = 0.5;
+      o.material.depthWrite = false;
+    }
+  });
+  const b0 = new THREE.Box3().setFromObject(clone);
+  clone.userData.bottomOffset = b0.min.y; // Y-extent doesn't change under a Y-axis rotation, so this stays valid as it turns
+  return clone;
+}
+
+function isAnyPanelOpen() {
+  return ['vendWrap','forgeWrap','cauldronWrap','gearWrap'].some(id => document.getElementById(id).style.display === 'flex');
+}
+
+function updateGhost() {
+  const canPlace = active && selectedGear && MODEL_MAP[selectedGear] && !isAnyPanelOpen();
+  if (!canPlace) {
+    if (ghost) { scene.remove(ghost); ghost = null; ghostGid = null; }
+    return;
+  }
+  if (ghostGid !== selectedGear) {
+    if (ghost) { scene.remove(ghost); ghost = null; }
+    ghostGid = selectedGear;
+    ghostRy = 0;
+    loadModelFor(selectedGear, (source) => {
+      if (ghostGid !== selectedGear) return; // selection changed while the model was loading
+      ghost = makeGhostFrom(source, scaleFor(selectedGear));
+      scene.add(ghost);
+    });
+  }
+  if (ghost) {
+    const dist = 3.2;
+    const flat = new THREE.Vector3(); camera.getWorldDirection(flat); flat.y = 0; flat.normalize();
+    const floorY = GROUND_Y - ghost.userData.bottomOffset;
+    // looking level/down places on the floor; tilting up lets you lift it, e.g. to hang a banner on a wall
+    const lift = pitch > 0.05 ? (pitch/1.4) * (GROUND_Y+WALLH-1.5-floorY) : 0;
+    ghost.rotation.y = ghostRy;
+    ghost.position.set(camera.position.x + flat.x*dist, floorY + lift, camera.position.z + flat.z*dist);
+  }
+}
+
+function commitPlacement() {
+  if (!ghost || !selectedGear) return;
+  const gid = selectedGear;
+  const pos = {x: ghost.position.x, y: GROUND_Y, z: ghost.position.z};
+  const ry = ghost.rotation.y;
+  spawnPlacedItem(gid, pos, ry);
+  SAVE.placed.push({gid, x: pos.x, z: pos.z, ry});
+  SAVE.inv.splice(SAVE.inv.indexOf(gid), 1);
+  scene.remove(ghost); ghost = null; ghostGid = null;
+  selectedGear = null;
+  renderInv(); writeSave();
+  flashMsg('Placed ' + GEAR[gid].name);
+}
+
+// ============= SHARED GEAR DISPLAY (drop mythic/unique gear so anyone visiting can see or pick it up) =============
+// Furniture placement above is purely local (SAVE.placed). Gear display is shared across everyone —
+// backed by a Durable Object on the Worker — because Matt wants friends to see and grab what's dropped.
+function gearDisplayName(entry) {
+  const cat = MYTHIC_GEAR[entry.type] ? MYTHIC_GEAR[entry.type].name : entry.type;
+  return entry.name ? entry.name + ' (' + cat + ')' : cat;
+}
+
+let selectedDropGearId = null, dropGhost = null, dropGhostId = null, dropGhostRy = 0;
+const worldGear = new Map(); // shared-drop id -> {group, hit, data}
+
+function makeGearStandGroup(item, translucent) {
+  const g = new THREE.Group();
+  const stand = box(0.5, 0.9, 0.5, item.tier === 'unique' ? 0x8a5a1a : 0x4a3a8a);
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: iconTexture2(MYTHIC_GEAR[item.type].icon) }));
+  spr.position.y = 0.75; spr.scale.set(0.6, 0.6, 1);
+  if (translucent) {
+    stand.material.transparent = true; stand.material.opacity = 0.5;
+    spr.material.transparent = true; spr.material.opacity = 0.55;
+  }
+  g.add(stand); g.add(spr);
+  return g;
+}
+const gearIconTexCache = {};
+function iconTexture2(url) {
+  if (!gearIconTexCache[url]) gearIconTexCache[url] = texLoader.load(url);
+  return gearIconTexCache[url];
+}
+
+function updateDropGhost() {
+  const canPlace = active && selectedDropGearId && !isAnyPanelOpen();
+  if (!canPlace) {
+    if (dropGhost) { scene.remove(dropGhost); dropGhost = null; dropGhostId = null; }
+    return;
+  }
+  const entry = SAVE.gear.find(g => g.id === selectedDropGearId);
+  if (!entry) { selectedDropGearId = null; return; }
+  if (dropGhostId !== selectedDropGearId) {
+    if (dropGhost) scene.remove(dropGhost);
+    dropGhost = makeGearStandGroup(entry, true);
+    scene.add(dropGhost);
+    dropGhostId = selectedDropGearId;
+    dropGhostRy = 0;
+  }
+  const dist = 2.2;
+  const flat = new THREE.Vector3(); camera.getWorldDirection(flat); flat.y = 0; flat.normalize();
+  dropGhost.rotation.y = dropGhostRy;
+  dropGhost.position.set(camera.position.x + flat.x*dist, GROUND_Y, camera.position.z + flat.z*dist);
+}
+
+async function commitDropPlacement() {
+  if (!dropGhost || !selectedDropGearId) return;
+  const entry = SAVE.gear.find(g => g.id === selectedDropGearId);
+  if (!entry) return;
+  const pos = { x: dropGhost.position.x, y: GROUND_Y, z: dropGhost.position.z };
+  const ry = dropGhostRy;
+  scene.remove(dropGhost); dropGhost = null; dropGhostId = null;
+  const idx = SAVE.gear.findIndex(g => g.id === selectedDropGearId);
+  selectedDropGearId = null;
+  try {
+    const res = await fetch('/api/hideout/gear', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: entry.type, tier: entry.tier, name: entry.name, x: pos.x, y: pos.y, z: pos.z, ry, droppedBy: PLAYER_ID }),
+    });
+    if (!res.ok) throw new Error('drop failed: ' + res.status);
+    const { item } = await res.json();
+    if (idx >= 0) SAVE.gear.splice(idx, 1);
+    writeSave();
+    spawnWorldGear(item);
+    flashMsg('Displayed ' + gearDisplayName(entry));
+  } catch (e) {
+    console.error(e);
+    flashMsg('Could not display it — check your connection and try again');
+  }
+}
+
+function spawnWorldGear(item) {
+  if (worldGear.has(item.id)) return;
+  const group = makeGearStandGroup(item, false);
+  group.position.set(item.x, item.y, item.z);
+  group.rotation.y = item.ry || 0;
+  const label = labelSprite(item.name || MYTHIC_GEAR[item.type].name, item.tier === 'unique' ? '#ffcf3a' : '#cfa0ff');
+  label.position.set(0, 1.35, 0); label.scale.set(1.7, 0.42, 1);
+  group.add(label);
+  scene.add(group);
+  const hit = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.7, 0.9), new THREE.MeshBasicMaterial({ visible: false }));
+  hit.position.set(item.x, item.y + 0.85, item.z);
+  scene.add(hit);
+  worldGear.set(item.id, { group, hit, data: item });
+  pickupables.push({ isSharedGear: true, dropId: item.id, pickHit: hit });
+}
+function removeWorldGear(id) {
+  const w = worldGear.get(id);
+  if (!w) return;
+  scene.remove(w.group); scene.remove(w.hit);
+  const pi = pickupables.findIndex(p => p.dropId === id);
+  if (pi >= 0) pickupables.splice(pi, 1);
+  worldGear.delete(id);
+}
+async function pickupSharedGear(id) {
+  try {
+    const res = await fetch('/api/hideout/gear/' + id + '/pickup', { method: 'POST' });
+    if (res.status === 404) { flashMsg('Someone already picked that up'); removeWorldGear(id); return; }
+    if (!res.ok) throw new Error('pickup failed: ' + res.status);
+    const { item } = await res.json();
+    removeWorldGear(id);
+    SAVE.gear.push({ id: crypto.randomUUID(), type: item.type, tier: item.tier, name: item.name, craftedAt: item.createdAt || Date.now() });
+    writeSave();
+    flashMsg('Picked up ' + gearDisplayName(item));
+  } catch (e) {
+    console.error(e);
+    flashMsg('Could not pick that up — check your connection');
+  }
+}
+async function pollDroppedGear() {
+  try {
+    const res = await fetch('/api/hideout/gear');
+    if (!res.ok) return;
+    const { items } = await res.json();
+    const seen = new Set(items.map(i => i.id));
+    items.forEach(spawnWorldGear);
+    Array.from(worldGear.keys()).forEach(id => { if (!seen.has(id)) removeWorldGear(id); });
+  } catch (e) { /* offline for this tick — next poll will retry */ }
+}
+
+function buildGearGrid() {
+  const grid = document.getElementById('gearGrid');
+  grid.innerHTML = '';
+  if (!SAVE.gear.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#88a0b0;padding:20px">No gear yet — forge some Mythic gear first.</div>';
+    return;
+  }
+  SAVE.gear.forEach(entry => {
+    const g = MYTHIC_GEAR[entry.type];
+    const el = document.createElement('div');
+    el.className = 'fgear' + (entry.tier === 'unique' ? ' unique' : '') + (selectedDropGearId === entry.id ? ' sel' : '');
+    el.innerHTML = '<img class="swatch" src="'+g.icon+'"><div class="fname">'+(entry.name || g.name)+'</div>';
+    el.onclick = () => {
+      selectedDropGearId = (selectedDropGearId === entry.id) ? null : entry.id;
+      selectedGear = null; renderInv();
+      closeGearPanel();
+    };
+    attachTooltip(el, gearDisplayName(entry));
+    grid.appendChild(el);
+  });
+}
+let gearWasActive = false;
+function openGearPanel() {
+  gearWasActive = active;
+  if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
+  document.getElementById('gearWrap').style.display = 'flex';
+  buildGearGrid();
+}
+function closeGearPanel() {
+  document.getElementById('gearWrap').style.display = 'none';
+  if (gearWasActive) canvas.requestPointerLock();
+}
+document.getElementById('gearClose').onclick = closeGearPanel;
+document.getElementById('gearWrap').addEventListener('click', e => { if (e.target.id === 'gearWrap') closeGearPanel(); });
+
+// ============= TRADE-O-MATIC =============
+const SHOP_STOCK = Object.keys(GEAR).filter(gid => !GEAR[gid].notShop);
+let vendWasActive = false;
+
+function buildVendRows() {
+  const wrap = document.getElementById('vendRows');
+  wrap.innerHTML = '';
+  SHOP_STOCK.forEach((gid) => {
+    const g = GEAR[gid];
+    const row = document.createElement('div');
+    row.className = 'vrow';
+    row.dataset.gid = gid;
+    row.innerHTML = '<img class="vicon" src="'+g.icon+'">'
+      + '<span class="vname">'+g.name+'</span>'
+      + '<span class="vcost"><img src="'+ITEMS_DIR+'sludge_jar.webp"><span class="vcostnum"></span></span>'
+      + '<button class="vredeem">Redeem</button>';
+    attachTooltip(row.querySelector('.vicon'), g.name);
+    row.querySelector('.vredeem').onclick = () => buyItem(gid);
+    wrap.appendChild(row);
+  });
+  renderVendPanel();
+}
+
+function renderVendPanel() {
+  document.getElementById('vendSludge').textContent = SAVE.sludge;
+  document.querySelectorAll('.vrow').forEach(row => {
+    const gid = row.dataset.gid, g = GEAR[gid];
+    const afford = SAVE.sludge >= g.cost;
+    row.querySelector('.vcostnum').textContent = g.cost;
+    row.querySelector('.vredeem').disabled = !afford;
+    row.classList.toggle('disabled', !afford);
+  });
+}
+
+function openVending() {
+  vendWasActive = active;
+  if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
+  document.getElementById('vendWrap').style.display = 'flex';
+  buildVendRows();
+}
+function closeVending() {
+  document.getElementById('vendWrap').style.display = 'none';
+  if (vendWasActive) canvas.requestPointerLock();
+}
+document.getElementById('vendClose').onclick = closeVending;
+document.getElementById('vendWrap').addEventListener('click', e => { if (e.target.id === 'vendWrap') closeVending(); });
+document.addEventListener('keydown', e => {
+  if (keyName(e) !== 'escape') return;
+  if (document.getElementById('vendWrap').style.display === 'flex') closeVending();
+  if (document.getElementById('forgeWrap').style.display === 'flex') closeForge();
+  if (document.getElementById('cauldronWrap').style.display === 'flex') closeCauldron();
+  if (document.getElementById('gearWrap').style.display === 'flex') closeGearPanel();
+});
+
+// ============= THE FORGE (Legendary Sludge -> gamble for mythic gear) =============
+// gear is category-only for now — the real gear database doesn't exist yet, this just proves the loop
+const MYTHIC_GEAR = {
+  weapon:   { name:'Mythic Weapon',   icon: ITEMS_DIR+'mythic_weapon.png' },
+  amulet:   { name:'Mythic Amulet',   icon: ITEMS_DIR+'mythic_amulet.png' },
+  armor:    { name:'Mythic Armor',    icon: ITEMS_DIR+'mythic_armor.png' },
+  familiar: { name:'Mythic Familiar', icon: ITEMS_DIR+'mythic_familiar.png' },
+  trinket:  { name:'Mythic Trinket',  icon: ITEMS_DIR+'mythic_trinket.png' },
+};
+const FORGE_COST = 5, FORGE_SUCCESS_CHANCE = 0.35, UNIQUE_PROC_CHANCE = 0.1; // proc rolls only on a success — name/odds easy to retune later
+// placeholder name-roller — stands in for the real loot generator until that exists. A proc needs an actual name, not "Unique Mythic Trinket"
+const UNIQUE_NAME_PARTS = {
+  prefix: ['Ember','Void','Storm','Doom','Frost','Blood','Astral','Grim','Sun','Moon','Iron','Ghost'],
+  suffix: ['fang','caller','bane','heart','whisper','reaver','shard','crown','oath','ember','fall','light'],
+};
+function rollUniqueName() {
+  const p = UNIQUE_NAME_PARTS.prefix[Math.floor(Math.random()*UNIQUE_NAME_PARTS.prefix.length)];
+  const s = UNIQUE_NAME_PARTS.suffix[Math.floor(Math.random()*UNIQUE_NAME_PARTS.suffix.length)];
+  return p + s;
+}
+// MYTHIC_GEAR now exists, so the shared gear-display poller (which looks up icons by category) is safe to start
+pollDroppedGear();
+setInterval(pollDroppedGear, 6000);
+
+let forgeSelected = null, forgeWasActive = false;
+
+function buildForgeGrid() {
+  const grid = document.getElementById('forgeGearGrid');
+  grid.innerHTML = '';
+  Object.keys(MYTHIC_GEAR).forEach(key => {
+    const g = MYTHIC_GEAR[key];
+    const owned = SAVE.gear.filter(x => x.type === key).length;
+    const el = document.createElement('div');
+    el.className = 'fgear' + (forgeSelected === key ? ' sel' : '');
+    el.style.position = 'relative';
+    el.innerHTML = '<img class="swatch" src="'+g.icon+'">'
+      + (owned ? '<span style="position:absolute;top:4px;right:4px;background:#000c;color:#ffcf8a;font:bold 11px monospace;border-radius:4px;padding:1px 5px">x'+owned+'</span>' : '')
+      + '<div class="fname">'+g.name+'</div>';
+    el.onclick = () => { forgeSelected = (forgeSelected === key) ? null : key; buildForgeGrid(); };
+    attachTooltip(el, 'Target: ' + g.name + (owned ? ' (you own ' + owned + ')' : ''));
+    grid.appendChild(el);
+  });
+  renderForgePanel();
+}
+function renderForgePanel() {
+  document.getElementById('forgeSludgeText').textContent = SAVE.legendarySludge + ' Legendary Sludge';
+  document.getElementById('forgeCraftBtn').disabled = !forgeSelected || SAVE.legendarySludge < FORGE_COST;
+}
+function openForge() {
+  forgeWasActive = active;
+  if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
+  document.getElementById('forgeWrap').style.display = 'flex';
+  forgeSelected = null;
+  const out = document.getElementById('forgeOutput');
+  out.className = ''; out.textContent = 'Choose a gear target above, then Craft.';
+  buildForgeGrid();
+}
+function closeForge() {
+  document.getElementById('forgeWrap').style.display = 'none';
+  if (forgeWasActive) canvas.requestPointerLock();
+}
+document.getElementById('forgeClose').onclick = closeForge;
+document.getElementById('forgeWrap').addEventListener('click', e => { if (e.target.id === 'forgeWrap') closeForge(); });
+document.getElementById('forgeCraftBtn').onclick = () => {
+  if (!forgeSelected || SAVE.legendarySludge < FORGE_COST) return;
+  SAVE.legendarySludge -= FORGE_COST;
+  const out = document.getElementById('forgeOutput');
+  sfxClick();
+  if (Math.random() < FORGE_SUCCESS_CHANCE) {
+    const isUnique = Math.random() < UNIQUE_PROC_CHANCE;
+    const uniqueName = isUnique ? rollUniqueName() : null;
+    SAVE.gear.push({ id: crypto.randomUUID(), type: forgeSelected, tier: isUnique ? 'unique' : 'mythic', name: uniqueName, craftedAt: Date.now() });
+    out.className = isUnique ? 'unique' : 'success';
+    out.innerHTML = isUnique
+      ? '✨ UNIQUE PROC! ✨ You forged <b>' + uniqueName + '</b>, a unique ' + MYTHIC_GEAR[forgeSelected].name + '!'
+      : 'Success! Forged: <b>' + MYTHIC_GEAR[forgeSelected].name + '</b> — it’s in your gear now.';
+    setTimeout(isUnique ? sfxUnique : sfxSuccess, 90);
+  } else {
+    out.className = 'fail';
+    out.textContent = 'The forge sputters and fails. The sludge is lost.';
+    setTimeout(sfxFail, 90);
+  }
+  buildForgeGrid(); writeSave();
+};
+
+// ============= CAULDRON CART (single-input tiered sludge chain) =============
+const CAULDRON_COST = 5;
+const CAULDRON_TIERS = [
+  { id:'common',    name:'Common Sludge',    outIcon: ITEMS_DIR+'common_sludge.png',
+    inIcon: ITEMS_DIR+'battle_scrap.webp',   inName:'Common Gear',    inGet:()=>SAVE.battleScrap,    inConsume:n=>SAVE.battleScrap-=n,
+    add:n=>SAVE.commonSludge+=n },
+  { id:'uncommon',  name:'Uncommon Sludge',  outIcon: ITEMS_DIR+'uncommon_sludge.png',
+    inIcon: ITEMS_DIR+'common_sludge.png',   inName:'Common Sludge',  inGet:()=>SAVE.commonSludge,   inConsume:n=>SAVE.commonSludge-=n,
+    add:n=>SAVE.uncommonSludge+=n },
+  { id:'rare',      name:'Rare Sludge',      outIcon: ITEMS_DIR+'sludge_jar.webp',
+    inIcon: ITEMS_DIR+'uncommon_sludge.png', inName:'Uncommon Sludge',inGet:()=>SAVE.uncommonSludge, inConsume:n=>SAVE.uncommonSludge-=n,
+    add:n=>SAVE.sludge+=n },
+  { id:'legendary', name:'Legendary Sludge', outIcon: ITEMS_DIR+'legendary_sludge.png',
+    inIcon: ITEMS_DIR+'sludge_jar.webp',     inName:'Rare Sludge',    inGet:()=>SAVE.sludge,         inConsume:n=>SAVE.sludge-=n,
+    add:n=>SAVE.legendarySludge+=n },
+];
+function tierById(id) { return CAULDRON_TIERS.find(t => t.id === id); }
+
+function buildCauldronRows() {
+  const wrap = document.getElementById('cauldronRows');
+  wrap.innerHTML = '';
+  CAULDRON_TIERS.forEach(tier => {
+    const short = tier.inGet() < CAULDRON_COST ? ' short' : '';
+    const row = document.createElement('div');
+    row.className = 'crow';
+    row.dataset.id = tier.id;
+    const inSlot = '<div class="cslot"><img class="cicon" src="'+tier.inIcon+'"><span class="cqty'+short+'">need '+CAULDRON_COST+'</span></div>';
+    const outSlot = '<div class="cslot"><img class="cicon" src="'+tier.outIcon+'"><span class="cqty">have '+tierStock(tier)+'</span></div>';
+    row.innerHTML = inSlot + '<span class="carrow">&rarr;</span>' + outSlot
+      + '<span class="cname">'+tier.name+'</span>'
+      + '<button class="ccraft">Craft</button>';
+    const cslots = row.querySelectorAll('.cslot');
+    attachTooltip(cslots[0].querySelector('img'), tier.inName);
+    attachTooltip(cslots[1].querySelector('img'), tier.name);
+    row.querySelector('.ccraft').onclick = () => craftSludge(tier.id);
+    wrap.appendChild(row);
+  });
+  renderCauldronPanel();
+}
+function tierStock(tier) {
+  if (tier.id === 'common') return SAVE.commonSludge;
+  if (tier.id === 'uncommon') return SAVE.uncommonSludge;
+  if (tier.id === 'rare') return SAVE.sludge;
+  return SAVE.legendarySludge;
+}
+function renderCauldronPanel() {
+  document.getElementById('cauldronScrapText').textContent = SAVE.battleScrap + ' Common Gear';
+  document.querySelectorAll('.crow').forEach(row => {
+    const tier = tierById(row.dataset.id);
+    row.querySelector('.ccraft').disabled = tier.inGet() < CAULDRON_COST;
+  });
+}
+function craftSludge(id) {
+  const tier = tierById(id);
+  if (tier.inGet() < CAULDRON_COST) { flashMsg('Not enough ' + tier.inName); sfxFail(); return; }
+  tier.inConsume(CAULDRON_COST);
+  tier.add(1);
+  document.getElementById('sludge').textContent = SAVE.sludge;
+  flashMsg('Crafted 1 ' + tier.name);
+  sfxCraftBubble();
+  buildCauldronRows(); writeSave();
+}
+let cauldronWasActive = false;
+function openCauldron() {
+  cauldronWasActive = active;
+  if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
+  document.getElementById('cauldronWrap').style.display = 'flex';
+  buildCauldronRows();
+}
+function closeCauldron() {
+  document.getElementById('cauldronWrap').style.display = 'none';
+  if (cauldronWasActive) canvas.requestPointerLock();
+}
+document.getElementById('cauldronClose').onclick = closeCauldron;
+document.getElementById('cauldronWrap').addEventListener('click', e => { if (e.target.id === 'cauldronWrap') closeCauldron(); });
+
+function buyItem(gid) {
+  const g = GEAR[gid];
+  if (SAVE.sludge < g.cost) { flashMsg('Not enough Rare Sludge'); return; }
+  SAVE.sludge -= g.cost;
+  SAVE.inv.push(gid);
+  document.getElementById('sludge').textContent = SAVE.sludge;
+  flashMsg('Traded for: ' + g.name);
+  renderVendPanel(); renderInv(); writeSave();
+}
+
+let msgTimer = null;
+function flashMsg(t) {
+  const m = document.getElementById('msg'); m.textContent = t; m.style.display = 'block';
+  clearTimeout(msgTimer); msgTimer = setTimeout(()=>m.style.display='none', 1800);
+}
+
+// ============= SFX — synthesized (no audio files), one shared AudioContext =============
+let sfxCtx = null;
+function sfxA() { if (!sfxCtx) sfxCtx = new (window.AudioContext||window.webkitAudioContext)(); if (sfxCtx.state==='suspended') sfxCtx.resume(); return sfxCtx; }
+function sfxTone(freq, dur, type, gain, delay) {
+  const a = sfxA(); const t0 = a.currentTime + (delay||0);
+  const osc = a.createOscillator(); osc.type = type||'sine'; osc.frequency.setValueAtTime(freq, t0);
+  const g = a.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(gain||0.15, t0+0.02); g.gain.exponentialRampToValueAtTime(0.001, t0+dur);
+  osc.connect(g).connect(a.destination); osc.start(t0); osc.stop(t0+dur+0.02);
+  return osc;
+}
+function sfxSweep(f0, f1, dur, type, gain, delay) {
+  const a = sfxA(); const t0 = a.currentTime + (delay||0);
+  const osc = a.createOscillator(); osc.type = type||'sawtooth';
+  osc.frequency.setValueAtTime(f0, t0); osc.frequency.exponentialRampToValueAtTime(Math.max(f1,1), t0+dur);
+  const g = a.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(gain||0.15, t0+0.02); g.gain.exponentialRampToValueAtTime(0.001, t0+dur);
+  osc.connect(g).connect(a.destination); osc.start(t0); osc.stop(t0+dur+0.02);
+}
+function sfxClick() { sfxTone(520, 0.06, 'square', 0.08); }
+function sfxCraftBubble() {
+  // a cluster of little staggered "bloop" chirps at random pitches — reads as an actual bubbling cauldron, not one blip
+  const bloops = 8;
+  for (let i = 0; i < bloops; i++) {
+    const delay = i * 0.06 + Math.random()*0.03;
+    const base = 240 + Math.random()*220;
+    sfxSweep(base, base*2.3, 0.16 + Math.random()*0.09, 'sine', 0.08 + Math.random()*0.04, delay);
+  }
+  sfxTone(170, 0.7, 'sine', 0.05, 0); // low undertone for body/sustain
+  sfxSweep(500, 1100, 0.3, 'sine', 0.06, 0.45); // little flourish near the end
+}
+function sfxSuccess() { sfxTone(523, 0.12, 'triangle', 0.14); sfxTone(659, 0.12, 'triangle', 0.14, 0.09); sfxTone(784, 0.22, 'triangle', 0.16, 0.18); }
+function sfxFail() { sfxSweep(220, 70, 0.35, 'sawtooth', 0.16); }
+function sfxUnique() {
+  [523,659,784,1046,1318,1568].forEach((f,i) => sfxTone(f, 0.28, 'triangle', 0.13, i*0.08));
+  sfxSweep(1200, 2400, 0.4, 'sine', 0.05, 0.05);
+}
+
+// TEMPORARY — lets Matt audition each crafting sound on demand instead of fighting RNG. Remove once the sounds are settled.
+(function addSfxPreview() {
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;bottom:10px;right:10px;z-index:60;background:#000c;border:1px solid #a5762a;border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:4px;font:12px monospace';
+  box.innerHTML = '<b style="color:#ffcf8a">SFX preview (temp)</b>';
+  [['Click',sfxClick],['Cauldron bubble',sfxCraftBubble],['Forge success',sfxSuccess],['Forge fail',sfxFail],['Unique proc',sfxUnique]].forEach(([label,fn]) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.style.cssText = 'cursor:pointer;background:#3a2a1c;color:#f0dfc0;border:1px solid #6b4a24;border-radius:4px;padding:3px 8px;font:inherit';
+    b.onclick = fn;
+    box.appendChild(b);
+  });
+  document.body.appendChild(box);
+})();
+
+// small styled tooltip, used on hover across every hideout GUI (hotbar, Trade-O-Matic, Forge, ...)
+const tooltipEl = document.getElementById('tooltip');
+function attachTooltip(el, text) {
+  el.addEventListener('mouseenter', e => { tooltipEl.textContent = text; tooltipEl.style.display = 'block'; positionTooltip(e); });
+  el.addEventListener('mousemove', positionTooltip);
+  el.addEventListener('mouseleave', () => { tooltipEl.style.display = 'none'; });
+}
+function positionTooltip(e) {
+  tooltipEl.style.left = Math.min(e.clientX + 14, innerWidth - tooltipEl.offsetWidth - 10) + 'px';
+  tooltipEl.style.top = Math.min(e.clientY + 14, innerHeight - tooltipEl.offsetHeight - 10) + 'px';
+}
+
+// ============= MOVEMENT =============
+const keys = {};
+function keyName(e) {
+  let k = (e.code || '').replace(/^Key/, '').toLowerCase() || (e.key || '').toLowerCase();
+  if (k === 'shiftleft' || k === 'shiftright') k = 'shift';
+  return k;
+}
+document.addEventListener('keydown', e => {
+  const k = keyName(e);
+  keys[k] = true;
+  if (k === 'e') tryInteract();
+  if (k === 'g') tryPickup();
+  if (k === 'space') { e.preventDefault(); if (grounded) { velY = JUMP_SPEED; grounded = false; } }
+  if (k === 'r' && ghost) { ghostRy += Math.PI/6; }
+  if (k === 'r' && dropGhost) { dropGhostRy += Math.PI/6; }
+  if (k === 'i' && active) openGearPanel();
+});
+document.addEventListener('keyup', e => { keys[keyName(e)]=false; });
+canvas.addEventListener('click', () => {
+  if (document.pointerLockElement !== canvas) return;
+  if (ghost) commitPlacement();
+  else if (dropGhost) commitDropPlacement();
+});
+
+function tryInteract() {
+  raycaster.setFromCamera({x:0,y:0}, camera);
+  const hits = raycaster.intersectObjects(interactables.map(i=>i.mesh));
+  if (hits.length && hits[0].distance < 2.5) {
+    const it = interactables.find(i => i.mesh === hits[0].object);
+    if (it) it.onUse();
+  }
+}
+
+const vel = new THREE.Vector3();
+const SPEED = 4.2, SPRINT_MULT = 1.8, GRAVITY = -22, JUMP_SPEED = 7.5;
+let velY = 0, grounded = true;
+function collide(nx, nz) {
+  const r = 0.35;
+  for (const c of colliders) {
+    if (nx+r>c.minX && nx-r<c.maxX && nz+r>c.minZ && nz-r<c.maxZ) return false;
+  }
+  return nx > -roomHalfW-1 && nx < roomHalfW+1 && nz > -roomHalfD-1 && nz < roomHalfD+1;
+}
+
+let lastT = performance.now();
+function animate(now) {
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, (now-lastT)/1000); lastT = now;
+  if (active) {
+    vel.set(0,0,0);
+    if (keys['w']) vel.z -= 1;
+    if (keys['s']) vel.z += 1;
+    if (keys['a']) vel.x -= 1;
+    if (keys['d']) vel.x += 1;
+    if (vel.lengthSq() > 0) {
+      const spd = (keys['shift'] ? SPEED*SPRINT_MULT : SPEED) * dt;
+      vel.normalize().multiplyScalar(spd);
+      const forward = new THREE.Vector3(); camera.getWorldDirection(forward); forward.y=0; forward.normalize();
+      const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+      const move = new THREE.Vector3().addScaledVector(forward, -vel.z).addScaledVector(right, vel.x);
+      const p = camera.position;
+      if (collide(p.x+move.x, p.z)) p.x += move.x;
+      if (collide(p.x, p.z+move.z)) p.z += move.z;
+    }
+    velY += GRAVITY*dt;
+    camera.position.y += velY*dt;
+    if (camera.position.y <= GROUND_Y+EYE_HEIGHT) { camera.position.y = GROUND_Y+EYE_HEIGHT; velY = 0; grounded = true; }
+    else grounded = false;
+    updateGhost();
+    updateDropGhost();
+    const pr = document.getElementById('prompt');
+    if (ghost) {
+      pr.textContent = 'Click to place · Scroll/R to turn · look up to raise it · select it again to cancel';
+      pr.style.display = 'block';
+    } else if (dropGhost) {
+      pr.textContent = 'Click to display it here for everyone · Scroll/R to turn · select it again to cancel';
+      pr.style.display = 'block';
+    } else {
+      // interact + pickup prompts (an item can offer both at once, e.g. the vending machine)
+      raycaster.setFromCamera({x:0,y:0}, camera);
+      const hits = raycaster.intersectObjects(interactables.map(i=>i.mesh));
+      const pHits = raycaster.intersectObjects(pickupables.map(p=>p.pickHit));
+      const lines = [];
+      if (hits.length && hits[0].distance < 2.5) {
+        const it = interactables.find(i => i.mesh === hits[0].object);
+        lines.push(it.prompt || 'E: ' + (SAVE.shelves[it.shelfId] ? 'Take item' : 'Place selected item'));
+      }
+      if (pHits.length && pHits[0].distance < 2.5) {
+        const p = pickupables.find(pp => pp.pickHit === pHits[0].object);
+        const label = p.isSharedGear ? gearDisplayName(worldGear.get(p.dropId).data) : GEAR[p.gid].name;
+        lines.push('G: Pick up ' + label);
+      }
+      if (lines.length) { pr.textContent = lines.join('   ·   '); pr.style.display = 'block'; }
+      else pr.style.display = 'none';
+    }
+  }
+  renderer.render(scene, camera);
+}
+animate(performance.now());
+window.addEventListener('resize', () => { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+</script>
+</body></html>

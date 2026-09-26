@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Dungeon Hold</title>
+<style>
+:root{--gold:#e8b94a;--red:#c8262b;--cyan:#5ee9ff;--ink:#120c1a}
+html,body{margin:0;height:100%;background:#0b0712;overflow:hidden;font-family:Georgia,'Times New Roman',serif;color:#f1e6d0;-webkit-user-select:none;user-select:none;touch-action:none}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+body.play #c{cursor:none}
+#ov{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+#hud{position:fixed;inset:0;pointer-events:none;font-size:15px}
+.bars{position:absolute;left:14px;top:12px;width:250px}
+.bar{height:16px;background:#2a1f33;border:2px solid #0e0a14;border-radius:4px;margin-bottom:6px;position:relative;overflow:hidden;box-shadow:0 2px 0 #000}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--cyan);transition:width .15s}
+.bar.hp i{background:#d8383d}
+.bar b{position:absolute;left:8px;top:-1px;font-size:12px;letter-spacing:1px;text-shadow:0 1px 2px #000}
+.res{display:flex;gap:14px;font-weight:bold;text-shadow:0 2px 2px #000;font-size:16px}
+.res .mana{color:var(--cyan)} .res .du{color:var(--gold)}
+#topC{position:absolute;left:50%;top:10px;transform:translateX(-50%);text-align:center;text-shadow:0 2px 3px #000;white-space:nowrap}
+#topC .wave{font-size:22px;font-weight:bold;color:var(--gold);letter-spacing:2px}
+#topC .phase{font-size:14px;color:#e9ddc8;opacity:.9}
+#hotbar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;gap:8px;pointer-events:auto}
+.slot{width:112px;padding:6px 6px 5px;background:linear-gradient(#3a2a44,#1c1424);border:2px solid #6b5a3c;border-radius:6px;text-align:center;box-shadow:0 3px 0 #000;cursor:pointer}
+.slot.sel{border-color:var(--gold);background:linear-gradient(#5a4066,#2a1c34);box-shadow:0 0 12px #e8b94a88}
+.slot.poor{opacity:.5}
+.slot .k{font-size:11px;color:var(--gold);letter-spacing:1px}
+.slot .n{font-size:13px;font-weight:bold;white-space:nowrap}
+.slot .ic{font-size:22px;line-height:26px}
+.slot .cst{font-size:11px;color:#bfae90}
+#prompt{position:absolute;left:50%;bottom:112px;transform:translateX(-50%);font-size:15px;color:#fff;text-shadow:0 2px 3px #000;background:#0008;padding:4px 12px;border-radius:6px;white-space:nowrap}
+#prompt:empty{display:none}
+#banner{position:absolute;left:0;right:0;top:32%;text-align:center;font-size:54px;font-weight:bold;color:var(--gold);letter-spacing:6px;text-shadow:0 0 18px #000,0 4px 0 #000;opacity:0;transition:opacity .4s;pointer-events:none}
+#banner small{display:block;font-size:18px;letter-spacing:2px;color:#f1e6d0}
+#toast{position:absolute;left:50%;top:60%;transform:translateX(-50%);font-size:16px;color:#fff;text-shadow:0 2px 3px #000;opacity:0;transition:opacity .3s;white-space:nowrap}
+#btns{position:absolute;right:14px;bottom:110px;display:none;flex-direction:column;gap:8px;pointer-events:auto}
+.touch #btns{display:flex}
+.hb{width:64px;height:64px;border-radius:50%;background:#2a1c34ee;border:2px solid #6b5a3c;color:#fff;font-size:24px;box-shadow:0 3px 0 #000;display:flex;align-items:center;justify-content:center}
+.hb.on{border-color:var(--gold);background:#5a4066}
+#wavebtn{position:absolute;right:14px;top:12px;pointer-events:auto;background:linear-gradient(#7a2a2e,#3e1416);border:2px solid var(--gold);border-radius:8px;color:#fff;font:bold 15px Georgia,serif;letter-spacing:1px;padding:10px 16px;box-shadow:0 3px 0 #000;cursor:pointer}
+#wavebtn:disabled{opacity:.4}
+#sndbtn{position:absolute;right:14px;top:62px;pointer-events:auto;background:#1c1424;border:2px solid #6b5a3c;border-radius:8px;color:#fff;font-size:16px;padding:5px 10px;cursor:pointer}
+#joy{position:absolute;left:30px;bottom:30px;width:130px;height:130px;border-radius:50%;background:#ffffff14;border:2px solid #ffffff30;display:none;pointer-events:none}
+#joy i{position:absolute;left:41px;top:41px;width:44px;height:44px;border-radius:50%;background:#ffffff55}
+.touch #joy{display:block}
+#vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,#0007 100%)}
+#dmg{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 50%,#c0202099 100%);opacity:0;transition:opacity .2s}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0b0712d8;text-align:center;z-index:10;padding:0 16px}
+.screen h1{font-size:56px;letter-spacing:8px;color:var(--gold);margin:0 0 6px;text-shadow:0 0 30px #e8b94a55,0 4px 0 #000}
+.screen h2{font-size:15px;letter-spacing:4px;color:#c9b8a0;margin:0 0 26px;font-weight:normal}
+.screen p{max-width:560px;line-height:1.7;color:#e9ddc8;margin:6px 0}
+.screen .big{margin-top:22px;font-size:22px;padding:14px 38px;background:linear-gradient(#7a2a2e,#3e1416);border:2px solid var(--gold);border-radius:10px;color:#fff;cursor:pointer;box-shadow:0 4px 0 #000;font-family:Georgia,serif;letter-spacing:2px}
+kbd{background:#2a1f33;border:1px solid #6b5a3c;border-radius:4px;padding:1px 6px;font-family:Georgia,serif;color:var(--gold)}
+.hide{display:none!important}
+@media (max-width:700px){.slot{width:74px;padding:4px}.slot .n{font-size:11px}.slot .ic{font-size:18px}.screen h1{font-size:36px}.bars{width:170px}#topC .wave{font-size:16px}#topC .phase{font-size:12px}}
+</style></head><body>
+<canvas id="c"></canvas><canvas id="ov"></canvas><div id="vig"></div><div id="dmg"></div>
+<div id="hud">
+ <div class="bars">
+  <div class="bar"><i id="cbar" style="width:100%"></i><b>CRYSTAL</b></div>
+  <div class="bar hp"><i id="hbar" style="width:100%"></i><b>SQUIRE</b></div>
+  <div class="res"><span class="mana">◆ <span id="mana">0</span> mana</span><span class="du"><span id="du">0/40</span> DU</span></div>
+ </div>
+ <div id="topC"><div class="wave" id="wavet">BUILD PHASE</div><div class="phase" id="phaset">Place defenses, then press G to sound the horn</div></div>
+ <button id="wavebtn">📯 START WAVE</button>
+ <button id="sndbtn">🔇</button>
+ <div id="prompt"></div>
+ <div id="hotbar"></div>
+ <div id="btns"></div>
+ <div id="joy"><i></i></div>
+ <div id="banner"></div>
+ <div id="toast"></div>
+</div>
+<div id="start" class="screen">
+ <h1>DUNGEON HOLD</h1>
+ <h2>A GNOME SQUIRE · A CRYSTAL · THE HORDE</h2>
+ <p><kbd>W A S D</kbd> run &nbsp; <kbd>mouse</kbd> look &nbsp; <kbd>click</kbd> swing &nbsp; <kbd>Space</kbd> jump</p>
+ <p><kbd>1</kbd>–<kbd>4</kbd> pick a defense &nbsp; <kbd>R</kbd> rotate &nbsp; <kbd>click</kbd> place &nbsp; <kbd>E</kbd> repair / upgrade &nbsp; <kbd>X</kbd> sell &nbsp; <kbd>G</kbd> start wave</p>
+ <button class="big" id="playbtn">ENTER THE HALL</button>
+</div>
+<div id="dead" class="screen hide">
+ <h1>SHATTERED</h1><h2>THE CRYSTAL FELL ON WAVE <span id="deadwave">1</span></h2>
+ <button class="big" onclick="location.reload()">TRY AGAIN</button>
+</div>
