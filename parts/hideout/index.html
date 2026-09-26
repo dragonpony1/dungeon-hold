@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="13">
+<meta name="hideout-build" content="16">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -190,7 +190,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 13;
+const HIDEOUT_BUILD = 16;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -240,6 +240,11 @@ writeBag();
 
 const ITEMS_DIR = '/assets/hideout/items/';
 const GEAR = {
+  // wall art first so it's the first thing in the Trade-O-Matic
+  painting_triumph:  { name:'Painting: Witch Triumphant', icon:ITEMS_DIR+'painting_triumph.webp', cost:7 },
+  painting_hug:      { name:'Painting: The Family Hug',   icon:ITEMS_DIR+'painting_hug.webp',     cost:7 },
+  painting_tease:    { name:'Painting: The Teasing',      icon:ITEMS_DIR+'painting_tease.webp',   cost:7 },
+  painting_company:  { name:'Painting: The Company',      icon:ITEMS_DIR+'painting_company.webp', cost:7 },
   banner:            { name:'Fleur Banner',      icon:ITEMS_DIR+'banner.webp',            cost:4  },
   barrel:            { name:'Storage Barrel',    icon:ITEMS_DIR+'barrel.webp',            cost:3  },
   bench:             { name:'Ironwood Bench',    icon:ITEMS_DIR+'bench.webp',             cost:5  },
@@ -255,15 +260,14 @@ const GEAR = {
   torch_sconce:      { name:'Wall Torch',        icon:ITEMS_DIR+'torch_sconce.webp',      cost:2  },
   display_pedestal:  { name:'Display Pedestal',  icon:ITEMS_DIR+'display_pedestal.webp',  cost:6  },
   weapon_rack:       { name:'Weapon Rack',       icon:ITEMS_DIR+'weapon_rack.webp',       cost:5  },
+  carousel_stand:    { name:'Carousel Stand',    icon:ITEMS_DIR+'carousel_stand.png',     cost:8  },   // Matt's three display racks (Meshy, shrunk like the rest); they hold gear like a shelf
+  horizontal_rack:   { name:'Horizontal Rack',   icon:ITEMS_DIR+'horizontal_rack.png',    cost:6  },
+  vertical_rack:     { name:'Vertical Rack',     icon:ITEMS_DIR+'vertical_rack.png',      cost:6  },
   sludge_cauldron:   { name:'Sludge Cauldron',   icon:ITEMS_DIR+'sludge_cauldron.png',    cost:12 },
   ore_forge:         { name:'Ore Forge',         icon:ITEMS_DIR+'ore_forge.png',          cost:12 },
   vending_machine:   { name:'Trade-O-Matic',     icon:ITEMS_DIR+'vending_machine.png',    cost:0, notShop:true },
   portal:            { name:'Crystal Portal',    icon:ITEMS_DIR+'portal.png',             cost:0, notShop:true },
   wall_locker:       { name:'Ornate Wall Locker', icon:ITEMS_DIR+'wall_locker.png',       cost:0, notShop:true },
-  painting_triumph:  { name:'Painting: Witch Triumphant', icon:ITEMS_DIR+'painting_triumph.webp', cost:7 },
-  painting_hug:      { name:'Painting: The Family Hug',   icon:ITEMS_DIR+'painting_hug.webp',     cost:7 },
-  painting_tease:    { name:'Painting: The Teasing',      icon:ITEMS_DIR+'painting_tease.webp',   cost:7 },
-  painting_company:  { name:'Painting: The Company',      icon:ITEMS_DIR+'painting_company.webp', cost:7 },
 };
 
 // which catalog items have a real 3D model to place in the world (some are icon-only so far)
@@ -273,6 +277,7 @@ const MODEL_MAP = {
   campfire: 'campfire.glb', fireplace: 'fireplace.glb', lantern: 'lantern.glb',
   chest: 'chest.glb', table_stools: 'table_stools.glb', torch_sconce: 'torch_sconce.glb',
   display_pedestal: 'trophy_table.glb', weapon_rack: 'weapon_rack.glb',
+  carousel_stand: 'carousel_stand.glb', horizontal_rack: 'horizontal_rack.glb', vertical_rack: 'vertical_rack.glb',
   vending_machine: 'vending_machine.glb',
   sludge_cauldron: 'sludge_cauldron.glb', ore_forge: 'ore_forge.glb',
   portal: 'crystal_portal.glb',
@@ -527,7 +532,7 @@ const RADIUS_MAP = { vending_machine: 2.3, sludge_cauldron: 2.1, ore_forge: 2.4,
 function spawnPlacedItem(gid, pos, ry) {
   const scale = scaleFor(gid);
   const r = RADIUS_MAP[gid] || 0.9*scale;
-  const entry = { gid, x: pos.x, z: pos.z, ry, obj: null, useHit: null, light: null, isWall: WALL_ITEMS.has(gid) };
+  const entry = { gid, x: pos.x, y: pos.y, z: pos.z, ry, obj: null, useHit: null, light: null, isWall: WALL_ITEMS.has(gid) };
   if (!entry.isWall) { // things hung on the wall don't block the floor
     entry.collider = {minX:pos.x-r,maxX:pos.x+r,minZ:pos.z-r,maxZ:pos.z+r};
     colliders.push(entry.collider);
@@ -535,6 +540,7 @@ function spawnPlacedItem(gid, pos, ry) {
 
   const loaded = placeSource(sourceFor(gid), scale, pos, ry, (obj) => {
     entry.obj = obj;
+    if (HOLDER_ITEMS.has(gid)) slotsFor(gid).then(slots => { entry.slots = slots; restyleGearOnHolder(); });
     if (gid === 'vending_machine') {
       const hit = new THREE.Mesh(new THREE.BoxGeometry(3.6,5.4,2.8), new THREE.MeshBasicMaterial({visible:false}));
       hit.position.set(pos.x, pos.y+2.7, pos.z);
@@ -829,52 +835,102 @@ function findPiece(key) { return allPieces().find(p => p.key === key) || null; }
 let selectedDropGearId = null, dropGhost = null, dropGhostId = null, dropGhostRy = 0;
 const worldGear = new Map(); // shared-drop id -> {group, hit, data, piece}
 
-function makeGearStandGroup(piece, translucent) {
+function makeGearStandGroup(piece, translucent, compact) {
+  // compact = sitting in a holder's slot (shelf, tabletop, pedestal): just the icon, no stand, low enough to fit under the next shelf
   const g = new THREE.Group();
-  const stand = box(0.5, 0.9, 0.5, new THREE.Color(piece.color).multiplyScalar(0.55).getHex());
   const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: iconTexture2(piece.icon) }));
-  spr.position.y = 0.75; spr.scale.set(0.6, 0.6, 1);
-  if (translucent) {
-    stand.material.transparent = true; stand.material.opacity = 0.5;
-    spr.material.transparent = true; spr.material.opacity = 0.55;
+  if (compact) { spr.position.y = 0.17; spr.scale.set(0.38, 0.38, 1); } // the art has a little transparent margin, so this rests it on the board
+  else {
+    const stand = box(0.5, 0.9, 0.5, new THREE.Color(piece.color).multiplyScalar(0.55).getHex());
+    if (translucent) { stand.material.transparent = true; stand.material.opacity = 0.5; }
+    g.add(stand);
+    spr.position.y = 0.75; spr.scale.set(0.6, 0.6, 1);
   }
-  g.add(stand); g.add(spr);
+  if (translucent) { spr.material.transparent = true; spr.material.opacity = 0.55; }
+  g.add(spr);
   return g;
 }
 const gearIconTexCache = {};
 function iconTexture2(url) {
-  if (!gearIconTexCache[url]) gearIconTexCache[url] = texLoader.load(url);
+  if (!gearIconTexCache[url]) {
+    // the gear art is painted on solid white — fine as a card in the menus, but in the room it reads as a sticky
+    // note, so in-world copies get the background cut out
+    const tex = new THREE.Texture();
+    const img = new Image();
+    img.onload = () => { tex.image = knockOutWhite(img); tex.needsUpdate = true; };
+    img.src = url;
+    gearIconTexCache[url] = tex;
+  }
   return gearIconTexCache[url];
 }
+// flood-fill from the corners through near-white pixels, so only background connected to the edge goes — the art's
+// dark outline stops the fill — then soften the fringe that anti-aliasing left behind
+function knockOutWhite(img) {
+  const S = 256;
+  const cv = document.createElement('canvas'); cv.width = cv.height = S;
+  const g = cv.getContext('2d'); g.drawImage(img, 0, 0, S, S);
+  const d = g.getImageData(0, 0, S, S), px = d.data;
+  const light = p => Math.min(px[p*4], px[p*4+1], px[p*4+2]);
+  const cleared = new Uint8Array(S * S), stack = [0, S - 1, (S - 1) * S, S * S - 1];
+  while (stack.length) {
+    const p = stack.pop();
+    if (cleared[p] || light(p) < 232) continue;
+    cleared[p] = 1; px[p*4+3] = 0;
+    const x = p % S, y = (p / S) | 0;
+    if (x > 0) stack.push(p - 1); if (x < S - 1) stack.push(p + 1);
+    if (y > 0) stack.push(p - S); if (y < S - 1) stack.push(p + S);
+  }
+  for (let p = 0; p < S * S; p++) {
+    if (cleared[p]) continue;
+    const x = p % S, y = (p / S) | 0;
+    const edge = (x > 0 && cleared[p-1]) || (x < S-1 && cleared[p+1]) || (y > 0 && cleared[p-S]) || (y < S-1 && cleared[p+S]);
+    if (edge && light(p) > 190) px[p*4+3] = Math.round(255 * (255 - light(p)) / 65);
+  }
+  g.putImageData(d, 0, 0);
+  return cv;
+}
 
+let dropSnap = null, dropGhostCompact = false, dropGhostPiece = null;
 function updateDropGhost() {
   const canPlace = active && selectedDropGearId && !isAnyPanelOpen();
   if (!canPlace) {
-    if (dropGhost) { scene.remove(dropGhost); dropGhost = null; dropGhostId = null; }
+    if (dropGhost) { scene.remove(dropGhost); dropGhost = null; dropGhostId = null; dropSnap = null; }
     return;
   }
   if (dropGhostId !== selectedDropGearId) {
     const piece = findPiece(selectedDropGearId);
     if (!piece) { selectedDropGearId = null; if (dropGhost) { scene.remove(dropGhost); dropGhost = null; dropGhostId = null; } return; }
     if (dropGhost) scene.remove(dropGhost);
-    dropGhost = makeGearStandGroup(piece, true);
+    dropGhostPiece = piece; dropGhostCompact = false;
+    dropGhost = makeGearStandGroup(piece, true, false);
     scene.add(dropGhost);
     dropGhostId = selectedDropGearId;
     dropGhostRy = 0;
   }
   const dist = 2.2;
   const flat = new THREE.Vector3(); camera.getWorldDirection(flat); flat.y = 0; flat.normalize();
-  dropGhost.rotation.y = dropGhostRy;
-  dropGhost.position.set(camera.position.x + flat.x*dist, GROUND_Y, camera.position.z + flat.z*dist);
+  const ahead = new THREE.Vector3(camera.position.x + flat.x*dist, GROUND_Y, camera.position.z + flat.z*dist);
+  // aiming at a free spot on furniture (shelf, tabletop, pedestal) pulls the ghost onto it
+  dropSnap = aimedFreeSlot();
+  const compact = !!dropSnap;
+  if (compact !== dropGhostCompact) {
+    scene.remove(dropGhost);
+    dropGhost = makeGearStandGroup(dropGhostPiece, true, compact);
+    scene.add(dropGhost);
+    dropGhostCompact = compact;
+  }
+  if (dropSnap) { dropGhost.position.copy(dropSnap.pos); dropGhost.rotation.y = dropSnap.ry; }
+  else { dropGhost.rotation.y = dropGhostRy; dropGhost.position.copy(ahead); }
 }
 
 async function commitDropPlacement() {
   if (!dropGhost || !selectedDropGearId) return;
   const piece = findPiece(selectedDropGearId);
   if (!piece) return;
-  const pos = { x: dropGhost.position.x, y: GROUND_Y, z: dropGhost.position.z };
-  const ry = dropGhostRy;
-  scene.remove(dropGhost); dropGhost = null; dropGhostId = null;
+  const pos = { x: dropGhost.position.x, y: dropGhost.position.y, z: dropGhost.position.z }; // y is the slot surface when snapped, the floor otherwise
+  const ry = dropGhost.rotation.y;
+  const onHolder = dropSnap ? GEAR[dropSnap.entry.gid].name : null;
+  scene.remove(dropGhost); dropGhost = null; dropGhostId = null; dropSnap = null;
   selectedDropGearId = null;
   try {
     const res = await fetch('/api/hideout/gear', {
@@ -892,27 +948,34 @@ async function commitDropPlacement() {
       writeCarried(loadCarried().filter(c => c.id !== piece.id)); // it lives on the shared table now, not in the bag
     }
     spawnWorldGear(item);
-    flashMsg('Displayed ' + piece.desc);
+    flashMsg((onHolder ? 'Set on the ' + onHolder + ': ' : 'Displayed ') + piece.desc);
   } catch (e) {
     console.error(e);
     flashMsg('Could not display it — check your connection and try again');
   }
 }
 
+function buildWorldGearVisual(item, piece, compact) {
+  const group = makeGearStandGroup(piece, false, compact);
+  group.position.set(item.x, item.y, item.z);
+  group.rotation.y = item.ry || 0;
+  if (!compact) { // on a shelf the label would poke through the board above; the look-at prompt names it instead
+    const label = labelSprite(piece.label, piece.color);
+    label.position.set(0, 1.35, 0); label.scale.set(1.7, 0.42, 1);
+    group.add(label);
+  }
+  scene.add(group);
+  const hit = new THREE.Mesh(compact ? new THREE.BoxGeometry(0.45, 0.42, 0.45) : new THREE.BoxGeometry(0.9, 1.7, 0.9), new THREE.MeshBasicMaterial({ visible: false }));
+  hit.position.set(item.x, item.y + (compact ? 0.21 : 0.85), item.z);
+  scene.add(hit);
+  return { group, hit };
+}
 function spawnWorldGear(item) {
   if (worldGear.has(item.id)) return;
   const piece = pieceFromShared(item);
-  const group = makeGearStandGroup(piece, false);
-  group.position.set(item.x, item.y, item.z);
-  group.rotation.y = item.ry || 0;
-  const label = labelSprite(piece.label, piece.color);
-  label.position.set(0, 1.35, 0); label.scale.set(1.7, 0.42, 1);
-  group.add(label);
-  scene.add(group);
-  const hit = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.7, 0.9), new THREE.MeshBasicMaterial({ visible: false }));
-  hit.position.set(item.x, item.y + 0.85, item.z);
-  scene.add(hit);
-  worldGear.set(item.id, { group, hit, data: item, piece });
+  const compact = isOnAnySlot(item);
+  const { group, hit } = buildWorldGearVisual(item, piece, compact);
+  worldGear.set(item.id, { group, hit, data: item, piece, compact });
   pickupables.push({ isSharedGear: true, dropId: item.id, pickHit: hit });
 }
 function removeWorldGear(id) {
@@ -1113,6 +1176,100 @@ function updateArcaneFx(dt, now) {
   }
 }
 
+// ============= HOLDERS (furniture you can set gear on — slots are read off the model's own flat surfaces) =============
+// To make a new piece of furniture hold gear, add its catalog id here. Slots are found by dropping rays through the
+// model: each level, flat-topped surface with headroom above it becomes one or more spots, so a shelf gets two per
+// board, a table gets three across the top, a pedestal gets one.
+const HOLDER_ITEMS = new Set(['bookshelf_empty', 'display_pedestal', 'table_stools', 'carousel_stand', 'horizontal_rack', 'vertical_rack']);   // the racks: whatever flat rests detectSlots finds on them
+const SLOT_HEADROOM = 0.42; // world units of clear space a spot needs — the on-furniture icon stands 0.39 tall
+const slotCache = {}; // gid -> [Vector3] in the model's own (raw, unrotated) space, so they survive any placement
+function detectSlots(tmpl, minGap, margin) { // both in the model's raw units; margin = room needed either side of a spot
+  tmpl.updateMatrixWorld(true);
+  const bb = new THREE.Box3().setFromObject(tmpl), s = bb.getSize(new THREE.Vector3()), c = bb.getCenter(new THREE.Vector3());
+  const rc = new THREE.Raycaster();
+  // every surface a downward ray meets at this x, top to bottom; a flat one with minGap of clear space above it
+  // (measured to the previous hit of ANY kind — the underside of the board above, a crown, a trophy already there) is usable
+  const usableAt = (x) => {
+    rc.set(new THREE.Vector3(x, bb.max.y + 1, c.z), new THREE.Vector3(0, -1, 0));
+    const out = []; let above = Infinity;
+    for (const h of rc.intersectObject(tmpl, true)) {
+      const y = h.point.y;
+      const flat = h.face && h.face.normal.clone().transformDirection(h.object.matrixWorld).y > 0.8;
+      if (flat && y > bb.min.y + s.y * 0.15 && above - y >= minGap && !out.some(o => Math.abs(o - y) < 0.02)) out.push(y);
+      if (above - y > 0.005) above = y;
+    }
+    return out;
+  };
+  // the centre line defines the levels; a lone level low down is a base ring, not a shelf
+  let levels = usableAt(c.x);
+  if (levels.length < 3) levels = levels.filter(y => y > bb.min.y + s.y * 0.4);
+  const xs = s.x < 0.6 ? [c.x] : s.x < 1.4 ? [c.x - s.x * 0.22, c.x + s.x * 0.22] : [c.x - s.x * 0.28, c.x, c.x + s.x * 0.28];
+  const has = (x, level) => usableAt(x).some(y => Math.abs(y - level) < 0.04);
+  const slots = [];
+  for (const level of levels) for (const x0 of xs) {
+    // the spot needs the same surface a little to either side, so an icon never hangs off an edge;
+    // an outer probe that lands on a lip slides inward a couple of steps to find solid footing
+    const inward = Math.sign(c.x - x0);
+    for (let k = 0; k < 3; k++) {
+      const x = x0 + inward * k * margin * 0.6;
+      if (!(has(x, level) && has(x - margin, level) && has(x + margin, level))) continue;
+      if (!slots.some(p => Math.abs(p.y - level - 0.01) < 0.04 && Math.abs(p.x - x) < margin * 2.2)) slots.push(new THREE.Vector3(x, level + 0.01, c.z));
+      break;
+    }
+  }
+  return slots;
+}
+function slotsFor(gid) {
+  if (slotCache[gid]) return Promise.resolve(slotCache[gid]);
+  return sourceFor(gid).then(tmpl => (slotCache[gid] = detectSlots(tmpl, SLOT_HEADROOM / scaleFor(gid), 0.2 / scaleFor(gid))));
+}
+function holderSlotsWorld(entry) {
+  if (!entry.obj || !entry.slots) return [];
+  entry.obj.updateMatrixWorld(true);
+  return entry.slots.map(v => entry.obj.localToWorld(v.clone()));
+}
+function slotOccupied(p) {
+  for (const w of worldGear.values()) if (Math.hypot(w.data.x - p.x, w.data.y - p.y, w.data.z - p.z) < 0.15) return true;
+  return false;
+}
+// the free spot closest to where you're aiming — look up at the top shelf, down at the bottom one
+function aimedFreeSlot() {
+  camera.updateMatrixWorld();
+  const o = camera.position, d = new THREE.Vector3(); camera.getWorldDirection(d);
+  let best = null;
+  for (const entry of pickupables) {
+    if (!entry.slots) continue;
+    for (const p of holderSlotsWorld(entry)) {
+      if (slotOccupied(p)) continue;
+      const v = p.clone().add(new THREE.Vector3(0, 0.2, 0)).sub(o); // aim at where the icon will sit, not the board itself
+      const t = v.dot(d);
+      if (t < 0.4 || t > 5) continue;
+      const off = v.addScaledVector(d, -t).length();
+      if (off < 0.35 + t * 0.06 && (!best || off < best.off)) best = { off, pos: p, ry: entry.ry, entry };
+    }
+  }
+  return best;
+}
+function isOnAnySlot(item) {
+  const p = new THREE.Vector3(item.x, item.y, item.z);
+  for (const entry of pickupables) {
+    if (entry.slots && holderSlotsWorld(entry).some(s => s.distanceTo(p) < 0.15)) return true;
+  }
+  return false;
+}
+// when a holder finishes loading, gear already sitting on its spots (it may have arrived first) swaps to the compact look
+function restyleGearOnHolder() {
+  for (const [id, w] of worldGear) {
+    const compact = isOnAnySlot(w.data);
+    if (compact === w.compact) continue;
+    scene.remove(w.group); scene.remove(w.hit);
+    const built = buildWorldGearVisual(w.data, w.piece, compact);
+    w.group = built.group; w.hit = built.hit; w.compact = compact;
+    const pi = pickupables.findIndex(p => p.dropId === id);
+    if (pi >= 0) pickupables[pi].pickHit = built.hit;
+  }
+}
+
 // ============= TRADE-O-MATIC =============
 const SHOP_STOCK = Object.keys(GEAR).filter(gid => !GEAR[gid].notShop);
 let vendWasActive = false;
@@ -1254,9 +1411,11 @@ document.getElementById('forgeCraftBtn').onclick = () => {
 };
 
 // ============= CAULDRON CART (salvage carried-in gear, then refine sludge upward) =============
-// Every rarity of gear is worth five of the one below it — common 1, uncommon 5, rare 25, epic 125,
-// legendary 625 in Common Gear terms — without needing an extra sludge tier: epic feeds Legendary
-// Sludge at 5:1 and a legendary piece is a whole Legendary Sludge on its own.
+// Salvage turns SALVAGE_COST pieces of a rarity into one sludge; epic feeds Legendary Sludge directly (there's no
+// epic sludge tier) and a legendary piece is a whole Legendary Sludge on its own. Refine is 5 of a sludge for one of
+// the next. Because every salvage row shares one cost, common/uncommon/rare/epic keep their x5 value steps whatever
+// it's set to; only legendary (fixed at 1) moves relative to epic.
+const SALVAGE_COST = 2; // Matt is trying 2 to see how it feels (was 5)
 const SLUDGE = {
   common:    { name:'Common Sludge',    icon: ITEMS_DIR+'common_sludge.png',    get:()=>SAVE.commonSludge,    add:n=>SAVE.commonSludge+=n },
   uncommon:  { name:'Uncommon Sludge',  icon: ITEMS_DIR+'uncommon_sludge.png',  get:()=>SAVE.uncommonSludge,  add:n=>SAVE.uncommonSludge+=n },
@@ -1264,10 +1423,10 @@ const SLUDGE = {
   legendary: { name:'Legendary Sludge', icon: ITEMS_DIR+'legendary_sludge.png', get:()=>SAVE.legendarySludge, add:n=>SAVE.legendarySludge+=n },
 };
 const RECIPES = [
-  { id:'sv_common',    kind:'salvage', gear:'common',    cost:5, out:'common' },
-  { id:'sv_uncommon',  kind:'salvage', gear:'uncommon',  cost:5, out:'uncommon' },
-  { id:'sv_rare',      kind:'salvage', gear:'rare',      cost:5, out:'rare' },
-  { id:'sv_epic',      kind:'salvage', gear:'epic',      cost:5, out:'legendary' },
+  { id:'sv_common',    kind:'salvage', gear:'common',    cost:SALVAGE_COST, out:'common' },
+  { id:'sv_uncommon',  kind:'salvage', gear:'uncommon',  cost:SALVAGE_COST, out:'uncommon' },
+  { id:'sv_rare',      kind:'salvage', gear:'rare',      cost:SALVAGE_COST, out:'rare' },
+  { id:'sv_epic',      kind:'salvage', gear:'epic',      cost:SALVAGE_COST, out:'legendary' },
   { id:'sv_legendary', kind:'salvage', gear:'legendary', cost:1, out:'legendary' },
   { id:'rf_uncommon',  kind:'refine',  sludge:'common',   cost:5, out:'uncommon' },
   { id:'rf_rare',      kind:'refine',  sludge:'uncommon', cost:5, out:'rare' },
@@ -1534,7 +1693,9 @@ function animate(now) {
         : 'Click to place · Scroll/R to turn · look up to raise it · select it again to cancel';
       pr.style.display = 'block';
     } else if (dropGhost) {
-      pr.textContent = 'Click to display it here for everyone · Scroll/R to turn · select it again to cancel';
+      pr.textContent = dropSnap
+        ? 'Click to set it on the ' + GEAR[dropSnap.entry.gid].name + ' · select it again to cancel'
+        : 'Click to display it here for everyone · Scroll/R to turn · select it again to cancel';
       pr.style.display = 'block';
     } else {
       // interact + pickup prompts (an item can offer both at once, e.g. the vending machine)

@@ -796,6 +796,23 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   on the host or a guest's screen, raises a red THE CRYSTAL IS UNDER ATTACK strip under the wave line for 2.5 s and rings a
   low two-tone bell at most once every 3 s. A 🎵 button on the HUD turns the music off and on (N did, invisibly).
   `crystalalarm-test.mjs`; `coop-world-test.mjs` expects the 300.
+- The last piece comes from the hideout (build 135): "you have to get the last set piece out of the locker in the hideout;
+  rails to guide them there; once they have four pieces don't allow the room to go until they complete the set". On map
+  one the guarantee now stops at four (two after wave 1, four after wave 2); the moment four are in hand the fifth is
+  rolled for the missing slot and put in the hideout's wall locker as a reward record (`dd_gear_carried`, `reward:true`,
+  `takeBack:true`, the reason "take it back to the hall"), with the game's own copy in `dd_forest_locker`. The rails: a
+  lesson says where it waits, the guide gets a step ("E at the archway between waves, open the locker, come back"), the
+  hideout's own banner and steaming wardrobe do the rest, and the horn will not sound on map one while it waits (a lesson
+  says why). No fifth from the hall: the random roll skips the Forest at four owned and the pity fills the fourth only.
+  Coming back from the hideout (the overlay closing, watched in `Meta.update`), the piece is bagged if the locker was
+  opened or the piece taken (`rewardSeen` / `rewardTaken`) or the record is gone, the record is removed, and a lesson
+  announces TWIN SHOT, now a spread: the familiar's second bolt fans out to one side then the other (.26 rad), reach ×1.5,
+  rate ×1.25. The hideout side (TAKE instead of display for `takeBack` records, the reward effect, the armor-stand
+  furniture and its lesson) is the other session's; the brief is in this session's scratchpad. `forestset-test.mjs` walks
+  the offer, the blocked horn, the empty hall, the return and the completion; `trainer-test.mjs` the nine steps.
+  Also in this build: hideout build 16 -- Matt's three display racks (Carousel Stand, Horizontal Rack, Vertical Rack)
+  added to the Trade-O-Matic from this session at his ask (shrunk like the ballistas; gear rests on them like a shelf),
+  pushed to hideout-wip as 4c9feba; and `hideout-test.mjs` follows hideout build 15's Cart (two gear per sludge).
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Eight more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry. The Holy set is next.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

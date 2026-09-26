@@ -55,4 +55,4 @@ function famUpdate(dt){ const it=gear.familiar;
   famBoltsUpdate(dt); }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); famUpdate(dt); }; }
 { const prev=Meta.hud; Meta.hud=()=>{ prev(); if(fam&&!famActive()) famRemove(); }; }   // hud runs in 'dead' too: clear the pet when the crystal falls
-window.__familiar={ state:()=>fam?{id:fam.id,kind:fam.g.userData.kind,x:fam.x,y:fam.y,z:fam.z,yaw:fam.yaw,inScene:fam.g.parent===scene,visible:fam.g.visible,target:!!fam.target,cd:fam.cd}:null, bolts:()=>famBolts.length, model:()=>fam&&fam.g, rate:famRate, dmg:famDmg, build:famModel };
+window.__familiar={ boltList:()=>famBolts.map(b=>({vx:b.vx,vz:b.vz})), state:()=>fam?{id:fam.id,kind:fam.g.userData.kind,x:fam.x,y:fam.y,z:fam.z,yaw:fam.yaw,inScene:fam.g.parent===scene,visible:fam.g.visible,target:!!fam.target,cd:fam.cd}:null, bolts:()=>famBolts.length, model:()=>fam&&fam.g, rate:famRate, dmg:famDmg, build:famModel };

@@ -35,6 +35,7 @@ const STEPS=[
   {id:'orb', text:()=>(TOUCH?'Tap ⚔ to swing':'Click to swing')+' at a goblin. Walk over the blue orbs they leave — that mana builds more defenses', done:()=>orbs>0},
   {id:'loot', text:()=>'Every wave held drops a piece of gear by the crystal — walk over it to bag it', done:()=>picked>0},
   {id:'equip', text:()=>'Equip it: open your sheet ('+(TOUCH?'the 🎒 button':'Tab')+') and '+click+' the piece', done:()=>equips>0},
+  {id:'locker', text:()=>'Your last Forest piece waits in the hideout\'s wall locker: E at the archway between waves, open the locker, come back', done:()=>!(window.__forest&&window.__forest.lockerPending())},   // shows only while the locker holds it; ticks itself off otherwise
   {id:'more', text:()=>'Before the next horn, place a second defense — or stand by one and press E to make it Mark II', done:()=>defs.length>=2||defs.some(d=>(d.lvl||1)>=2)},
 ];
 const training=()=>MAPI===0&&!st.off;   // map one is the training ground whoever plays it: the card stays until its steps are done or the ✕ (holding the map no longer hides it -- a returning player never saw it that way)

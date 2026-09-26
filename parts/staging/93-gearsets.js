@@ -20,34 +20,58 @@ addSet({name:'of the Void',ic:'🌌',col:0x8a3dff,css:'#c070ff',emissive:0x5a2bd
 // reward -- is learned early on pieces that don't matter much. Uncommon+ from wave 1: 30% of such drops through wave 3,
 // fading four points a wave to a 6% floor, worth ×1.5. Small, readable bonuses; BRAMBLE roots what the hero hits.
 addSet({name:'of the Forest',ic:'🌲',col:0x5ad05a,css:'#5ad05a',emissive:0x1f6a2a,minR:1,chance:w=>w<1?0:Math.min(.4,Math.max(.1,.4-.05*(w-4))),valueMul:1.5,
-  three:{hp:.08,move:.04},five:{hp:.15,move:.08,dmg:.10},text:['+8% health · +4% move','+15% health · +8% move · +10% hero damage · TWIN SHOT: your familiar fires two bolts at once, 50% faster, at 50% more reach'],
-  fam:{twin:true,rate:1.5,range:1.5},   // the five-piece power on the familiar (applied below): an obvious boon a new player will feel
+  three:{hp:.08,move:.04},five:{hp:.15,move:.08,dmg:.10},text:['+8% health · +4% move','+15% health · +8% move · +10% hero damage · TWIN SHOT: your familiar fires two bolts in a spread, half again as far, a little quicker'],
+  fam:{twin:true,spread:.26,rate:1.25,range:1.5},   // the five-piece power on the familiar (applied below): two bolts in a spread, farther, a little quicker -- an obvious boon
   unlock:{id:'stand-forest',name:'Forest Armor Stand',model:'armor-stand-forest.glb',slot:'armor',rarity:1,reason:'The Forest set, complete'},   // the locker reward, so the starter set teaches that too
   models:{sword:'venom',staff:'staff-hazel',bow:'bow-yew',armor:'stand-forest'},   // the green blade, the plain wood staff and bow, the forest mannequin
   sfx:()=>{ beep(523,.5,'sine',.07,0); setTimeout(()=>beep(784,.45,'triangle',.05,200),90); setTimeout(()=>beep(1047,.4,'sine',.04,400),180); }});   // a rising woodland chime
 // ---- a set's five-piece power on the familiar (pack.fam): TWIN SHOT fires the shot twice, rate divides the cooldown, range stretches the reach
 function famBoon(){ const w=worn().find(x=>x.tier>=5&&x.pack.fam); return w?w.pack.fam:null; }
-{ const prev=famFire; famFire=function(e){ prev(e); const b=famBoon(); if(b&&b.twin) prev(e); }; }
+let twinSide=1;
+{ const prev=famFire; famFire=function(e){ prev(e); const b=famBoon(); if(!(b&&b.twin)) return; const k=((window.__familiar&&window.__familiar.state())||{}).kind||''; /* the species: 85-familiars keeps kindOf() to itself */ if(k==='Bat'||k==='Crystal Owl'||k==='Storm Drake'){ prev(e); return; }   /* these act on the target itself: a plain second strike */
+    const dist=Math.hypot(e.x-fam.x,e.z-fam.z)||1, ang=Math.atan2(e.x-fam.x,e.z-fam.z)+(b.spread||.26)*twinSide; twinSide=-twinSide; prev(Object.assign({},e,{x:fam.x+Math.sin(ang)*dist,z:fam.z+Math.cos(ang)*dist})); }; }   // the second bolt fans out to one side, then the other
 { const prev=famRate; famRate=function(){ const r=prev(); const b=famBoon(); return b&&b.rate?r/b.rate:r; }; }
 { const prev=famTarget; famTarget=function(){ const b=famBoon(); if(!(b&&b.range)) return prev(); let best=null, bd=FAM_RANGE*b.range; for(const e of enemies){ if(e.dead) continue; const d=Math.hypot(e.x-fam.x,e.z-fam.z); if(d<bd&&los(fam.x,fam.z,e.x,e.z)){ bd=d; best=e; } } return best; }; }
-// ---- the guarantee, the bigger training wheel: on map one a full Forest set is in hand by wave three. Each held wave's
-// thanks includes Forest pieces for slots the player still lacks -- two owned after wave 1, four after wave 2, all five
-// after wave 3 -- dropped gently by the crystal with the wave's own reward. Pieces still lying on the floor count as owned,
+// ---- the guarantee, the bigger training wheel: on map one four Forest pieces are in hand by wave two. Each held wave's
+// thanks includes Forest pieces for slots the player still lacks -- two owned after wave 1, four after wave 2 -- dropped
+// gently by the crystal with the wave's own reward. The FIFTH never drops in the hall: it waits in the hideout's wall locker (below). Pieces still lying on the floor count as owned,
 // so nothing is handed out twice; a player who already found some gets only what is missing.
-const FOREST_BY_WAVE={1:2,2:4,3:5};
+const FOREST_BY_WAVE={1:2,2:4};
 function forestGuarantee(w){ if(MAPI!==0) return 0; const target=FOREST_BY_WAVE[w]; if(!target) return 0; const have=forestOwned(); const missing=SLOTS.filter(k=>!have[k]); const n=Math.max(0,Math.min(missing.length,target-(SLOTS.length-missing.length))); const P=PACKS['of the Forest'];
   for(let i=0;i<n;i++){ const it=rollItem(1,missing[i]); it.rarity=Math.max(it.rarity,1); makeSet(it,P); dropLoot(it,R(-2.2,2.2),4.6+.5*(i+1),true); } if(n) floatText(0,3.2,4.6,P.ic+' '+n+' PIECE'+(n>1?'S':'')+' OF THE FOREST — THE HALL\'S THANKS',P.css); return n; }
 { const prev=Meta.onWaveHeld; Meta.onWaveHeld=w=>{ prev(w); forestGuarantee(w); }; }
+
+// ---- the last piece: the hideout's wall locker. On map one, the moment four Forest pieces are in hand the fifth is rolled for
+// the missing slot and put in the hideout's locker as a reward record (dd_gear_carried, reward:true -- the locker's contract),
+// the game keeping its own copy in dd_forest_locker. The rails: a lesson says where it is, the guide gets a step, and the horn
+// will not sound on map one while it waits. When the player comes back from the hideout (the overlay closing, or the title-
+// screen visit ending) the piece is taken into the bag if the locker was opened (rewardSeen) or the record is gone (put on
+// display), the record is removed if still there, and the set is complete: the five-piece toast and the TWIN SHOT lesson.
+const LOCKER_KEY='dd_forest_locker', CARRY_KEY='dd_gear_carried';
+function lockerRead(){ try{ const o=JSON.parse(localStorage.getItem(LOCKER_KEY)); return o&&typeof o==='object'?o:null; }catch(e){ return null; } }
+function lockerWrite(o){ try{ if(o) localStorage.setItem(LOCKER_KEY,JSON.stringify(o)); else localStorage.removeItem(LOCKER_KEY); }catch(e){} }
+function carriedRead(){ try{ const a=JSON.parse(localStorage.getItem(CARRY_KEY)); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function carriedWrite(a){ try{ localStorage.setItem(CARRY_KEY,JSON.stringify(a)); }catch(e){} }
+function lockerPending(){ const o=lockerRead(); return !!(o&&o.item&&!o.taken); }
+function offerLastPiece(){ if(MAPI!==0||lockerRead()) return false; const have=forestOwned(); if(Object.keys(have).length!==4) return false; const slot=SLOTS.find(k=>!have[k]); if(!slot) return false; const P=PACKS['of the Forest'];
+  const it=rollItem(1,slot); it.rarity=Math.max(it.rarity,1); makeSet(it,P); lockerWrite({item:it,at:Date.now(),taken:false});
+  const list=carriedRead(); if(!list.some(r=>r&&r.id===it.id)){ const rec=JSON.parse(JSON.stringify(it)); rec.from='dungeon-hold'; rec.carriedAt=Date.now(); rec.reward=true; rec.takeBack=true; rec.reason='The last piece of the Forest set — take it back to the hall'; list.push(rec); carriedWrite(list); }   // takeBack: the hideout offers TAKE (not the display) and marks rewardTaken
+  lesson(P.ic+' Your last piece of the Forest waits in the hideout\'s wall locker — go through the portal (E at the archway) and open the locker before the next horn',10); if(SFX.setBong) SFX.setBong(); return true; }
+function collectLastPiece(){ const o=lockerRead(); if(!o||!o.item||o.taken) return false; const list=carriedRead(); const rec=list.find(r=>r&&r.id===o.item.id); if(rec&&!rec.rewardSeen&&!rec.rewardTaken){ lesson('The wall locker is still shut — open it in the hideout to take your Forest piece',7); return false; }
+  o.taken=true; lockerWrite(o); if(rec) carriedWrite(list.filter(r=>r!==rec)); Meta.onPickup(o.item); const P=PACKS['of the Forest'];
+  lesson(P.ic+' The last piece of the Forest is yours — equip it, and watch your familiar: TWIN SHOT, two bolts in a spread, farther and quicker',10); if(SFX.setBong) SFX.setBong(); return true; }
+{ const prev=startWave; startWave=function(){ if(MAPI===0&&lockerPending()){ lesson('The horn waits: fetch your last Forest piece from the hideout\'s wall locker first — E at the archway',7); if(SFX.rift) SFX.rift(); return; } return prev.apply(this,arguments); }; }
+{ let wasOpen=false, tick=0; const prev=Meta.update; Meta.update=dt=>{ prev(dt); const open=!!(window.__hideout&&window.__hideout.isOpen()); if(wasOpen&&!open) collectLastPiece(); wasOpen=open; if(++tick%30===0&&MAPI===0&&(S.phase==='build'||S.phase==='wave')) offerLastPiece(); }; }
 // ---- the pity rule, a training wheel: on map one, a player holding three or four Forest pieces gets the missing slot from the
 // next Uncommon-or-better random-slot drop (a mob's, or the held wave's), so the set completes on the training ground instead of wave seven
 function forestOwned(){ const P=PACKS['of the Forest'], have={}; const tag=it=>{ if(it&&Meta.sets.setOf(it)===P.name) have[it.slot]=true; }; for(const k in gear) tag(gear[k]); for(const it of Meta.bag()) tag(it); for(const l of loot) tag(l.it); return have; }   // worn, bagged, or still lying on the floor
-function forestPity(){ if(MAPI!==0) return null; const have=forestOwned(); const n=Object.keys(have).length; if(n<3||n>=5) return null; const missing=SLOTS.filter(k=>!have[k]); return missing[Math.floor(LR()*missing.length)]||null; }
+function forestPity(){ if(MAPI!==0) return null; const have=forestOwned(); const n=Object.keys(have).length; if(n!==3) return null;   /* fills the fourth only: the fifth is the locker's */ const missing=SLOTS.filter(k=>!have[k]); return missing[Math.floor(LR()*missing.length)]||null; }
 // ---- the buffs: percentages on the same multiplier hook as skills, keyed by the set so nothing reads them as flat points
 { const prev=Meta.mult; Meta.mult=k=>{ let v=prev(k)||0; for(const {pack,tier} of worn()){ const b=tier>=5?pack.five:pack.three; if(b&&b[k]) v+=b[k]; } return v; }; }
 { const prev=famDmg; famDmg=function(){ return Math.round(prev()*(1+(Meta.mult('fam')||0))*10)/10; }; }
 // ---- the drop rule: after the ordinary roll a Rare-or-better piece may become a set piece; the old suffix goes, the value climbs
 function makeSet(it,d){ const base=it.name.replace(/ of (the )?[A-Z]\w*( [A-Z]\w*)?$/,''); it.name=base+' '+d.name;   /* any old "of …" tail goes, saved names from before the sets included */ it.value=Math.round(it.value*(d.valueMul||1)); return it; }
-{ const prev=rollItem; rollItem=function(minR,slot,lvl){ const pity=slot===undefined?forestPity():null; const it=prev(minR,pity||slot,lvl); if(pity&&it.rarity>=1){ makeSet(it,PACKS['of the Forest']); return it; } const w=effWave(); for(const n in PACKS){ const d=PACKS[n]; if(it.rarity>=(d.minR|0)&&LR()<d.chance(w)){ makeSet(it,d); break; } } return it; }; }
+{ const prev=rollItem; rollItem=function(minR,slot,lvl){ const pity=slot===undefined?forestPity():null; const it=prev(minR,pity||slot,lvl); if(pity&&it.rarity>=1){ makeSet(it,PACKS['of the Forest']); return it; } const w=effWave(); const fourForest=Object.keys(forestOwned()).length>=4; for(const n in PACKS){ const d=PACKS[n]; if(fourForest&&d===PACKS['of the Forest']) continue; /* the fifth Forest piece is the locker's alone */ if(it.rarity>=(d.minR|0)&&LR()<d.chance(w)){ makeSet(it,d); break; } } return it; }; }
 // ---- the drop: the set's own sound, a column of its light for three seconds, a shout; the piece on the floor takes its colour
 SFX.rift=()=>{ beep(140,.22,'sawtooth',.05,-90); noise(.12,.05,2400); };
 const FX=[]; const RING_GEO=new THREE.RingGeometry(.6,1,32), COL_GEO=new THREE.CylinderGeometry(.14,.3,7,14,1,true);
@@ -112,5 +136,5 @@ function defRingUpdate(){ const pk=fullPack(); const col=pk?pk.col:null;
 Meta.packs={of:packOf,list:()=>Object.keys(PACKS),get:n=>PACKS[n],add:addSet,art:itemArt,artHtml,aura:()=>({on:AURA.meshes.length>0,col:AURA.col,meshes:AURA.meshes.length,attached:AURA.meshes.filter(g=>g.parent).length}),defRings:()=>defs.filter(d=>d.setRing).length};
 window.__void={NAME:'of the Void',isVoid:it=>packOf(it)===PACKS['of the Void'],chance:w=>PACKS['of the Void'].chance(w===undefined?effWave():w),lvl:()=>{ const a=Meta.sets.active().find(x=>x.name==='of the Void'); return a?a.tier:0; },make:it=>makeSet(it,PACKS['of the Void']),fx:()=>FX.length,rift};
 window.__packs=Meta.packs;
-window.__forest={NAME:'of the Forest',isForest:it=>packOf(it)===PACKS['of the Forest'],owned:forestOwned,pity:forestPity,boon:famBoon,guarantee:forestGuarantee,BY_WAVE:FOREST_BY_WAVE,chance:w=>PACKS['of the Forest'].chance(w===undefined?effWave():w),lvl:()=>{ const a=Meta.sets.active().find(x=>x.name==='of the Forest'); return a?a.tier:0; },make:it=>makeSet(it,PACKS['of the Forest']),HINT_KEY};
+window.__forest={NAME:'of the Forest',isForest:it=>packOf(it)===PACKS['of the Forest'],owned:forestOwned,pity:forestPity,boon:famBoon,guarantee:forestGuarantee,BY_WAVE:FOREST_BY_WAVE,locker:lockerRead,lockerPending,offer:offerLastPiece,collect:collectLastPiece,LOCKER_KEY,chance:w=>PACKS['of the Forest'].chance(w===undefined?effWave():w),lvl:()=>{ const a=Meta.sets.active().find(x=>x.name==='of the Forest'); return a?a.tier:0; },make:it=>makeSet(it,PACKS['of the Forest']),HINT_KEY};
 })();

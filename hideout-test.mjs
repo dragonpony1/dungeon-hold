@@ -69,7 +69,7 @@ if(frame){
   check("...with a salvage row for every rarity, epic included",['sv_common','sv_uncommon','sv_rare','sv_epic','sv_legendary'].every(id=>cauldron.rows.includes(id)),cauldron.rows.join(' '));
   check("the hideout's BAG mirrors every key the game wrote, epic included",cauldron.bag.common===5&&cauldron.bag.rare===2&&cauldron.bag.epic===1&&cauldron.bag.uncommon===0&&cauldron.bag.legendary===0,JSON.stringify(cauldron.bag));
   const crafted=await frame.evaluate(()=>{ craftRecipe('sv_common',false); return {pills:[...document.querySelectorAll('#cauldronBag b')].map(b=>+b.textContent),common:BAG.common,stored:JSON.parse(localStorage.getItem('dd_gear_bag')).common,sludge:SAVE.commonSludge}; });
-  check("salvaging once spends 5 common gear for real: BAG and the header read 0, dd_gear_bag.common is 0 in storage, one Common Sludge made",crafted.common===0&&crafted.pills[0]===0&&crafted.stored===0&&crafted.sludge>=1,JSON.stringify(crafted));
+  check("salvaging once spends 2 common gear for real (hideout build 15: two per sludge): BAG and the header read 3, dd_gear_bag.common is 3 in storage, one Common Sludge made",crafted.common===3&&crafted.pills[0]===3&&crafted.stored===3&&crafted.sludge>=1,JSON.stringify(crafted));
   check("...and the other rarities are untouched by it",JSON.stringify(crafted.pills.slice(1))==='[0,2,1,0]',JSON.stringify(crafted.pills));
   await frame.evaluate(()=>closeCauldron());
   for(let i=0;i<200&&!responses.some(r=>/\/hideout\/assets\/hideout\/floor\.glb\.txt$/.test(r.url));i++) await sleep(50);
@@ -91,7 +91,7 @@ await page.evaluate(()=>{ const it=window.__dd.rollItem(0); it.rarity=0; window.
 await page.keyboard.press('KeyE');
 await page.waitForFunction(()=>window.__hideout.isOpen(),null,{timeout:5000}).catch(()=>{});
 const gearBag2=await page.evaluate(()=>JSON.parse(localStorage.getItem('dd_gear_bag')));
-check("a later carry adds to what the Cart left (0+1=1), rather than resurrecting the 5 already crafted away",gearBag2.common===1&&gearBag2.rare===2&&gearBag2.epic===1&&gearBag2.someday==='kept',JSON.stringify(gearBag2));
+check("a later carry adds to what the Cart left (3+1=4), rather than resurrecting the 2 already crafted away",gearBag2.common===4&&gearBag2.rare===2&&gearBag2.epic===1&&gearBag2.someday==='kept',JSON.stringify(gearBag2));
 await page.evaluate(()=>window.__hideout.close());
 // an empty bag: E goes straight through, no prompt; then the horn pulls you back out
 await page.evaluate(()=>window.__dd.step(1/60,2));
@@ -110,7 +110,7 @@ await page.close();
 const page2=await newGamePage();
 const restored=await page2.evaluate(()=>({gold:window.__meta.gold(),bag:window.__meta.bag().length,gearBag:JSON.parse(localStorage.getItem('dd_gear_bag'))}));
 check("a fresh load restores gold from ddMeta (what the hideout's '/' return relies on)",restored.gold===goldBefore,JSON.stringify({goldBefore,restored}));
-check("...and the emptied bag stayed empty, dd_gear_bag intact",restored.bag===0&&restored.gearBag.common===1&&restored.gearBag.someday==='kept',JSON.stringify(restored.gearBag));
+check("...and the emptied bag stayed empty, dd_gear_bag intact (common 4)",restored.bag===0&&restored.gearBag.common===4&&restored.gearBag.someday==='kept',JSON.stringify(restored.gearBag));
 
 // ==== C: the title screen's own way in, outside a run ====
 check("a THE HIDEOUT button sits on the title screen",await page2.evaluate(()=>{ const b=document.getElementById('hideoutbtn'); return !!b&&b.textContent.includes('HIDEOUT')&&window.__dd.S.phase==='start'; }));
@@ -128,6 +128,9 @@ const page3=await ctx.newPage(); page3.on("pageerror",e=>errors.push(String(e)))
 await page3.goto(BASE+"/hideout/index.html",{timeout:90000});
 await page3.waitForFunction(()=>window.THREE&&document.getElementById('start'),null,{timeout:60000});
 check("standalone: the page runs",await page3.evaluate(()=>!!window.THREE&&HIDEOUT_EMBEDDED===false));
+// hideout build 16: Matt's three display racks are in the Trade-O-Matic, with models the build converted and serves
+const racks=await page3.evaluate(async()=>{ const ids=['carousel_stand','horizontal_rack','vertical_rack']; const out={}; for(const id of ids){ const g=typeof GEAR!=='undefined'&&GEAR[id]; const m=typeof MODEL_MAP!=='undefined'&&MODEL_MAP[id]; let status=0; try{ status=(await fetch('assets/hideout/props/'+m+'.txt')).status; }catch(e){} out[id]={shop:!!(g&&!g.notShop),name:g&&g.name,model:m,status,holder:typeof HOLDER_ITEMS!=='undefined'&&HOLDER_ITEMS.has(id)}; } return out; });
+check("the three display racks are shop items with a model each, served as .glb.txt, and gear can rest on them",Object.values(racks).every(r=>r.shop&&r.model&&r.status===200&&r.holder),JSON.stringify(racks));
 check("standalone: no BACK TO THE HALL button (its own crystal portal is the way out, to ../)",await page3.evaluate(()=>!document.getElementById('leaveBtn')));
 await page3.close();
 
