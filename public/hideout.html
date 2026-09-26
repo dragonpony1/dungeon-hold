@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="10">
+<meta name="hideout-build" content="11">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -180,7 +180,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 10;
+const HIDEOUT_BUILD = 11;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -1415,10 +1415,13 @@ function tryInteract() {
 const vel = new THREE.Vector3();
 const SPEED = 4.2, SPRINT_MULT = 1.8, GRAVITY = -22, JUMP_SPEED = 7.5;
 let velY = 0, grounded = true;
-function collide(nx, nz) {
+function collide(nx, nz, ox, oz) {
   const r = 0.35;
+  const inside = (x, z, c) => x+r>c.minX && x-r<c.maxX && z+r>c.minZ && z-r<c.maxZ;
   for (const c of colliders) {
-    if (nx+r>c.minX && nx-r<c.maxX && nz+r>c.minZ && nz-r<c.maxZ) return false;
+    // block stepping INTO a box, but never trap: a big machine placed diagonally in front of you can land its
+    // square box on top of you, and if every step from inside counted as blocked you'd be frozen
+    if (inside(nx, nz, c) && !inside(ox, oz, c)) return false;
   }
   return nx > -roomHalfW-1 && nx < roomHalfW+1 && nz > -roomHalfD-1 && nz < roomHalfD+1;
 }
@@ -1440,8 +1443,8 @@ function animate(now) {
       const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
       const move = new THREE.Vector3().addScaledVector(forward, -vel.z).addScaledVector(right, vel.x);
       const p = camera.position;
-      if (collide(p.x+move.x, p.z)) p.x += move.x;
-      if (collide(p.x, p.z+move.z)) p.z += move.z;
+      if (collide(p.x+move.x, p.z, p.x, p.z)) p.x += move.x;
+      if (collide(p.x, p.z+move.z, p.x, p.z)) p.z += move.z;
     }
     velY += GRAVITY*dt;
     camera.position.y += velY*dt;
