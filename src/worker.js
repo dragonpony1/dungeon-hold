@@ -43,9 +43,13 @@ export default {
   },
 };
 
+// kind: 'forged' (a mythic/unique from the hideout's forge — type is the category, tier is mythic|unique)
+//    or 'carried' (a trophy locked in the dungeon and carried through the portal — type is the slot,
+//    tier is the rarity name, payload is the game's full item record so it survives the round trip)
 function rowToItem(row) {
   return {
-    id: row.id, type: row.type, tier: row.tier, name: row.name,
+    id: row.id, kind: row.kind || 'forged', type: row.type, tier: row.tier, name: row.name,
+    payload: row.payload ? JSON.parse(row.payload) : null,
     x: row.x, y: row.y, z: row.z, ry: row.ry,
     droppedBy: row.dropped_by, locked: !!row.locked, createdAt: row.created,
   };
@@ -59,7 +63,11 @@ export class HideoutDO {
       this.sql.exec(`CREATE TABLE IF NOT EXISTS dropped_gear(
         id TEXT PRIMARY KEY, type TEXT NOT NULL, tier TEXT NOT NULL, name TEXT,
         x REAL, y REAL, z REAL, ry REAL,
-        dropped_by TEXT DEFAULT '', locked INTEGER DEFAULT 0, created INTEGER)`);
+        dropped_by TEXT DEFAULT '', locked INTEGER DEFAULT 0, created INTEGER,
+        kind TEXT DEFAULT 'forged', payload TEXT)`);
+      // upgrade path for the live table, created before carried-in trophies existed
+      try { this.sql.exec("ALTER TABLE dropped_gear ADD COLUMN kind TEXT DEFAULT 'forged'"); } catch { /* already there */ }
+      try { this.sql.exec('ALTER TABLE dropped_gear ADD COLUMN payload TEXT'); } catch { /* already there */ }
     });
   }
 
@@ -74,13 +82,17 @@ export class HideoutDO {
     if (request.method === 'POST' && url.pathname === '/api/hideout/gear') {
       const body = await request.json().catch(() => null);
       if (!body || !body.type || !body.tier) return json({ error: 'type and tier required' }, 400);
+      const kind = body.kind === 'carried' ? 'carried' : 'forged';
+      const payload = kind === 'carried' && body.payload && typeof body.payload === 'object' ? JSON.stringify(body.payload) : null;
+      if (kind === 'carried' && !payload) return json({ error: 'a carried item needs its payload' }, 400);
+      if (payload && payload.length > 8000) return json({ error: 'payload too large' }, 400);
       const id = crypto.randomUUID();
       const now = Date.now();
       this.sql.exec(
-        'INSERT INTO dropped_gear(id,type,tier,name,x,y,z,ry,dropped_by,locked,created) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+        'INSERT INTO dropped_gear(id,type,tier,name,x,y,z,ry,dropped_by,locked,created,kind,payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
         id, String(body.type), String(body.tier), body.name || null,
         Number(body.x) || 0, Number(body.y) || 0, Number(body.z) || 0, Number(body.ry) || 0,
-        String(body.droppedBy || ''), 0, now);
+        String(body.droppedBy || ''), 0, now, kind, payload);
       const row = this.sql.exec('SELECT * FROM dropped_gear WHERE id = ?', id).toArray()[0];
       return json({ item: rowToItem(row) });
     }
