@@ -3,7 +3,8 @@
 // railing twelve times, the chandelier, rugs and statues once per spot. This suite loads map two cold and checks: the doors stand
 // on all four lanes and are the slim hall-door model (the 7.6 MB original is never asked for); no asset URL is requested twice
 // during the load; each model placed many times served every placement from its one fetch; the load timer counts exactly the
-// bytes that came down; the model bytes stay under a budget; and two asks for a file still in flight share one download.
+// bytes that came down; the model bytes stay under a budget; two asks for a file still in flight share one download; and a
+// shared download that hangs is let go after 40 s, so a later ask still gets the file, as it always did before sharing.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs"; import path from "path";
 const SP=path.dirname(new URL(import.meta.url).pathname); const DIST=process.env.DIST||SP+"/dist";
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
@@ -43,6 +44,26 @@ const f=await page.evaluate(async()=>{ const F=window.__fetchlayer, url=F.asset(
 await page.waitForTimeout(300);
 const smithKey=models.concat(Object.keys(reqs)).find(k=>stem(k)==='smith.glb');
 check("two asks for a file still in flight share one download (one request, one promise, one byte count); after it lands the entry is let go and the next ask fetches afresh",f.same&&f.mid===1&&f.held&&f.released&&f.sameBuf&&f.len>1e5&&f.addBytes>0&&f.addBytes===(sizes[smithKey]||[])[0]&&f.fresh&&f.files2===2&&f.len2===f.len&&smithKey&&reqs[smithKey].load===0&&reqs[smithKey].after===2,JSON.stringify({...f,requests:smithKey?reqs[smithKey]:null}));
+// a download that hangs: sharing must not make it permanent for everyone who asked. Three files map two never asks for:
+// HUNG answers nothing, ever, the first time (a dropped connection) and is asked for twice, six seconds apart (a player
+// picks the troll, the knight, then the troll again); ALONE is held just as long but asked for once, then let through; SLOW is
+// asked for twice and answers after 8 s. The two asks for HUNG must get the file from one fresh download once the shared one
+// is 40 s old; ALONE must not be fetched twice however long it takes (a slow line is not a hang); SLOW is shared, one request.
+const fs=await import("fs"); const spare=fs.readdirSync(DIST+"/assets").filter(k=>/\.[0-9a-f]{8}\.glb\.txt$/.test(k)&&!reqs[k]).map(k=>({k,n:fs.statSync(DIST+"/assets/"+k).size})).sort((a,b)=>a.n-b.n).map(x=>x.k);
+const [HUNG,ALONE,SLOW]=spare, held={}, hits={};
+for(const k of [HUNG,ALONE,SLOW]) await page.route(u=>u.pathname.endsWith("/assets/"+k),route=>{ hits[k]=(hits[k]||0)+1; if(hits[k]>1) return route.continue(); if(k===SLOW) return setTimeout(()=>route.continue(),8000); held[k]=route; });
+const st=await page.evaluate(async([h,a,s])=>{ const F=window.__fetchlayer, t0=performance.now(), when={}, got={}; window.__stall={when,got}; const url=k=>'assets/'+k;
+  const watch=(tag,p)=>p.then(b=>{ when[tag]=Math.round(performance.now()-t0); got[tag]=b.byteLength; },e=>{ when[tag]=-1; got[tag]=String(e); });
+  const h1=F.now(url(h)); watch('h1',h1); watch('a1',F.now(url(a))); watch('s1',F.now(url(s))); await new Promise(r=>setTimeout(r,1000)); watch('s2',F.now(url(s)));
+  await new Promise(r=>setTimeout(r,5000)); const h2=F.now(url(h)); watch('h2',h2); const sameH=h1===h2;
+  await new Promise(r=>setTimeout(r,F.shareMs+6000-(performance.now()-t0))); return {when:{...when},got:{...got},sameH,shareMs:F.shareMs,inflight:F.inflight().map(u=>u.replace(/^.*\//,''))}; },[HUNG,ALONE,SLOW]);
+const hitsMid={...hits}; if(held[ALONE]) held[ALONE].continue();
+const aLate=await page.waitForFunction(()=>'a1' in window.__stall.when,null,{timeout:60000,polling:250}).then(()=>true).catch(()=>false);
+const aGot=await page.evaluate(()=>window.__stall.got.a1); const sizeOf=k=>{ const t=fs.readFileSync(DIST+"/assets/"+k,"utf8").replace(/\s+/g,""); return Math.floor(t.length*3/4)-(t.endsWith("==")?2:t.endsWith("=")?1:0); };
+console.log(JSON.stringify({HUNG,ALONE,SLOW,st,hitsMid,hits}));
+check("a download that hangs does not take a later ask down with it: both asks for the hung file get it from one fresh download once the shared one is "+(st.shareMs/1000)+" s old (before, joined to the hung one, they never did)",st.sameH&&hitsMid[HUNG]===2&&st.got.h1===sizeOf(HUNG)&&st.got.h2===sizeOf(HUNG)&&st.when.h1>=st.shareMs-500&&st.when.h1<st.shareMs+5000&&Math.abs(st.when.h2-st.when.h1)<=2&&!st.inflight.includes(HUNG),JSON.stringify({requests:hitsMid[HUNG],when:{h1:st.when.h1,h2:st.when.h2},got:[st.got.h1,st.got.h2],want:sizeOf(HUNG)}));
+check("a slow download nobody else asked for is never fetched twice (a slow line is not a hang): still one request past "+(st.shareMs/1000)+" s, no longer offered for sharing (a new ask would fetch afresh, as before sharing), and it lands when the line lets it",hitsMid[ALONE]===1&&hits[ALONE]===1&&!('a1' in st.when)&&!st.inflight.includes(ALONE)&&aLate&&aGot===sizeOf(ALONE),JSON.stringify({requestsAt46s:hitsMid[ALONE],requests:hits[ALONE],settledEarly:'a1' in st.when,sharedAt46s:st.inflight.includes(ALONE),landed:aLate,len:aGot,want:sizeOf(ALONE)}));
+check("a shared download that is merely slow (8 s) stays shared: one request, both asks get the bytes when it lands",hits[SLOW]===1&&st.got.s1===sizeOf(SLOW)&&st.got.s2===sizeOf(SLOW)&&st.when.s1>=7500&&st.when.s1<st.shareMs,JSON.stringify({requests:hits[SLOW],when:[st.when.s1,st.when.s2]}));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
 check("no page errors",realErrors.length===0,realErrors.slice(0,5).join(" | "));
 await browser.close(); server.close();

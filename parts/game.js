@@ -740,9 +740,20 @@ function fetchBytes(url,prio){ if(!HAS_ASSETS) return new Promise(()=>{}); if(pr
 // counted once in LOADT) instead of a second copy over the wire -- the throne room used to pull its 10 MB door four times at
 // once. Only while in flight: the entry goes when it lands, so nothing here keeps a model's bytes once its callers are done.
 // Sharing one ArrayBuffer is safe: every caller hands it to GLTFLoader.parse, which only reads it (the binary chunk is sliced off).
-const INFLIGHT=new Map();
-function fetchBytesNow(url){ const had=INFLIGHT.get(url); if(had) return had; LOADT.inflight++; LOADT.files++; const p=fetchBytesRaw(url); const done=()=>{ INFLIGHT.delete(url); LOADT.inflight--; loadCheck(); }; INFLIGHT.set(url,p); p.then(done,done); return p; }
-window.__fetchlayer={now:fetchBytesNow,asset:ASSET,inflight:()=>[...INFLIGHT.keys()]};   // test hook (throneload-test.mjs): the shared in-flight download, checked directly
+// But a download can hang (a dropped connection answers nothing, and fetch has no timeout): before sharing, a second ask made
+// its own request and got the file; joined to a hung one it would wait with it forever -- pick the troll, it stalls, pick the
+// knight and the troll again, and the troll never comes. So sharing has a limit: a download someone else joined that still
+// hasn't landed 40 s after it started (the 'soon' tier's own give-up time) is let go, and one fresh download starts for
+// everyone waiting on it, whichever lands first wins. A download nobody joined is left alone however slow it is (a big file
+// on a slow line is not a hang, and a second copy would only slow it further). Past 40 s no download is offered for sharing,
+// so an ask after that fetches afresh, as every ask did before sharing. Never more bytes than before sharing: one extra
+// download at most, and only where a joiner used to make its own.
+const INFLIGHT=new Map(), SHARE_MS=40000;
+function fetchBytesNow(url){ const had=INFLIGHT.get(url); if(had){ had.joins++; return had.p; } LOADT.inflight++; LOADT.files++;
+  const raw=fetchBytesRaw(url), e={joins:0}; let tm; const done=()=>{ clearTimeout(tm); if(INFLIGHT.get(url)===e) INFLIGHT.delete(url); LOADT.inflight--; loadCheck(); };
+  const stale=new Promise(res=>{ tm=setTimeout(res,SHARE_MS); }).then(()=>{ if(INFLIGHT.get(url)===e) INFLIGHT.delete(url); return e.joins?fetchBytesNow(url):new Promise(()=>{}); });   // only fires while raw is still out (done clears it)
+  e.p=Promise.race([raw,stale]); INFLIGHT.set(url,e); raw.then(done,done); return e.p; }
+window.__fetchlayer={now:fetchBytesNow,asset:ASSET,inflight:()=>[...INFLIGHT.keys()],shareMs:SHARE_MS};   // test hook (throneload-test.mjs): the shared in-flight download, checked directly
 function fetchBytesRaw(url){ const plain=url.replace(/\.[0-9a-f]{8}\.glb\.txt$/,'.glb.txt'); return fetchRetry(url,3).then(r=>r.ok||plain===url?r:fetchRetry(plain,2)).catch(()=>fetchRetry(plain,2)).then(r=>{   /* the unstamped file is kept alongside as a fallback */ if(!r.ok) throw new Error('HTTP '+r.status+' '+url); if(!/\.txt(\?|$)/.test(url)) return r.arrayBuffer().then(ab=>{ LOADT.bytes+=ab.byteLength; return ab; }); return r.text().then(t=>{ LOADT.bytes+=t.length; const b=atob(t.replace(/\s+/g,'')); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u.buffer; }); }); }
 // the hero model itself is fetched by installHero() (70-hero2.js, runs right after this) — H.g (the plain
 // primitive hero) covers the moment before that fetch resolves, same as it always covers a hero switch mid-game.
