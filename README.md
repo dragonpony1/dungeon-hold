@@ -590,7 +590,9 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   straight in — and the assembler derives the embedded variant into `dist/hideout/` at build time: site-root paths
   made relative (the site root isn't `/` on GitHub Pages or the artifact), a `?api=` base for its shared-gear
   Worker, an exit that knows when it's embedded, and a BACK TO THE HALL button on its entry overlay (its own crystal
-  portal starts unplaced, in the hotbar). Every rewrite is anchored and fails the build loudly if upstream moves.
+  portal starts unplaced, in the hotbar). Every rewrite is anchored and fails the build loudly if upstream moves. Its models ship as
+  base64 `.glb.txt` like the game's own (the artifact host serves no `.glb` at all), with the derived page's
+  `GLTFLoader` taught to read them; the source copy keeps the real `.glb` files.
   The design decision that's this repo's own: the hideout opens in a full-screen iframe OVER the hall rather than
   navigating away, so the game page never unloads and a live co-op session (PeerJS dies with the page) survives the
   trip — both players can be in the hideout at once with the host's game still running underneath, and the shared

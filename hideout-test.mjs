@@ -78,9 +78,9 @@ if(frame){
   const crafted=await frame.evaluate(()=>{ craftSludge('common'); return {text:document.getElementById('cauldronScrapText').textContent,stored:JSON.parse(localStorage.getItem('dd_gear_bag')).common,sludge:SAVE.commonSludge}; });
   check("crafting Common Sludge spends 5 Common Gear for real: the Cart reads 0 and dd_gear_bag.common is 0 in storage",crafted.text==='0 Common Gear'&&crafted.stored===0&&crafted.sludge>=1,JSON.stringify(crafted));
   await frame.evaluate(()=>closeCauldron());
-  for(let i=0;i<200&&!responses.some(r=>/\/hideout\/assets\/hideout\/floor\.glb$/.test(r.url));i++) await sleep(50);
-  const floor=responses.find(r=>/\/hideout\/assets\/hideout\/floor\.glb$/.test(r.url));
-  check("its models load from hideout/assets/ with a 200 (paths made relative by the build)",!!floor&&floor.status===200,JSON.stringify(floor));
+  for(let i=0;i<200&&!responses.some(r=>/\/hideout\/assets\/hideout\/floor\.glb\.txt$/.test(r.url));i++) await sleep(50);
+  const floor=responses.find(r=>/\/hideout\/assets\/hideout\/floor\.glb\.txt$/.test(r.url));
+  check("its models load from hideout/assets/ as base64 .glb.txt with a 200 (paths made relative, models converted by the build)",!!floor&&floor.status===200,JSON.stringify(floor));
   const three=responses.find(r=>/\/hideout\/vendor\/three\.min\.js$/.test(r.url));
   check("its own three.min.js came from hideout/vendor/",!!three&&three.status===200,JSON.stringify(three));
   const leaks=responses.filter(r=>new RegExp("^"+BASE+"/(assets/hideout|vendor)/").test(r.url));

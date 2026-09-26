@@ -19,6 +19,10 @@ if(process.env.NOEMBED) page=page.replace(/<script>const (SQUIRE|GOBLIN)_GLB_B64
 // exit that knows when it's embedded in the game's overlay (59-hideout.js) rather than a page of its own, plus a
 // BACK TO THE HALL button on its entry overlay for that case (its own crystal portal starts unplaced, in the hotbar).
 // Every rewrite is checked: an upstream change that moves an anchor fails the build loudly, never ships a broken room.
+// the hideout's models ship as base64 .glb.txt exactly like the game's own (see ASSET/fetchBytes in game.js): not every
+// host serves .glb (the artifact host refuses the type outright), and the .txt form works everywhere. The source copy
+// keeps its real .glb files; only dist/ gets the conversion, and the derived page's GLTFLoader is taught to read it.
+function glbToTxt(dir){ for(const f of fs.readdirSync(dir)){ const p=dir+"/"+f; if(fs.statSync(p).isDirectory()) glbToTxt(p); else if(/\.glb$/.test(f)){ fs.writeFileSync(p+".txt",fs.readFileSync(p).toString("base64")); fs.unlinkSync(p); } } }
 function embedHideout(h){
   if(!(h.match(/["']\/(assets|vendor)\//g)||[]).length) throw new Error("hideout: no site-root asset/vendor paths found -- upstream layout changed?");
   h=h.replace(/(["'])\/(assets|vendor)\//g,"$1$2/");
@@ -33,9 +37,15 @@ function embedHideout(h){
    +"if(HIDEOUT_EMBEDDED) addEventListener('DOMContentLoaded',()=>{ const s=document.getElementById('start'); if(!s) return; const b=document.createElement('button'); b.id='leaveBtn'; b.textContent='\\u2190 BACK TO THE HALL'; b.style.cssText='display:inline-block;margin-top:22px;cursor:pointer;font:bold 15px Georgia,serif;letter-spacing:1px;color:#fff;background:linear-gradient(#7a2a2e,#3e1416);border:2px solid #e8b94a;border-radius:8px;padding:10px 18px'; b.addEventListener('click',e=>{ e.stopPropagation(); hideoutLeave(); }); s.appendChild(document.createElement('br')); s.appendChild(b); });\n"
    +"</script>\n";
   const k=h.indexOf('<script src="vendor/three.min.js">'); if(k<0) throw new Error("hideout: three.min.js script tag not found -- upstream changed?");
-  return h.slice(0,k)+prelude+h.slice(k);
+  h=h.slice(0,k)+prelude+h.slice(k);
+  const gl='<script src="vendor/GLTFLoader.js"></script>'; if(h.split(gl).length!==2) throw new Error("hideout: GLTFLoader script tag not found exactly once -- upstream changed?");
+  const loaderPatch="<script>/* injected by assemble.mjs (embedHideout): models ship as base64 .glb.txt, same as the game's own, since not every host serves .glb */\n"
+   +"(function(){ const L=THREE.GLTFLoader.prototype, orig=L.load; L.load=function(url,onLoad,onProgress,onError){ const u=String(url); const m=u.match(/^(.*\\.glb)(\\?.*)?$/); if(!m) return orig.call(this,url,onLoad,onProgress,onError); const txt=m[1]+'.txt'+(m[2]||''); const fail=e=>{ if(onError) onError(e); else console.error(txt,e); };\n"
+   +"  fetch(txt).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status+' '+txt); return r.text(); }).then(t=>{ const b=atob(t.replace(/\\s+/g,'')); const a=new Uint8Array(b.length); for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); this.parse(a.buffer,'',onLoad,fail); }).catch(fail); }; })();\n"
+   +"</script>\n";
+  return h.replace(gl,gl+"\n"+loaderPatch);
 }
 let outPath=process.env.OUT||(SP+"/dungeon.html");
 // DIST=<dir>: a deployable folder — index.html + assets/ copied from parts/assets
-if(process.env.DIST){ const D=process.env.DIST; fs.mkdirSync(D+"/assets",{recursive:true}); const crypto=await import("crypto"); for(const f of fs.readdirSync(P+"/assets")){ if(/\.glb$/.test(f)){ const raw=fs.readFileSync(P+"/assets/"+f), b64=raw.toString("base64"), st=crypto.createHash("sha1").update(raw).digest("hex").slice(0,8); fs.writeFileSync(D+"/assets/"+f+".txt",b64); fs.writeFileSync(D+"/assets/"+f.replace(/\.glb$/,"")+"."+st+".glb.txt",b64); } else fs.copyFileSync(P+"/assets/"+f,D+"/assets/"+f); } outPath=D+"/index.html"; if(fs.existsSync(P+"/hideout")){ fs.cpSync(P+"/hideout",D+"/hideout",{recursive:true}); fs.writeFileSync(D+"/hideout/index.html",embedHideout(fs.readFileSync(P+"/hideout/index.html","utf8"))); } }   // the hideout (parts/hideout/: its own page, vendor/ and models) rides along as dist/hideout/, opened by the game in an overlay (59-hideout.js)   // models are written twice: plain (the fallback) and with their content stamp in the name (what the page asks for)
+if(process.env.DIST){ const D=process.env.DIST; fs.mkdirSync(D+"/assets",{recursive:true}); const crypto=await import("crypto"); for(const f of fs.readdirSync(P+"/assets")){ if(/\.glb$/.test(f)){ const raw=fs.readFileSync(P+"/assets/"+f), b64=raw.toString("base64"), st=crypto.createHash("sha1").update(raw).digest("hex").slice(0,8); fs.writeFileSync(D+"/assets/"+f+".txt",b64); fs.writeFileSync(D+"/assets/"+f.replace(/\.glb$/,"")+"."+st+".glb.txt",b64); } else fs.copyFileSync(P+"/assets/"+f,D+"/assets/"+f); } outPath=D+"/index.html"; if(fs.existsSync(P+"/hideout")){ fs.cpSync(P+"/hideout",D+"/hideout",{recursive:true}); glbToTxt(D+"/hideout/assets"); fs.writeFileSync(D+"/hideout/index.html",embedHideout(fs.readFileSync(P+"/hideout/index.html","utf8"))); } }   // the hideout (parts/hideout/: its own page, vendor/ and models) rides along as dist/hideout/, opened by the game in an overlay (59-hideout.js)   // models are written twice: plain (the fallback) and with their content stamp in the name (what the page asks for)
 fs.writeFileSync(outPath,page); const out2=page; console.log("assembled",outPath,out2.length,"bytes, modules:",names.join(", ")||"none");
