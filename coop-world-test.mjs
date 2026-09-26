@@ -34,18 +34,18 @@ check("host and guest connect",hostOpen.err===null&&guestJoin.err===null,JSON.st
 await hostPage.evaluate(()=>{ window.__dd.hurtCrystal(30); window.__dd.startWave(); });
 const hostStatus=await hostPage.evaluate(()=>window.__dd.status());
 check("host's own hall actually changed (sanity check before checking the guest saw it)",
-  hostStatus.crystal===120&&hostStatus.wave===1&&hostStatus.phase==='wave',JSON.stringify(hostStatus));
+  hostStatus.crystal===270&&hostStatus.wave===1 /* map one's crystal is 300 since build 134 */&&hostStatus.phase==='wave',JSON.stringify(hostStatus));
 
 for(let i=0;i<20;i++){ await hostPage.evaluate(()=>window.__dd.step(1/60,1)); await new Promise(r=>setTimeout(r,16)); }   // enough host ticks for the 10Hz world broadcast to fire
 for(let i=0;i<20;i++){ await guestPage.evaluate(()=>window.__dd.step(1/60,1)); await new Promise(r=>setTimeout(r,16)); }   // guest receives it
 
 const guestWorld=await guestPage.evaluate(()=>window.__world.host());
 check("guest's synced world state matches the host's real crystal HP and wave",
-  guestWorld&&guestWorld.crystal===120&&guestWorld.crystalMax===150&&guestWorld.wave===1&&guestWorld.phase==='wave',JSON.stringify(guestWorld));
+  guestWorld&&guestWorld.crystal===270&&guestWorld.crystalMax===300 /* map one's crystal is 300 since build 134 */&&guestWorld.wave===1&&guestWorld.phase==='wave',JSON.stringify(guestWorld));
 
 const guestHud=await guestPage.evaluate(()=>({cbar:document.getElementById('cbar').style.width,wavet:document.getElementById('wavet').textContent,phaset:document.getElementById('phaset').textContent}));
 check("guest's actual HUD (the crystal bar and wave banner the player sees) reflects the host's hall, not their own",
-  guestHud.cbar==='80%'&&guestHud.wavet==='WAVE 1 / '+ (await hostPage.evaluate(()=>window.__dd.map().waves)),JSON.stringify(guestHud));
+  guestHud.cbar==='90%'&&guestHud.wavet==='WAVE 1 / '+ (await hostPage.evaluate(()=>window.__dd.map().waves)),JSON.stringify(guestHud));
 
 // a guest trying to start their own wave is a no-op -- it's the host's hall
 const guestStatusBefore=await guestPage.evaluate(()=>window.__dd.status());

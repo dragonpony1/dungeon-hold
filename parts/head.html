@@ -43,7 +43,7 @@ body.play #c{cursor:none}
 #wavebtn{position:absolute;right:14px;top:12px;pointer-events:auto;background:linear-gradient(#7a2a2e,#3e1416);border:2px solid var(--gold);border-radius:8px;color:#fff;font:bold 15px Georgia,serif;letter-spacing:1px;padding:10px 16px;box-shadow:0 3px 0 #000;cursor:pointer}
 #wavebtn:disabled{opacity:.4}
 #bagbtn{position:absolute;right:62px;top:62px;pointer-events:auto;background:#1c1424;border:2px solid #6b5a3c;border-radius:8px;color:#fff;font-size:16px;padding:5px 10px;cursor:pointer}
-#sndbtn{position:absolute;right:14px;top:62px;pointer-events:auto;background:#1c1424;border:2px solid #6b5a3c;border-radius:8px;color:#fff;font-size:16px;padding:5px 10px;cursor:pointer}
+#musbtn{position:absolute;right:158px;top:62px;pointer-events:auto;background:#1c1424;border:2px solid #6b5a3c;border-radius:8px;color:#fff;font-size:16px;padding:5px 10px;cursor:pointer}#musbtn.off{opacity:.55;text-decoration:line-through}#pausebtn{position:absolute;right:110px;top:62px;pointer-events:auto;background:#1c1424;border:2px solid #6b5a3c;border-radius:8px;color:#fff;font-size:16px;padding:5px 10px;cursor:pointer}#sndbtn{position:absolute;right:14px;top:62px;pointer-events:auto;background:#1c1424;border:2px solid #6b5a3c;border-radius:8px;color:#fff;font-size:16px;padding:5px 10px;cursor:pointer}
 #joy{position:absolute;left:30px;bottom:30px;width:130px;height:130px;border-radius:50%;background:#ffffff14;border:2px solid #ffffff30;display:none;pointer-events:none}
 #joy i{position:absolute;left:41px;top:41px;width:44px;height:44px;border-radius:50%;background:#ffffff55}
 .touch #joy{display:block}
@@ -56,7 +56,7 @@ body.play #c{cursor:none}
 .screen .build{font-size:12px;letter-spacing:2px;color:#8f8470;margin-top:16px}
 .screen .big.alt{background:linear-gradient(#3a2a44,#1c1424);border-color:#6b5a3c;font-size:17px;padding:10px 26px;margin-top:12px}
 .screen .big{margin-top:22px;font-size:22px;padding:14px 38px;background:linear-gradient(#7a2a2e,#3e1416);border:2px solid var(--gold);border-radius:10px;color:#fff;cursor:pointer;box-shadow:0 4px 0 #000;font-family:Georgia,serif;letter-spacing:2px}
-#start{justify-content:flex-start;overflow-y:auto;padding:22px 16px 34px;box-sizing:border-box}#start h1{margin-top:8px}#start p{margin:6px 0;font-size:13px;line-height:1.35;max-width:980px}#start .build{margin-top:10px}
+#start{justify-content:flex-start;overflow-y:auto;padding:22px 16px 34px;box-sizing:border-box}#start .herorow{display:flex;gap:10px;justify-content:center;align-items:center;margin:10px 0 2px;flex-wrap:wrap}#start .herorow .hlab{font-size:12px;letter-spacing:3px;color:var(--gold);margin-right:2px}#start .hcard{width:112px;background:#1c1424;border:2px solid #6b5a3c;border-radius:10px;padding:6px 6px 7px;color:#e9ddc8;cursor:pointer;font:inherit;display:flex;flex-direction:column;align-items:center;gap:4px}#start .hcard img{width:92px;height:116px;object-fit:cover;border-radius:6px;background:#2a2a33;display:block}#start .hcard .hn{font-size:11px;letter-spacing:1px;font-weight:bold;line-height:1.2}#start .hcard .hs{font-size:10px;color:#bfae90;line-height:1.2;display:none;max-width:100px}#start .hcard.sel{border-color:var(--gold);box-shadow:0 0 14px #e8b94a55}#start .hcard{position:relative}#start .hcard.locked{opacity:.5;cursor:not-allowed}#start .hcard.locked img{filter:grayscale(1) brightness(.7)}#start .hcard .lk{position:absolute;top:44px;left:0;right:0;text-align:center;font-size:30px;text-shadow:0 2px 4px #000}#start .hcard.locked .hs{display:block;color:#ffd27a}#start .hcard.sel .hs{display:block}@media (max-width:700px){#start .hcard{width:82px;padding:4px}#start .hcard img{width:68px;height:86px}#start .hcard .hs{display:none}}#start .essentials{color:#e9ddc8;font-size:14px;letter-spacing:.3px;margin:2px 0 4px}#start details.howto{max-width:980px;margin:18px auto 0;color:#c9b8a0;text-align:center}#start details.howto summary{cursor:pointer;list-style:none;font-size:12px;letter-spacing:2px;color:var(--gold);padding:6px 10px;border:1px solid #6b5a3c66;border-radius:8px;display:inline-block}#start details.howto summary::-webkit-details-marker{display:none}#start details.howto summary::before{content:"▸ "}#start details.howto[open] summary::before{content:"▾ "}#start details.howto p{margin:8px auto}#start h1{margin-top:8px}#start p{margin:6px 0;font-size:13px;line-height:1.35;max-width:980px}#start .build{margin-top:10px}
 #start .mapline{display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;letter-spacing:2px;color:var(--gold);margin:14px 0 2px}#start .mapline button{background:#2a1f33;border:2px solid #6b5a3c;border-radius:8px;color:#fff;font:bold 16px Georgia,serif;width:40px;height:36px;cursor:pointer}#start .mapline button:disabled{opacity:.3;cursor:default}#start .mapline small{display:block;font-size:11px;letter-spacing:1px;color:#bfae90}
 .coopRow{display:flex;gap:10px;margin-top:10px}
 .screen .big.small{font-size:14px;padding:8px 16px;margin-top:0}
@@ -84,6 +84,8 @@ kbd{background:#2a1f33;border:1px solid #6b5a3c;border-radius:4px;padding:1px 6p
  <div id="topC"><div class="wave" id="wavet">BUILD PHASE</div><div class="phase" id="phaset">Place defenses, then press G to sound the horn</div></div>
  <button id="wavebtn">📯 START WAVE</button>
  <button id="sndbtn">🔇</button>
+ <button id="pausebtn" title="Menu (Esc): pause, or return to the title screen">⏸</button>
+ <button id="musbtn" title="Music on / off (N)">🎵</button>
  <button id="bagbtn" title="Bag & tavern (I)">🎒</button>
  <div id="prompt"></div>
  <div id="hotbar"></div>
@@ -95,11 +97,7 @@ kbd{background:#2a1f33;border:1px solid #6b5a3c;border-radius:4px;padding:1px 6p
 <div id="start" class="screen">
  <h1>DUNGEON HOLD</h1>
  <h2>A GNOME WARDEN · A CRYSTAL · THE HORDE</h2>
- <p><kbd>W A S D</kbd> run &nbsp; <kbd>Shift</kbd> sprint &nbsp; <kbd>mouse</kbd> look &nbsp; <kbd>click</kbd> swing &nbsp; <kbd>Space</kbd> jump</p>
- <p>number keys pick a defense &nbsp; look where it goes, <kbd>click</kbd> to set it down &nbsp; turn it with the mouse, <kbd>R</kbd> or wheel &nbsp; <kbd>click</kbd> to build &nbsp; <kbd>E</kbd> repair / upgrade &nbsp; <kbd>X</kbd> sell &nbsp; <kbd>G</kbd> start wave</p>
- <p><kbd>Tab</kbd> character sheet (gear + your numbers) &nbsp; <kbd>I</kbd> tavern pages from anywhere &nbsp; <kbd>H</kbd> swap hero model &nbsp; <b>drag a .glb file onto the page</b> to play as your own character &nbsp; <kbd>M</kbd> sound &nbsp; <kbd>N</kbd> music</p>
- <p>The horde drops <b style="color:var(--gold)">loot</b>. Walk over it to bag it. Between waves, go through the <b style="color:var(--gold)">south door into the tavern</b>: your locker holds your bag, the barkeep buys and sells, the trainer teaches skills, and the <b style="color:var(--gold)">anvil</b> forges gold into the gear you wear — every item takes 50 to 200 upgrade points by rarity, each point into a stat you choose (<kbd>E</kbd> at each, or <kbd>I</kbd> anywhere, <kbd>Tab</kbd> for the forge).</p>
- <p><b style="color:var(--cyan)">◆ mana</b> builds, upgrades and repairs defenses during a run (the horde drops it) &nbsp;·&nbsp; <b style="color:#ffd060">● gold</b> is spent at the tavern and stays with you &nbsp;·&nbsp; <b>🌱 roots</b> cap how many defenses can stand at once</p>
+ <p id="essentials" class="essentials"><kbd>W A S D</kbd> move &nbsp;·&nbsp; <kbd>mouse</kbd> look &nbsp;·&nbsp; <kbd>click</kbd> swing &nbsp;·&nbsp; <kbd>number keys</kbd> place a defense &nbsp;·&nbsp; <kbd>G</kbd> sounds the horn &nbsp;·&nbsp; <kbd>Esc</kbd> menu &nbsp;·&nbsp; the rest is taught on map one</p>
  <p id="mapline" class="mapline"></p>
  <button class="big" id="playbtn">ENTER THE HALL</button>
  <button class="big alt" id="tavbtn">🍺 TAVERN</button>
@@ -115,6 +113,13 @@ kbd{background:#2a1f33;border:1px solid #6b5a3c;border-radius:4px;padding:1px 6p
   <button class="big alt small" id="joinGoBtn">CONNECT</button>
   <p class="netMsg" id="joinMsg"></p>
  </div>
+ <details id="howto" class="howto"><summary>ALL CONTROLS &amp; HOW IT WORKS</summary>
+ <p><kbd>W A S D</kbd> run &nbsp; <kbd>Shift</kbd> sprint &nbsp; <kbd>mouse</kbd> look &nbsp; <kbd>click</kbd> swing &nbsp; <kbd>Space</kbd> jump</p>
+ <p>number keys pick a defense &nbsp; look where it goes, <kbd>click</kbd> to set it down &nbsp; turn it with the mouse, <kbd>R</kbd> or wheel &nbsp; <kbd>click</kbd> to build &nbsp; <kbd>E</kbd> repair / upgrade &nbsp; <kbd>X</kbd> sell &nbsp; <kbd>G</kbd> start wave</p>
+ <p><kbd>Tab</kbd> character sheet (gear + your numbers) &nbsp; <kbd>I</kbd> tavern pages from anywhere &nbsp; <kbd>H</kbd> swap hero model &nbsp; <b>drag a .glb file onto the page</b> to play as your own character &nbsp; <kbd>M</kbd> sound &nbsp; <kbd>N</kbd> music</p>
+ <p>The horde drops <b style="color:var(--gold)">loot</b>. Walk over it to bag it. Between waves, go through the <b style="color:var(--gold)">south door into the tavern</b>: your locker holds your bag, the barkeep buys and sells, the trainer teaches skills, and the <b style="color:var(--gold)">anvil</b> forges gold into the gear you wear — every item takes 50 to 200 upgrade points by rarity, each point into a stat you choose (<kbd>E</kbd> at each, or <kbd>I</kbd> anywhere, <kbd>Tab</kbd> for the forge).</p>
+ <p><b style="color:var(--cyan)">◆ mana</b> builds, upgrades and repairs defenses during a run (the horde drops it) &nbsp;·&nbsp; <b style="color:#ffd060">● gold</b> is spent at the tavern and stays with you &nbsp;·&nbsp; <b>🌱 roots</b> cap how many defenses can stand at once</p>
+ </details>
  <p class="build" id="buildline">hero model: loading…</p>
  <p class="build" id="standalone">STANDALONE WEB BUILD &nbsp;<a href="https://dragonpony1.github.io/dungeon-hold/" target="_blank" rel="noopener" style="color:#ffd27a;letter-spacing:1px">dragonpony1.github.io/dungeon-hold ↗</a> &nbsp;<span style="letter-spacing:0">(the same game, no sign-in; opens in a new tab)</span></p>
 </div>

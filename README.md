@@ -41,7 +41,7 @@ node familiar-test.mjs                  # the single-file fallback suite reads $
 Suites: feat, loot, glb, place, csp, mob, mobpath, meta, tavern, tavernroom, familiar, familiars2, cone, music, defglb,
 ballista, lootfeel, weapons, towers, paperdoll, casino, ogre, forge, fix-r1, fix-r2, heroes, void, sets, throne, campaign, maps,
 moat, aim, newmobs, trollboss, armory, totem, pause, pwa, share, hideout, loadorder, bagsort, gearlock, coop-rewards,
-voidset, halo-column, ballista-rig, forestset, trainer, and the verify-* adversarial suites. Run them one at a
+voidset, halo-column, ballista-rig, forestset, trainer, menu, crystalalarm, and the verify-* adversarial suites. Run them one at a
 time: ten in parallel time out on page loads (the page is 6.8 MB).
 
 ## Adding Meshy art
@@ -759,6 +759,43 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   newest hideout-wip page (this build found c6d1996, hideout build 11, unannounced), and the same sync runs here before
   every push so the artifact matches. The build still fails loudly if upstream's shape changes. The committed copy and
   `parts/hideout/UPSTREAM` record what was last synced by hand.
+- The main menu tidied for a beginner (build 133): the title screen used to open with three dense paragraphs of controls
+  and mechanics, then the pickers, then the testing line, then the buttons. Now one essentials line (move, look, swing,
+  place a defense, the horn -- "the rest is taught on map one"; touch wording on a touch device), the map and hero
+  pickers, ENTER THE HALL first, TAVERN / THE HIDEOUT / co-op, and everything else -- the old three paragraphs verbatim
+  and the 🧪 testing line -- folded into a closed ALL CONTROLS & HOW IT WORKS section at the bottom (`95-campaign.js`
+  parks the testing line there when the fold exists). Nothing was removed; a tester opens the fold. `menu-test.mjs`.
+  Two more menu things in the same build: the hero picker is a row of cards, one per hero, with a portrait rendered from
+  the hero's own model (`assets/hero-<id>.png`, from `meshy/view.mjs`), the picked one marked and its line shown, click to
+  pick; and a ⏸ button on the HUD (by the sound button) opens the pause menu, whose RETURN TO TITLE SCREEN is the way
+  out of a run without closing the tab (Escape did this already, but nothing said so).
+- Training wheels, second pass from a playtest (build 134). "I almost didn't notice… I didn't see any sort of checklist":
+  the guide only showed until map one was held, so a returning player never saw it -- now map one is the training ground
+  whoever plays it, the card stays until its steps are done or the ✕, and the testing line has 🎓 reset guide to run it
+  again. The card is bigger (17px, 300 wide), a ticked step shows its ✓ for 2.2 s and the completion line for 12 s. A
+  LESSON (`lesson()` in `93-gearsets.js`) replaces the toast for first-timer text: a 20px centred card that stays 9 s --
+  the first set piece's lesson uses it. "4 of the 5 green pieces, but not till wave 7": the Forest drops at 40% of
+  Uncommon+ drops through wave 4, five points a wave down to a 10% floor, and a PITY rule on map one hands a player
+  holding three or four Forest pieces the missing slot from the next Uncommon+ random-slot drop, so the set completes on
+  the training ground. Its five-piece power is now an obvious boon: TWIN SHOT -- the familiar fires two bolts at once,
+  50% faster, at 50% more reach (`pack.fam`, wrappers on `famFire`, `famRate`, `famTarget`); BRAMBLE is gone.
+  `forestset-test.mjs` and `trainer-test.mjs` updated for all of it.
+- Wave zero (build 134, from the same playtest: "start it with wave zero, show that one mob is coming through, and set
+  up a ballista"): on the training ground the build phase opens with a lone goblin walking the lane on its own -- it hits
+  for nothing and vanishes at the crystal with IT GOT THROUGH and a lesson -- so the path is obvious; the next step asks for
+  a BALLISTA on that path. The ballista is the knight's, so on map one the guide would have lent it to every hero for the
+  lesson -- no: a fresh player IS the knight. Knight first (`70-hero2.js`): a fresh player can only be the Gnome Knight
+  until map one is held; the other three heroes show locked on the picker (🔒, "hold your first hall to unlock"), the
+  raven's H skips them, and a saved pick that is locked comes back as the knight. The hall lends the mana for the first
+  defense. Then the horn, and the rest as before (eight steps). `menu-test.mjs` covers the locked and unlocked picker.
+- More from the same playtest (build 134): "I never got a full set of greens, that needs to happen by wave 3" -- a
+  GUARANTEE on map one (`forestGuarantee`, on `Meta.onWaveHeld`): each held wave's thanks includes Forest pieces for slots
+  the player still lacks, two owned after wave 1, four after wave 2, all five after wave 3, dropped gently by the crystal;
+  pieces still on the floor count as owned so nothing is handed out twice. The crystal on map one has double the life
+  (`crystalHp:300` on the hall, `CRYSTAL_MAX` now per map). An ALARM (`55-crystal.js`): any drop in the crystal's life,
+  on the host or a guest's screen, raises a red THE CRYSTAL IS UNDER ATTACK strip under the wave line for 2.5 s and rings a
+  low two-tone bell at most once every 3 s. A 🎵 button on the HUD turns the music off and on (N did, invisibly).
+  `crystalalarm-test.mjs`; `coop-world-test.mjs` expects the 300.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Eight more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry. The Holy set is next.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

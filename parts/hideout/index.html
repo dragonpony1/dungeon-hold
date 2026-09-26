@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="11">
+<meta name="hideout-build" content="13">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -14,6 +14,15 @@ canvas{display:block}
 .slot.sel{border-color:#ff8}
 #start{position:fixed;inset:0;background:#000d;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font:16px monospace;text-align:center;cursor:pointer;z-index:10}
 #start b{font-size:22px;color:#8cf}
+#loadWrap{margin-top:18px}
+#loadBar{width:min(360px,80vw);height:12px;border:1px solid #8cf8;border-radius:6px;background:#0008;margin:0 auto 8px;overflow:hidden}
+#loadFill{height:100%;width:0;background:linear-gradient(90deg,#4aa3ff,#a06bff);transition:width 0.25s}
+#loadBar.indeterminate #loadFill{width:35%;animation:loadSlide 1.1s linear infinite}
+@keyframes loadSlide{from{transform:translateX(-100%)}to{transform:translateX(300%)}}
+#loadLine{color:#8cf;font-size:13px}
+#propsBar{position:fixed;top:12px;left:50%;transform:translateX(-50%);display:none;z-index:5;background:#000a;border:1px solid #8cf6;border-radius:8px;padding:6px 12px;color:#8cf;font:12px monospace;pointer-events:none;min-width:240px;text-align:center}
+#propsBar .pbar{height:5px;background:#0008;border-radius:3px;margin-top:5px;overflow:hidden}
+#propsBar .pfill{height:100%;width:0;background:linear-gradient(90deg,#4aa3ff,#a06bff);transition:width 0.25s}
 #msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:#ff8;font:20px monospace;background:#000c;padding:14px 20px;border-radius:8px;display:none}
 #vendWrap{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:20}
 #vendPanel{position:relative;width:min(480px,92vw);max-height:90vh;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px #000a;font-family:Georgia,'Times New Roman',serif}
@@ -110,13 +119,14 @@ canvas{display:block}
 #tooltip{position:fixed;display:none;z-index:50;background:#150e08;color:#ffe9b0;border:1px solid #a5762a;border-radius:6px;padding:5px 10px;font:bold 13px Georgia,serif;pointer-events:none;box-shadow:0 4px 12px #000a;max-width:220px}
 </style>
 </head><body>
-<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: your gear<div id="loadLine" style="margin-top:16px;color:#8cf;font-size:13px">Building the room…</div></div>
+<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: your gear<div id="loadWrap"><div id="loadBar" class="indeterminate"><div id="loadFill"></div></div><div id="loadLine">Loading…</div></div></div>
 <div id="crosshair"></div>
 <div id="hud">Rare Sludge: <b id="sludge">0</b></div>
 <div id="prompt"></div>
 <div id="msg"></div>
 <div id="tooltip"></div>
 <div id="buildTag"></div>
+<div id="propsBar"><div class="ptext"></div><div class="pbar"><div class="pfill"></div></div></div>
 <div id="rewardBanner"><div class="big">YOU'VE GOT REWARDS</div><div class="small"></div></div>
 <div id="inv"></div>
 <div id="vendWrap"><div id="vendPanel">
@@ -180,7 +190,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 11;
+const HIDEOUT_BUILD = 13;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -204,7 +214,7 @@ function loadSave(){
       return s;
     }
   } catch(e){}
-  return { sludge: 99999, legendarySludge: 20, commonSludge: 0, uncommonSludge: 0, gear: [], shelves: {}, inv: [...STARTER_ITEMS], placed: [] };
+  return { sludge: 99999, legendarySludge: 20, commonSludge: 0, uncommonSludge: 0, gear: [], inv: [...STARTER_ITEMS], placed: [] };
 }
 function writeSave(){ localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); }
 const SAVE = loadSave();
@@ -250,6 +260,10 @@ const GEAR = {
   vending_machine:   { name:'Trade-O-Matic',     icon:ITEMS_DIR+'vending_machine.png',    cost:0, notShop:true },
   portal:            { name:'Crystal Portal',    icon:ITEMS_DIR+'portal.png',             cost:0, notShop:true },
   wall_locker:       { name:'Ornate Wall Locker', icon:ITEMS_DIR+'wall_locker.png',       cost:0, notShop:true },
+  painting_triumph:  { name:'Painting: Witch Triumphant', icon:ITEMS_DIR+'painting_triumph.webp', cost:7 },
+  painting_hug:      { name:'Painting: The Family Hug',   icon:ITEMS_DIR+'painting_hug.webp',     cost:7 },
+  painting_tease:    { name:'Painting: The Teasing',      icon:ITEMS_DIR+'painting_tease.webp',   cost:7 },
+  painting_company:  { name:'Painting: The Company',      icon:ITEMS_DIR+'painting_company.webp', cost:7 },
 };
 
 // which catalog items have a real 3D model to place in the world (some are icon-only so far)
@@ -339,13 +353,17 @@ const MODW = 7.61, MODD = 7.02, WALLH = 7.0;
 const ROOM_W = 5, ROOM_D = 4;
 const roomHalfW = ROOM_W*MODW/2, roomHalfD = ROOM_D*MODD/2;
 const colliders = []; // {minX,maxX,minZ,maxZ}
+const wallObjects = []; // the wall tiles — wall art feels for the real surface (beam or panel) with a ray against these
 
 // One fetch + one parse per model file, ever. Every tile or prop that uses a file is a clone of the parsed
 // scene, sharing its geometry and textures — the room is 58 tiles from 6 files, and this used to download
 // and decode all 58.
 const gltfCache = new Map(); // url -> Promise<gltf>
 function loadGltf(url) {
-  if (!gltfCache.has(url)) gltfCache.set(url, new Promise((res, rej) => loader.load(url, res, undefined, rej)));
+  if (!gltfCache.has(url)) gltfCache.set(url, new Promise((res, rej) => loader.load(url,
+    (g) => { noteDone(url); res(g); },
+    (ev) => noteProgress(url, ev),
+    (e) => { noteDone(url); rej(e); })));
   return gltfCache.get(url);
 }
 
@@ -357,6 +375,7 @@ function place(name, rx, ry, pos, scaleY) {
     const b0 = new THREE.Box3().setFromObject(obj);
     obj.position.set(pos.x - (b0.max.x+b0.min.x)/2, pos.y - b0.min.y, pos.z - (b0.max.z+b0.min.z)/2);
     scene.add(obj);
+    if (name.startsWith('wall')) wallObjects.push(obj);
   }, (e) => console.error(name, e));
 }
 
@@ -375,8 +394,28 @@ function placeSource(source, scale, pos, ry, onLoad) {
 }
 function placeProp(url, scale, pos, ry, onLoad) { return placeSource(loadGltf(url).then(g => g.scene), scale, pos, ry, onLoad); }
 
-// catalog items with no GLB can be built from primitives here so a feature can ship before its art does
+// catalog items with no GLB are built from primitives here. Paintings: the framed art on a thin backing,
+// front facing local +z, hung flush on a wall (see wallAim / WALL_ITEMS).
+const PAINTINGS = {
+  painting_triumph: { w: 2.0, h: 2.0 },
+  painting_hug:     { w: 2.4, h: 1.6 },
+  painting_tease:   { w: 2.4, h: 1.6 },
+  painting_company: { w: 2.4, h: 1.6 },
+};
+const WALL_ITEMS = new Set(Object.keys(PAINTINGS));
+function makePainting(gid) {
+  const p = PAINTINGS[gid];
+  const g = new THREE.Group();
+  const back = box(p.w, p.h, 0.08, 0x2a1a0e); back.position.z = -0.04; g.add(back);
+  const tex = texLoader.load(GEAR[gid].icon);
+  // a little self-light so a painting in a dark corner still reads, without looking like a lightbox
+  const front = new THREE.Mesh(new THREE.PlaneGeometry(p.w, p.h),
+    new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: new THREE.Color(0x505050), roughness: 0.85 }));
+  front.position.z = 0.002; g.add(front);
+  return g;
+}
 const BUILTIN_MODELS = {};
+Object.keys(PAINTINGS).forEach(gid => { BUILTIN_MODELS[gid] = () => makePainting(gid); });
 function hasModel(gid) { return !!(MODEL_MAP[gid] || BUILTIN_MODELS[gid]); }
 function sourceFor(gid) {
   if (MODEL_MAP[gid]) return loadGltf(PROPS_DIR + MODEL_MAP[gid]).then(g => g.scene);
@@ -386,15 +425,47 @@ function sourceFor(gid) {
 // Load order: the shell (walls, floor, ceiling) is what makes the room feel loaded, so it goes first and
 // alone; the chandelier and placed props wait for it and then trickle in, machines before furniture.
 const SHELL_FILES = ['floor', 'ceiling', 'wall_plain_1', 'wall_plain_2', 'wall_plain_3', 'wall_entrance'];
-let shellDone = 0;
-function renderLoadLine() {
-  const el = document.getElementById('loadLine');
-  el.textContent = shellDone < SHELL_FILES.length
-    ? 'Building the room… ' + Math.round(shellDone / SHELL_FILES.length * 100) + '%'
-    : 'Room ready';
+const SHELL_URLS = SHELL_FILES.map(n => '/assets/hideout/' + n + '.glb');
+// real progress: bytes per file from the loader's progress events (files add up to ~6.5 MB), not a file count
+const loadStats = new Map(); // url -> {loaded, total, done}
+let shellComplete = false, propsTotal = 0, propsDone = 0;
+function noteProgress(url, ev) {
+  const s = loadStats.get(url) || { loaded: 0, total: 0, done: false };
+  s.loaded = ev.loaded; if (ev.lengthComputable && ev.total) s.total = ev.total;
+  loadStats.set(url, s); renderLoadUI();
 }
-const shellReady = Promise.all(SHELL_FILES.map(n =>
-  loadGltf('/assets/hideout/' + n + '.glb').then(() => { shellDone++; renderLoadLine(); }, () => { shellDone++; renderLoadLine(); })));
+function noteDone(url) {
+  const s = loadStats.get(url) || { loaded: 0, total: 0, done: false };
+  s.done = true; if (s.total) s.loaded = s.total;
+  loadStats.set(url, s); renderLoadUI();
+}
+function phasePct(urls) {
+  let acc = 0;
+  for (const u of urls) { const s = loadStats.get(u); if (!s) continue; acc += s.done ? 1 : (s.total ? Math.min(0.99, s.loaded / s.total) : 0); }
+  return urls.length ? acc / urls.length : 1;
+}
+const fmtMB = b => (b / 1048576).toFixed(1);
+function renderLoadUI() {
+  const fill = document.getElementById('loadFill'), line = document.getElementById('loadLine');
+  document.getElementById('loadBar').classList.remove('indeterminate');
+  let pct, text;
+  if (!shellComplete) {
+    pct = phasePct(SHELL_URLS);
+    let got = 0, tot = 0;
+    SHELL_URLS.forEach(u => { const s = loadStats.get(u); if (s && s.total) { got += s.done ? s.total : s.loaded; tot += s.total; } });
+    text = 'Building the room… ' + Math.round(pct * 100) + '%' + (tot ? ' · ' + fmtMB(got) + ' / ' + fmtMB(tot) + ' MB' : '');
+  } else if (propsDone < propsTotal) {
+    pct = propsDone / propsTotal;
+    text = 'Room ready · placing the furniture ' + propsDone + ' / ' + propsTotal;
+  } else { pct = 1; text = 'Room ready'; }
+  fill.style.width = Math.round(pct * 100) + '%';
+  line.textContent = text;
+  // once you're in, the same furniture progress rides in a slim bar at the top so nothing looks stalled
+  const pb = document.getElementById('propsBar'), showProps = shellComplete && propsDone < propsTotal;
+  pb.style.display = showProps ? 'block' : 'none';
+  if (showProps) { pb.querySelector('.pfill').style.width = Math.round(pct * 100) + '%'; pb.querySelector('.ptext').textContent = 'Placing the furniture ' + propsDone + ' / ' + propsTotal; }
+}
+const shellReady = Promise.all(SHELL_URLS.map(u => loadGltf(u).catch(() => {}))).then(() => { shellComplete = true; renderLoadUI(); });
 
 // floor + ceiling tiles
 for (let ix=0; ix<ROOM_W; ix++) for (let iz=0; iz<ROOM_D; iz++) {
@@ -448,7 +519,7 @@ function box(w,h,d,color) {
 const PROPS_DIR = '/assets/hideout/props/';
 const PROP_PRIORITY = { portal: 0, vending_machine: 1, ore_forge: 1, sludge_cauldron: 1 }; // the things you walk up to first
 
-const SCALE_MAP = { vending_machine: (EYE_HEIGHT/1.90)*3.5*0.75, sludge_cauldron: 2.0, ore_forge: 2.6, portal: 2.0, wall_locker: 1.5 }; // portal scale kept modest on purpose — easy to bump up once Matt sees it in place
+const SCALE_MAP = { vending_machine: (EYE_HEIGHT/1.90)*3.5*0.75, sludge_cauldron: 2.0, ore_forge: 2.6, portal: 2.0, wall_locker: 1.5, painting_triumph: 1.0, painting_hug: 1.0, painting_tease: 1.0, painting_company: 1.0 }; // portal scale kept modest on purpose — easy to bump up once Matt sees it in place
 const DEFAULT_PLACE_SCALE = 1.7; // every Meshy prop is normalized so its longest axis is ~1.9 raw units regardless of what it is, so scale 1.0 reads as toy-sized next to the player
 function scaleFor(gid) { return SCALE_MAP[gid] || DEFAULT_PLACE_SCALE; }
 const pickupables = []; // every freely-placed item can be picked back up, separate from its "use" interaction (if any)
@@ -456,9 +527,11 @@ const RADIUS_MAP = { vending_machine: 2.3, sludge_cauldron: 2.1, ore_forge: 2.4,
 function spawnPlacedItem(gid, pos, ry) {
   const scale = scaleFor(gid);
   const r = RADIUS_MAP[gid] || 0.9*scale;
-  const entry = { gid, x: pos.x, z: pos.z, ry, obj: null, useHit: null, light: null };
-  entry.collider = {minX:pos.x-r,maxX:pos.x+r,minZ:pos.z-r,maxZ:pos.z+r};
-  colliders.push(entry.collider);
+  const entry = { gid, x: pos.x, z: pos.z, ry, obj: null, useHit: null, light: null, isWall: WALL_ITEMS.has(gid) };
+  if (!entry.isWall) { // things hung on the wall don't block the floor
+    entry.collider = {minX:pos.x-r,maxX:pos.x+r,minZ:pos.z-r,maxZ:pos.z+r};
+    colliders.push(entry.collider);
+  }
 
   const loaded = placeSource(sourceFor(gid), scale, pos, ry, (obj) => {
     entry.obj = obj;
@@ -512,8 +585,16 @@ function spawnPlacedItem(gid, pos, ry) {
     }
   });
 
-  const pickHit = new THREE.Mesh(new THREE.BoxGeometry(r*1.8, 3.2, r*1.8), new THREE.MeshBasicMaterial({visible:false}));
-  pickHit.position.set(pos.x, pos.y+1.2, pos.z);
+  let pickHit;
+  if (entry.isWall) {
+    const p = PAINTINGS[gid];
+    pickHit = new THREE.Mesh(new THREE.BoxGeometry(p.w*scale + 0.3, p.h*scale + 0.3, 0.6), new THREE.MeshBasicMaterial({visible:false}));
+    pickHit.position.set(pos.x, pos.y + p.h*scale/2, pos.z);
+    pickHit.rotation.y = ry;
+  } else {
+    pickHit = new THREE.Mesh(new THREE.BoxGeometry(r*1.8, 3.2, r*1.8), new THREE.MeshBasicMaterial({visible:false}));
+    pickHit.position.set(pos.x, pos.y+1.2, pos.z);
+  }
   scene.add(pickHit);
   entry.pickHit = pickHit;
   pickupables.push(entry);
@@ -528,19 +609,21 @@ function usePortal() {
   window.location.href = '/';
 }
 
+function pickupRange(entry) { return entry.isWall ? 7 : 2.5; } // a painting hung high is far from your eyes; you take it down by aiming, not by reaching
 function tryPickup() {
+  camera.updateMatrixWorld();
   raycaster.setFromCamera({x:0,y:0}, camera);
   const hits = raycaster.intersectObjects(pickupables.map(p => p.pickHit));
-  if (!hits.length || hits[0].distance >= 2.5) return;
+  if (!hits.length) return;
   const entry = pickupables.find(p => p.pickHit === hits[0].object);
-  if (!entry) return;
+  if (!entry || hits[0].distance >= pickupRange(entry)) return;
   if (entry.isSharedGear) { pickupSharedGear(entry.dropId); return; }
   if (entry.obj) scene.remove(entry.obj);
   scene.remove(entry.pickHit);
   if (entry.useHit) { scene.remove(entry.useHit); interactables.splice(interactables.findIndex(i => i.mesh === entry.useHit), 1); }
   if (entry.light) scene.remove(entry.light);
   if (entry.fx) { scene.remove(entry.fx.points); scene.remove(entry.fx.light); arcaneFx.splice(arcaneFx.indexOf(entry.fx), 1); }
-  colliders.splice(colliders.indexOf(entry.collider), 1);
+  if (entry.collider) colliders.splice(colliders.indexOf(entry.collider), 1);
   pickupables.splice(pickupables.indexOf(entry), 1);
   const idx = SAVE.placed.findIndex(p => p.gid===entry.gid && p.x===entry.x && p.z===entry.z && p.ry===entry.ry);
   if (idx >= 0) SAVE.placed.splice(idx, 1);
@@ -553,50 +636,19 @@ function tryPickup() {
 // first machine shows up early instead of everything landing together at the end
 async function loadPropsAfterShell() {
   await shellReady;
-  placeProp(PROPS_DIR+'chandelier.glb', 1.0, {x:0, y:GROUND_Y+4.5, z:0}, 0);
   const queue = SAVE.placed.filter(p => hasModel(p.gid))
     .sort((a, b) => (PROP_PRIORITY[a.gid] ?? 5) - (PROP_PRIORITY[b.gid] ?? 5));
-  for (const p of queue) await spawnPlacedItem(p.gid, {x:p.x, y:p.y ?? GROUND_Y, z:p.z}, p.ry);
+  propsTotal = queue.length + 1; propsDone = 0; renderLoadUI();
+  await placeProp(PROPS_DIR+'chandelier.glb', 1.0, {x:0, y:GROUND_Y+4.5, z:0}, 0);
+  propsDone++; renderLoadUI();
+  for (const p of queue) {
+    await spawnPlacedItem(p.gid, {x:p.x, y:p.y ?? GROUND_Y, z:p.z}, p.ry);
+    propsDone++; renderLoadUI();
+  }
 }
 loadPropsAfterShell();
 
-// shelves (3), each holds one placed gear item
-const shelfDefs = [
-  {id:'shelfA', x:-roomHalfW+0.5, z:1.5, ry:Math.PI/2},
-  {id:'shelfB', x:-roomHalfW+0.5, z:-1.0, ry:Math.PI/2},
-  {id:'shelfC', x:roomHalfW-0.5, z:1.8, ry:-Math.PI/2},
-];
-const shelfGroups = {};
-shelfDefs.forEach(sd => {
-  const g = new THREE.Group(); g.position.set(sd.x, GROUND_Y+1.1, sd.z); g.rotation.y = sd.ry;
-  const board = box(1.3,0.08,0.4,0x7a5a3a); g.add(board);
-  g.add((() => { const s = labelSprite(sd.id.toUpperCase(), '#aef'); s.position.set(0,0.6,0); return s; })());
-  // invisible hitbox taller than the thin board so a level look still hits it
-  const hit = new THREE.Mesh(new THREE.BoxGeometry(1.3,1.0,0.4), new THREE.MeshBasicMaterial({visible:false}));
-  hit.position.y = 0.35; g.add(hit);
-  scene.add(g);
-  shelfGroups[sd.id] = g;
-  interactables.push({ mesh: hit, prompt: null, shelfId: sd.id, onUse: () => useShelf(sd.id) });
-  renderShelf(sd.id);
-});
-
 const texLoader = new THREE.TextureLoader();
-const iconTexCache = {};
-function iconTexture(gid) {
-  if (!iconTexCache[gid]) iconTexCache[gid] = texLoader.load(GEAR[gid].icon);
-  return iconTexCache[gid];
-}
-
-function renderShelf(id) {
-  const g = shelfGroups[id];
-  if (g.__item) { g.remove(g.__item); g.__item = null; }
-  const gearId = SAVE.shelves[id];
-  if (gearId && GEAR[gearId]) {
-    const spr = new THREE.Sprite(new THREE.SpriteMaterial({map: iconTexture(gearId)}));
-    spr.position.set(0,0.42,0); spr.scale.set(0.55,0.55,1);
-    g.add(spr); g.__item = spr;
-  }
-}
 
 let selectedGear = null;
 function renderInv() {
@@ -634,23 +686,6 @@ window.addEventListener('wheel', e => {
   selectedGear = SAVE.inv[idx];
   renderInv();
 }, { passive: false });
-
-function useShelf(id) {
-  if (SAVE.shelves[id]) {
-    const gid = SAVE.shelves[id];
-    delete SAVE.shelves[id];
-    SAVE.inv.push(gid);
-    flashMsg('Took ' + GEAR[gid].name + ' off the shelf');
-  } else if (selectedGear) {
-    SAVE.shelves[id] = selectedGear;
-    SAVE.inv.splice(SAVE.inv.indexOf(selectedGear),1);
-    flashMsg('Placed ' + GEAR[selectedGear].name + ' on ' + id);
-    selectedGear = null;
-  } else {
-    flashMsg('Select an item from your inventory first');
-  }
-  renderShelf(id); renderInv(); writeSave();
-}
 
 // ============= FREE PLACEMENT (hotbar -> ghost -> R to turn -> click to lock) =============
 let ghost = null, ghostGid = null, ghostRy = 0;
@@ -697,14 +732,53 @@ function updateGhost() {
     });
   }
   if (ghost) {
-    const dist = 3.2;
     const flat = new THREE.Vector3(); camera.getWorldDirection(flat); flat.y = 0; flat.normalize();
-    const floorY = GROUND_Y - ghost.userData.bottomOffset;
-    // looking level/down places on the floor; tilting up lets you lift it, e.g. to hang a banner on a wall
-    const lift = pitch > 0.05 ? (pitch/1.4) * (GROUND_Y+WALLH-1.5-floorY) : 0;
-    ghost.rotation.y = ghostRy;
-    ghost.position.set(camera.position.x + flat.x*dist, floorY + lift, camera.position.z + flat.z*dist);
+    if (WALL_ITEMS.has(selectedGear)) {
+      // wall art snaps flat onto the wall you're looking at; aiming up or down slides it along the wall
+      const w = wallAim(flat);
+      const p = PAINTINGS[selectedGear], halfH = p.h * scaleFor(selectedGear) / 2;
+      const aimY = camera.position.y + Math.tan(pitch) * w.dist;
+      const centerY = Math.max(GROUND_Y + halfH + 0.1, Math.min(GROUND_Y + WALLH - halfH - 0.15, aimY));
+      ghost.rotation.y = w.ry;
+      ghost.position.set(w.x, centerY, w.z);
+    } else {
+      const dist = 3.2;
+      const floorY = GROUND_Y - ghost.userData.bottomOffset;
+      // looking level/down places on the floor; tilting up lets you lift it, e.g. to hang a banner on a wall
+      const lift = pitch > 0.05 ? (pitch/1.4) * (GROUND_Y+WALLH-1.5-floorY) : 0;
+      ghost.rotation.y = ghostRy;
+      ghost.position.set(camera.position.x + flat.x*dist, floorY + lift, camera.position.z + flat.z*dist);
+    }
   }
+}
+
+// Where a flat look direction meets the room's walls: which wall (and so the turn that puts a picture's front
+// toward the room), then the exact surface point from a ray against that wall's mesh — the tiles have beams
+// standing well proud of the panels, so a fixed depth either buries the frame or floats it. WALL_INSET is only
+// the fallback when the ray finds nothing (e.g. aiming through the doorway).
+const WALL_INSET = 0.9;
+const wallRay = new THREE.Raycaster();
+function wallAim(dir) {
+  const cx = camera.position.x, cz = camera.position.z;
+  const planes = [
+    { t: dir.x >  1e-6 ? ( roomHalfW - WALL_INSET - cx) / dir.x : Infinity, ry: -Math.PI/2, axis: 'x', v:  roomHalfW - WALL_INSET, nx: -1, nz: 0 },
+    { t: dir.x < -1e-6 ? (-roomHalfW + WALL_INSET - cx) / dir.x : Infinity, ry:  Math.PI/2, axis: 'x', v: -roomHalfW + WALL_INSET, nx:  1, nz: 0 },
+    { t: dir.z >  1e-6 ? ( roomHalfD - WALL_INSET - cz) / dir.z : Infinity, ry:  Math.PI,   axis: 'z', v:  roomHalfD - WALL_INSET, nx: 0, nz: -1 },
+    { t: dir.z < -1e-6 ? (-roomHalfD + WALL_INSET - cz) / dir.z : Infinity, ry:  0,         axis: 'z', v: -roomHalfD + WALL_INSET, nx: 0, nz:  1 },
+  ].filter(p => p.t > 0);
+  const hit = planes.reduce((a, b) => (b.t < a.t ? b : a));
+  let x = hit.axis === 'x' ? hit.v : cx + dir.x * hit.t;
+  let z = hit.axis === 'z' ? hit.v : cz + dir.z * hit.t;
+  let dist = hit.t;
+  // refine against the real wall surface, testing only the tiles near the aimed spot
+  wallRay.set(camera.position, dir); wallRay.near = 0.1; wallRay.far = 60;
+  const near = wallObjects.filter(o => Math.hypot(o.position.x - x, o.position.z - z) < 6);
+  const mh = wallRay.intersectObjects(near, true)[0];
+  if (mh) {
+    x = mh.point.x + hit.nx * 0.06; z = mh.point.z + hit.nz * 0.06; // frame front a hair proud, backing straddling the surface
+    dist = Math.hypot(x - cx, z - cz);
+  }
+  return { x, z, ry: hit.ry, dist: Math.max(dist, 0.5) };
 }
 
 function commitPlacement() {
@@ -1404,6 +1478,7 @@ canvas.addEventListener('click', () => {
 });
 
 function tryInteract() {
+  camera.updateMatrixWorld();
   raycaster.setFromCamera({x:0,y:0}, camera);
   const hits = raycaster.intersectObjects(interactables.map(i=>i.mesh));
   if (hits.length && hits[0].distance < 2.5) {
@@ -1454,7 +1529,9 @@ function animate(now) {
     updateDropGhost();
     const pr = document.getElementById('prompt');
     if (ghost) {
-      pr.textContent = 'Click to place · Scroll/R to turn · look up to raise it · select it again to cancel';
+      pr.textContent = WALL_ITEMS.has(selectedGear)
+        ? 'Look at the wall where you want it · aim up or down for height · click to hang · select it again to cancel'
+        : 'Click to place · Scroll/R to turn · look up to raise it · select it again to cancel';
       pr.style.display = 'block';
     } else if (dropGhost) {
       pr.textContent = 'Click to display it here for everyone · Scroll/R to turn · select it again to cancel';
@@ -1467,11 +1544,11 @@ function animate(now) {
       const lines = [];
       if (hits.length && hits[0].distance < 2.5) {
         const it = interactables.find(i => i.mesh === hits[0].object);
-        lines.push(it.prompt || 'E: ' + (SAVE.shelves[it.shelfId] ? 'Take item' : 'Place selected item'));
+        if (it.prompt) lines.push(it.prompt);
       }
-      if (pHits.length && pHits[0].distance < 2.5) {
-        const p = pickupables.find(pp => pp.pickHit === pHits[0].object);
-        const label = p.isSharedGear ? worldGear.get(p.dropId).piece.desc : GEAR[p.gid].name;
+      const pEntry = pHits.length ? pickupables.find(pp => pp.pickHit === pHits[0].object) : null;
+      if (pEntry && pHits[0].distance < pickupRange(pEntry)) {
+        const label = pEntry.isSharedGear ? worldGear.get(pEntry.dropId).piece.desc : GEAR[pEntry.gid].name;
         lines.push('G: Pick up ' + label);
       }
       if (lines.length) { pr.textContent = lines.join('   ·   '); pr.style.display = 'block'; }

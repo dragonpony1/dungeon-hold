@@ -19,18 +19,35 @@ addSet({name:'of the Void',ic:'🌌',col:0x8a3dff,css:'#c070ff',emissive:0x5a2bd
 // will actually complete in a run or two, so the whole frame -- wear three, wear five, a power, the aura, the locker
 // reward -- is learned early on pieces that don't matter much. Uncommon+ from wave 1: 30% of such drops through wave 3,
 // fading four points a wave to a 6% floor, worth ×1.5. Small, readable bonuses; BRAMBLE roots what the hero hits.
-addSet({name:'of the Forest',ic:'🌲',col:0x5ad05a,css:'#5ad05a',emissive:0x1f6a2a,minR:1,chance:w=>w<1?0:Math.min(.3,Math.max(.06,.3-.04*(w-3))),valueMul:1.5,
-  three:{hp:.08,move:.04},five:{hp:.15,move:.08,dmg:.10},text:['+8% health · +4% move','+15% health · +8% move · +10% hero damage · BRAMBLE: every hit roots the target in thorns for 1.5 s'],
+addSet({name:'of the Forest',ic:'🌲',col:0x5ad05a,css:'#5ad05a',emissive:0x1f6a2a,minR:1,chance:w=>w<1?0:Math.min(.4,Math.max(.1,.4-.05*(w-4))),valueMul:1.5,
+  three:{hp:.08,move:.04},five:{hp:.15,move:.08,dmg:.10},text:['+8% health · +4% move','+15% health · +8% move · +10% hero damage · TWIN SHOT: your familiar fires two bolts at once, 50% faster, at 50% more reach'],
+  fam:{twin:true,rate:1.5,range:1.5},   // the five-piece power on the familiar (applied below): an obvious boon a new player will feel
   unlock:{id:'stand-forest',name:'Forest Armor Stand',model:'armor-stand-forest.glb',slot:'armor',rarity:1,reason:'The Forest set, complete'},   // the locker reward, so the starter set teaches that too
   models:{sword:'venom',staff:'staff-hazel',bow:'bow-yew',armor:'stand-forest'},   // the green blade, the plain wood staff and bow, the forest mannequin
-  sfx:()=>{ beep(523,.5,'sine',.07,0); setTimeout(()=>beep(784,.45,'triangle',.05,200),90); setTimeout(()=>beep(1047,.4,'sine',.04,400),180); },   // a rising woodland chime
-  onHit:(e,dmg)=>{ e.slowT=Math.max(e.slowT||0,1.5); riftFx(e.x,e.y||0,e.z,0x5ad05a); return 1; }});
+  sfx:()=>{ beep(523,.5,'sine',.07,0); setTimeout(()=>beep(784,.45,'triangle',.05,200),90); setTimeout(()=>beep(1047,.4,'sine',.04,400),180); }});   // a rising woodland chime
+// ---- a set's five-piece power on the familiar (pack.fam): TWIN SHOT fires the shot twice, rate divides the cooldown, range stretches the reach
+function famBoon(){ const w=worn().find(x=>x.tier>=5&&x.pack.fam); return w?w.pack.fam:null; }
+{ const prev=famFire; famFire=function(e){ prev(e); const b=famBoon(); if(b&&b.twin) prev(e); }; }
+{ const prev=famRate; famRate=function(){ const r=prev(); const b=famBoon(); return b&&b.rate?r/b.rate:r; }; }
+{ const prev=famTarget; famTarget=function(){ const b=famBoon(); if(!(b&&b.range)) return prev(); let best=null, bd=FAM_RANGE*b.range; for(const e of enemies){ if(e.dead) continue; const d=Math.hypot(e.x-fam.x,e.z-fam.z); if(d<bd&&los(fam.x,fam.z,e.x,e.z)){ bd=d; best=e; } } return best; }; }
+// ---- the guarantee, the bigger training wheel: on map one a full Forest set is in hand by wave three. Each held wave's
+// thanks includes Forest pieces for slots the player still lacks -- two owned after wave 1, four after wave 2, all five
+// after wave 3 -- dropped gently by the crystal with the wave's own reward. Pieces still lying on the floor count as owned,
+// so nothing is handed out twice; a player who already found some gets only what is missing.
+const FOREST_BY_WAVE={1:2,2:4,3:5};
+function forestGuarantee(w){ if(MAPI!==0) return 0; const target=FOREST_BY_WAVE[w]; if(!target) return 0; const have=forestOwned(); const missing=SLOTS.filter(k=>!have[k]); const n=Math.max(0,Math.min(missing.length,target-(SLOTS.length-missing.length))); const P=PACKS['of the Forest'];
+  for(let i=0;i<n;i++){ const it=rollItem(1,missing[i]); it.rarity=Math.max(it.rarity,1); makeSet(it,P); dropLoot(it,R(-2.2,2.2),4.6+.5*(i+1),true); } if(n) floatText(0,3.2,4.6,P.ic+' '+n+' PIECE'+(n>1?'S':'')+' OF THE FOREST — THE HALL\'S THANKS',P.css); return n; }
+{ const prev=Meta.onWaveHeld; Meta.onWaveHeld=w=>{ prev(w); forestGuarantee(w); }; }
+// ---- the pity rule, a training wheel: on map one, a player holding three or four Forest pieces gets the missing slot from the
+// next Uncommon-or-better random-slot drop (a mob's, or the held wave's), so the set completes on the training ground instead of wave seven
+function forestOwned(){ const P=PACKS['of the Forest'], have={}; const tag=it=>{ if(it&&Meta.sets.setOf(it)===P.name) have[it.slot]=true; }; for(const k in gear) tag(gear[k]); for(const it of Meta.bag()) tag(it); for(const l of loot) tag(l.it); return have; }   // worn, bagged, or still lying on the floor
+function forestPity(){ if(MAPI!==0) return null; const have=forestOwned(); const n=Object.keys(have).length; if(n<3||n>=5) return null; const missing=SLOTS.filter(k=>!have[k]); return missing[Math.floor(LR()*missing.length)]||null; }
 // ---- the buffs: percentages on the same multiplier hook as skills, keyed by the set so nothing reads them as flat points
 { const prev=Meta.mult; Meta.mult=k=>{ let v=prev(k)||0; for(const {pack,tier} of worn()){ const b=tier>=5?pack.five:pack.three; if(b&&b[k]) v+=b[k]; } return v; }; }
 { const prev=famDmg; famDmg=function(){ return Math.round(prev()*(1+(Meta.mult('fam')||0))*10)/10; }; }
 // ---- the drop rule: after the ordinary roll a Rare-or-better piece may become a set piece; the old suffix goes, the value climbs
 function makeSet(it,d){ const base=it.name.replace(/ of (the )?[A-Z]\w*( [A-Z]\w*)?$/,''); it.name=base+' '+d.name;   /* any old "of …" tail goes, saved names from before the sets included */ it.value=Math.round(it.value*(d.valueMul||1)); return it; }
-{ const prev=rollItem; rollItem=function(minR,slot,lvl){ const it=prev(minR,slot,lvl); const w=effWave(); for(const n in PACKS){ const d=PACKS[n]; if(it.rarity>=(d.minR|0)&&LR()<d.chance(w)){ makeSet(it,d); break; } } return it; }; }
+{ const prev=rollItem; rollItem=function(minR,slot,lvl){ const pity=slot===undefined?forestPity():null; const it=prev(minR,pity||slot,lvl); if(pity&&it.rarity>=1){ makeSet(it,PACKS['of the Forest']); return it; } const w=effWave(); for(const n in PACKS){ const d=PACKS[n]; if(it.rarity>=(d.minR|0)&&LR()<d.chance(w)){ makeSet(it,d); break; } } return it; }; }
 // ---- the drop: the set's own sound, a column of its light for three seconds, a shout; the piece on the floor takes its colour
 SFX.rift=()=>{ beep(140,.22,'sawtooth',.05,-90); noise(.12,.05,2400); };
 const FX=[]; const RING_GEO=new THREE.RingGeometry(.6,1,32), COL_GEO=new THREE.CylinderGeometry(.14,.3,7,14,1,true);
@@ -41,8 +58,13 @@ function riftFx(x,y,z,col){ const m=new THREE.Mesh(RING_GEO,fxMat(col,.9)); m.ro
     if(f.kind==='ring'){ const s=1+f.t*6; f.m.scale.set(s,s,1); f.m.material.opacity=Math.max(0,.9-f.t*2.2); done=f.t>.45; }
     else { f.m.material.opacity=Math.max(0,.55*(1-f.t/3)); f.m.rotation.y+=dt*1.5; f.m.scale.set(1+f.t*.15,1,1+f.t*.15); done=f.t>3; }
     if(done){ scene.remove(f.m); f.m.material.dispose(); FX.splice(i,1); } } }; }
+// a LESSON is a toast for a first-timer: bigger, centred high, and it stays (8 s) -- the ordinary toast is 2 s of small text a new player never reads
+const LESSON={el:null,t:0}; function lesson(text,secs){ if(!LESSON.el){ const st=document.createElement('style'); st.textContent='#lesson{position:absolute;left:50%;top:22%;transform:translateX(-50%);max-width:min(680px,90vw);background:#000c;border:2px solid #ffd27a;border-radius:12px;padding:14px 24px;color:#fff;font-size:20px;line-height:1.4;text-align:center;text-shadow:0 2px 3px #000;opacity:0;transition:opacity .4s;pointer-events:none;z-index:6}#lesson.on{opacity:1}@media (max-width:700px){#lesson{font-size:16px;top:18%}}'; document.head.appendChild(st); LESSON.el=document.createElement('div'); LESSON.el.id='lesson'; (document.getElementById('hud')||document.body).appendChild(LESSON.el); }
+  LESSON.el.textContent=text; LESSON.el.classList.add('on'); LESSON.t=secs||8; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(LESSON.t>0){ LESSON.t-=dt; if(LESSON.t<=0) LESSON.el.classList.remove('on'); } }; }
+window.__lesson={show:lesson,text:()=>LESSON.el?LESSON.el.textContent:'',on:()=>!!(LESSON.el&&LESSON.el.classList.contains('on'))};
 const HINT_KEY='dd_setHint';   // the first set piece a player ever sees lands with a one-line lesson, once per browser
-function setHint(d){ let seen=false; try{ seen=!!localStorage.getItem(HINT_KEY); localStorage.setItem(HINT_KEY,'1'); }catch(e){} if(seen) return false; setTimeout(()=>toast(d.ic+' A SET PIECE — wear three '+d.name+' for a bonus, all five for its power. Your sheet shows the count.'),1400); return true; }
+function setHint(d){ let seen=false; try{ seen=!!localStorage.getItem(HINT_KEY); localStorage.setItem(HINT_KEY,'1'); }catch(e){} if(seen) return false; setTimeout(()=>lesson(d.ic+' A SET PIECE — wear three '+d.name+' for a bonus, all five for its power. Your sheet shows the count.',9),1400); return true; }
 { const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); const d=packOf(it); if(d){ SFX.setBong(); if(d.sfx) d.sfx(); floatText(x,1.7,z,d.ic+' A PIECE '+d.name.toUpperCase(),d.css); column(x,z,d.col); setHint(d);
     const art=itemArt(it), item=l.mesh.userData.item;
     const recolor=()=>l.mesh.traverse(m=>{ if(m.isMesh&&m.material&&m.material.color&&!m.userData.isOL){ m.material=m.material.clone(); m.material.color.set(d.col); if(m.material.emissive) m.material.emissive.set(d.emissive||0); } });
@@ -90,5 +112,5 @@ function defRingUpdate(){ const pk=fullPack(); const col=pk?pk.col:null;
 Meta.packs={of:packOf,list:()=>Object.keys(PACKS),get:n=>PACKS[n],add:addSet,art:itemArt,artHtml,aura:()=>({on:AURA.meshes.length>0,col:AURA.col,meshes:AURA.meshes.length,attached:AURA.meshes.filter(g=>g.parent).length}),defRings:()=>defs.filter(d=>d.setRing).length};
 window.__void={NAME:'of the Void',isVoid:it=>packOf(it)===PACKS['of the Void'],chance:w=>PACKS['of the Void'].chance(w===undefined?effWave():w),lvl:()=>{ const a=Meta.sets.active().find(x=>x.name==='of the Void'); return a?a.tier:0; },make:it=>makeSet(it,PACKS['of the Void']),fx:()=>FX.length,rift};
 window.__packs=Meta.packs;
-window.__forest={NAME:'of the Forest',isForest:it=>packOf(it)===PACKS['of the Forest'],chance:w=>PACKS['of the Forest'].chance(w===undefined?effWave():w),lvl:()=>{ const a=Meta.sets.active().find(x=>x.name==='of the Forest'); return a?a.tier:0; },make:it=>makeSet(it,PACKS['of the Forest']),HINT_KEY};
+window.__forest={NAME:'of the Forest',isForest:it=>packOf(it)===PACKS['of the Forest'],owned:forestOwned,pity:forestPity,boon:famBoon,guarantee:forestGuarantee,BY_WAVE:FOREST_BY_WAVE,chance:w=>PACKS['of the Forest'].chance(w===undefined?effWave():w),lvl:()=>{ const a=Meta.sets.active().find(x=>x.name==='of the Forest'); return a?a.tier:0; },make:it=>makeSet(it,PACKS['of the Forest']),HINT_KEY};
 })();

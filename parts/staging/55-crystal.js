@@ -22,3 +22,13 @@
   }catch(e){ console.warn('crystal model',e); } },e=>console.warn('crystal model',e))).catch(e=>console.warn('crystal model',e));
   const prev=Meta.hud; Meta.hud=()=>{ prev(); const mats=crystalG.userData.mats; if(mats){ const k=crystalMesh.material.emissiveIntensity*.75; for(const mt of mats) mt.emissiveIntensity=k; } };
   window.__crystal={state:()=>({model:!!crystalG.userData.model,cgY:crystalG.userData.cgY||2.7,oldVisible:crystalMesh.visible,tris:crystalG.userData.tris||null,pulsing:(crystalG.userData.mats||[]).length})}; }
+// ---- the alarm: the crystal losing life is easy to miss from across the hall (a red edge flash and a soft hit), so any
+// drop in S.crystal -- a mob's blow on the host, or the world sync on a guest's screen -- raises a red UNDER ATTACK strip
+// under the wave line for 2.5 s (renewed while the hits keep coming) and rings a low two-tone bell, at most once every 3 s.
+{ const css=document.createElement('style'); css.textContent='#alarm{position:absolute;left:50%;top:58px;transform:translateX(-50%);background:#5a0e12ee;border:2px solid #ff5a5a;border-radius:8px;color:#fff;font:bold 15px Georgia,serif;letter-spacing:3px;padding:6px 16px;white-space:nowrap;opacity:0;transition:opacity .2s;pointer-events:none;text-shadow:0 2px 3px #000;animation:alarmPulse .7s ease-in-out infinite}#alarm.on{opacity:1}@keyframes alarmPulse{0%,100%{box-shadow:0 0 6px #ff5a5a66}50%{box-shadow:0 0 22px #ff5a5acc}}@media (max-width:700px){#alarm{top:auto;bottom:196px;font-size:13px}}'; document.head.appendChild(css);
+  const strip=document.createElement('div'); strip.id='alarm'; strip.textContent='⚠ THE CRYSTAL IS UNDER ATTACK'; (document.getElementById('hud')||document.body).appendChild(strip);
+  const AL={last:null,showT:0,cool:0,rings:0,hits:0};
+  SFX.alarm=()=>{ beep(196,.45,'triangle',.16,-30); setTimeout(()=>beep(147,.6,'triangle',.14,-20),220); noise(.08,.03,900); };
+  const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(AL.showT>0){ AL.showT-=dt; if(AL.showT<=0) strip.classList.remove('on'); } if(AL.cool>0) AL.cool-=dt;
+    const c=S.crystal; if(AL.last!==null&&c<AL.last&&c>0&&(S.phase==='wave'||S.phase==='build')){ AL.hits++; strip.classList.add('on'); AL.showT=2.5; if(AL.cool<=0){ AL.cool=3; AL.rings++; if(!soundOff) SFX.alarm(); } } AL.last=c; };
+  window.__alarm={on:()=>strip.classList.contains('on'),rings:()=>AL.rings,hits:()=>AL.hits,max:()=>CRYSTAL_MAX}; }

@@ -12,14 +12,19 @@ const HEROES=[
   {id:'troll', name:'TROLL ARCHER',sub:'a longbow · arrows reach 24',glb:'troll.glb',label:'Troll Archer (Meshy)',reach:24,unlocks:['acorn','snare','venom']},   // doubled from 9/12: both targeting range and projectile flight distance derive from reach (83-bow.js, 82-staff.js), so this doubles how far a ranged hero can actually engage, not just how far the bolt visually flies
   {id:'knight',name:'GNOME KNIGHT',sub:'sword and shield-arm · the hall\'s keeper',glb:'knight.glb',label:'Gnome Knight (Meshy)',reach:2.4,unlocks:['harpoon','spike','totem']},
   {id:'fighter',name:'GNOME FIGHTER',sub:'a battle staff that shoots · bolts reach 18',glb:'fighter.glb',label:'Gnome Fighter (Meshy)',reach:18,unlocks:['zap','ember','dazzle']}];
-let heroPick=(()=>{ try{ return HEROES.find(h=>h.id===localStorage.getItem('ddHero'))||HEROES[0]; }catch(e){ return HEROES[0]; } })();
+// a fresh player is the Gnome Knight and nothing else until map one is held (the training ground is built around the
+// knight's ballista); the other three heroes unlock with the first hall held. A saved pick that is locked comes back as the knight.
+const mapOneHeld=()=>{ try{ return (parseInt(localStorage.getItem('ddMapsCleared'))||0)>=1; }catch(e){ return false; } };
+const heroLocked=h=>!!h&&h.id!=='knight'&&!mapOneHeld();
+const KNIGHT=HEROES.find(h=>h.id==='knight')||HEROES[0];
+let heroPick=(()=>{ let h=HEROES[0]; try{ h=HEROES.find(x=>x.id===localStorage.getItem('ddHero'))||HEROES[0]; }catch(e){} return heroLocked(h)?KNIGHT:h; })();
 function installHero(h){ heroPick=h; try{ localStorage.setItem('ddHero',h.id); }catch(e){} hero.reach=h.reach;
   return fetchBytes(ASSET(h.glb),'first').then(buf=>{ if(heroPick!==h) return; if(GLBH&&GLBH.label&&!/Meshy/.test(GLBH.label)) return;   // the player dropped their own model meanwhile: keep it
     loadHeroGLB(buf,h.label,true); hero.reach=h.reach; }).catch(e=>console.warn('hero '+h.id,e)); }
 installHero(heroPick);
-window.__heroes={list:()=>HEROES.map(h=>({id:h.id,name:h.name})),pick:()=>heroPick.id,unlocks:()=>heroPick.unlocks,canUse:k=>heroPick.unlocks.includes(k),
-  select:id=>{ const h=HEROES.find(h=>h.id===id); if(h) return installHero(h); },
-  next:()=>{ const i=HEROES.findIndex(h=>h.id===heroPick.id); const nh=HEROES[(i+1)%HEROES.length]; installHero(nh); toast('Hero: '+nh.name); if(placing&&!nh.unlocks.includes(placing)) cancelPlace(); return nh.id; }};
+window.__heroes={list:()=>HEROES.map(h=>({id:h.id,name:h.name,locked:heroLocked(h)})),pick:()=>heroPick.id,unlocks:()=>heroPick.unlocks,canUse:k=>heroPick.unlocks.includes(k),locked:id=>heroLocked(HEROES.find(h=>h.id===id)),mapOneHeld,
+  select:id=>{ const h=HEROES.find(h=>h.id===id); if(h) return installHero(h); },   // the programmatic pick (tests, probes) ignores the lock; the picker cards and the raven honour it
+  next:()=>{ const i=HEROES.findIndex(h=>h.id===heroPick.id); let nh=null; for(let k=1;k<=HEROES.length;k++){ const c=HEROES[(i+k)%HEROES.length]; if(!heroLocked(c)){ nh=c; break; } } if(!nh||nh===heroPick){ toast('Hold your first hall to unlock the other heroes'); return heroPick.id; } installHero(nh); toast('Hero: '+nh.name); if(placing&&!nh.unlocks.includes(placing)) cancelPlace(); return nh.id; }};
 // ---- each hero unlocks its own two to four defenses (the raven's job, once it grows a real picker): the hotbar
 // shows only that hero's own kinds, in the order the hero lists them, keyed 1..N — nothing else visible, nothing
 // greyed out. A switch (raven or H) reflows the slots on the next hud tick.

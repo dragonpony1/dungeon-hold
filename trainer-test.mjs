@@ -1,6 +1,6 @@
-// ===== TRAINING WHEELS (96-trainer.js): on map one, until it's held, a guide card names the one next thing to do and
-// ticks it off by watching what the game did. Here: a fresh player sees step 1 naming their hero's first hotbar slot;
-// picking, placing, the horn, an orb, the dropped piece, equipping it and a second defense each advance the card in
+// ===== TRAINING WHEELS (96-trainer.js): on map one a guide card names the one next thing to do and ticks it off by
+// watching what the game did. Here: a fresh player sees wave zero (a lone harmless goblin walking the lane) and is asked
+// for a ballista, lent to any hero here; picking, placing, the horn, an orb, the dropped piece, equipping it and a second defense each advance the card in
 // order; progress persists across a reload and resumes; the card never shows on a later map, after map one is held, or
 // once the ✕ is pressed; and the tavern hides it.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs"; import path from "path";
@@ -15,43 +15,48 @@ const view=p=>p.evaluate(()=>({step:window.__trainer.step(),text:window.__traine
 const ctx=await browser.newContext(); const page=await fresh(ctx);
 // before the run: nothing; in the build phase: step 1, naming the hero's first hotbar slot
 const v0=await view(page);
-check("on the title screen the guide is off",!v0.on&&v0.step==='pick',JSON.stringify(v0));
-const first=await page.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); const el=[...document.querySelectorAll('#hotbar .slot')].find(e=>e.style.display!=='none'); return {key:el.querySelector('.k').textContent.trim(),name:el.querySelector('.n').textContent.trim(),kind:el.id.replace('slot-','')}; });
+check("on the title screen the guide is off",!v0.on&&v0.step==='watch',JSON.stringify(v0));
+const w0=await page.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); const T=window.__trainer; const g=window.__dd.enemies.find(e=>e.training); return {w0:T.w0(),goblin:g&&{kind:g.kind,dmg:g.dmg,dead:!!g.dead},hero:window.__heroes.pick(),unlocks:[...document.querySelectorAll('#hotbar .slot')].filter(e=>e.style.display!=='none').map(e=>e.id.replace('slot-','')),mana:window.__dd.S.mana}; });
 const v1=await view(page);
-check("build phase on map one: the guide is on at 1/7 and names the hero's first hotbar slot ("+first.key+", "+first.name+")",v1.on&&v1.step==='pick'&&v1.n==='1/7'&&v1.text.includes(first.key)&&v1.text.includes(first.name),JSON.stringify(v1));
-check("the training-ground banner announced the place",await page.evaluate(()=>/TRAINING GROUND/.test(document.getElementById('banner').textContent)));
-// 1 pick -> 2 place -> 3 horn
-await page.evaluate(k=>{ window.__dd.select(k); window.__dd.step(1/60,1); },first.kind);
+check("build phase on map one: wave zero — a lone harmless goblin (0 damage) is walking the lane, the guide is on at 1/8 saying watch it, and a fresh player is the knight with the ballista on the hotbar",v1.on&&v1.step==='watch'&&v1.n==='1/8'&&/goblin/i.test(v1.text)&&w0.w0.spawned&&w0.goblin&&w0.goblin.kind==='goblin'&&w0.goblin.dmg===0&&w0.hero==='knight'&&w0.unlocks.includes('harpoon'),JSON.stringify({v1,w0}));
+check("the training-ground banner announced wave zero",await page.evaluate(()=>/TRAINING GROUND/.test(document.getElementById('banner').textContent)&&/wave zero/i.test(document.getElementById('banner').textContent)));
+// the goblin reaches the crystal: it vanishes with IT GOT THROUGH and a lesson; step 2 is the ballista
+const through=await page.evaluate(()=>{ const d=window.__dd; const g=d.enemies.find(e=>e.training); g.x=0; g.z=1.2; d.step(1/60,300); return {gone:!d.enemies.some(e=>e.training&&!e.dead),lesson:window.__lesson.text(),crystal:d.S.crystal}; });
 const v2=await view(page);
-check("picking the defense ticks step 1 (a green ✓ for a moment), step 2 is 'set it down'",v2.step==='place'&&/✓/.test(v2.text),JSON.stringify(v2));
-await page.evaluate(k=>{ const d=window.__dd; d.S.mana=999; const h=d.hero; let ok=false; for(let dz=3;dz<=12&&!ok;dz++) for(let dx=-6;dx<=6&&!ok;dx++){ try{ d.placeDefAt(k,h.x+dx,h.z+dz,0); }catch(e){} ok=d.defs.length>0; } d.step(1/60,160);   /* past the 1.1 s ✓ flash of the step before, which a following step waits out */ },first.kind);
+check("at the crystal the goblin is gone, the crystal untouched, the lesson says a defense on its path stops the next; step 2 asks for a BALLISTA by its key",through.gone&&/stops the next/.test(through.lesson)&&v2.step==='pick'&&/BALLISTA/.test(v2.text)&&/press 1/.test(v2.text),JSON.stringify({through,v2}));
+const first={kind:'harpoon',key:'1',name:'Ballista'};
+await page.evaluate(k=>{ window.__dd.select(k); window.__dd.step(1/60,1); },first.kind);
+const v2b=await view(page);
+const mana=await page.evaluate(()=>window.__dd.S.mana);
+check("picking the ballista ticks step 2 (a green ✓), step 3 is 'set it down'; the hall lent the mana for it",v2b.step==='place'&&/✓/.test(v2b.text)&&mana>=60,JSON.stringify({v2b,mana}));
+await page.evaluate(k=>{ const d=window.__dd; d.S.mana=999; const h=d.hero; let ok=false; for(let dz=3;dz<=12&&!ok;dz++) for(let dx=-6;dx<=6&&!ok;dx++){ try{ d.placeDefAt(k,h.x+dx,h.z+dz,0); }catch(e){} ok=d.defs.length>0; } d.step(1/60,300);   /* past the 2.2 s ✓ flash of the step before, which a following step waits out, plus its own */ },first.kind);
 const v3=await view(page);
-check("a defense on the lane ticks step 2; step 3 is the horn",v3.step==='horn'&&/horn/i.test(v3.text)&&v3.n==='3/7',JSON.stringify(v3));
-await page.evaluate(()=>{ window.__dd.startWave(); window.__dd.step(1/60,160);   /* past the 1.1 s ✓ flash of the step before, which a following step waits out */ });
+check("the ballista on the lane ticks step 3; step 4 is the horn",v3.step==='horn'&&/horn/i.test(v3.text)&&v3.n==='4/8',JSON.stringify(v3));
+await page.evaluate(()=>{ window.__dd.startWave(); window.__dd.step(1/60,300);   /* past the 2.2 s ✓ flash of the step before, which a following step waits out, plus its own */ });
 const v4=await view(page);
-check("the horn ticks step 3; step 4 is swing and orbs",v4.step==='orb'&&/orb/i.test(v4.text)&&v4.phase==='wave',JSON.stringify(v4));
+check("the horn ticks step 4; step 5 is swing and orbs",v4.step==='orb'&&/orb/i.test(v4.text)&&v4.phase==='wave',JSON.stringify(v4));
 // 4 an orb lands
-await page.evaluate(()=>{ const d=window.__dd; d.setHero(0,10,0); const e=d.spawn('goblin','N'); e.x=d.hero.x+1; e.z=d.hero.z; d.kill(e); window.__autoMana=true; for(let i=0;i<240&&d.orbs.length;i++) d.step(1/60,1); window.__autoMana=false; d.step(1/60,160);   /* past the 1.1 s ✓ flash of the step before, which a following step waits out */ });
+await page.evaluate(()=>{ const d=window.__dd; d.setHero(0,10,0); const e=d.spawn('goblin','N'); e.x=d.hero.x+1; e.z=d.hero.z; d.kill(e); window.__autoMana=true; for(let i=0;i<240&&d.orbs.length;i++) d.step(1/60,1); window.__autoMana=false; d.step(1/60,300);   /* past the 2.2 s ✓ flash of the step before, which a following step waits out, plus its own */ });
 const v5=await view(page);
-check("an orb picked up ticks step 4; step 5 is the dropped piece",v5.step==='loot'&&v5.counts.orbs>0&&/gear|piece/i.test(v5.text),JSON.stringify(v5));
+check("an orb picked up ticks step 5; step 6 is the dropped piece",v5.step==='loot'&&v5.counts.orbs>0&&/gear|piece/i.test(v5.text),JSON.stringify(v5));
 // 5 the piece, walked over
-const bagged=await page.evaluate(()=>{ const d=window.__dd; const it=d.rollItem(1,'charm',2); d.dropLoot(it,d.hero.x,d.hero.z,true); for(let i=0;i<300&&!window.__meta.bag().some(b=>b.id===it.id);i++){ d.step(1/60,1); d.setHero(d.hero.x,d.hero.z); } d.step(1/60,160);   /* past the 1.1 s ✓ flash of the step before, which a following step waits out */ return {id:it.id,inBag:window.__meta.bag().some(b=>b.id===it.id)}; });
+const bagged=await page.evaluate(()=>{ const d=window.__dd; const it=d.rollItem(1,'charm',2); d.dropLoot(it,d.hero.x,d.hero.z,true); for(let i=0;i<300&&!window.__meta.bag().some(b=>b.id===it.id);i++){ d.step(1/60,1); d.setHero(d.hero.x,d.hero.z); } d.step(1/60,300);   /* past the 2.2 s ✓ flash of the step before, which a following step waits out, plus its own */ return {id:it.id,inBag:window.__meta.bag().some(b=>b.id===it.id)}; });
 const v6=await view(page);
-check("walking over the piece bags it and ticks step 5; step 6 is 'equip it'",bagged.inBag&&v6.step==='equip'&&v6.counts.picked>0,JSON.stringify({bagged,v6}));
-await page.evaluate(id=>{ window.__meta.equip(id); window.__dd.step(1/60,160);   /* past the 1.1 s ✓ flash of the step before, which a following step waits out */ },bagged.id);
+check("walking over the piece bags it and ticks step 6; step 7 is 'equip it'",bagged.inBag&&v6.step==='equip'&&v6.counts.picked>0,JSON.stringify({bagged,v6}));
+await page.evaluate(id=>{ window.__meta.equip(id); window.__dd.step(1/60,300);   /* past the 2.2 s ✓ flash of the step before, which a following step waits out, plus its own */ },bagged.id);
 const v7=await view(page);
-check("equipping ticks step 6; step 7 asks for a second defense or an upgrade",v7.step==='more'&&v7.counts.equips>0&&/second defense|Mark II/.test(v7.text),JSON.stringify(v7));
+check("equipping ticks step 7; step 8 asks for a second defense or an upgrade",v7.step==='more'&&v7.counts.equips>0&&/second defense|Mark II/.test(v7.text),JSON.stringify(v7));
 // persistence: a reload mid-way resumes at step 7 with the earlier steps kept
 await page.reload({timeout:90000}); await page.waitForFunction(()=>window.__dd&&window.__trainer,null,{timeout:60000});
 await page.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); });
 const v8=await view(page);
-check("after a reload the guide resumes at 7/7 (progress kept in localStorage dd_trainer)",v8.on&&v8.step==='more'&&v8.n==='7/7',JSON.stringify(v8));
-await page.evaluate(k=>{ const d=window.__dd; d.S.mana=999; const h=d.hero; let n0=d.defs.length; for(let dz=3;dz<=12&&d.defs.length<2;dz++) for(let dx=-6;dx<=6&&d.defs.length<2;dx++){ try{ d.placeDefAt(k,h.x+dx,h.z+dz,0); }catch(e){} } d.step(1/60,160);   /* past the 1.1 s ✓ flash of the step before, which a following step waits out */ },first.kind);
+check("after a reload the guide resumes at 8/8 (progress kept in localStorage dd_trainer)",v8.on&&v8.step==='more'&&v8.n==='8/8',JSON.stringify(v8));
+await page.evaluate(k=>{ const d=window.__dd; d.S.mana=999; const h=d.hero; let n0=d.defs.length; for(let dz=3;dz<=12&&d.defs.length<2;dz++) for(let dx=-6;dx<=6&&d.defs.length<2;dx++){ try{ d.placeDefAt(k,h.x+dx,h.z+dz,0); }catch(e){} } d.step(1/60,300);   /* past the 2.2 s ✓ flash of the step before, which a following step waits out, plus its own */ },first.kind);
 const v9=await view(page);
 check("a second defense completes the training: 'done', the completion line names the waves to hold",v9.step===null&&v9.n==='done'&&/Training complete/.test(v9.text)&&v9.on,JSON.stringify(v9));
-await page.evaluate(()=>{ for(let i=0;i<8*60;i++) window.__dd.step(1/60,1); });
+await page.evaluate(()=>{ for(let i=0;i<14*60;i++) window.__dd.step(1/60,1); });   /* past the 12 s completion line */
 const v10=await view(page);
-check("...and a few seconds later the card is gone for good",!v10.on,JSON.stringify(v10));
+check("...and twelve seconds later the card is gone for good",!v10.on,JSON.stringify(v10));
 check("the state records every step done",await page.evaluate(()=>{ const s=window.__trainer.state(); return window.__trainer.steps.every(id=>s.done[id]); }));
 // the tavern hides it; the ✕ hides it for good
 const ctx2=await browser.newContext(); const p2=await fresh(ctx2);
@@ -70,7 +75,7 @@ const later=await p3.evaluate(()=>{ window.__freeze=true; window.__dd.start(); w
 check("on map two the guide never shows",!later.on&&!later.training,JSON.stringify(later));
 await p3.goto(BASE+"/?silent&nogate&map=0",{timeout:90000}); await p3.waitForFunction(()=>window.__dd&&window.__trainer,null,{timeout:60000});
 const held=await p3.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); return {on:document.getElementById('trainer').classList.contains('on'),training:window.__trainer.training()}; });
-check("back on map one after it has been held: no guide either",!held.on&&!held.training,JSON.stringify(held));
+check("back on map one after it has been held: the guide still shows (map one is the training ground whoever plays it; only its steps done or the ✕ end it)",held.on&&held.training,JSON.stringify(held));
 await ctx3.close();
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
 check("no page errors",realErrors.length===0,realErrors.slice(0,5).join(" | "));

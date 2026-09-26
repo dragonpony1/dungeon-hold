@@ -44,13 +44,14 @@ function setMusic(mode){ const want=(musicOn&&!soundOff)?mode:'none'; if(want===
   if(want==='none'){ if(musicTimer){ clearInterval(musicTimer); musicTimer=null; } if(mGain&&a){ const g=mGain; mGain=null; g.gain.setTargetAtTime(.0001,a.currentTime,.3); setTimeout(()=>{ try{ g.disconnect(); }catch(e){} },1500); } return; }
   if(!a) return; if(!mGain){ mGain=a.createGain(); mGain.gain.value=.8; mGain.connect(a.destination); } mStep=0; mNext=a.currentTime+.05; if(!musicTimer) musicTimer=setInterval(mtick,100); }
 function musicForPhase(){ setMusic(S.phase==='wave'?'wave':S.phase==='build'?'build':'none'); }
-function toggleMusic(){ musicOn=!musicOn; localStorage.setItem('ddMusic',musicOn?'on':'off'); musicForPhase(); toast(musicOn?'Music on':'Music off (N turns it back on)'); }
+function musicBtn(){ const b=$('musbtn'); if(b) b.classList.toggle('off',!musicOn); }
+function toggleMusic(){ musicOn=!musicOn; localStorage.setItem('ddMusic',musicOn?'on':'off'); musicForPhase(); musicBtn(); toast(musicOn?'Music on':'Music off (N or the 🎵 button turns it back on)'); }
 function sting(){ [[220,0],[207,.25],[196,.5],[185,.8]].forEach(([f,d])=>setTimeout(()=>beep(f,.7,'sawtooth',.06,-20),d*1000)); }
 let droneN=null;
 function droneOn(){ const a=A(); if(!a||droneN) return; const g=a.createGain(); g.gain.setValueAtTime(.0001,a.currentTime); g.gain.exponentialRampToValueAtTime(.028,a.currentTime+1.5); const fl=a.createBiquadFilter(); fl.type='lowpass'; fl.frequency.value=220; const os=[55,82.4,110].map((f,i)=>{ const o=a.createOscillator(); o.type=i?'sawtooth':'triangle'; o.frequency.value=f; o.detune.value=(i-1)*6; o.connect(fl); o.start(); return o; }); fl.connect(g).connect(a.destination); droneN={g,os}; }
 function droneOff(){ if(!droneN||!ac) return; const d=droneN; droneN=null; d.g.gain.setTargetAtTime(.0001,ac.currentTime,.4); setTimeout(()=>d.os.forEach(o=>{ try{o.stop();}catch(e){} }),1500); }
 function setSound(on){ soundOff=!on; if(!on){ droneOff(); setMusic('none'); } else setTimeout(musicForPhase,0); localStorage.setItem('ddSound',on?'on':'off'); $('sndbtn').textContent=on?'🔊':'🔇'; if(!on&&ac) ac.suspend(); }
-$('sndbtn').onclick=()=>setSound(soundOff);
+$('sndbtn').onclick=()=>setSound(soundOff); const pb=$('pausebtn'); if(pb) pb.onclick=()=>{ if(window.__pause) window.__pause.open(); }; const mb=$('musbtn'); if(mb){ mb.onclick=()=>toggleMusic(); musicBtn(); }   // the visible music switch (N is the other): the state shows as a struck-through note   // the visible way to the pause menu (Escape is the other): RESUME, or RETURN TO TITLE SCREEN without closing the tab
 $('sndbtn').textContent=soundOff?'🔇':'🔊';
 document.addEventListener('visibilitychange',()=>{ if(document.hidden&&ac) ac.suspend(); });
 window.addEventListener('pagehide',()=>{ if(ac) ac.suspend(); });
@@ -63,7 +64,7 @@ window.addEventListener('pagehide',()=>{ if(ac) ac.suspend(); });
 // carries on where it left off (map 2 wave 1 fights like wave 8). The map is chosen when the page loads (?map=N or the
 // saved ddMap) so the hall is built once.
 const MAPS=[
- {id:'hall',name:'THE GNOME HALL',sub:'three gates · seven waves',gw:34,gh:33,crystal:[16,17],waves:7,
+ {id:'hall',crystalHp:300,name:'THE GNOME HALL',sub:'three gates · seven waves',gw:34,gh:33,crystal:[16,17],waves:7,
   build(f,g){ f(10,22,11,23,T.FLOOR);                                   // the great hall
     f(15,17,11,15,T.CARPET); f(10,14,16,18,T.CARPET); f(18,22,16,18,T.CARPET); f(15,17,16,18,T.DAIS); g(16,17,T.CRYSTAL);
     f(15,17,4,10,T.FLOOR); f(14,18,1,3,T.FLOOR); g(16,2,T.SPAWN);          // north gate
@@ -562,7 +563,7 @@ function mobSpd(e){ return e.spd*(e.slowT>0?DEFS.slice.slow:1)*(e.chillT>0?(e.ch
 const MOBS={goblin:{hp:10,spd:3.4,dmg:3,cd:1.0,mana:1,detour:3}, orc:{hp:45,spd:2.1,dmg:8,cd:1.4,mana:3,detour:1}, archer:{hp:22,spd:2.8,dmg:4,cd:1.6,mana:2,ranged:11,detour:4}, drake:{hp:32,spd:2.6,dmg:9,cd:1.8,mana:4,detour:0,fly:2.6}, ogre:{hp:200,spd:1.7,dmg:20,cd:2.2,mana:8,detour:0}, troll:{hp:65,spd:2.3,dmg:10,cd:2.0,mana:6,ranged:13,detour:3},
   trollboss:{hp:340,spd:1.9,dmg:14,cd:2.6,mana:14,ranged:11,splash:2.2,detour:2,healAmt:14,healR:6.5,healCd:3.2}};   // the lavender troll: a healer mini-boss — a slow lob that splashes, and a heal-pulse that mends nearby mobs (kill this one first)
 const DU_CAP=MAP.du||40, SENS=0.0042;   // roots: a bigger map gives more to build with
-const CRYSTAL_MAX=150;   // the crystal's life: half again what it was, so a leak costs a wave, not the run
+const CRYSTAL_MAX=MAP.crystalHp||150;   // the crystal's life: half again what it was, so a leak costs a wave, not the run; a map may set its own (the training ground doubles it)
 const S={mana:MAP.mana||260,du:0,crystal:CRYSTAL_MAX,wave:0,phase:'start',t:0,waveT:0,kills:0};
 function effWave(w){ return MAP.wbase+(w===undefined?S.wave:w); }   // map 2 wave 1 is the eighth wave of the campaign: mobs, loot and pay scale with this
 const hero={x:0,y:0,z:6,vy:0,yaw:PI,hp:100,max:100,swingT:-1,hitDone:false,dead:0,ph:0,moving:false,hurtT:0,grounded:true,reach:2.4};   // reach: how far the swing lands (a whip reaches further than a sword)
@@ -637,9 +638,10 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=132;
+const BUILD=134;
 const HIDEOUT_BUILD=/*HIDEOUT*/0;   // the embedded hideout page's own build number (its <meta name="hideout-build">), stamped in by assemble.mjs when the hideout rides along; 0 in a page without it
-{ const sa=$('standalone'); if(sa&&/github\.io$/i.test(location.hostname)) sa.style.display='none'; }   // the link to the standalone build shows everywhere but on that build
+{ const sa=$('standalone'); if(sa&&/github\.io$/i.test(location.hostname)) sa.style.display='none'; }
+{ const es=$('essentials'); if(es&&TOUCH) es.innerHTML='<kbd>joystick</kbd> move &nbsp;·&nbsp; <kbd>drag</kbd> look &nbsp;·&nbsp; <kbd>⚔</kbd> swing &nbsp;·&nbsp; <kbd>tap a hotbar slot</kbd> to place a defense &nbsp;·&nbsp; <kbd>📯</kbd> sounds the horn &nbsp;·&nbsp; the rest is taught on map one'; }   // the one line a new player needs; the rest is folded below the buttons   // the link to the standalone build shows everywhere but on that build
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+(HIDEOUT_BUILD?' · hideout build '+HIDEOUT_BUILD:'')+' · '+msg; }
 heroStatus('hero model: loading…');   // head.html's own text is a placeholder from an old build; the real number goes up before any model is asked for
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
@@ -1129,7 +1131,7 @@ function frame(now){ requestAnimationFrame(frame); const dt=Math.min(.05,(now-la
 requestAnimationFrame(frame);
 
 // ================= TEST HOOK =================
-window.__dd={placeDefAt,upgradeDef,S,hero,cam,enemies,defs,projs,orbs,loot,grid,DEFS,MOBS,stat,mobSpd,gear:()=>gear,rollItem,dropLoot,resetGear,heroStat,heroMult,heroDmg,kill,Meta,SLOTS,applyGear,saveGear,pickup,tierOf,statStr,RNAME,RCSS,loadHeroGLB,toggleHero,ghost:()=>placing?{x:ghostPos[0],z:ghostPos[1],yaw:ghostYaw,ok:ghostOk,why:ghostReason,stage:placeStage,dist:Math.hypot(ghostPos[0]-hero.x,ghostPos[1]-hero.z),sector:!!ghostSector&&ghostSector.children.length>0}:null,rotateGhost,unstick,music:()=>({on:musicOn,mode:musicMode,step:mStep}),hoverSector:()=>!!hoverSector,heroModel:()=>GLBH?{label:GLBH.label,useGLB,clips:Object.keys(GLBH.map),cur:GLBH.cur?GLBH.cur.getClip().name:null,scale:GLBH.scale,height:GLBH.height,visible:GLBH.wrap.visible}:null,mobTemplate:k=>MOBGLB[k],scene,mobModel:k=>MOBGLB[k]?{clips:Object.keys(MOBGLB[k].map),scale:MOBGLB[k].scale}:null,mobState:e=>e&&e.mdl&&e.mdl.glb?{cur:e.mdl.cur?e.mdl.cur.getClip().name:null,time:e.mdl.cur?e.mdl.cur.time:0}:null,setHeroYaw:d=>{ heroYawOff=d; },deathCut:()=>deathCut,camPos:()=>({x:camera.position.x,y:camera.position.y,z:camera.position.z}),hurtCrystal,SFX,rails:()=>RAILBOXES.map(b=>({x0:+b.x0.toFixed(2),x1:+b.x1.toFixed(2),z0:+b.z0.toFixed(2),z1:+b.z1.toFixed(2),top:+b.top.toFixed(2)})),
+window.__dd={placeDefAt,upgradeDef,S,hero,cam,renderer,camera,enemies,defs,projs,orbs,loot,grid,DEFS,MOBS,stat,mobSpd,gear:()=>gear,rollItem,dropLoot,resetGear,heroStat,heroMult,heroDmg,kill,Meta,SLOTS,applyGear,saveGear,pickup,tierOf,statStr,RNAME,RCSS,loadHeroGLB,toggleHero,ghost:()=>placing?{x:ghostPos[0],z:ghostPos[1],yaw:ghostYaw,ok:ghostOk,why:ghostReason,stage:placeStage,dist:Math.hypot(ghostPos[0]-hero.x,ghostPos[1]-hero.z),sector:!!ghostSector&&ghostSector.children.length>0}:null,rotateGhost,unstick,music:()=>({on:musicOn,mode:musicMode,step:mStep}),hoverSector:()=>!!hoverSector,heroModel:()=>GLBH?{label:GLBH.label,useGLB,clips:Object.keys(GLBH.map),cur:GLBH.cur?GLBH.cur.getClip().name:null,scale:GLBH.scale,height:GLBH.height,visible:GLBH.wrap.visible}:null,mobTemplate:k=>MOBGLB[k],scene,mobModel:k=>MOBGLB[k]?{clips:Object.keys(MOBGLB[k].map),scale:MOBGLB[k].scale}:null,mobState:e=>e&&e.mdl&&e.mdl.glb?{cur:e.mdl.cur?e.mdl.cur.getClip().name:null,time:e.mdl.cur?e.mdl.cur.time:0}:null,setHeroYaw:d=>{ heroYawOff=d; },deathCut:()=>deathCut,camPos:()=>({x:camera.position.x,y:camera.position.y,z:camera.position.z}),hurtCrystal,SFX,rails:()=>RAILBOXES.map(b=>({x0:+b.x0.toFixed(2),x1:+b.x1.toFixed(2),z0:+b.z0.toFixed(2),z1:+b.z1.toFixed(2),top:+b.top.toFixed(2)})),
   start:()=>{ if(S.phase==='start'){ S.phase='build'; $('start').classList.add('hide'); cam.x=hero.x; cam.y=hero.y+5; cam.z=hero.z+8; cam.d=cam.dist; } },
   startWave, place:(k,cx,cz,rot)=>placeDef(k,cx,cz,rot||0), spawn:spawnEnemy, select, confirmPlace, swing, repair, upgrade, sell, jump, setKeys:(o)=>Object.assign(K,o), r:renderer,
   step:(dt,n)=>{ for(let i=0;i<(n||1);i++) update(dt||1/60); },
