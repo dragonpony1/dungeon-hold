@@ -580,6 +580,41 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   in `coop-feedback-test.mjs` surfaced once a fifth broadcast channel joined the others — its section 3 runs an
   entire wave-clear inside ONE synchronous `evaluate()` with no yields, so every queued message only flushes once it
   returns; now polls for the real state instead.
+- The hideout, through the portal (`59-hideout.js`, new; `parts/hideout/`, new; `embedHideout()` in `assemble.mjs`): E at
+  the crystal archway during the build phase now actually goes somewhere, and a 🔮 THE HIDEOUT button on the title
+  screen goes there outside a run. The hideout itself was built in a parallel session as its own standalone page (the
+  `hideout-wip` branch: a first-person room with its own Three.js, pointer-lock WASD, the Trade-O-Matic furniture
+  shop, the Forge's mythic-gear gamble, the Cauldron Cart's tiered sludge crafting, free furniture placement, and a
+  shared gear display backed by a Cloudflare Durable Object). It's folded in exactly as it ships — `parts/hideout/`
+  holds its `index.html`, `vendor/` and `assets/` byte-for-byte, never edited here, so a newer upstream copy drops
+  straight in — and the assembler derives the embedded variant into `dist/hideout/` at build time: site-root paths
+  made relative (the site root isn't `/` on GitHub Pages or the artifact), a `?api=` base for its shared-gear
+  Worker, an exit that knows when it's embedded, and a BACK TO THE HALL button on its entry overlay (its own crystal
+  portal starts unplaced, in the hotbar). Every rewrite is anchored and fails the build loudly if upstream moves.
+  The design decision that's this repo's own: the hideout opens in a full-screen iframe OVER the hall rather than
+  navigating away, so the game page never unloads and a live co-op session (PeerJS dies with the page) survives the
+  trip — both players can be in the hideout at once with the host's game still running underneath, and the shared
+  gear table is what they see in common. The hideout's portal (or that button) posts `hideout:exit` and the overlay
+  drops, leaving you where you stood; the horn sounding pulls you out automatically. `?hideoutnav` switches to the
+  full-page navigation the hideout's own brief describes, for a deployment where its page is served next to the game
+  at the site root (the Worker) — the game already restores gold/xp/level/skills/bag from `ddMeta` on a fresh load,
+  so that round trip works too, at the cost of any co-op session and the abandoned run. THE GEAR HANDOFF follows the
+  hideout's contract: `localStorage` `dd_gear_bag` = per-rarity integer counts (`common`/`uncommon`/`rare`/
+  `legendary`, plus this game's own `epic` under its own name), always read-modify-write and ADDED to — the
+  Cauldron Cart decrements these as it crafts, so an absolute write would resurrect used-up gear — with a field the
+  hideout side owns left untouched. What goes in is the bag: every unequipped piece, which leaves the bag for good;
+  worn gear and the armory's kept treasures are never touched. It's a PROMPT at the portal (CARRY IT ALL & GO / JUST
+  VISIT / STAY), not automatic, since the bag is also where a player parks pieces they mean to equip or sell later.
+  `hideout-test.mjs` (43/43) drives the real E keypress, the prompt, the counts, the iframe actually
+  running the hideout's page with its models loading from `hideout/assets/` and nothing leaking to the site root,
+  the hideout's own acceptance step (its Cauldron Cart reads the carried count, crafting spends it down to 0 in
+  storage, and a later carry lands on that 0 rather than resurrecting what was used up — the whole reason the
+  contract says ADD), both ways out, the title-screen button, a fresh load restoring from `ddMeta`, and the page
+  standalone. The hideout side kept pace in the same afternoon (its `a3e6b0e`): the Cart now reads `dd_gear_bag`,
+  `epic` is one of its default keys, its testing seed is gone, and its Worker answers CORS for
+  `dragonpony1.github.io`, so the game hands the derived page that Worker as its API base when served from GitHub
+  Pages (same-origin everywhere else). Not linked yet: hideout-forged mythic/unique gear coming back into the game
+  (needs a real item database, per the brief).
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

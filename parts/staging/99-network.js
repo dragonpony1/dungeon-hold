@@ -620,7 +620,7 @@ onMessage('place',(data,fromId)=>hostTryPlaceDef(data.kind,data.x,data.z,data.ya
   // outermost/last-loaded) -- relaying unconditionally for a guest would silently break that shortcut every time
   // they're standing at the raven. window.__raven.near() is already a public check (game.js's own H-key handler
   // uses it the same way), so let the raven's own wrapper run first when it applies, and only relay otherwise.
-  upgrade=function(pos){ if(role==='guest'){ if(window.__raven&&window.__raven.near()){ origUpgrade(pos); return; } send('defAction',{action:'upgrade'}); return; } origUpgrade(pos); };
+  upgrade=function(pos){ if(role==='guest'){ if((window.__raven&&window.__raven.near())||(window.__hideout&&window.__hideout.near())){ origUpgrade(pos); return; } /* the raven and the portal are local things, not defenses: E there stays on this machine (59-hideout.js hooks upgrade underneath this) */ send('defAction',{action:'upgrade'}); return; } origUpgrade(pos); };
   sell=function(pos){ if(role==='guest'){ send('defAction',{action:'sell'}); return; } origSell(pos); }; }
 // runs the SAME real repair/upgrade/sell a host click would, from the acting guest's own host-tracked position --
 // briefly swapping out toast() to relay whatever it would have said (success or rejection, the exact same text a
