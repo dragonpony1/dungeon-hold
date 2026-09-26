@@ -1,4 +1,4 @@
-// ===== THE GREAT SETS: the arcane Void set is the first of ten planned. Each is a registry entry: its "of the …" suffix, icon and
+// ===== THE GREAT SETS: the arcane Void set is the first of ten planned; the green Forest set is the starter that teaches the frame. Each is a registry entry: its "of the …" suffix, icon and
 // colour, how rare it is (lowest rarity that can carry it, the chance per drop by wave), what a piece is worth, the sound and
 // light of its drop, the three- and five-piece buffs (percentages on the multiplier hook, and an optional five-piece power that
 // fires on hero hits), and which weapon models stand in until its own arrive. Add a set = add an entry to PACKS.
@@ -15,6 +15,16 @@ addSet({name:'of the Void',ic:'🌌',col:0x8a3dff,css:'#c070ff',emissive:0x5a2bd
   models:{sword:'void',staff:'staff-void',bow:'bow-void',armor:'stand-void'}, /* the sword is the Void's own now, built in 94-voidset.js */ art:{sword:'item-void-sword.webp',armor:'item-void-armor.webp',charm:'item-void-charm.webp',amulet:'item-void-amulet.webp'},   // 2-D card art for the bag, the shop and the sheet (assets/); real files now for sword/armor/charm/amulet — staff (the witch's own weapon-slot art) still doesn't have one, so a witch wearing this set still gets the plain emoji/placeholder for her weapon specifically
   sfx:()=>{ beep(98,.9,'sine',.13,-30); beep(196,.7,'triangle',.05,0); setTimeout(()=>beep(1046,.35,'sine',.045,900),80); setTimeout(()=>beep(1568,.5,'sine',.035,1400),220); noise(.5,.04,6000); },
   onHit:(e,dmg)=>{ const r=rift(e,Math.round(dmg*.4*10)/10); riftFx(e.x,e.y||0,e.z,0x8a3dff); SFX.rift(); return r; }});
+// ---- the Forest: the STARTER set, green like the Uncommon it starts at. Training wheels for map one: a set a new player
+// will actually complete in a run or two, so the whole frame -- wear three, wear five, a power, the aura, the locker
+// reward -- is learned early on pieces that don't matter much. Uncommon+ from wave 1: 30% of such drops through wave 3,
+// fading four points a wave to a 6% floor, worth ×1.5. Small, readable bonuses; BRAMBLE roots what the hero hits.
+addSet({name:'of the Forest',ic:'🌲',col:0x5ad05a,css:'#5ad05a',emissive:0x1f6a2a,minR:1,chance:w=>w<1?0:Math.min(.3,Math.max(.06,.3-.04*(w-3))),valueMul:1.5,
+  three:{hp:.08,move:.04},five:{hp:.15,move:.08,dmg:.10},text:['+8% health · +4% move','+15% health · +8% move · +10% hero damage · BRAMBLE: every hit roots the target in thorns for 1.5 s'],
+  unlock:{id:'stand-forest',name:'Forest Armor Stand',model:'armor-stand-forest.glb',slot:'armor',rarity:1,reason:'The Forest set, complete'},   // the locker reward, so the starter set teaches that too
+  models:{sword:'venom',staff:'staff-hazel',bow:'bow-yew',armor:'stand-forest'},   // the green blade, the plain wood staff and bow, the forest mannequin
+  sfx:()=>{ beep(523,.5,'sine',.07,0); setTimeout(()=>beep(784,.45,'triangle',.05,200),90); setTimeout(()=>beep(1047,.4,'sine',.04,400),180); },   // a rising woodland chime
+  onHit:(e,dmg)=>{ e.slowT=Math.max(e.slowT||0,1.5); riftFx(e.x,e.y||0,e.z,0x5ad05a); return 1; }});
 // ---- the buffs: percentages on the same multiplier hook as skills, keyed by the set so nothing reads them as flat points
 { const prev=Meta.mult; Meta.mult=k=>{ let v=prev(k)||0; for(const {pack,tier} of worn()){ const b=tier>=5?pack.five:pack.three; if(b&&b[k]) v+=b[k]; } return v; }; }
 { const prev=famDmg; famDmg=function(){ return Math.round(prev()*(1+(Meta.mult('fam')||0))*10)/10; }; }
@@ -31,7 +41,9 @@ function riftFx(x,y,z,col){ const m=new THREE.Mesh(RING_GEO,fxMat(col,.9)); m.ro
     if(f.kind==='ring'){ const s=1+f.t*6; f.m.scale.set(s,s,1); f.m.material.opacity=Math.max(0,.9-f.t*2.2); done=f.t>.45; }
     else { f.m.material.opacity=Math.max(0,.55*(1-f.t/3)); f.m.rotation.y+=dt*1.5; f.m.scale.set(1+f.t*.15,1,1+f.t*.15); done=f.t>3; }
     if(done){ scene.remove(f.m); f.m.material.dispose(); FX.splice(i,1); } } }; }
-{ const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); const d=packOf(it); if(d){ SFX.setBong(); if(d.sfx) d.sfx(); floatText(x,1.7,z,d.ic+' A PIECE '+d.name.toUpperCase(),d.css); column(x,z,d.col);
+const HINT_KEY='dd_setHint';   // the first set piece a player ever sees lands with a one-line lesson, once per browser
+function setHint(d){ let seen=false; try{ seen=!!localStorage.getItem(HINT_KEY); localStorage.setItem(HINT_KEY,'1'); }catch(e){} if(seen) return false; setTimeout(()=>toast(d.ic+' A SET PIECE — wear three '+d.name+' for a bonus, all five for its power. Your sheet shows the count.'),1400); return true; }
+{ const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); const d=packOf(it); if(d){ SFX.setBong(); if(d.sfx) d.sfx(); floatText(x,1.7,z,d.ic+' A PIECE '+d.name.toUpperCase(),d.css); column(x,z,d.col); setHint(d);
     const art=itemArt(it), item=l.mesh.userData.item;
     const recolor=()=>l.mesh.traverse(m=>{ if(m.isMesh&&m.material&&m.material.color&&!m.userData.isOL){ m.material=m.material.clone(); m.material.color.set(d.col); if(m.material.emissive) m.material.emissive.set(d.emissive||0); } });
     // a set with an `art` entry but no file there yet (still common: see the "emoji stands in" note above) used to
@@ -78,4 +90,5 @@ function defRingUpdate(){ const pk=fullPack(); const col=pk?pk.col:null;
 Meta.packs={of:packOf,list:()=>Object.keys(PACKS),get:n=>PACKS[n],add:addSet,art:itemArt,artHtml,aura:()=>({on:AURA.meshes.length>0,col:AURA.col,meshes:AURA.meshes.length,attached:AURA.meshes.filter(g=>g.parent).length}),defRings:()=>defs.filter(d=>d.setRing).length};
 window.__void={NAME:'of the Void',isVoid:it=>packOf(it)===PACKS['of the Void'],chance:w=>PACKS['of the Void'].chance(w===undefined?effWave():w),lvl:()=>{ const a=Meta.sets.active().find(x=>x.name==='of the Void'); return a?a.tier:0; },make:it=>makeSet(it,PACKS['of the Void']),fx:()=>FX.length,rift};
 window.__packs=Meta.packs;
+window.__forest={NAME:'of the Forest',isForest:it=>packOf(it)===PACKS['of the Forest'],chance:w=>PACKS['of the Forest'].chance(w===undefined?effWave():w),lvl:()=>{ const a=Meta.sets.active().find(x=>x.name==='of the Forest'); return a?a.tier:0; },make:it=>makeSet(it,PACKS['of the Forest']),HINT_KEY};
 })();

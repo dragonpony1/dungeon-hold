@@ -41,7 +41,7 @@ node familiar-test.mjs                  # the single-file fallback suite reads $
 Suites: feat, loot, glb, place, csp, mob, mobpath, meta, tavern, tavernroom, familiar, familiars2, cone, music, defglb,
 ballista, lootfeel, weapons, towers, paperdoll, casino, ogre, forge, fix-r1, fix-r2, heroes, void, sets, throne, campaign, maps,
 moat, aim, newmobs, trollboss, armory, totem, pause, pwa, share, hideout, loadorder, bagsort, gearlock, coop-rewards,
-voidset, halo-column, ballista-rig, and the verify-* adversarial suites. Run them one at a
+voidset, halo-column, ballista-rig, forestset, and the verify-* adversarial suites. Run them one at a
 time: ten in parallel time out on page loads (the page is 6.8 MB).
 
 ## Adding Meshy art
@@ -733,8 +733,19 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   entry per unlock id) so a reward that has been claimed -- the record leaves the list when the piece goes on display --
   is never granted twice. `voidset-test.mjs` (22/22) walks the grant, the hideout's `rewardSeen` and foreign record
   surviving a re-check, and the claimed reward staying claimed.
+- The Forest set, the starter (`93-gearsets.js`; build 131) -- the first of the map-one training wheels. Green like the
+  Uncommon it starts at: Uncommon+ from wave 1, 30% of such drops through wave 3 fading four points a wave to a 6% floor,
+  worth ×1.5, so a new player completes a set in a run or two and learns the frame on pieces that don't matter much. Three
+  pieces +8% health and +4% move; five +15% health, +8% move, +10% hero damage and BRAMBLE (every hit roots the target
+  1.5 s, a green ring). The venom blade, hazel staff and yew bow stand in, the forest mannequin is its stand, and the
+  full set's locker reward is the Forest Armor Stand (an uncommon reward, so the locker is learned early too). The
+  first set piece a player ever sees lands with a one-line lesson ("wear three for a bonus, all five for its power"),
+  once per browser (`dd_setHint`), and the sheet's set panel lists every registered set with its count, so "of the
+  Forest 0/5" tells a new player a set exists before the first piece lands. `forestset-test.mjs` covers the chance curve from the real roll at waves 0/1/6/12,
+  the Common floor, the lesson firing once, the bonuses on the multiplier hook, the reward, BRAMBLE on a knight's hit,
+  the blade and the aura; `sets-test.mjs` now expects both sets.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
-- Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
+- Eight more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry. The Holy set is next.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
   tower — the seven unnamed `Meshy_AI_model.glb` files were the drake, the first three ballista marks (replaced in build 128), the acorn cannon and the barkeep;
   `frost-1..4.glb` in `assets/` and a fetch line in `50-defmodels.js` would wire it).
