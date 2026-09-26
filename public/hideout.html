@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="12">
+<meta name="hideout-build" content="13">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -14,6 +14,15 @@ canvas{display:block}
 .slot.sel{border-color:#ff8}
 #start{position:fixed;inset:0;background:#000d;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font:16px monospace;text-align:center;cursor:pointer;z-index:10}
 #start b{font-size:22px;color:#8cf}
+#loadWrap{margin-top:18px}
+#loadBar{width:min(360px,80vw);height:12px;border:1px solid #8cf8;border-radius:6px;background:#0008;margin:0 auto 8px;overflow:hidden}
+#loadFill{height:100%;width:0;background:linear-gradient(90deg,#4aa3ff,#a06bff);transition:width 0.25s}
+#loadBar.indeterminate #loadFill{width:35%;animation:loadSlide 1.1s linear infinite}
+@keyframes loadSlide{from{transform:translateX(-100%)}to{transform:translateX(300%)}}
+#loadLine{color:#8cf;font-size:13px}
+#propsBar{position:fixed;top:12px;left:50%;transform:translateX(-50%);display:none;z-index:5;background:#000a;border:1px solid #8cf6;border-radius:8px;padding:6px 12px;color:#8cf;font:12px monospace;pointer-events:none;min-width:240px;text-align:center}
+#propsBar .pbar{height:5px;background:#0008;border-radius:3px;margin-top:5px;overflow:hidden}
+#propsBar .pfill{height:100%;width:0;background:linear-gradient(90deg,#4aa3ff,#a06bff);transition:width 0.25s}
 #msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:#ff8;font:20px monospace;background:#000c;padding:14px 20px;border-radius:8px;display:none}
 #vendWrap{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:20}
 #vendPanel{position:relative;width:min(480px,92vw);max-height:90vh;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px #000a;font-family:Georgia,'Times New Roman',serif}
@@ -110,13 +119,14 @@ canvas{display:block}
 #tooltip{position:fixed;display:none;z-index:50;background:#150e08;color:#ffe9b0;border:1px solid #a5762a;border-radius:6px;padding:5px 10px;font:bold 13px Georgia,serif;pointer-events:none;box-shadow:0 4px 12px #000a;max-width:220px}
 </style>
 </head><body>
-<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: your gear<div id="loadLine" style="margin-top:16px;color:#8cf;font-size:13px">Building the room…</div></div>
+<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: your gear<div id="loadWrap"><div id="loadBar" class="indeterminate"><div id="loadFill"></div></div><div id="loadLine">Loading…</div></div></div>
 <div id="crosshair"></div>
 <div id="hud">Rare Sludge: <b id="sludge">0</b></div>
 <div id="prompt"></div>
 <div id="msg"></div>
 <div id="tooltip"></div>
 <div id="buildTag"></div>
+<div id="propsBar"><div class="ptext"></div><div class="pbar"><div class="pfill"></div></div></div>
 <div id="rewardBanner"><div class="big">YOU'VE GOT REWARDS</div><div class="small"></div></div>
 <div id="inv"></div>
 <div id="vendWrap"><div id="vendPanel">
@@ -180,7 +190,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 12;
+const HIDEOUT_BUILD = 13;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -350,7 +360,10 @@ const wallObjects = []; // the wall tiles — wall art feels for the real surfac
 // and decode all 58.
 const gltfCache = new Map(); // url -> Promise<gltf>
 function loadGltf(url) {
-  if (!gltfCache.has(url)) gltfCache.set(url, new Promise((res, rej) => loader.load(url, res, undefined, rej)));
+  if (!gltfCache.has(url)) gltfCache.set(url, new Promise((res, rej) => loader.load(url,
+    (g) => { noteDone(url); res(g); },
+    (ev) => noteProgress(url, ev),
+    (e) => { noteDone(url); rej(e); })));
   return gltfCache.get(url);
 }
 
@@ -412,15 +425,47 @@ function sourceFor(gid) {
 // Load order: the shell (walls, floor, ceiling) is what makes the room feel loaded, so it goes first and
 // alone; the chandelier and placed props wait for it and then trickle in, machines before furniture.
 const SHELL_FILES = ['floor', 'ceiling', 'wall_plain_1', 'wall_plain_2', 'wall_plain_3', 'wall_entrance'];
-let shellDone = 0;
-function renderLoadLine() {
-  const el = document.getElementById('loadLine');
-  el.textContent = shellDone < SHELL_FILES.length
-    ? 'Building the room… ' + Math.round(shellDone / SHELL_FILES.length * 100) + '%'
-    : 'Room ready';
+const SHELL_URLS = SHELL_FILES.map(n => '/assets/hideout/' + n + '.glb');
+// real progress: bytes per file from the loader's progress events (files add up to ~6.5 MB), not a file count
+const loadStats = new Map(); // url -> {loaded, total, done}
+let shellComplete = false, propsTotal = 0, propsDone = 0;
+function noteProgress(url, ev) {
+  const s = loadStats.get(url) || { loaded: 0, total: 0, done: false };
+  s.loaded = ev.loaded; if (ev.lengthComputable && ev.total) s.total = ev.total;
+  loadStats.set(url, s); renderLoadUI();
 }
-const shellReady = Promise.all(SHELL_FILES.map(n =>
-  loadGltf('/assets/hideout/' + n + '.glb').then(() => { shellDone++; renderLoadLine(); }, () => { shellDone++; renderLoadLine(); })));
+function noteDone(url) {
+  const s = loadStats.get(url) || { loaded: 0, total: 0, done: false };
+  s.done = true; if (s.total) s.loaded = s.total;
+  loadStats.set(url, s); renderLoadUI();
+}
+function phasePct(urls) {
+  let acc = 0;
+  for (const u of urls) { const s = loadStats.get(u); if (!s) continue; acc += s.done ? 1 : (s.total ? Math.min(0.99, s.loaded / s.total) : 0); }
+  return urls.length ? acc / urls.length : 1;
+}
+const fmtMB = b => (b / 1048576).toFixed(1);
+function renderLoadUI() {
+  const fill = document.getElementById('loadFill'), line = document.getElementById('loadLine');
+  document.getElementById('loadBar').classList.remove('indeterminate');
+  let pct, text;
+  if (!shellComplete) {
+    pct = phasePct(SHELL_URLS);
+    let got = 0, tot = 0;
+    SHELL_URLS.forEach(u => { const s = loadStats.get(u); if (s && s.total) { got += s.done ? s.total : s.loaded; tot += s.total; } });
+    text = 'Building the room… ' + Math.round(pct * 100) + '%' + (tot ? ' · ' + fmtMB(got) + ' / ' + fmtMB(tot) + ' MB' : '');
+  } else if (propsDone < propsTotal) {
+    pct = propsDone / propsTotal;
+    text = 'Room ready · placing the furniture ' + propsDone + ' / ' + propsTotal;
+  } else { pct = 1; text = 'Room ready'; }
+  fill.style.width = Math.round(pct * 100) + '%';
+  line.textContent = text;
+  // once you're in, the same furniture progress rides in a slim bar at the top so nothing looks stalled
+  const pb = document.getElementById('propsBar'), showProps = shellComplete && propsDone < propsTotal;
+  pb.style.display = showProps ? 'block' : 'none';
+  if (showProps) { pb.querySelector('.pfill').style.width = Math.round(pct * 100) + '%'; pb.querySelector('.ptext').textContent = 'Placing the furniture ' + propsDone + ' / ' + propsTotal; }
+}
+const shellReady = Promise.all(SHELL_URLS.map(u => loadGltf(u).catch(() => {}))).then(() => { shellComplete = true; renderLoadUI(); });
 
 // floor + ceiling tiles
 for (let ix=0; ix<ROOM_W; ix++) for (let iz=0; iz<ROOM_D; iz++) {
@@ -591,10 +636,15 @@ function tryPickup() {
 // first machine shows up early instead of everything landing together at the end
 async function loadPropsAfterShell() {
   await shellReady;
-  placeProp(PROPS_DIR+'chandelier.glb', 1.0, {x:0, y:GROUND_Y+4.5, z:0}, 0);
   const queue = SAVE.placed.filter(p => hasModel(p.gid))
     .sort((a, b) => (PROP_PRIORITY[a.gid] ?? 5) - (PROP_PRIORITY[b.gid] ?? 5));
-  for (const p of queue) await spawnPlacedItem(p.gid, {x:p.x, y:p.y ?? GROUND_Y, z:p.z}, p.ry);
+  propsTotal = queue.length + 1; propsDone = 0; renderLoadUI();
+  await placeProp(PROPS_DIR+'chandelier.glb', 1.0, {x:0, y:GROUND_Y+4.5, z:0}, 0);
+  propsDone++; renderLoadUI();
+  for (const p of queue) {
+    await spawnPlacedItem(p.gid, {x:p.x, y:p.y ?? GROUND_Y, z:p.z}, p.ry);
+    propsDone++; renderLoadUI();
+  }
 }
 loadPropsAfterShell();
 
