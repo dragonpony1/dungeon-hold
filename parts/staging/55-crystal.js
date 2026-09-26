@@ -12,7 +12,7 @@
       const gA=g.clone(); gA.setIndex(A); const gB=g.clone(); gB.setIndex(B); const mA=mt.clone(); mA.emissive=C(0x1a8ac0); mA.emissiveIntensity=.35; mt.emissive=C(0x000000);
       const a=new THREE.Mesh(gA,mA), bm=new THREE.Mesh(gB,mt); for(const x of [a,bm]){ x.position.copy(m.position); x.quaternion.copy(m.quaternion); x.scale.copy(m.scale); m.parent.add(x); } a.userData.crystal=true; m.parent.remove(m); g.dispose(); }
     return tris; }
-  fetchBytes(ASSET('crystal.glb')).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
+  fetchBytes(ASSET('crystal.glb'),'first').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
     const root=gltf.scene||gltf.scenes[0]; const tris=splitCrystal(root); const fit=fitModel(root,5.6); toonify(root,fit.scale);
     const mats=[]; root.traverse(m=>{ if(m.isMesh&&!m.userData.isOL&&m.userData.crystal){ (Array.isArray(m.material)?m.material:[m.material]).forEach(mt=>mats.push(mt)); } });
     const cg=crystalG.userData.cg; for(const c of crystalG.children.slice()){ if(c!==cg) crystalG.remove(c); }

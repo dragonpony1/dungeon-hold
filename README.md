@@ -617,6 +617,17 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   `dragonpony1.github.io`, so the game hands the derived page that Worker as its API base when served from GitHub
   Pages (same-origin everywhere else). Not linked yet: hideout-forged mythic/unique gear coming back into the game
   (needs a real item database, per the brief).
+- Load order (`fetchBytes`/`firstLoadsDone` in `game.js`; `70-hero2.js`, `55-crystal.js`): "build 21 · hero model:
+  loading…" for minutes on a phone turned out to be queue order, not a hang. Some sixty models (~80MB of base64)
+  are requested the moment the page runs and a browser keeps about six connections open per host, so the hero —
+  requested by a late module — sat behind cannons, mushrooms, totems and armor stands nobody could see yet, and
+  the build line (which only updates once the hero lands) read as "still loading" the whole time. A fetch can now
+  be marked `'first'` (the hero, the crystal: what the start screen actually shows); those go out at once and every
+  other model waits until they have landed, or 15s, whichever comes first. Total bytes are unchanged; the hall is
+  just playable long before the download finishes. The build line also shows the real build number from the first
+  frame now instead of `head.html`'s old placeholder — that literal "build 21" had already sent one real playtest
+  down a cache-clearing rabbit hole. `loadorder-test.mjs` records the real request order and proves the hero and
+  crystal are the first two out, nothing else is even requested until both have finished, and the gate then opens.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

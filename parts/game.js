@@ -637,8 +637,9 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=121;
+const BUILD=122;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
+heroStatus('hero model: loading…');   // head.html's own text is a placeholder from an old build; the real number goes up before any model is asked for
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
   vertexShader:'uniform float t;\n#include <common>\n#include <skinning_pars_vertex>\n#include <fog_pars_vertex>\nvoid main(){\n#include <beginnormal_vertex>\n#include <skinbase_vertex>\nvec3 transformed=position+normalize(objectNormal)*t;\n#include <skinning_vertex>\nvec4 mvPosition=modelViewMatrix*vec4(transformed,1.0); gl_Position=projectionMatrix*mvPosition;\n#include <fog_vertex>\n}',
@@ -704,7 +705,17 @@ const HAS_ASSETS=/*ASSETS*/false;
 const ASSET_STAMPS=/*STAMPS*/{};   // per-file content stamps, filled in by the assembler for the folder build: a changed model gets a new URL, so no browser keeps serving the old one
 const ASSET=n=>ASSET_STAMPS[n]&&/\.glb$/.test(n)?'assets/'+n.replace(/\.glb$/,'')+'.'+ASSET_STAMPS[n]+'.glb.txt':'assets/'+n+(/\.glb$/.test(n)?'.txt':'');   // a model's file name carries its content stamp (witch.1a2b3c4d.glb.txt): a re-export is a new file, and no cache anywhere can hand out the old one
 function fetchRetry(url,tries){ return fetch(url).then(r=>{ if(!r.ok&&tries>1&&r.status!==404) throw new Error('HTTP '+r.status); return r; }).catch(e=>{ if(tries<=1) throw e; return new Promise(res=>setTimeout(res,600*(4-tries))).then(()=>fetchRetry(url,tries-1)); }); }   // three goes at each file, a beat apart: one dropped fetch must not cost the hero model
-function fetchBytes(url){ if(!HAS_ASSETS) return new Promise(()=>{}); const plain=url.replace(/\.[0-9a-f]{8}\.glb\.txt$/,'.glb.txt'); return fetchRetry(url,3).then(r=>r.ok||plain===url?r:fetchRetry(plain,2)).catch(()=>fetchRetry(plain,2)).then(r=>{   /* the unstamped file is kept alongside as a fallback */ if(!r.ok) throw new Error('HTTP '+r.status+' '+url); if(!/\.txt(\?|$)/.test(url)) return r.arrayBuffer(); return r.text().then(t=>{ const b=atob(t.replace(/\s+/g,'')); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u.buffer; }); }); }
+// Load order matters more than load size: some sixty models (~80MB of base64) are requested the moment the page runs,
+// and a browser only keeps ~6 connections open per host, so whatever is asked for last waits for everything before it.
+// The hero used to be near the end of that queue -- 'build 21 · hero model: loading…' for minutes on a phone while
+// cannons and armor stands nobody could see yet came down first. Now a fetch marked 'first' (the hero, the crystal:
+// what the start screen actually shows) goes out at once, and every other model waits until those have landed, or 15s,
+// whichever comes first (so a hung fetch can't hold the whole hall hostage). Total bytes are unchanged; the game just
+// becomes playable long before the download is done.
+const firstLoads=[]; let firstGate=null;
+function firstLoadsDone(){ if(!firstGate) firstGate=new Promise(res=>{ setTimeout(()=>{ Promise.allSettled(firstLoads).then(res); setTimeout(res,15000); },0); }); return firstGate; }   // the snapshot waits one tick so every module's own top-level fetches have been registered first
+function fetchBytes(url,prio){ if(!HAS_ASSETS) return new Promise(()=>{}); if(prio==='first'){ const p=fetchBytesNow(url); firstLoads.push(p.catch(()=>{})); return p; } return firstLoadsDone().then(()=>fetchBytesNow(url)); }
+function fetchBytesNow(url){ const plain=url.replace(/\.[0-9a-f]{8}\.glb\.txt$/,'.glb.txt'); return fetchRetry(url,3).then(r=>r.ok||plain===url?r:fetchRetry(plain,2)).catch(()=>fetchRetry(plain,2)).then(r=>{   /* the unstamped file is kept alongside as a fallback */ if(!r.ok) throw new Error('HTTP '+r.status+' '+url); if(!/\.txt(\?|$)/.test(url)) return r.arrayBuffer(); return r.text().then(t=>{ const b=atob(t.replace(/\s+/g,'')); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u.buffer; }); }); }
 // the hero model itself is fetched by installHero() (70-hero2.js, runs right after this) — H.g (the plain
 // primitive hero) covers the moment before that fetch resolves, same as it always covers a hero switch mid-game.
 // A second, separate fetch here used to race it for a "faster" placeholder (an embedded, synchronous blob in the
