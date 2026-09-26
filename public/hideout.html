@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="14">
+<meta name="hideout-build" content="15">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -190,7 +190,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 14;
+const HIDEOUT_BUILD = 15;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -1407,9 +1407,11 @@ document.getElementById('forgeCraftBtn').onclick = () => {
 };
 
 // ============= CAULDRON CART (salvage carried-in gear, then refine sludge upward) =============
-// Every rarity of gear is worth five of the one below it — common 1, uncommon 5, rare 25, epic 125,
-// legendary 625 in Common Gear terms — without needing an extra sludge tier: epic feeds Legendary
-// Sludge at 5:1 and a legendary piece is a whole Legendary Sludge on its own.
+// Salvage turns SALVAGE_COST pieces of a rarity into one sludge; epic feeds Legendary Sludge directly (there's no
+// epic sludge tier) and a legendary piece is a whole Legendary Sludge on its own. Refine is 5 of a sludge for one of
+// the next. Because every salvage row shares one cost, common/uncommon/rare/epic keep their x5 value steps whatever
+// it's set to; only legendary (fixed at 1) moves relative to epic.
+const SALVAGE_COST = 2; // Matt is trying 2 to see how it feels (was 5)
 const SLUDGE = {
   common:    { name:'Common Sludge',    icon: ITEMS_DIR+'common_sludge.png',    get:()=>SAVE.commonSludge,    add:n=>SAVE.commonSludge+=n },
   uncommon:  { name:'Uncommon Sludge',  icon: ITEMS_DIR+'uncommon_sludge.png',  get:()=>SAVE.uncommonSludge,  add:n=>SAVE.uncommonSludge+=n },
@@ -1417,10 +1419,10 @@ const SLUDGE = {
   legendary: { name:'Legendary Sludge', icon: ITEMS_DIR+'legendary_sludge.png', get:()=>SAVE.legendarySludge, add:n=>SAVE.legendarySludge+=n },
 };
 const RECIPES = [
-  { id:'sv_common',    kind:'salvage', gear:'common',    cost:5, out:'common' },
-  { id:'sv_uncommon',  kind:'salvage', gear:'uncommon',  cost:5, out:'uncommon' },
-  { id:'sv_rare',      kind:'salvage', gear:'rare',      cost:5, out:'rare' },
-  { id:'sv_epic',      kind:'salvage', gear:'epic',      cost:5, out:'legendary' },
+  { id:'sv_common',    kind:'salvage', gear:'common',    cost:SALVAGE_COST, out:'common' },
+  { id:'sv_uncommon',  kind:'salvage', gear:'uncommon',  cost:SALVAGE_COST, out:'uncommon' },
+  { id:'sv_rare',      kind:'salvage', gear:'rare',      cost:SALVAGE_COST, out:'rare' },
+  { id:'sv_epic',      kind:'salvage', gear:'epic',      cost:SALVAGE_COST, out:'legendary' },
   { id:'sv_legendary', kind:'salvage', gear:'legendary', cost:1, out:'legendary' },
   { id:'rf_uncommon',  kind:'refine',  sludge:'common',   cost:5, out:'uncommon' },
   { id:'rf_rare',      kind:'refine',  sludge:'uncommon', cost:5, out:'rare' },
