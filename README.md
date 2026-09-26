@@ -866,6 +866,12 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   preloaded, the "E step through the portal" prompt stopped showing. Hideout build 20 rides along (the Side Table).
   Suites: loadout-test.mjs, halldoors-test.mjs (new), forestset-test.mjs (thorns), armory-test.mjs (the gate checks
   moved to map two, the formula brought up to date).
+- Build 142: the game times its own load. The build line reads "⏱ ready 1.2 s · everything 7.3 s · 34 MB" (ready: hero,
+  crystal and sword; everything: nothing left in flight), and a toast says it if you are already in the hall.
+  `loadtime-test.mjs` measured map two at 109 MB in 60 files, playable after 14 s at 100 Mbps and 60 s at 25 Mbps
+  (map one: 34 MB). The throne room's door (7.6 MB, 4K textures) is fetched once per gate; it and the chandeliers,
+  windows and railings should be fetched once and cloned, and the decor textures cut to 1024 px, as map one's doors were.
+  The hideout preload now waits for the hall's own "everything", so its ~33 MB never competes with a map still loading.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Eight more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry. The Holy set is next.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

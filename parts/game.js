@@ -638,13 +638,22 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=141;
+const BUILD=142;
+// the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
+// performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
+// down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
+// all: the moment nothing is left in flight once 'soon' is done (the rest streamed behind). bytes: what the model fetches
+// transferred (base64 text as sent). Shown on the build line, and as a toast in the hall when everything has arrived.
+const LOADT={page:Math.round(performance.now()),first:null,soon:null,all:null,bytes:0,files:0,inflight:0};
+const fmtS=ms=>(ms/1000).toFixed(1)+' s', fmtMB=b=>(b/1048576).toFixed(b<10485760?1:0)+' MB';
+function loadLine(){ const L=LOADT; if(L.all!==null) return '⏱ ready '+fmtS(L.first)+' · everything '+fmtS(L.all)+' · '+fmtMB(L.bytes); if(L.first!==null) return '⏱ ready '+fmtS(L.first)+' · still loading'; return ''; }
 let HIDEOUT_SHOWN=false, RENDERS=0;   // 59-hideout.js raises HIDEOUT_SHOWN while its overlay covers the hall: the hall keeps simulating (a co-op host must) but stops drawing under it
 const HIDEOUT_BUILD=/*HIDEOUT*/0;   // the embedded hideout page's own build number (its <meta name="hideout-build">), stamped in by assemble.mjs when the hideout rides along; 0 in a page without it
 { const sa=$('standalone'); if(sa&&/github\.io$/i.test(location.hostname)) sa.style.display='none'; }
 { const es=$('essentials'); if(es&&TOUCH) es.innerHTML='<kbd>joystick</kbd> move &nbsp;·&nbsp; <kbd>drag</kbd> look &nbsp;·&nbsp; <kbd>⚔</kbd> swing &nbsp;·&nbsp; <kbd>tap a hotbar slot</kbd> to place a defense &nbsp;·&nbsp; <kbd>📯</kbd> sounds the horn &nbsp;·&nbsp; the rest is taught on map one'; }   // the one line a new player needs; the rest is folded below the buttons   // the link to the standalone build shows everywhere but on that build
 const WASM_OK=(()=>{ try{ new WebAssembly.Module(new Uint8Array([0,97,115,109,1,0,0,0])); return true; }catch(e){ return false; } })();   /* does this host let a page compile WebAssembly? (a Content-Security-Policy without 'wasm-unsafe-eval' refuses it) -- shown on the build line so a playtest can say; the hideout's models are decoded at build time either way (unmeshopt.mjs) */ window.__wasm=WASM_OK;
-function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+(HIDEOUT_BUILD?' · hideout build '+HIDEOUT_BUILD:'')+(WASM_OK?'':' · no wasm')+' · '+msg; }
+let lastStatus='';
+function heroStatus(msg){ if(msg!==undefined) lastStatus=msg; const el=$('buildline'); const ll=loadLine(); if(el) el.textContent='build '+BUILD+(HIDEOUT_BUILD?' · hideout build '+HIDEOUT_BUILD:'')+(WASM_OK?'':' · no wasm')+(ll?' · '+ll:'')+' · '+lastStatus; }
 heroStatus('hero model: loading…');   // head.html's own text is a placeholder from an old build; the real number goes up before any model is asked for
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
@@ -723,8 +732,12 @@ function fetchRetry(url,tries){ return fetch(url).then(r=>{ if(!r.ok&&tries>1&&r
 // first asks for them (see their own modules). Total bytes at rest are unchanged; what changes is when they matter.
 const loadTiers={first:[],soon:[]}; const tierGates={};
 function tierDone(t){ if(!tierGates[t]) tierGates[t]=new Promise(res=>{ setTimeout(()=>{ (t==='soon'?tierDone('first'):Promise.resolve()).then(()=>Promise.allSettled(loadTiers[t])).then(res); setTimeout(res,t==='first'?15000:40000); },0); }); return tierGates[t]; }   // the snapshot waits one tick so every module's own top-level fetches have been registered first
+let loadAllT=null;
+function loadCheck(){ const L=LOADT; if(L.soon===null||L.all!==null||L.inflight>0) return; clearTimeout(loadAllT); loadAllT=setTimeout(()=>{ if(L.inflight>0||L.all!==null) return; L.all=Math.round(performance.now()); heroStatus(); if(S.phase!=='start') toast('⏱ Map loaded: ready in '+fmtS(L.first)+', everything in '+fmtS(L.all)+' · '+fmtMB(L.bytes)); },400); }   // a quiet 0.4 s with nothing in flight after the 'soon' tier: the rest has streamed in
+setTimeout(()=>{ tierDone('first').then(()=>{ LOADT.first=Math.round(performance.now()); heroStatus(); }); tierDone('soon').then(()=>{ LOADT.soon=Math.round(performance.now()); heroStatus(); loadCheck(); }); },0);
 function fetchBytes(url,prio){ if(!HAS_ASSETS) return new Promise(()=>{}); if(prio==='first'){ const p=fetchBytesNow(url); loadTiers.first.push(p.catch(()=>{})); return p; } if(prio==='soon'){ const p=tierDone('first').then(()=>fetchBytesNow(url)); loadTiers.soon.push(p.catch(()=>{})); return p; } return tierDone('soon').then(()=>fetchBytesNow(url)); }
-function fetchBytesNow(url){ const plain=url.replace(/\.[0-9a-f]{8}\.glb\.txt$/,'.glb.txt'); return fetchRetry(url,3).then(r=>r.ok||plain===url?r:fetchRetry(plain,2)).catch(()=>fetchRetry(plain,2)).then(r=>{   /* the unstamped file is kept alongside as a fallback */ if(!r.ok) throw new Error('HTTP '+r.status+' '+url); if(!/\.txt(\?|$)/.test(url)) return r.arrayBuffer(); return r.text().then(t=>{ const b=atob(t.replace(/\s+/g,'')); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u.buffer; }); }); }
+function fetchBytesNow(url){ LOADT.inflight++; LOADT.files++; const done=()=>{ LOADT.inflight--; loadCheck(); }; const p=fetchBytesRaw(url); p.then(done,done); return p; }
+function fetchBytesRaw(url){ const plain=url.replace(/\.[0-9a-f]{8}\.glb\.txt$/,'.glb.txt'); return fetchRetry(url,3).then(r=>r.ok||plain===url?r:fetchRetry(plain,2)).catch(()=>fetchRetry(plain,2)).then(r=>{   /* the unstamped file is kept alongside as a fallback */ if(!r.ok) throw new Error('HTTP '+r.status+' '+url); if(!/\.txt(\?|$)/.test(url)) return r.arrayBuffer().then(ab=>{ LOADT.bytes+=ab.byteLength; return ab; }); return r.text().then(t=>{ LOADT.bytes+=t.length; const b=atob(t.replace(/\s+/g,'')); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u.buffer; }); }); }
 // the hero model itself is fetched by installHero() (70-hero2.js, runs right after this) — H.g (the plain
 // primitive hero) covers the moment before that fetch resolves, same as it always covers a hero switch mid-game.
 // A second, separate fetch here used to race it for a "faster" placeholder (an embedded, synchronous blob in the
@@ -1133,6 +1146,7 @@ function frame(now){ requestAnimationFrame(frame); const dt=Math.min(.05,(now-la
 requestAnimationFrame(frame);
 
 // ================= TEST HOOK =================
+window.__loadtime=()=>Object.assign({},LOADT);
 window.__dd={renders:()=>RENDERS,placeDefAt,upgradeDef,S,hero,cam,renderer,camera,enemies,defs,projs,orbs,loot,grid,DEFS,MOBS,stat,mobSpd,gear:()=>gear,rollItem,dropLoot,resetGear,heroStat,heroMult,heroDmg,kill,Meta,SLOTS,applyGear,saveGear,pickup,tierOf,statStr,RNAME,RCSS,loadHeroGLB,toggleHero,ghost:()=>placing?{x:ghostPos[0],z:ghostPos[1],yaw:ghostYaw,ok:ghostOk,why:ghostReason,stage:placeStage,dist:Math.hypot(ghostPos[0]-hero.x,ghostPos[1]-hero.z),sector:!!ghostSector&&ghostSector.children.length>0}:null,rotateGhost,unstick,music:()=>({on:musicOn,mode:musicMode,step:mStep}),hoverSector:()=>!!hoverSector,heroModel:()=>GLBH?{label:GLBH.label,useGLB,clips:Object.keys(GLBH.map),cur:GLBH.cur?GLBH.cur.getClip().name:null,scale:GLBH.scale,height:GLBH.height,visible:GLBH.wrap.visible}:null,mobTemplate:k=>MOBGLB[k],scene,mobModel:k=>MOBGLB[k]?{clips:Object.keys(MOBGLB[k].map),scale:MOBGLB[k].scale}:null,mobState:e=>e&&e.mdl&&e.mdl.glb?{cur:e.mdl.cur?e.mdl.cur.getClip().name:null,time:e.mdl.cur?e.mdl.cur.time:0}:null,setHeroYaw:d=>{ heroYawOff=d; },deathCut:()=>deathCut,camPos:()=>({x:camera.position.x,y:camera.position.y,z:camera.position.z}),hurtCrystal,SFX,rails:()=>RAILBOXES.map(b=>({x0:+b.x0.toFixed(2),x1:+b.x1.toFixed(2),z0:+b.z0.toFixed(2),z1:+b.z1.toFixed(2),top:+b.top.toFixed(2)})),
   start:()=>{ if(S.phase==='start'){ S.phase='build'; $('start').classList.add('hide'); cam.x=hero.x; cam.y=hero.y+5; cam.z=hero.z+8; cam.d=cam.dist; } },
   startWave, place:(k,cx,cz,rot)=>placeDef(k,cx,cz,rot||0), spawn:spawnEnemy, select, confirmPlace, swing, repair, upgrade, sell, jump, setKeys:(o)=>Object.assign(K,o), r:renderer,

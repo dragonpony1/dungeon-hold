@@ -89,6 +89,6 @@ function passThrough(){ go(true); }
 // pulled back out the moment a visit's phase ends for any reason (the horn, the crystal falling, the last wave held).
 // Polled rather than hooked into Meta.update, since update() itself stops running on the dead/won screens.
 setInterval(()=>{ if(shown&&S.phase!=='build'&&S.phase!=='start') closeHideout(S.phase==='wave'?'The horn sounds — back to the hall!':null);
-  if(!frame&&preloadT===null&&S.phase==='build') preloadT=setTimeout(preload,4000); },250);   // the first build phase of a run: four seconds in (the hall's own priority loads have gone out by then), the hideout starts loading behind the hall
+  if(!frame&&preloadT===null&&S.phase==='build'&&window.__loadtime&&window.__loadtime().all!==null) preloadT=setTimeout(preload,1500); },250);   // build 142: only once the hall's own loads are all in (the load timer's 'everything'), so its ~33 MB never competes with a map still streaming -- map two needs ~109 MB of its own   // the first build phase of a run: four seconds in (the hall's own priority loads have gone out by then), the hideout starts loading behind the hall
 window.__hideout={isOpen:()=>shown,open:openHideout,close:()=>closeHideout(),near:portalNear,url:()=>frame?frame.src:null,opens:()=>opens,preloaded:()=>!!frame&&!shown,loaded:()=>loaded,preload,passThrough,carry:carryGear,lastCarry:()=>lastCarry,readBag,readCarried,BAG_KEY,CARRY_KEY,build:()=>HIDEOUT_BUILD};
 })();
