@@ -1107,14 +1107,17 @@ function sfxSweep(f0, f1, dur, type, gain, delay) {
 function sfxClick() { sfxTone(520, 0.06, 'square', 0.08); }
 function sfxCraftBubble() {
   // a cluster of little staggered "bloop" chirps at random pitches — reads as an actual bubbling cauldron, not one blip
-  const bloops = 8;
+  const bloops = 12;
   for (let i = 0; i < bloops; i++) {
-    const delay = i * 0.06 + Math.random()*0.03;
-    const base = 240 + Math.random()*220;
-    sfxSweep(base, base*2.3, 0.16 + Math.random()*0.09, 'sine', 0.08 + Math.random()*0.04, delay);
+    const delay = i * 0.07 + Math.random()*0.035;
+    const base = 220 + Math.random()*240;
+    sfxSweep(base, base*2.3, 0.16 + Math.random()*0.1, 'sine', 0.08 + Math.random()*0.04, delay);
   }
-  sfxTone(170, 0.7, 'sine', 0.05, 0); // low undertone for body/sustain
-  sfxSweep(500, 1100, 0.3, 'sine', 0.06, 0.45); // little flourish near the end
+  // two slow low "glorps" underneath — bigger bubbles breaking the surface
+  sfxSweep(150, 70, 0.28, 'sine', 0.09, 0.18);
+  sfxSweep(130, 60, 0.32, 'sine', 0.09, 0.62);
+  sfxTone(170, 0.95, 'sine', 0.05, 0); // low undertone for body/sustain
+  sfxSweep(500, 1100, 0.3, 'sine', 0.06, 0.7); // little flourish near the end
 }
 function sfxSuccess() { sfxTone(523, 0.12, 'triangle', 0.14); sfxTone(659, 0.12, 'triangle', 0.14, 0.09); sfxTone(784, 0.22, 'triangle', 0.16, 0.18); }
 function sfxFail() { sfxSweep(220, 70, 0.35, 'sawtooth', 0.16); }
