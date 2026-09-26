@@ -146,17 +146,21 @@ const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
   check("...with their textures decoded (no blob: fetch for the CSP to refuse)",st.textured>=50&&blobErr.length===0,JSON.stringify({textured:st.textured,blobErr:blobErr.slice(0,3)}));
   await p.close(); cspServer.close(); }
 // hideout build 17 ships every model meshopt-compressed and decodes it with vendor/meshopt_decoder.js, a WebAssembly
-// module -- a host whose CSP has no 'wasm-unsafe-eval' refuses to compile that, and then nothing would load. The build
-// decodes the models itself (unmeshopt.mjs) and makes the page's decoder hookup optional, so under a policy with no
-// WebAssembly at all the room still builds.
-{ let n=0, still=0; const walk=d=>{ for(const f of fs.readdirSync(d)){ const q=d+"/"+f; if(fs.statSync(q).isDirectory()) walk(q); else if(/\.glb\.txt$/.test(f)){ n++; const b=Buffer.from(fs.readFileSync(q,"utf8"),"base64"); const jl=b.readUInt32LE(12); const j=JSON.parse(b.slice(20,20+jl).toString()); if((j.extensionsUsed||[]).includes("EXT_meshopt_compression")) still++; } } }; walk(DIST+"/hideout/assets");
-  check("no model in the dist copy of the hideout still carries EXT_meshopt_compression (decoded at build time by unmeshopt.mjs)",n>=30&&still===0,JSON.stringify({models:n,still}));
-  const cspPort=PORT+31; const cspServer=await serve(cspPort,{dist:DIST,csp:"default-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; media-src 'self'"}); const p=await ctx.newPage(); const cons=[]; p.on("console",m=>{ if(m.type()==='error') cons.push(m.text().slice(0,160)); });
+// module. The dist copy mirrors that (a playtest read the build line on the artifact host: it allows WebAssembly), the
+// page wires the decoder, and unmeshopt.mjs -- the UNMESHOPT=1 build-time fallback for a host that refuses it -- still
+// strips the extension from a model in node.
+{ let n=0, comp=0, sample=null; const walk=d=>{ for(const f of fs.readdirSync(d)){ const q=d+"/"+f; if(fs.statSync(q).isDirectory()) walk(q); else if(/\.glb\.txt$/.test(f)){ n++; const b=Buffer.from(fs.readFileSync(q,"utf8"),"base64"); const jl=b.readUInt32LE(12); const j=JSON.parse(b.slice(20,20+jl).toString()); if((j.extensionsUsed||[]).includes("EXT_meshopt_compression")){ comp++; if(!sample) sample={path:q,buf:b}; } } } }; walk(DIST+"/hideout/assets");
+  check("the dist copy of the hideout ships the models meshopt-compressed as upstream slimmed them (hideout build 17)",n>=30&&comp>=30,JSON.stringify({models:n,compressed:comp}));
+  const page=fs.readFileSync(DIST+"/hideout/index.html","utf8");
+  check("the page loads vendor/meshopt_decoder.js and wires it into the loader, guarded so a host that refuses WebAssembly keeps the page",/<script src="vendor\/meshopt_decoder\.js"><\/script>/.test(page)&&/if\(typeof MeshoptDecoder!=='undefined'\) try\{ loader\.setMeshoptDecoder\(MeshoptDecoder\); \}catch\(e\)\{\}/.test(page));
+  const { unmeshopt, readGlb } = await import("./unmeshopt.mjs"); const plain=await unmeshopt(sample.buf,SP+"/parts/hideout/vendor"); const pj=readGlb(plain).json;
+  check("unmeshopt.mjs (the UNMESHOPT=1 fallback) decodes a model in node: the extension is gone, one buffer, the geometry bigger than its compressed form",!(pj.extensionsUsed||[]).includes("EXT_meshopt_compression")&&pj.buffers.length===1&&plain.length>sample.buf.length&&pj.bufferViews.every(v=>v.buffer===0&&!(v.extensions&&v.extensions.EXT_meshopt_compression)),JSON.stringify({from:sample.buf.length,to:plain.length,ext:pj.extensionsUsed}));
+  const cspPort=PORT+31; const cspServer=await serve(cspPort,{dist:DIST,csp:1}); const p=await ctx.newPage();
   await p.goto("http://127.0.0.1:"+cspPort+"/hideout/index.html",{timeout:90000});
-  const wasm=await p.evaluate(()=>{ try{ new WebAssembly.Module(new Uint8Array([0,97,115,109,1,0,0,0])); return 'allowed'; }catch(e){ return 'refused'; } });
+  const dec=await p.waitForFunction(()=>typeof MeshoptDecoder!=='undefined'&&MeshoptDecoder.supported===true,null,{timeout:30000}).then(()=>true).catch(()=>false);
   const built=await p.waitForFunction(()=>typeof scene!=='undefined'&&scene.children.length>=50,null,{timeout:90000}).then(()=>true).catch(()=>false);
-  const st=await p.evaluate(()=>({kids:typeof scene!=='undefined'?scene.children.length:null,textured:typeof scene!=='undefined'?scene.children.filter(o=>{ let t=false; o.traverse(m=>{ if(m.isMesh&&m.material&&m.material.map&&m.material.map.image) t=true; }); return t; }).length:0,decoder:typeof MeshoptDecoder}));
-  check("under a policy that refuses WebAssembly outright the room still builds with its textures: the models need no decoder in the browser",wasm==='refused'&&built&&st.kids>=50&&st.textured>=50,JSON.stringify({wasm,built,st,errs:cons.slice(0,3)}));
+  const st=await p.evaluate(()=>({kids:typeof scene!=='undefined'?scene.children.length:null,textured:typeof scene!=='undefined'?scene.children.filter(o=>{ let t=false; o.traverse(m=>{ if(m.isMesh&&m.material&&m.material.map&&m.material.map.image) t=true; }); return t; }).length:0}));
+  check("with WebAssembly allowed the decoder reports supported and the compressed room builds with its textures",dec&&built&&st.kids>=50&&st.textured>=50,JSON.stringify({dec,built,st}));
   await p.close(); cspServer.close(); }
 // the hideout page carries its own build number (hideout build 9+: <meta name="hideout-build">); the assembler stamps it into the game so the status line shows both builds without opening the overlay
 { const meta=(fs.readFileSync(DIST+"/hideout/index.html","utf8").match(/<meta name="hideout-build" content="(\d+)"/)||[])[1];

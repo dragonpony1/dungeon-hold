@@ -835,6 +835,11 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   artifact host allows it, a later build can ship the compressed models as upstream does. New upstream: the Forest
   armor stand's model and icon (set rewards now come out of the wall locker as furniture), eight hand-set hooks on
   the Carousel Stand.
+- Build 139: the playtest read the build line on the artifact host and it never said "no wasm", so that host allows
+  WebAssembly: the hideout's models now ship meshopt-compressed exactly as upstream slimmed them (16.8 MB raw instead
+  of 21.1), with the decoder wired in the page. The build-time decode stays as a fallback behind `UNMESHOPT=1` for a
+  host that refuses WebAssembly, and the build line keeps its "no wasm" probe. hideout-test.mjs checks the dist
+  mirrors upstream, the decoder reports supported and the room builds, and the fallback still strips a model in node.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Eight more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry. The Holy set is next.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
