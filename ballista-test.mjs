@@ -23,6 +23,6 @@ const r3=await page.evaluate(()=>{ const d=window.__dd; window.__meta.reset(); d
 check("from the throne room floor the bolt climbs to a goblin on the landing two up and hits it",r3.ballistaBase===0&&r3.goblinY>=1.9&&r3.pitch>.05&&r3.boltTop>1.8&&r3.hit>=0,JSON.stringify(r3));
 // screenshot: the ballista tilted up at a drake
 await page.evaluate(()=>{ const d=window.__dd; for(const e of d.enemies) d.kill(e); const t=d.defs.find(x=>x.kind==="harpoon"); const dr=d.spawn("drake","S"); dr.hp=dr.max=1e6; dr.spd=0; dr.x=t.x-1; dr.z=t.z-7; d.step(1/60,2); dr.x=t.x-1; dr.z=t.z-7; d.setHero(t.x+3.5,t.z+4,Math.PI*.85); d.setCam(Math.PI*.85,.12,6); for(let i=0;i<50;i++){ d.step(1/60,1); dr.x=t.x-1; dr.z=t.z-7; } document.getElementById("hud").style.display="none"; window.__freeze=true; });
-await page.waitForTimeout(250); await page.screenshot({path:SP+"/parts/shots/ballista-drake.png"});
+await page.waitForTimeout(250); await page.screenshot({path:SP+"/parts/shots/ballista-drake.png",timeout:120000});
 check("no page errors",errors.length===0,errors.join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");

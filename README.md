@@ -41,7 +41,7 @@ node familiar-test.mjs                  # the single-file fallback suite reads $
 Suites: feat, loot, glb, place, csp, mob, mobpath, meta, tavern, tavernroom, familiar, familiars2, cone, music, defglb,
 ballista, lootfeel, weapons, towers, paperdoll, casino, ogre, forge, fix-r1, fix-r2, heroes, void, sets, throne, campaign, maps,
 moat, aim, newmobs, trollboss, armory, totem, pause, pwa, share, hideout, loadorder, bagsort, gearlock, coop-rewards,
-voidset, halo-column, and the verify-* adversarial suites. Run them one at a
+voidset, halo-column, ballista-rig, and the verify-* adversarial suites. Run them one at a
 time: ten in parallel time out on page loads (the page is 6.8 MB).
 
 ## Adding Meshy art
@@ -707,9 +707,19 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   a build number of its own). The assembler now reads the hideout page's `<meta name="hideout-build">` and stamps it into
   the game (`HIDEOUT_BUILD`), so the status line reads `build 127 · hideout build 9 · …` and Matt can compare the embedded
   copy with the live page without opening the overlay (`__hideout.build()`; the build fails loudly if the meta is missing).
+- New ballista art (build 128): Matt's four Meshy ballistas (`ballista-tier1..4-lowpoly`), run through `meshy/merge-static.mjs`
+  (`yaw=90` so the bolt faces +Z, `tex=512`, the metal/rough maps dropped) from 18-20 MB raw to 1.2 MB each, so the load
+  budget of build 123 is untouched. They are rigged, per the ask, so "the main bow part pans and tilts": `hingeSplit` in
+  `50-defmodels.js` cuts each mark at its waist (`HINGE.harpoon` .53 of the height, the pivot block under the stock) into a
+  pedestal that never moves and a bow assembly hung from a mount at the pedestal's top -- the footprint centre of the
+  slice just under the cut, i.e. the pivot post, not the model's centre, which the long stock pulls forward. The
+  assembly is a `pitch` group (tilts at a drake) inside a `yoke` group (pans to the target, and recoils), so the game's
+  own handles didn't change: `yoke.rotation.y`, `yoke.position.z`, `pitch.rotation.x`. `ballista-rig-test.mjs` loads all
+  four marks and checks the hierarchy, the hinge height, the facing (winch post behind the pivot, bolt tip ahead), a pan at a
+  goblin inside the Mark I arc with the pedestal's meshes provably still, the tilt at a drake, the bolt, and the ghost.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
-  tower — the seven unnamed `Meshy_AI_model.glb` files are the drake, three ballista marks, the acorn cannon and the barkeep;
+  tower — the seven unnamed `Meshy_AI_model.glb` files were the drake, the first three ballista marks (replaced in build 128), the acorn cannon and the barkeep;
   `frost-1..4.glb` in `assets/` and a fetch line in `50-defmodels.js` would wire it).
 - Upgraded gear raises gear score, which nudges mob health up a little (rubber band); revisit if it feels punishing.

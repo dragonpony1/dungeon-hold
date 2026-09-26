@@ -6,16 +6,24 @@ const DEFGLB={};                                                     // kind -> 
 const DEF_H={harpoon:1.6,acorn:1.5,ball:2.2,slice:.6,spike:1.1,totem:2.8,frost:2.4,snare:2.6};              // target heights in world units (about the procedural sizes)
 const DEF_W={slice:5.0,zap:3.2,venom:3.2,ember:3.2,dazzle:3.2};             // flat things fit by footprint width instead (the ring's toadstools stand at radius 2.3) — the halos are the same idea, a low sigil disc, not a spire
 const DEF_TURN=/yoke|turret|swivel|head|top|arm|bow|hub|blade|rotor/i; // a node named like this is the part that turns
-// the ballista's hinge: the bow assembly (everything above HINGE of the model's height — the stock and bow on the pedestal) is
-// cut off into a group named 'pitch' whose origin is the pedestal's top, so it tilts up at a drake while the pedestal stands
-const HINGE={harpoon:.6};
-function hingeSplit(root,frac){ root.updateMatrixWorld(true); const box=new THREE.Box3().setFromObject(root); const ySplit=box.min.y+frac*(box.max.y-box.min.y); const ctr=box.getCenter(new THREE.Vector3()); const meshes=[]; root.traverse(m=>{ if(m.isMesh) meshes.push(m); }); if(!meshes.length) return null;
-  const top=new THREE.Group(); top.name='pitch'; top.position.set(ctr.x,ySplit,ctr.z); let nTop=0, nBot=0;
+// the ballista's rig: the bow assembly (everything above HINGE of the model's height -- the stock, bow and winch post on
+// the pedestal) is cut off into a group named 'pitch' that tilts, inside a group named 'yoke' that pans, both hung from a
+// mount at the pedestal's top (the centre of the slice just under the cut, i.e. the pivot post -- not the model's centre,
+// which the long stock pulls forward). The pedestal itself never moves: it stays a plain child of the root. The game
+// drives the same handles it always did -- yoke.rotation.y to aim (and yoke.position.z for recoil), pitch.rotation.x to
+// tilt at a drake -- so nothing in updateDefs/fire changed for the rig. The cut is by triangle centroid, so a model needs
+// a clean waist between pedestal and stock at HINGE (the Meshy ballistas: their pivot block sits at 45-52% of the height).
+const HINGE={harpoon:.53};
+function hingeSplit(root,frac){ root.updateMatrixWorld(true); const box=new THREE.Box3().setFromObject(root); const H=box.max.y-box.min.y, ySplit=box.min.y+frac*H; const ctr=box.getCenter(new THREE.Vector3()); const meshes=[]; root.traverse(m=>{ if(m.isMesh) meshes.push(m); }); if(!meshes.length) return null;
+  // pass 1: where is the pedestal's top? the footprint centre of the triangles in the slice just under the cut
+  const pb=new THREE.Box3(); let pn=0; for(const m of meshes){ const g=m.geometry, P=g.attributes.position, idx=g.index; const n=idx?idx.count:P.count; const v=new THREE.Vector3(); for(let t=0;t<n;t+=3){ let cx=0,cy=0,cz=0; for(let k=0;k<3;k++){ const i=idx?idx.getX(t+k):t+k; v.fromBufferAttribute(P,i).applyMatrix4(m.matrixWorld); cx+=v.x; cy+=v.y; cz+=v.z; } cy/=3; if(cy<ySplit&&cy>=ySplit-.1*H){ pb.expandByPoint(new THREE.Vector3(cx/3,cy,cz/3)); pn++; } } }
+  const pv=pn?pb.getCenter(new THREE.Vector3()):ctr;
+  const mount=new THREE.Group(); mount.name='mount'; mount.position.set(pv.x,ySplit,pv.z); const yoke=new THREE.Group(); yoke.name='yoke'; mount.add(yoke); const top=new THREE.Group(); top.name='pitch'; yoke.add(top); let nTop=0, nBot=0;
   for(const m of meshes){ const g=(m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone()); g.applyMatrix4(m.matrixWorld); const P=g.attributes.position; const keys=Object.keys(g.attributes); const pick=[[],[]];
     for(let t=0;t<P.count;t+=3){ const cy=(P.getY(t)+P.getY(t+1)+P.getY(t+2))/3; pick[cy>=ySplit?0:1].push(t); }
-    const build=(tris,shift)=>{ if(!tris.length) return null; const ng=new THREE.BufferGeometry(); for(const k of keys){ const a=g.attributes[k], sz=a.itemSize, out=new Float32Array(tris.length*3*sz); let o=0; for(const t of tris) for(let v=t;v<t+3;v++) for(let c=0;c<sz;c++) out[o++]=a.array[v*sz+c]; ng.setAttribute(k,new THREE.BufferAttribute(out,sz)); } if(shift) ng.translate(-ctr.x,-ySplit,-ctr.z); return ng; };
+    const build=(tris,shift)=>{ if(!tris.length) return null; const ng=new THREE.BufferGeometry(); for(const k of keys){ const a=g.attributes[k], sz=a.itemSize, out=new Float32Array(tris.length*3*sz); let o=0; for(const t of tris) for(let v=t;v<t+3;v++) for(let c=0;c<sz;c++) out[o++]=a.array[v*sz+c]; ng.setAttribute(k,new THREE.BufferAttribute(out,sz)); } if(shift) ng.translate(-pv.x,-ySplit,-pv.z); return ng; };
     const gt=build(pick[0],true), gb=build(pick[1],false); m.parent.remove(m); if(gt){ top.add(new THREE.Mesh(gt,m.material)); nTop++; } if(gb){ root.add(new THREE.Mesh(gb,m.material)); nBot++; } }
-  root.add(top); root.userData.hinge={y:ySplit,top:nTop,bottom:nBot}; return top; }
+  root.add(mount); root.userData.hinge={y:ySplit,top:nTop,bottom:nBot,pivot:[+pv.x.toFixed(3),+pv.z.toFixed(3)],slice:pn}; return top; }
 function regDefGLB(kind,gltf,markIdx){ const root=gltf.scene||gltf.scenes[0]; if(HINGE[kind]) hingeSplit(root,HINGE[kind]); let targetH=DEF_H[kind]||2; if(DEF_W[kind]){ root.updateMatrixWorld(true); const sz=new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3()); targetH=DEF_W[kind]*sz.y/Math.max(sz.x,sz.z,1e-6); } const fit=fitModel(root,targetH); toonify(root,fit.scale); let turn=null; root.traverse(o=>{ if(!turn&&o!==root&&DEF_TURN.test(o.name||'')) turn=o.name; }); (DEFGLB[kind]=DEFGLB[kind]||[])[markIdx||0]={wrap:fit.wrap,scale:fit.scale,turn}; }
 function loadDefGLB(kind,b64,markIdx,cb){ try{ const u=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)); new THREE.GLTFLoader().parse(u.buffer,'',gltf=>{ try{ regDefGLB(kind,gltf,markIdx); if(cb) cb(null); }catch(e){ console.warn('defense model '+kind,e); if(cb) cb(e); } },e=>{ console.warn('defense model '+kind,e); if(cb) cb(e); }); }catch(e){ console.warn('defense model '+kind,e); if(cb) cb(e); } }
 function fetchDefGLB(kind,url,markIdx,prio){ fetchBytes(url,prio).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ regDefGLB(kind,gltf,markIdx); }catch(e){ console.warn('defense model '+kind,e); } },e=>console.warn('defense model '+kind,e))).catch(e=>console.warn('defense model '+kind+' ('+url+')',e)); }
@@ -72,4 +80,4 @@ fetchDefGLB('zap',ASSET('aura-zap.glb'),0,'soon'); fetchDefGLB('venom',ASSET('au
       toonify(root,sc); const w=new THREE.Group(); w.add(inner); tpl=w;
     }catch(e){ console.warn('ballista bolt model',e); } },e=>console.warn('ballista bolt model',e))).catch(e=>console.warn('ballista bolt model',e));
   harpoonMesh=function(){ if(!tpl) return proc(); return tpl.clone(); }; }
-window.__defglb={load:loadDefGLB,fetch:fetchDefGLB,ensure:ensureDefMark,asked:()=>Object.keys(DEF_ASKED),list:()=>Object.fromEntries(Object.entries(DEFGLB).map(([k,v])=>[k,v.map(t=>t?{scale:+t.scale.toFixed(3),turn:t.turn}:null)]))};
+window.__defglb={load:loadDefGLB,fetch:fetchDefGLB,ensure:ensureDefMark,template:defTemplate,asked:()=>Object.keys(DEF_ASKED),list:()=>Object.fromEntries(Object.entries(DEFGLB).map(([k,v])=>[k,v.map(t=>t?{scale:+t.scale.toFixed(3),turn:t.turn}:null)]))};
