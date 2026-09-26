@@ -717,6 +717,13 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   own handles didn't change: `yoke.rotation.y`, `yoke.position.z`, `pitch.rotation.x`. `ballista-rig-test.mjs` loads all
   four marks and checks the hierarchy, the hinge height, the facing (winch post behind the pivot, bolt tip ahead), a pan at a
   goblin inside the Mark I arc with the pedestal's meshes provably still, the tilt at a drake, the bolt, and the ghost.
+- Hideout on the artifact host fixed (build 129): under the viewer's strict Content-Security-Policy (`connect-src 'self'`)
+  the hideout's stock `GLTFLoader` turned every embedded texture into a `blob:` URL and fetched it, the policy refused the
+  fetch, every model failed to parse and the room never built ("Building the room… 0%" forever). The game's own loader
+  had this fix already (decode from the bytes with `createImageBitmap`, no object URL, no fetch); `patchHideoutLoader` in
+  `assemble.mjs` now applies the same two anchored rewrites to `dist/hideout/vendor/GLTFLoader.js` at build time, the
+  source copy staying stock. `hideout-test.mjs` (47/47) loads the page under that CSP and checks all six shell files parse
+  and the tiles come in textured with no blob/CSP error. On GitHub Pages nothing changes: no such policy there.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

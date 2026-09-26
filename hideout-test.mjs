@@ -132,6 +132,16 @@ check("standalone: no BACK TO THE HALL button (its own crystal portal is the way
 await page3.close();
 
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
+// under a strict CSP like the artifact host's (connect-src 'self': no blob: fetches), the room still builds -- the
+// embedded textures are decoded from their bytes (patchHideoutLoader in assemble.mjs), not fetched from object URLs
+{ const cspPort=PORT+30; const cspServer=await serve(cspPort,{dist:DIST,csp:1}); const p=await ctx.newPage(); const cons=[]; p.on("console",m=>{ if(m.type()==='error') cons.push(m.text().slice(0,160)); });
+  await p.goto("http://127.0.0.1:"+cspPort+"/hideout/index.html",{timeout:90000});
+  const built=await p.waitForFunction(()=>typeof shellDone!=='undefined'&&shellDone>=6&&typeof scene!=='undefined'&&scene.children.length>=50,null,{timeout:90000}).then(()=>true).catch(()=>false);
+  const st=await p.evaluate(()=>({shellDone:typeof shellDone!=='undefined'?shellDone:null,kids:typeof scene!=='undefined'?scene.children.length:null,line:(document.getElementById('loadline')||{}).textContent||null,textured:typeof scene!=='undefined'?scene.children.filter(o=>{ let t=false; o.traverse(m=>{ if(m.isMesh&&m.material&&m.material.map&&m.material.map.image) t=true; }); return t; }).length:0}));
+  const blobErr=cons.filter(t=>/blob:|Failed to fetch|Content Security Policy/.test(t)&&!/api\/hideout/.test(t));
+  check("under connect-src 'self' the room still builds: all six shell files parse and the tiles are in the scene",built&&st.shellDone>=6&&st.kids>=50,JSON.stringify(st));
+  check("...with their textures decoded (no blob: fetch for the CSP to refuse)",st.textured>=50&&blobErr.length===0,JSON.stringify({textured:st.textured,blobErr:blobErr.slice(0,3)}));
+  await p.close(); cspServer.close(); }
 // the hideout page carries its own build number (hideout build 9+: <meta name="hideout-build">); the assembler stamps it into the game so the status line shows both builds without opening the overlay
 { const meta=(fs.readFileSync(DIST+"/hideout/index.html","utf8").match(/<meta name="hideout-build" content="(\d+)"/)||[])[1];
   const p=await newGamePage(); const got=await p.evaluate(()=>({build:window.__hideout.build(),line:document.getElementById("buildline").textContent})); await p.close();
