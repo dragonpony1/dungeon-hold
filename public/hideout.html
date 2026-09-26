@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="21">
+<meta name="hideout-build" content="22">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -223,13 +223,26 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 21;
+const HIDEOUT_BUILD = 22;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
 // ============= SAVE DATA =============
 const SAVE_KEY = 'dd_hideout_save_v2';
 const STARTER_ITEMS = ['vending_machine', 'sludge_cauldron', 'ore_forge', 'portal', 'wall_locker'];
+// A new player's machines are already standing when they first walk in — trainees come here to get their gear out
+// of the wall locker, so it has to be there waiting. All four stand on the back wall (the one you face coming in),
+// fronts to the room: the wall locker dead ahead, the cauldron and forge either side of it, the Trade-O-Matic in
+// the far-left corner (the far-right panel has the wall's own shelves). The spots were measured against the wall
+// model so nothing sinks into its beams, base stones or lanterns; w/d are each piece's footprint. No y — a piece
+// without one sits on the floor. The portal stays in the hotbar (the game has its own way back to the hall).
+const STARTER_LAYOUT = [
+  { gid: 'wall_locker',     x: 0,      z: -13.12, ry: 0, w: 1.77, d: 1.15 },
+  { gid: 'sludge_cauldron', x: -7.61,  z: -12.6,  ry: 0, w: 3.81, d: 2.09 },
+  { gid: 'ore_forge',       x: 7.61,   z: -12.76, ry: 0, w: 4.94, d: 1.76 },
+  { gid: 'vending_machine', x: -15.22, z: -12.05, ry: 0, w: 3.61, d: 3.06 },
+];
+const starterRecord = (spot) => ({ pid: uid(), gid: spot.gid, x: spot.x, z: spot.z, ry: spot.ry });
 // Furniture you own lives in slots: a 9-slot hotbar (keys 1-9, what you place from) and a bag you drag between.
 // Each placed chest has its own slots. A slot holds one catalog id or null.
 const HOTBAR_SIZE = 9, BAG_SIZE = 27, CHEST_SIZE = 25;
@@ -263,11 +276,30 @@ function loadSave(){
         const i = s.bag.indexOf(null);
         if (i >= 0) s.bag[i] = gid; else s.bag.push(gid);
       });
+      // once per save: a machine a returning player never set down goes to its starter spot, so an old save opens
+      // like a new one. Anything already placed stays where it is, a spot with something standing in it is skipped,
+      // and a machine packed away in a chest stays there. Guarded on its own — this function's outer catch starts
+      // a blank room, and a hiccup here must never cost anyone theirs.
+      if (!s.starterLayout) {
+        try {
+          STARTER_LAYOUT.forEach(spot => {
+            if (s.placed.some(p => p.gid === spot.gid)) return;
+            const busy = s.placed.some(p => !String(p.gid).startsWith('painting_')
+              && Math.abs(p.x - spot.x) < spot.w / 2 + 1.6 && Math.abs(p.z - spot.z) < spot.d / 2 + 1.6);
+            const from = [s.hotbar, s.bag].find(a => a.includes(spot.gid));
+            if (busy || !from) return;
+            from[from.indexOf(spot.gid)] = null;
+            s.placed.push(starterRecord(spot));
+          });
+          s.starterLayout = 1;
+        } catch (e) { console.error('starter layout skipped', e); }
+      }
       return s;
     }
   } catch(e){}
-  return { sludge: 99999, legendarySludge: 20, commonSludge: 0, uncommonSludge: 0, gear: [],
-    hotbar: padSlots(STARTER_ITEMS.slice(), HOTBAR_SIZE), bag: padSlots([], BAG_SIZE), placed: [] };
+  return { sludge: 99999, legendarySludge: 20, commonSludge: 0, uncommonSludge: 0, gear: [], starterLayout: 1,
+    hotbar: padSlots(STARTER_ITEMS.filter(gid => !STARTER_LAYOUT.some(spot => spot.gid === gid)), HOTBAR_SIZE),
+    bag: padSlots([], BAG_SIZE), placed: STARTER_LAYOUT.map(starterRecord) };
 }
 function writeSave(){ localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); }
 const SAVE = loadSave();
