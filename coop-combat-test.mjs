@@ -55,8 +55,26 @@ for(let i=0;i<180;i++){ await hostPage.evaluate(()=>window.__dd.step(1/60,1)); a
 const afterAttack=await hostPage.evaluate((id)=>window.__combat.guestHero(id),guestId);
 check("the guest's simulated hero takes real damage from an enemy that isn't the host's own",
   afterAttack&&afterAttack.hp<spawnState.hp,JSON.stringify({spawned,afterAttack}));
+// this goblin was never removed or stopped, so it kept attacking through the whole 180-tick wait above and could
+// (did, intermittently) kill the guest's hero before direction 2 even starts -- a dead guest's own swing silently
+// does nothing (guestHitCone's own g.dead>0 guard, 99-network.js), which read exactly like a broken swing relay
+// rather than what it actually was: stale test hygiene contaminating the next section. Removing it here, then
+// waiting out any respawn already in progress, keeps direction 2 honestly isolated from direction 1's own combat.
+await hostPage.evaluate(()=>{ const i=window.__dd.enemies.findIndex(e=>e.x===0&&e.z===6.3); if(i>=0) window.__dd.enemies.splice(i,1); });
+for(let i=0;i<300;i++){ const g=await hostPage.evaluate((id)=>window.__combat.guestHero(id),guestId); if(g&&g.dead<=0) break; await hostPage.evaluate(()=>window.__dd.step(1/60,1)); await new Promise(r=>setTimeout(r,16)); }
 
 // --- direction 2: the guest's own swing lands on a real enemy ---
+// the default hero (70-hero2.js) is the witch -- RANGED -- and phase 9 made a ranged guest's shot a real travelling
+// bolt with its own fire-delay+flight time, not an instant hit; switching to the knight first keeps this test's
+// original intent (a melee swing, landing basically immediately) valid rather than needing a much longer wait.
+// installHero() (70-hero2.js) sets hero.reach synchronously but fetches the new hero's GLB asynchronously, and
+// weaponsUpdate() (80-weapons.js) -- the thing that actually drops the old weapon and mounts the new one -- only
+// runs on a real tick, not synchronously with select(); swinging before that settles can still fire as the OLD
+// hero's weapon kind (window.__aim.kind() briefly still reads the just-left-behind ranged weapon), sending it down
+// the wrong relay path in 99-network.js entirely. Poll window.__aim.kind() to null rather than guessing a fixed
+// number of ticks -- the actual settle time depends on real GLB-fetch timing, not just frame count.
+await guestPage.evaluate(()=>window.__heroes.select('knight'));
+for(let i=0;i<30;i++){ const k=await guestPage.evaluate(()=>window.__aim&&window.__aim.kind()); if(!k) break; await guestPage.evaluate(()=>window.__dd.step(1/60,1)); }
 // a second goblin, placed where the guest's swing (facing +Z, standing at 0,6) will land: hitCone-style checks use
 // a forward-facing dot product, so directly in front at melee range is the one unambiguous spot
 const spawned2=await hostPage.evaluate(()=>{ const e=window.__dd.spawn('goblin','S'); e.x=0; e.z=7.5; e.y=0; e.atk=999; return {kind:e.kind,x:e.x,z:e.z,hp:e.hp}; });   // atk pinned high so it never gets a chance to melee back mid-test and confound the read

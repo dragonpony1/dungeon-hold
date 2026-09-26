@@ -65,6 +65,17 @@ check("host registers distinct spawn points for both guests (fix 3, part 1: crea
 // --- fix 2: two swing-triggering inputs in one synchronous task (the same-frame race the review found) must only
 // land ONE hit's worth of damage, not two -- checked FIRST, on guest B, before either guest has ever died, so the
 // host-side guestHitCone's own `g.dead>0` guard can't be the reason nothing lands
+// the default hero (70-hero2.js) is the witch -- RANGED -- and phase 9 made a ranged guest's shot a real travelling
+// bolt, not an instant hit; switching B to the knight first keeps this melee-focused test's own short wait valid,
+// and its expected damage now reads heroDmg() live (phase 8 made this gear-scaled, not the flat GUEST_DMG=8 this
+// test originally hardcoded, back when a guest's damage had no gear-scaling of its own yet). installHero() sets
+// hero.reach synchronously but fetches the new hero's GLB asynchronously, and weaponsUpdate() (80-weapons.js) --
+// the thing that actually drops the old weapon and mounts the new one -- only runs on a real tick; swinging before
+// that settles can still fire as the OLD hero's ranged weapon kind, sent down the wrong relay path entirely
+// (99-network.js). Poll window.__aim.kind() to null rather than guessing a fixed tick count.
+await bPage.evaluate(()=>window.__heroes.select('knight'));
+for(let i=0;i<30;i++){ const k=await bPage.evaluate(()=>window.__aim&&window.__aim.kind()); if(!k) break; await bPage.evaluate(()=>window.__dd.step(1/60,1)); }
+const expectedSwingDmg=await bPage.evaluate(()=>Math.round(window.__dd.heroDmg()*10)/10);
 const spawnedC=await hostPage.evaluate(()=>{ const e=window.__dd.spawn('goblin','E'); e.x=0; e.z=7.5; e.y=0; e.hp=100; e.max=100; e.atk=999; e.__coopId='dblswing'; return {hp:e.hp}; });
 const swingRes=await bPage.evaluate(()=>{ const before=window.__dd.hero.swingT; window.__dd.swing(); const mid=window.__dd.hero.swingT; window.__dd.swing(); const after=window.__dd.hero.swingT; return {before,mid,after}; });
 check("swing() only registers as 'new' on the call that actually transitions swingT (not a same-frame rejected duplicate)",
@@ -73,7 +84,7 @@ for(let b=0;b<10;b++){ for(let i=0;i<5;i++) await bPage.evaluate(()=>window.__dd
 for(let b=0;b<6;b++){ for(let i=0;i<5;i++) await hostPage.evaluate(()=>window.__dd.step(1/60,1)); await new Promise(r=>setTimeout(r,20)); }
 const afterDoubleSwing=await hostPage.evaluate(()=>{ const e=window.__dd.enemies.find(e=>e.__coopId==='dblswing'&&!e.dead); return e?{hp:e.hp}:{hp:null,gone:true}; });
 check("a same-frame double swing() call lands exactly one hit's damage on the host, not two",
-  afterDoubleSwing.hp===spawnedC.hp-8,JSON.stringify({spawnedC,afterDoubleSwing}));
+  afterDoubleSwing.hp===spawnedC.hp-expectedSwingDmg,JSON.stringify({spawnedC,afterDoubleSwing,expectedSwingDmg}));
 await hostPage.evaluate(()=>{ const i=window.__dd.enemies.findIndex(e=>e.__coopId==='dblswing'); if(i>=0) window.__dd.enemies.splice(i,1); });
 
 // --- fix 1: a lethal hit on guest A's host-simulated hero must show up on guest A's OWN local hero (hp/dead), then
