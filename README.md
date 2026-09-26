@@ -531,6 +531,31 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   a guest's own `hitFeedback()` counter and puppet hp catch up the moment their swing lands; the guest's own
   `S.phase` moves to `'dead'`/`'won'` and shows the right overlay text the moment the host's real run ends either
   way, driven through the actual `hurtCrystal()`/last-wave-cleared paths, not a direct phase-assignment shortcut.
+- Co-op, two more real-play join/host bugs, neither one a connectivity problem this module's own code controls, both
+  now handled instead of leaving a player stuck with zero signal. First: PeerJS's own default room code is a full
+  auto-generated UUID — fine for a machine, a real mouthful to read aloud or thumb-type on a phone, which real
+  testing turned up fast ("this giant invite code is a little much"). `hostbtn` now generates its own short,
+  spoken-friendly code (`shortRoomCode`, 5 chars from a 32-symbol alphabet with no ambiguous 0/O/1/I/L) and hands it
+  to `Peer()` as the room's own id, rather than leaving PeerJS to auto-generate one; on the rare real collision
+  (`'unavailable-id'` — the code's already someone else's live game right now) it quietly tries a fresh one, up to a
+  few times, rather than surfacing a confusing error for something this recoverable. Second, and the one that
+  actually stopped a real session cold: WebRTC's own peer-to-peer negotiation can hang indefinitely — neither an
+  `'open'` nor an `'error'` ever fires — on some wifi/cellular networks (symmetric NAT, a firewall blocking UDP, a
+  backgrounded tab throttled mid-negotiation). A real player hit exactly this: "Connecting…" forever, no error, no
+  way to know anything was wrong. `doJoin()` now bounds that wait (`JOIN_TIMEOUT`, 20s) with a real, actionable
+  message — without cancelling the underlying attempt, so a slow connection that lands late still lets them in
+  rather than stranding a connection that did eventually work. `coop-joinux-test.mjs` (11/11, new) proves the short
+  code's format, the collision retry (and that it gives up after a bounded number of tries rather than looping
+  forever), the timeout message itself, and the late-success path, all via mocking `window.__net.host`/`.join`
+  rather than needing a real, deliberately-broken network to reproduce a hang on demand.
+- Co-op, still open: loot never reaches a guest at all — a real player playtest caught this too ("i joined him and
+  never saw any loot drop"). `hostBroadcastHeroes/World/Enemies/Defs` (99-network.js) cover every other shared-hall
+  system, but there's no loot channel; a guest's own local `loot` array (game.js) only ever fills from THEIR OWN
+  local combat, which in co-op never happens, so it stays permanently empty. Bigger than the hit-feedback fix this
+  resembles at first glance: loot isn't just something to render as a puppet, a guest needs to actually be able to
+  collect it into THEIR OWN persistent bag (the whole reason per-player gear was worth building in the first place,
+  phase 8) — needs its own pickup-request/grant round trip, not just a read-only sync. Scoped as follow-up work, not
+  yet started.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

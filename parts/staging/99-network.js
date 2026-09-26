@@ -116,10 +116,16 @@ window.__net={ host, join, leave, send, onMessage, role:()=>role, peers:()=>[...
 // title-screen host/join UI: co-op was previously a window.__net-only API, no in-game way for an ordinary player
 // to actually use it -- these two buttons and their small panels (parts/head.html's #start screen) are that
 // entry point. Wired here rather than game.js, same "co-op UI lives in this module" reasoning as everything else.
-// A host gets shown their room code (PeerJS's own generated id, left to auto-generate -- nothing for them to
-// invent or agree on beforehand) with a copy-to-clipboard tap and a manual "enter the hall" step, so the code
+// A host gets shown their room code with a copy-to-clipboard tap and a manual "enter the hall" step, so the code
 // stays on screen until they've actually shared it; a guest just types the code they were given and connects
-// straight in. game.js's own keydown handler (the Enter/Space -> play() branch, gated on S.phase==='start' with
+// straight in. The code itself is a short, spoken/typed-friendly one this module generates and hands to Peer()
+// as the room's own id (shortRoomCode below) -- PeerJS's own default auto-generated id is a full UUID, fine for a
+// machine but a real mouthful to read out or thumb-type on a phone, which real testing turned up fast. A 5-char
+// code from a 32-symbol alphabet (no 0/O/1/I/L, easy to tell apart read aloud) is plenty for a handful of friends
+// hosting at once; on the rare real collision (PeerJS's 'unavailable-id', the room's already taken by someone
+// else's live game right now) hostbtn below just quietly tries a fresh code, up to a few times, rather than
+// surfacing a confusing error for something this recoverable. game.js's own keydown handler (the Enter/Space ->
+// play() branch, gated on S.phase==='start' with
 // no check for whether an input has focus) would otherwise also fire while typing a code that happens to include
 // a space, or on the Enter that's meant to submit it -- guarded the same way 60-lootfeel.js/65-tavernroom.js's own
 // input-conflicting hotkeys already are, with stopPropagation on the input's own keydown before it can bubble.
@@ -127,23 +133,49 @@ window.__net={ host, join, leave, send, onMessage, role:()=>role, peers:()=>[...
 // override exists purely so a test harness can point these same real buttons at a local signaling server instead,
 // the same test-only escape hatch host()/join() themselves already take as a parameter.
 const TEST_PEER_OPTS=Q.get('peerhost')?{host:Q.get('peerhost'),port:+Q.get('peerport')||9000,path:Q.get('peerpath')||'/peerjs'}:undefined;
+// a 5-char code from a 32-symbol alphabet (no 0/O/1/I/L -- easy to tell apart read aloud or thumb-typed) rather
+// than PeerJS's own default auto-generated id, a full UUID: fine for a machine, a real mouthful for a person
+function shortRoomCode(){ const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<5;i++) s+=A[Math.floor(Math.random()*A.length)]; return s; }
 { const hostbtn=$('hostbtn'), joinbtn=$('joinbtn'), coopRow=$('coopRow'), hostPanel=$('hostPanel'), hostMsg=$('hostMsg'),
     joinPanel=$('joinPanel'), joinCode=$('joinCode'), joinGoBtn=$('joinGoBtn'), joinMsg=$('joinMsg');
   hostbtn.addEventListener('click',()=>{
     coopRow.classList.add('hide'); hostPanel.classList.remove('hide'); hostMsg.textContent='Opening the gate…';
-    window.__net.host(undefined,(err,id)=>{
-      if(err){ hostMsg.textContent="Couldn't open a game — try again?"; hostPanel.classList.add('hide'); coopRow.classList.remove('hide'); return; }
-      hostMsg.innerHTML='Share this code with your friend:<br><span class="netCode" id="hostCode">'+id+'</span><br><button class="big" id="hostEnterBtn">▶ ENTER THE HALL</button>';
-      $('hostCode').addEventListener('click',()=>{ const c=$('hostCode'); try{ navigator.clipboard.writeText(id); c.textContent='copied!'; setTimeout(()=>{ c.textContent=id; },900); }catch(e){} });
-      $('hostEnterBtn').addEventListener('click',play);
-    },TEST_PEER_OPTS);
+    let tries=0;
+    const tryHost=()=>{
+      window.__net.host(shortRoomCode(),(err,id)=>{
+        if(err){
+          if(err.type==='unavailable-id'&&tries<4){ tries++; tryHost(); return; }   // a real collision on the room code itself -- quietly try a fresh one rather than surface a confusing error for something this recoverable
+          hostMsg.textContent="Couldn't open a game — try again?"; hostPanel.classList.add('hide'); coopRow.classList.remove('hide'); return;
+        }
+        hostMsg.innerHTML='Share this code with your friend:<br><span class="netCode" id="hostCode">'+id+'</span><br><button class="big" id="hostEnterBtn">▶ ENTER THE HALL</button>';
+        $('hostCode').addEventListener('click',()=>{ const c=$('hostCode'); try{ navigator.clipboard.writeText(id); c.textContent='copied!'; setTimeout(()=>{ c.textContent=id; },900); }catch(e){} });
+        $('hostEnterBtn').addEventListener('click',play);
+      },TEST_PEER_OPTS);
+    };
+    tryHost();
   });
   joinbtn.addEventListener('click',()=>{ coopRow.classList.add('hide'); joinPanel.classList.remove('hide'); joinCode.focus(); });
+  // WebRTC's own peer-to-peer negotiation (the actual connect, once both sides have reached the signaling server
+  // fine) can just hang with neither an 'open' nor an 'error' ever firing -- a real, common failure mode on some
+  // wifi/cellular networks (symmetric NAT, a firewall blocking UDP, one side's tab backgrounded and throttled by
+  // the browser mid-negotiation), not something this module's own code controls. Left unguarded, a real player
+  // hit exactly this: "Connecting…" forever, no error, no way to know anything was even wrong. JOIN_TIMEOUT below
+  // doesn't cancel the underlying attempt (a slow real connection can still land after it fires -- settled just
+  // stops the SAME outcome from being reported twice) -- it only stops leaving the player staring at an unchanging
+  // message with zero signal, after a wait generous enough not to false-positive on an ordinary slow connection.
+  const JOIN_TIMEOUT=+Q.get('jointimeout')||20000;   // test-only override (?jointimeout=300), same escape-hatch idiom as peerhost/peerport/peerpath above
   function doJoin(){
     const code=joinCode.value.trim(); if(!code) return;
     joinMsg.textContent='Connecting…'; joinMsg.classList.remove('err'); joinGoBtn.disabled=true;
+    let settled=false;
+    const timer=setTimeout(()=>{
+      if(settled) return; settled=true; joinGoBtn.disabled=false;
+      joinMsg.textContent="Still not connecting — this can happen on some wifi/cellular networks. Double-check the code, make sure your friend's tab is open and active, or try again.";
+      joinMsg.classList.add('err');
+    },JOIN_TIMEOUT);
     window.__net.join(code,err=>{
-      joinGoBtn.disabled=false;
+      if(settled){ if(!err) play(); return; }   // a late success after the timeout already showed -- still let them in rather than strand a connection that did eventually land
+      settled=true; clearTimeout(timer); joinGoBtn.disabled=false;
       if(err){ joinMsg.textContent="Couldn't connect — check the code and try again."; joinMsg.classList.add('err'); return; }
       play();
     },TEST_PEER_OPTS);
