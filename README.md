@@ -825,6 +825,16 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   complete. Now a Forest piece never asks for a level, map one has no gate at all (the training ground teaches
   equipping, not levels), and a refusal on a later map explains itself on the lesson card. The sheet's red Lv tag
   follows the same rule. The 🎓 reset button no longer throws.
+- Build 138: hideout build 17 rides along. Upstream now ships every hideout model meshopt-compressed and decodes it in
+  the browser with vendor/meshopt_decoder.js, a WebAssembly module. A host whose Content-Security-Policy has no
+  'wasm-unsafe-eval' (the artifact viewer's policy is not ours to set) refuses to compile that, and then no model
+  would load at all. So the build decodes the models itself: `unmeshopt.mjs` runs the same decoder in node over the
+  dist copy (30 models, 16.8 to 21.1 MB raw) and the page's decoder hookup is made optional, so the room builds even
+  under a policy that refuses WebAssembly outright (hideout-test.mjs loads it under one). parts/hideout stays
+  byte-for-byte upstream. The build line shows "no wasm" on a host that refuses it, so a playtest can say; if the
+  artifact host allows it, a later build can ship the compressed models as upstream does. New upstream: the Forest
+  armor stand's model and icon (set rewards now come out of the wall locker as furniture), eight hand-set hooks on
+  the Carousel Stand.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Eight more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry. The Holy set is next.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

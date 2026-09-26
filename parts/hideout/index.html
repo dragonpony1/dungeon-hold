@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="16">
+<meta name="hideout-build" content="17">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -186,11 +186,12 @@ canvas{display:block}
 
 <script src="/vendor/three.min.js"></script>
 <script src="/vendor/GLTFLoader.js"></script>
+<script src="/vendor/meshopt_decoder.js"></script>
 <script>
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 16;
+const HIDEOUT_BUILD = 17;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -284,6 +285,22 @@ const MODEL_MAP = {
   wall_locker: 'arcane_wardrobe.glb',
 };
 
+// Armor stands: the game's reward for completing a gear set. It arrives in the wall locker as a dd_gear_carried
+// reward whose record names a model ({id:'reward-stand-forest', model:'armor-stand-forest.glb', ...} — see the game's
+// 94-voidset.js); taking it out turns it into furniture on the hotbar. The game keeps its own ledger of what it granted,
+// so removing the record when it's taken is expected. A set only becomes placeable once its model is in props/.
+const STAND_SETS = ['forest', 'void', 'angelic', 'crimson', 'ice', 'lava', 'rock', 'shadow', 'storm', 'wind'];
+const STAND_MODELS = new Set(['forest']); // sets whose armor-stand-<set>.glb is in props/
+STAND_SETS.forEach(s => {
+  const gid = 'stand_' + s;
+  GEAR[gid] = { name: s[0].toUpperCase() + s.slice(1) + ' Armor Stand', icon: ITEMS_DIR + 'armor-stand-' + s + '.png', cost: 0, notShop: true };
+  if (STAND_MODELS.has(s)) MODEL_MAP[gid] = 'armor-stand-' + s + '.glb';
+});
+function standGidFor(rec) {
+  const m = /^reward-stand-(\w+)$/.exec(rec.id || '') || /^armor-stand-(\w+)\.glb$/.exec(rec.model || '');
+  return m && GEAR['stand_' + m[1]] ? 'stand_' + m[1] : null;
+}
+
 // rarity table shared by the cauldron, the gear panel and the shared display — colors match the main game's
 // RCSS table (parts/game.js on the main branch) so a rarity reads the same on both sides of the portal
 const RARITIES = [
@@ -319,6 +336,19 @@ const torch2 = new THREE.PointLight(0xffaa55, 1.2, 18); torch2.position.set(10.5
 const torch3 = new THREE.PointLight(0xffaa55, 1.2, 18); torch3.position.set(-10.5,4,7.7); scene.add(torch3);
 const torch4 = new THREE.PointLight(0xffaa55, 1.2, 18); torch4.position.set(10.5,4,-7.7); scene.add(torch4);
 const chandelierLight = new THREE.PointLight(0xffcc88, 2.6, 24); chandelierLight.position.set(0, 5.5, 0); scene.add(chandelierLight);
+// The number of point lights is baked into every compiled shader, so adding one (a machine landing, the wardrobe
+// starting to steam) made every material in the room recompile — a big part of the hitching while the room loaded.
+// Instead a fixed set is created up front, dark, and handed out.
+const LIGHT_POOL_SIZE = 6;
+const lightPool = [];
+for (let i = 0; i < LIGHT_POOL_SIZE; i++) { const l = new THREE.PointLight(0xffffff, 0, 1); l.position.set(0, -50, 0); scene.add(l); lightPool.push(l); }
+function takeLight(color, intensity, distance, x, y, z) {
+  let l = lightPool.pop();
+  if (!l) { l = new THREE.PointLight(); scene.add(l); } // more lit fixtures than the pool still works, it just costs one recompile
+  l.color.setHex(color); l.intensity = intensity; l.distance = distance; l.position.set(x, y, z);
+  return l;
+}
+function releaseLight(l) { l.intensity = 0; l.position.set(0, -50, 0); lightPool.push(l); }
 
 const GROUND_Y = 0.4825; // the floor.glb slab has real thickness — its walkable top sits above y=0, not at it
 const EYE_HEIGHT = 2.05; // height of the player's eyes above the ground (used as a "human scale" ratio too)
@@ -353,6 +383,7 @@ camera.rotation.set(pitch, yaw, 0);
 
 // ============= ROOM (5 wide x 4 deep modules) =============
 const loader = new THREE.GLTFLoader();
+loader.setMeshoptDecoder(MeshoptDecoder); // model geometry is meshopt-compressed (tools/slim-all.js)
 const SCALE = 4;
 const MODW = 7.61, MODD = 7.02, WALLH = 7.0;
 const ROOM_W = 5, ROOM_D = 4;
@@ -364,12 +395,37 @@ const wallObjects = []; // the wall tiles — wall art feels for the real surfac
 // scene, sharing its geometry and textures — the room is 58 tiles from 6 files, and this used to download
 // and decode all 58.
 const gltfCache = new Map(); // url -> Promise<gltf>
+const gltfReady = new Set(); // urls whose promise has resolved, so a ghost can tell instantly whether it must wait
 function loadGltf(url) {
   if (!gltfCache.has(url)) gltfCache.set(url, new Promise((res, rej) => loader.load(url,
-    (g) => { noteDone(url); res(g); },
+    (g) => { dequantize(g.scene); gltfReady.add(url); noteDone(url); res(g); },
     (ev) => noteProgress(url, ev),
     (e) => { noteDone(url); rej(e); })));
   return gltfCache.get(url);
+}
+// Compressed models store vertices as small integers the GPU scales back up. This three.js raycasts against the raw
+// integers, so anything that aims at a model's real surface (painting wall-snap, shelf-spot detection) would miss.
+// Turning them back into plain floats once, on load, keeps all of that working; the download stays small.
+const NORM_DIV = { Int8Array: 127, Uint8Array: 255, Int16Array: 32767, Uint16Array: 65535 };
+function dequantize(root) {
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    const g = o.geometry;
+    for (const name of Object.keys(g.attributes)) {
+      const a = g.attributes[name];
+      const arr = a.isInterleavedBufferAttribute ? a.data.array : a.array;
+      if (arr instanceof Float32Array && !a.isInterleavedBufferAttribute) continue;
+      const div = a.normalized ? (NORM_DIV[arr.constructor.name] || 1) : 1;
+      const signed = arr instanceof Int8Array || arr instanceof Int16Array;
+      const n = a.count, s = a.itemSize, f = new Float32Array(n * s);
+      const get = [a.getX, a.getY, a.getZ, a.getW];
+      for (let i = 0; i < n; i++) for (let c = 0; c < s; c++) {
+        const v = get[c].call(a, i) / div;
+        f[i * s + c] = a.normalized && signed ? Math.max(v, -1) : v;
+      }
+      g.setAttribute(name, new THREE.BufferAttribute(f, s));
+    }
+  });
 }
 
 function place(name, rx, ry, pos, scaleY) {
@@ -413,14 +469,30 @@ function makePainting(gid) {
   const g = new THREE.Group();
   const back = box(p.w, p.h, 0.08, 0x2a1a0e); back.position.z = -0.04; g.add(back);
   const tex = texLoader.load(GEAR[gid].icon);
-  // a little self-light so a painting in a dark corner still reads, without looking like a lightbox
+  // treated as sRGB like every model's colour texture, so a painting is lit the same way as the furniture around it —
+  // without this (plus the glow it used to have) they came out pale and washed out
+  tex.encoding = THREE.sRGBEncoding;
   const front = new THREE.Mesh(new THREE.PlaneGeometry(p.w, p.h),
-    new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: new THREE.Color(0x505050), roughness: 0.85 }));
+    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }));
   front.position.z = 0.002; g.add(front);
   return g;
 }
 const BUILTIN_MODELS = {};
 Object.keys(PAINTINGS).forEach(gid => { BUILTIN_MODELS[gid] = () => makePainting(gid); });
+
+// The Side Table and Heraldic Rug were on sale before they had 3D models, so a bought one could never be placed.
+// They're off the shelf now (SHOP_STOCK), and any sitting in the hotbar are refunded once.
+(function refundUnplaceable() {
+  const gone = [];
+  SAVE.inv = SAVE.inv.filter(gid => {
+    if (!GEAR[gid] || hasModel(gid)) return true;
+    SAVE.sludge += GEAR[gid].cost || 0; gone.push(GEAR[gid].name); return false;
+  });
+  if (!gone.length) return;
+  writeSave();
+  document.getElementById('sludge').textContent = SAVE.sludge;
+  setTimeout(() => flashMsg('Refunded — no 3D model yet: ' + gone.join(', ')), 2500);
+})();
 function hasModel(gid) { return !!(MODEL_MAP[gid] || BUILTIN_MODELS[gid]); }
 function sourceFor(gid) {
   if (MODEL_MAP[gid]) return loadGltf(PROPS_DIR + MODEL_MAP[gid]).then(g => g.scene);
@@ -524,11 +596,13 @@ function box(w,h,d,color) {
 const PROPS_DIR = '/assets/hideout/props/';
 const PROP_PRIORITY = { portal: 0, vending_machine: 1, ore_forge: 1, sludge_cauldron: 1 }; // the things you walk up to first
 
-const SCALE_MAP = { vending_machine: (EYE_HEIGHT/1.90)*3.5*0.75, sludge_cauldron: 2.0, ore_forge: 2.6, portal: 2.0, wall_locker: 1.5, painting_triumph: 1.0, painting_hug: 1.0, painting_tease: 1.0, painting_company: 1.0 }; // portal scale kept modest on purpose — easy to bump up once Matt sees it in place
+const SCALE_MAP = { vending_machine: (EYE_HEIGHT/1.90)*3.5*0.75, sludge_cauldron: 2.0, ore_forge: 2.6, portal: 2.0, wall_locker: 1.5, painting_triumph: 1.0, painting_hug: 1.0, painting_tease: 1.0, painting_company: 1.0 };
+STAND_SETS.forEach(s => { SCALE_MAP['stand_' + s] = 1.35; }); // raw models are 2 units tall -> 2.7, a touch taller than the player // portal scale kept modest on purpose — easy to bump up once Matt sees it in place
 const DEFAULT_PLACE_SCALE = 1.7; // every Meshy prop is normalized so its longest axis is ~1.9 raw units regardless of what it is, so scale 1.0 reads as toy-sized next to the player
 function scaleFor(gid) { return SCALE_MAP[gid] || DEFAULT_PLACE_SCALE; }
 const pickupables = []; // every freely-placed item can be picked back up, separate from its "use" interaction (if any)
 const RADIUS_MAP = { vending_machine: 2.3, sludge_cauldron: 2.1, ore_forge: 2.4, portal: 1.4, wall_locker: 1.0 };
+STAND_SETS.forEach(s => { RADIUS_MAP['stand_' + s] = 0.6; });
 function spawnPlacedItem(gid, pos, ry) {
   const scale = scaleFor(gid);
   const r = RADIUS_MAP[gid] || 0.9*scale;
@@ -547,9 +621,7 @@ function spawnPlacedItem(gid, pos, ry) {
       scene.add(hit);
       entry.useHit = hit;
       interactables.push({ mesh: hit, prompt: 'E: Use the Trade-O-Matic', onUse: openVending });
-      entry.light = new THREE.PointLight(0xcc88ff, 2.2, 14);
-      entry.light.position.set(pos.x, pos.y+3, pos.z);
-      scene.add(entry.light);
+      entry.light = takeLight(0xcc88ff, 2.2, 14, pos.x, pos.y+3, pos.z);
     }
     if (gid === 'ore_forge') {
       const hit = new THREE.Mesh(new THREE.BoxGeometry(4.2,3.2,4.2), new THREE.MeshBasicMaterial({visible:false}));
@@ -557,9 +629,7 @@ function spawnPlacedItem(gid, pos, ry) {
       scene.add(hit);
       entry.useHit = hit;
       interactables.push({ mesh: hit, prompt: 'E: Use the Forge', onUse: openForge });
-      entry.light = new THREE.PointLight(0xff8833, 2.2, 14);
-      entry.light.position.set(pos.x, pos.y+2.5, pos.z);
-      scene.add(entry.light);
+      entry.light = takeLight(0xff8833, 2.2, 14, pos.x, pos.y+2.5, pos.z);
     }
     if (gid === 'sludge_cauldron') {
       const hit = new THREE.Mesh(new THREE.BoxGeometry(4.0,3.4,4.0), new THREE.MeshBasicMaterial({visible:false}));
@@ -567,9 +637,7 @@ function spawnPlacedItem(gid, pos, ry) {
       scene.add(hit);
       entry.useHit = hit;
       interactables.push({ mesh: hit, prompt: 'E: Use the Cauldron Cart', onUse: openCauldron });
-      entry.light = new THREE.PointLight(0xcc66ff, 2.2, 14);
-      entry.light.position.set(pos.x, pos.y+2.5, pos.z);
-      scene.add(entry.light);
+      entry.light = takeLight(0xcc66ff, 2.2, 14, pos.x, pos.y+2.5, pos.z);
     }
     if (gid === 'portal') {
       const hit = new THREE.Mesh(new THREE.BoxGeometry(2.4,4.2,1.8), new THREE.MeshBasicMaterial({visible:false}));
@@ -577,9 +645,7 @@ function spawnPlacedItem(gid, pos, ry) {
       scene.add(hit);
       entry.useHit = hit;
       interactables.push({ mesh: hit, prompt: 'E: Step through the portal', onUse: usePortal });
-      entry.light = new THREE.PointLight(0x66ccff, 2.4, 12);
-      entry.light.position.set(pos.x, pos.y+2.2, pos.z);
-      scene.add(entry.light);
+      entry.light = takeLight(0x66ccff, 2.4, 12, pos.x, pos.y+2.2, pos.z);
     }
     if (gid === 'wall_locker') {
       const hit = new THREE.Mesh(new THREE.BoxGeometry(2.2,3.3,1.4), new THREE.MeshBasicMaterial({visible:false}));
@@ -627,8 +693,8 @@ function tryPickup() {
   if (entry.obj) scene.remove(entry.obj);
   scene.remove(entry.pickHit);
   if (entry.useHit) { scene.remove(entry.useHit); interactables.splice(interactables.findIndex(i => i.mesh === entry.useHit), 1); }
-  if (entry.light) scene.remove(entry.light);
-  if (entry.fx) { scene.remove(entry.fx.points); scene.remove(entry.fx.light); arcaneFx.splice(arcaneFx.indexOf(entry.fx), 1); }
+  if (entry.light) releaseLight(entry.light);
+  if (entry.fx) { scene.remove(entry.fx.points); releaseLight(entry.fx.light); arcaneFx.splice(arcaneFx.indexOf(entry.fx), 1); }
   if (entry.collider) colliders.splice(colliders.indexOf(entry.collider), 1);
   pickupables.splice(pickupables.indexOf(entry), 1);
   const idx = SAVE.placed.findIndex(p => p.gid===entry.gid && p.x===entry.x && p.z===entry.z && p.ry===entry.ry);
@@ -638,19 +704,27 @@ function tryPickup() {
   flashMsg('Picked up ' + GEAR[entry.gid].name);
 }
 
-// re-spawn anything the player freely placed in a previous visit — after the shell, one at a time so the
-// first machine shows up early instead of everything landing together at the end
+// re-spawn anything the player freely placed in a previous visit — after the shell, three downloads at a time in
+// priority order (portal, machines, then furniture), so the connection stays busy without the furniture crowding
+// out the things you walk up to first
 async function loadPropsAfterShell() {
   await shellReady;
-  const queue = SAVE.placed.filter(p => hasModel(p.gid))
-    .sort((a, b) => (PROP_PRIORITY[a.gid] ?? 5) - (PROP_PRIORITY[b.gid] ?? 5));
-  propsTotal = queue.length + 1; propsDone = 0; renderLoadUI();
-  await placeProp(PROPS_DIR+'chandelier.glb', 1.0, {x:0, y:GROUND_Y+4.5, z:0}, 0);
-  propsDone++; renderLoadUI();
-  for (const p of queue) {
-    await spawnPlacedItem(p.gid, {x:p.x, y:p.y ?? GROUND_Y, z:p.z}, p.ry);
-    propsDone++; renderLoadUI();
-  }
+  const jobs = SAVE.placed.filter(p => hasModel(p.gid))
+    .sort((a, b) => (PROP_PRIORITY[a.gid] ?? 5) - (PROP_PRIORITY[b.gid] ?? 5))
+    .map(p => () => spawnPlacedItem(p.gid, {x:p.x, y:p.y ?? GROUND_Y, z:p.z}, p.ry));
+  jobs.unshift(() => placeProp(PROPS_DIR+'chandelier.glb', 1.0, {x:0, y:GROUND_Y+4.5, z:0}, 0));
+  propsTotal = jobs.length; propsDone = 0; renderLoadUI();
+  let next = 0;
+  const worker = async () => {
+    while (next < jobs.length) {
+      const job = jobs[next++];
+      try { await job(); } catch (e) { console.error(e); }
+      propsDone++; renderLoadUI();
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  // then quietly fetch whatever is still on the hotbar, so selecting one to place is instant
+  for (const gid of new Set(SAVE.inv)) if (MODEL_MAP[gid]) loadGltf(PROPS_DIR + MODEL_MAP[gid]).catch(() => {});
 }
 loadPropsAfterShell();
 
@@ -717,6 +791,19 @@ function makeGhostFrom(source, scale) {
   return clone;
 }
 
+function makePlaceholderGhost() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.6, 1.4),
+    new THREE.MeshBasicMaterial({ color: 0x88ccff, transparent: true, opacity: 0.22, depthWrite: false })));
+  g.userData.bottomOffset = -0.8;
+  g.userData.placeholder = true;
+  return g;
+}
+function loadPctText(url) {
+  const s = loadStats.get(url);
+  return s && s.total ? Math.round(100 * Math.min(1, s.loaded / s.total)) + '%' : '';
+}
+
 function isAnyPanelOpen() {
   return ['vendWrap','forgeWrap','cauldronWrap','gearWrap','lockerWrap'].some(id => document.getElementById(id).style.display === 'flex');
 }
@@ -729,11 +816,17 @@ function updateGhost() {
   }
   if (ghostGid !== selectedGear) {
     if (ghost) { scene.remove(ghost); ghost = null; }
-    ghostGid = selectedGear;
+    const want = selectedGear;
+    ghostGid = want;
     ghostRy = 0;
-    loadModelFor(selectedGear, (source) => {
-      if (ghostGid !== selectedGear) return; // selection changed while the model was loading
-      ghost = makeGhostFrom(source, scaleFor(selectedGear));
+    // still downloading: show a stand-in box right away so a click is never silently ignored — placing it early is
+    // fine, the real model drops into that spot when it arrives
+    const url = MODEL_MAP[want] ? PROPS_DIR + MODEL_MAP[want] : null;
+    if (url && !gltfReady.has(url)) { ghost = makePlaceholderGhost(); scene.add(ghost); }
+    loadModelFor(want, (source) => {
+      if (ghostGid !== want || selectedGear !== want) return; // placed, cancelled or swapped while it downloaded
+      if (ghost) scene.remove(ghost);
+      ghost = makeGhostFrom(source, scaleFor(want));
       scene.add(ghost);
     });
   }
@@ -815,6 +908,15 @@ function pieceFromForged(g) {
     label: g.name || cat, desc: g.name ? g.name + ' (' + cat + ')' : cat, sub: null, payload: null };
 }
 function pieceFromCarried(c) {
+  const standGid = c.reward ? standGidFor(c) : null;
+  if (standGid) { // furniture, not gear: taken out of the locker onto the hotbar rather than put on display
+    const ready = hasModel(standGid);
+    return { kind:'furniture', gid:standGid, key:'c:'+c.id, id:c.id, name:c.name, icon: GEAR[standGid].icon, color:'#ffc040',
+      label: c.name || GEAR[standGid].name, desc: (c.name || GEAR[standGid].name) + ' — ' + (c.reason || 'set reward'),
+      sub: ready ? 'Click to take it out' : 'Arrives when its model is added',
+      tip: (c.reason || 'Set reward') + (ready ? ' · click to take it out to your hotbar' : ' · the 3D model for this stand isn\'t in the hideout yet'),
+      payload: c };
+  }
   const ra = RARITIES[c.rarity] || RARITIES[0];
   const slot = SLOT_ICON[c.slot] ? c.slot : 'weapon';
   const lvl = c.lvl ? ', Lv ' + c.lvl : '';
@@ -994,7 +1096,15 @@ async function pickupSharedGear(id) {
     const { item } = await res.json();
     removeWorldGear(id);
     const piece = pieceFromShared(item);
-    if (piece.kind === 'carried') {
+    if (piece.kind === 'furniture' && hasModel(piece.gid)) {
+      // an armor stand put on display as a plaque (what the hideout did before stands were furniture): picking it up
+      // hands over the real thing, straight to the hotbar
+      SAVE.inv.push(piece.gid); writeSave(); renderInv();
+      loadGltf(PROPS_DIR + MODEL_MAP[piece.gid]).catch(() => {});
+      flashMsg(piece.label + ' is on your hotbar — select it to place it');
+      return;
+    }
+    if (piece.kind === 'carried' || piece.kind === 'furniture') { // no model yet: back to the locker to wait
       const list = loadCarried();
       if (!list.some(c => c.id === piece.id)) list.push(piece.payload);
       writeCarried(list);
@@ -1049,12 +1159,21 @@ function pieceCell(piece, onPick) {
   const sel = selectedDropGearId === piece.key;
   const el = document.createElement('div');
   el.className = 'fgear' + (piece.kind === 'forged' && piece.tier === 'unique' ? ' unique' : '') + (sel ? ' sel' : '');
-  if (piece.kind === 'carried' && !sel) { el.style.borderColor = piece.color; el.style.boxShadow = '0 0 10px ' + piece.color + '55'; }
+  if ((piece.kind === 'carried' || piece.kind === 'furniture') && !sel) { el.style.borderColor = piece.color; el.style.boxShadow = '0 0 10px ' + piece.color + '55'; }
   el.innerHTML = '<img class="swatch" src="'+piece.icon+'"><div class="fname">'+esc(piece.label)+'</div>'
     + (piece.sub ? '<div class="fsub" style="color:'+piece.color+'">'+esc(piece.sub)+'</div>' : '');
   el.onclick = () => onPick(sel);
   attachTooltip(el, piece.tip || piece.desc);
   return el;
+}
+function takeFurnitureReward(piece) {
+  if (!hasModel(piece.gid)) { flashMsg(piece.label + ' can be placed once its 3D model is added'); return; }
+  writeCarried(loadCarried().filter(c => c.id !== piece.id)); // claimed: it leaves the locker (the game's own ledger stops a re-grant)
+  SAVE.inv.push(piece.gid); writeSave(); renderInv();
+  refreshRewardsFresh(); buildLockerGrids();
+  sfxSuccess();
+  flashMsg(piece.label + ' is on your hotbar — select it to place it');
+  loadGltf(PROPS_DIR + MODEL_MAP[piece.gid]).catch(() => {}); // start the download now so it's ready to place
 }
 function pickForDisplay(piece, wasSelected, closeFn) {
   selectedDropGearId = wasSelected ? null : piece.key;
@@ -1067,7 +1186,8 @@ function buildLockerGrids() {
     const grid = document.getElementById(id);
     grid.innerHTML = '';
     if (!list.length) { grid.innerHTML = '<div class="lempty">' + emptyText + '</div>'; return; }
-    list.forEach(piece => grid.appendChild(pieceCell(piece, sel => pickForDisplay(piece, sel, closeLocker))));
+    list.forEach(piece => grid.appendChild(pieceCell(piece,
+      piece.kind === 'furniture' ? () => takeFurnitureReward(piece) : sel => pickForDisplay(piece, sel, closeLocker))));
   };
   fill('lockerCarried', carried.filter(p => !p.payload.reward), 'Nothing here yet — lock a piece in the dungeon and carry it through the portal.');
   fill('lockerRewards', carried.filter(p => p.payload.reward), 'No rewards waiting.');
@@ -1137,10 +1257,9 @@ function makeArcaneSteam(entry, bb) {
   geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
   const mat = new THREE.PointsMaterial({ size: 0.32, map: softDot(), vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   fx.points = new THREE.Points(geo, mat);
-  fx.light = new THREE.PointLight(0xa050ff, 0, 9);
-  fx.light.position.set(fx.cx, fx.topY + 0.6, fx.cz);
+  fx.light = takeLight(0xa050ff, 0, 9, fx.cx, fx.topY + 0.6, fx.cz);
   for (let i = 0; i < N; i++) { fx.p.push({}); respawnParticle(fx, i, true); }
-  scene.add(fx.points); scene.add(fx.light);
+  scene.add(fx.points);
   arcaneFx.push(fx);
   entry.fx = fx;
 }
@@ -1219,8 +1338,16 @@ function detectSlots(tmpl, minGap, margin) { // both in the model's raw units; m
   }
   return slots;
 }
+// Stands with hooks instead of shelves (no flat rest for detectSlots to find): gear hangs just under each arm tip.
+// Tips measured from the model's own vertices, in raw model units (x, y, z).
+const HOOK_POINTS = {
+  carousel_stand: [[0.28, 0.87, 0.62], [-0.27, 0.83, 0.62], [-0.27, 0.83, -0.62], [0.28, 0.91, -0.62],
+                   [0.32, 1.42, 0.58], [-0.32, 1.51, 0.58], [-0.32, 1.51, -0.58], [0.31, 1.43, -0.59]],
+};
+const HOOK_DROP = 0.44; // world units from a tip down to the bottom of the hanging icon, so its top sits at the hook
 function slotsFor(gid) {
   if (slotCache[gid]) return Promise.resolve(slotCache[gid]);
+  if (HOOK_POINTS[gid]) return Promise.resolve(slotCache[gid] = HOOK_POINTS[gid].map(([x, y, z]) => new THREE.Vector3(x, y - HOOK_DROP / scaleFor(gid), z)));
   return sourceFor(gid).then(tmpl => (slotCache[gid] = detectSlots(tmpl, SLOT_HEADROOM / scaleFor(gid), 0.2 / scaleFor(gid))));
 }
 function holderSlotsWorld(entry) {
@@ -1271,7 +1398,7 @@ function restyleGearOnHolder() {
 }
 
 // ============= TRADE-O-MATIC =============
-const SHOP_STOCK = Object.keys(GEAR).filter(gid => !GEAR[gid].notShop);
+const SHOP_STOCK = Object.keys(GEAR).filter(gid => !GEAR[gid].notShop && hasModel(gid)); // nothing for sale that can't be placed
 let vendWasActive = false;
 
 function buildVendRows() {
@@ -1690,7 +1817,9 @@ function animate(now) {
     if (ghost) {
       pr.textContent = WALL_ITEMS.has(selectedGear)
         ? 'Look at the wall where you want it · aim up or down for height · click to hang · select it again to cancel'
-        : 'Click to place · Scroll/R to turn · look up to raise it · select it again to cancel';
+        : ghost.userData.placeholder
+          ? 'Loading the ' + GEAR[selectedGear].name + '… ' + loadPctText(PROPS_DIR + MODEL_MAP[selectedGear]) + ' · click to place it now, it appears when it arrives'
+          : 'Click to place · Scroll/R to turn · look up to raise it · select it again to cancel';
       pr.style.display = 'block';
     } else if (dropGhost) {
       pr.textContent = dropSnap

@@ -145,6 +145,19 @@ const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
   check("under connect-src 'self' the room still builds: the six shell files parse and the tiles are in the scene",built&&st.kids>=50,JSON.stringify(st));
   check("...with their textures decoded (no blob: fetch for the CSP to refuse)",st.textured>=50&&blobErr.length===0,JSON.stringify({textured:st.textured,blobErr:blobErr.slice(0,3)}));
   await p.close(); cspServer.close(); }
+// hideout build 17 ships every model meshopt-compressed and decodes it with vendor/meshopt_decoder.js, a WebAssembly
+// module -- a host whose CSP has no 'wasm-unsafe-eval' refuses to compile that, and then nothing would load. The build
+// decodes the models itself (unmeshopt.mjs) and makes the page's decoder hookup optional, so under a policy with no
+// WebAssembly at all the room still builds.
+{ let n=0, still=0; const walk=d=>{ for(const f of fs.readdirSync(d)){ const q=d+"/"+f; if(fs.statSync(q).isDirectory()) walk(q); else if(/\.glb\.txt$/.test(f)){ n++; const b=Buffer.from(fs.readFileSync(q,"utf8"),"base64"); const jl=b.readUInt32LE(12); const j=JSON.parse(b.slice(20,20+jl).toString()); if((j.extensionsUsed||[]).includes("EXT_meshopt_compression")) still++; } } }; walk(DIST+"/hideout/assets");
+  check("no model in the dist copy of the hideout still carries EXT_meshopt_compression (decoded at build time by unmeshopt.mjs)",n>=30&&still===0,JSON.stringify({models:n,still}));
+  const cspPort=PORT+31; const cspServer=await serve(cspPort,{dist:DIST,csp:"default-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; media-src 'self'"}); const p=await ctx.newPage(); const cons=[]; p.on("console",m=>{ if(m.type()==='error') cons.push(m.text().slice(0,160)); });
+  await p.goto("http://127.0.0.1:"+cspPort+"/hideout/index.html",{timeout:90000});
+  const wasm=await p.evaluate(()=>{ try{ new WebAssembly.Module(new Uint8Array([0,97,115,109,1,0,0,0])); return 'allowed'; }catch(e){ return 'refused'; } });
+  const built=await p.waitForFunction(()=>typeof scene!=='undefined'&&scene.children.length>=50,null,{timeout:90000}).then(()=>true).catch(()=>false);
+  const st=await p.evaluate(()=>({kids:typeof scene!=='undefined'?scene.children.length:null,textured:typeof scene!=='undefined'?scene.children.filter(o=>{ let t=false; o.traverse(m=>{ if(m.isMesh&&m.material&&m.material.map&&m.material.map.image) t=true; }); return t; }).length:0,decoder:typeof MeshoptDecoder}));
+  check("under a policy that refuses WebAssembly outright the room still builds with its textures: the models need no decoder in the browser",wasm==='refused'&&built&&st.kids>=50&&st.textured>=50,JSON.stringify({wasm,built,st,errs:cons.slice(0,3)}));
+  await p.close(); cspServer.close(); }
 // the hideout page carries its own build number (hideout build 9+: <meta name="hideout-build">); the assembler stamps it into the game so the status line shows both builds without opening the overlay
 { const meta=(fs.readFileSync(DIST+"/hideout/index.html","utf8").match(/<meta name="hideout-build" content="(\d+)"/)||[])[1];
   const p=await newGamePage(); const got=await p.evaluate(()=>({build:window.__hideout.build(),line:document.getElementById("buildline").textContent})); await p.close();

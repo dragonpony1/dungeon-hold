@@ -638,11 +638,12 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=137;
+const BUILD=138;
 const HIDEOUT_BUILD=/*HIDEOUT*/0;   // the embedded hideout page's own build number (its <meta name="hideout-build">), stamped in by assemble.mjs when the hideout rides along; 0 in a page without it
 { const sa=$('standalone'); if(sa&&/github\.io$/i.test(location.hostname)) sa.style.display='none'; }
 { const es=$('essentials'); if(es&&TOUCH) es.innerHTML='<kbd>joystick</kbd> move &nbsp;·&nbsp; <kbd>drag</kbd> look &nbsp;·&nbsp; <kbd>⚔</kbd> swing &nbsp;·&nbsp; <kbd>tap a hotbar slot</kbd> to place a defense &nbsp;·&nbsp; <kbd>📯</kbd> sounds the horn &nbsp;·&nbsp; the rest is taught on map one'; }   // the one line a new player needs; the rest is folded below the buttons   // the link to the standalone build shows everywhere but on that build
-function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+(HIDEOUT_BUILD?' · hideout build '+HIDEOUT_BUILD:'')+' · '+msg; }
+const WASM_OK=(()=>{ try{ new WebAssembly.Module(new Uint8Array([0,97,115,109,1,0,0,0])); return true; }catch(e){ return false; } })();   /* does this host let a page compile WebAssembly? (a Content-Security-Policy without 'wasm-unsafe-eval' refuses it) -- shown on the build line so a playtest can say; the hideout's models are decoded at build time either way (unmeshopt.mjs) */ window.__wasm=WASM_OK;
+function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+(HIDEOUT_BUILD?' · hideout build '+HIDEOUT_BUILD:'')+(WASM_OK?'':' · no wasm')+' · '+msg; }
 heroStatus('hero model: loading…');   // head.html's own text is a placeholder from an old build; the real number goes up before any model is asked for
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{t:{value:0.028},col:{value:C(0x160c1e)}}]),
