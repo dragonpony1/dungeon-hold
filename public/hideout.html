@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="19">
+<meta name="hideout-build" content="20">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -223,7 +223,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 19;
+const HIDEOUT_BUILD = 20;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -344,6 +344,7 @@ const MODEL_MAP = {
   sludge_cauldron: 'sludge_cauldron.glb', ore_forge: 'ore_forge.glb',
   portal: 'crystal_portal.glb',
   wall_locker: 'arcane_wardrobe.glb',
+  small_table: 'side_table.glb',
 };
 
 // Armor stands: the game's reward for completing a gear set. It arrives in the wall locker as a dd_gear_carried
@@ -657,7 +658,8 @@ function box(w,h,d,color) {
 const PROPS_DIR = '/assets/hideout/props/';
 const PROP_PRIORITY = { portal: 0, vending_machine: 1, ore_forge: 1, sludge_cauldron: 1 }; // the things you walk up to first
 
-const SCALE_MAP = { vending_machine: (EYE_HEIGHT/1.90)*3.5*0.75, sludge_cauldron: 2.0, ore_forge: 2.6, portal: 2.0, wall_locker: 1.5, painting_triumph: 1.0, painting_hug: 1.0, painting_tease: 1.0, painting_company: 1.0 };
+const SCALE_MAP = { vending_machine: (EYE_HEIGHT/1.90)*3.5*0.75, sludge_cauldron: 2.0, ore_forge: 2.6, portal: 2.0, wall_locker: 1.5, painting_triumph: 1.0, painting_hug: 1.0, painting_tease: 1.0, painting_company: 1.0,
+  small_table: 1.5 }; // raw 2.0 x 0.72 x 0.9 -> 3 wide, top at waist height
 STAND_SETS.forEach(s => { SCALE_MAP['stand_' + s] = 1.35; }); // raw models are 2 units tall -> 2.7, a touch taller than the player // portal scale kept modest on purpose — easy to bump up once Matt sees it in place
 const DEFAULT_PLACE_SCALE = 1.7; // every Meshy prop is normalized so its longest axis is ~1.9 raw units regardless of what it is, so scale 1.0 reads as toy-sized next to the player
 function scaleFor(gid) { return SCALE_MAP[gid] || DEFAULT_PLACE_SCALE; }
@@ -1458,7 +1460,7 @@ function updateArcaneFx(dt, now) {
 // To make a new piece of furniture hold gear, add its catalog id here. Slots are found by dropping rays through the
 // model: each level, flat-topped surface with headroom above it becomes one or more spots, so a shelf gets two per
 // board, a table gets three across the top, a pedestal gets one.
-const HOLDER_ITEMS = new Set(['bookshelf_empty', 'display_pedestal', 'table_stools', 'carousel_stand', 'horizontal_rack', 'vertical_rack']);   // the racks: whatever flat rests detectSlots finds on them
+const HOLDER_ITEMS = new Set(['bookshelf_empty', 'display_pedestal', 'table_stools', 'carousel_stand', 'horizontal_rack', 'vertical_rack', 'small_table']);   // the racks: whatever flat rests detectSlots finds on them
 const SLOT_HEADROOM = 0.42; // world units of clear space a spot needs — the on-furniture icon stands 0.39 tall
 const slotCache = {}; // gid -> [Vector3] in the model's own (raw, unrotated) space, so they survive any placement
 function detectSlots(tmpl, minGap, margin) { // both in the model's raw units; margin = room needed either side of a spot
