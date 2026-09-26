@@ -664,6 +664,18 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   the same flow, the record leaving `dd_gear_carried` only then and coming back if picked up; the Cart never sees them. `gearlock-test.mjs` covers the lock from both views, the junk sale and the Sell button refusing a
   locked piece, the sort order, the walk-through with no prompt, the two contracts written correctly (counts for the unlocked, whole
   records for the locked, a record the hideout side already held left alone), the all-locked case, and a reload.
+- Co-op, phase 13 — guests earn what the host earns (`99-network.js`): gold and xp for a held wave, xp for kills and
+  the run's payout gold all used to reach only the host's own Meta, since only the host runs the sim and fires those
+  hooks; a guest could defend twenty waves and never level. The host now relays each the moment it fires:
+  `waveHeld` and `killXp` as direct sends (the guest applies the same Meta hooks on its own page, to its own
+  gold/xp/level — the mana half of a held wave already went to `guestMana` in phase 12), and the payout rides the
+  existing `runEnd` (25 per wave held, +150 for a map held, on the guest's own dead/won screen). Kill xp is PARTY
+  xp — every connected player gets the xp for every kill, whoever landed it — because a guest's bolts and arrows are
+  simulated on the host with no clean way to attribute a killing blow, and towers are shared anyway. Host-only on
+  purpose: `onRunEnd`'s own bookkeeping (best wave, shop tier, campaign progress) is the host's save telling the
+  host's story. `coop-rewards-test.mjs` (16/16) proves a goblin and an ogre are worth 2 and 40 to the guest, a held
+  wave pays 15 gold and the guest's xp gain matches the host's exactly, a defeat pays 25 and a map held 25×waves+150
+  on the guest's own screen and into its save, and the guest's best wave stays untouched.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

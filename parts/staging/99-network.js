@@ -94,6 +94,15 @@
 // untouched. hostBroadcastWorld gains `manas` (everyone's own pool by peer id; `mana` keeps its host's-own meaning),
 // and a guest's Meta.hud reads its own entry. DU stays hall-wide on purpose. Gold/xp for a wave-held are still
 // host-only (10-meta.js's own onWaveHeld) -- a separate gap, deliberately not widened into here.
+// ===== PHASE 13: guests earn what the host earns. Gold and xp for a held wave (Meta.onWaveHeld), the run's payout
+// gold (Meta.onRunEnd's 25*wave, +150 for a map held) and xp for kills (Meta.onKill) all used to reach only the host's
+// own Meta, since only the host runs the sim and fires those hooks; a guest could defend twenty waves and never level.
+// Now the host relays each of them the moment it fires: 'waveHeld' and 'killXp' as direct sends (a guest applies the
+// same Meta hooks on its own page, to its own gold/xp/level -- the mana half of a held wave already went to guestMana
+// in phase 12), and the payout rides the existing 'runEnd'. Kill xp is PARTY xp -- every connected player gets the xp
+// for every kill, whoever landed it -- because a guest's bolts and arrows are simulated on the host with no clean way
+// to attribute a killing blow, and towers are shared anyway. What stays host-only, deliberately: Meta.onRunEnd's own
+// bookkeeping (best wave, shop tier, campaign progress) -- that's the host's save telling the host's story.
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -230,7 +239,11 @@ const MAP_MANA=MAP.mana||260;   // the exact fallback S's own init (game.js: con
 // bonus their real teammate defending alongside them just earned, using the identical 50+10*wave formula.
 { const origOnWaveHeld=Meta.onWaveHeld;
   Meta.onWaveHeld=w=>{ origOnWaveHeld(w);
-    if(role==='host'){ const bonus=50+10*w; guestMana.forEach((v,id)=>guestMana.set(id,Math.round((v+bonus)*10)/10)); } }; }
+    if(role==='host'){ const bonus=50+10*w; guestMana.forEach((v,id)=>guestMana.set(id,Math.round((v+bonus)*10)/10)); send('waveHeld',{w}); } }; }   // phase 13: the gold/xp half goes to every guest too
+onMessage('waveHeld',d=>{ if(role==='guest'&&d&&Number.isFinite(+d.w)) Meta.onWaveHeld(+d.w); });
+// phase 13: party xp -- every kill's xp to every guest, as the host's own onKill fires
+{ const origOnKill=Meta.onKill; Meta.onKill=e=>{ origOnKill(e); if(role==='host'&&e) send('killXp',{kind:e.kind}); }; }
+onMessage('killXp',d=>{ if(role==='guest'&&d) Meta.onKill({kind:d.kind}); });
 function guestInputTick(dt){
   if(role!=='host') return;
   guestIn.forEach((inp,id)=>{
@@ -455,7 +468,8 @@ function guestShowRunEnd(w){
   if(document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play');
   if(w.phase==='won'){ SFX.held(); $('deadh1').textContent='HALL HELD'; $('deadh2').textContent=w.mapName+' is cleared'; }
   else { sting(); $('deadh1').textContent='SHATTERED'; $('deadh2').textContent='THE HALL FELL ON WAVE '+w.wave; }
-  $('deadp').textContent='Your own gear, gold and skills stay with you. Go again.';
+  const pay=w.wave>0?25*w.wave+(w.phase==='won'?150:0):0; if(pay){ Meta.addGold(pay,'run'); Meta.save(); }   // phase 13: the run's payout, same formula as the host's onRunEnd
+  $('deadp').textContent=(pay?'+'+pay+' ● gold for the run. ':'')+'Your own gear, gold and skills stay with you. Go again.';
   $('nextmapbtn').style.display='none'; $('dead').classList.remove('hide');
 }
 onMessage('world',data=>{ hostWorld=data; });
