@@ -910,12 +910,13 @@ document.getElementById('forgeCraftBtn').onclick = () => {
 // Every rarity of gear is worth five of the one below it — common 1, uncommon 5, rare 25, epic 125,
 // legendary 625 in Common Gear terms — without needing an extra sludge tier: epic feeds Legendary
 // Sludge at 5:1 and a legendary piece is a whole Legendary Sludge on its own.
+// colors match the main game's RCSS table (parts/game.js on the main branch) so a rarity reads the same on both sides of the portal
 const RARITIES = [
-  { id:'common',    name:'Common Gear',    color:'#c8c8c8' },
-  { id:'uncommon',  name:'Uncommon Gear',  color:'#5fd35f' },
-  { id:'rare',      name:'Rare Gear',      color:'#5aa0ff' },
-  { id:'epic',      name:'Epic Gear',      color:'#c46bff' },
-  { id:'legendary', name:'Legendary Gear', color:'#ffb347' },
+  { id:'common',    name:'Common Gear',    color:'#d8d8d8' },
+  { id:'uncommon',  name:'Uncommon Gear',  color:'#5ad05a' },
+  { id:'rare',      name:'Rare Gear',      color:'#6aa8ff' },
+  { id:'epic',      name:'Epic Gear',      color:'#c070ff' },
+  { id:'legendary', name:'Legendary Gear', color:'#ffc040' },
 ];
 const RARITY_RANK = { common:0, uncommon:1, rare:2, epic:3, legendary:4 };
 const SLUDGE = {
