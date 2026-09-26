@@ -20,10 +20,12 @@ function kindOf(){ return fam?fam.g.userData.kind:'Wisp'; }
 function K(){ return FAM_KIND[kindOf()]||FAM_KIND.Wisp; }
 function dmgOf(m){ return Math.max(.1,Math.round(famDmg()*m*10)/10); }
 // ---- models ----
-for(const k in FAM_FILES) fetchBytes(ASSET(FAM_FILES[k])).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,FAM_H[k]); toonify(root,fit.scale); const w=fit.wrap; w.children[0].position.y-=FAM_H[k]*.5; FAM_GLB[k]=w;
-    if(fam&&fam.g.userData.kind===k&&!fam.g.userData.glb) famRemove(); }catch(e){ console.warn('familiar model '+k,e); } },e=>console.warn('familiar model '+k,e))).catch(e=>console.warn('familiar model '+k,e));   // the pet respawns next frame with the real model
+// a familiar's model is fetched the first time one of that kind is called for (the pet stands in procedurally until it lands), not all six at start
+const FAM_ASKED={};
+function ensureFam(k){ if(!FAM_FILES[k]||FAM_ASKED[k]) return; FAM_ASKED[k]=true; fetchBytes(ASSET(FAM_FILES[k]),'first').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,FAM_H[k]); toonify(root,fit.scale); const w=fit.wrap; w.children[0].position.y-=FAM_H[k]*.5; FAM_GLB[k]=w;
+    if(fam&&fam.g.userData.kind===k&&!fam.g.userData.glb) famRemove(); }catch(e){ console.warn('familiar model '+k,e); } },e=>console.warn('familiar model '+k,e))).catch(e=>console.warn('familiar model '+k,e)); }   // the pet respawns next frame with the real model
 const famModelProc=famModel;
-famModel=function(it){ const kind=famKind(it); const T=FAM_GLB[kind]; if(!T) return famModelProc(it); const g=T.clone(); const col=RCOL[it.rarity]||0xcfcfcf; const gl=glow(col,1.0,.4); gl.position.y=-.05; g.add(gl);   // rarity shows as the halo under the pet
+famModel=function(it){ const kind=famKind(it); ensureFam(kind); const T=FAM_GLB[kind]; if(!T) return famModelProc(it); const g=T.clone(); const col=RCOL[it.rarity]||0xcfcfcf; const gl=glow(col,1.0,.4); gl.position.y=-.05; g.add(gl);   // rarity shows as the halo under the pet
   const root=new THREE.Group(); root.add(g); root.userData={wings:[],motes:[],kind,glb:true}; return root; };
 const famRemoveProc=famRemove;
 famRemove=function(){ if(fam&&fam.g.userData.glb){ scene.remove(fam.g); fam.g.traverse(m=>{ if(m.isSprite&&m.material) m.material.dispose(); }); fam=null; famClearBolts(); } else famRemoveProc(); swoop=null; };   // shared model geometry stays

@@ -637,7 +637,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=122;
+const BUILD=123;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 heroStatus('hero model: loading…');   // head.html's own text is a placeholder from an old build; the real number goes up before any model is asked for
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,
@@ -708,13 +708,16 @@ function fetchRetry(url,tries){ return fetch(url).then(r=>{ if(!r.ok&&tries>1&&r
 // Load order matters more than load size: some sixty models (~80MB of base64) are requested the moment the page runs,
 // and a browser only keeps ~6 connections open per host, so whatever is asked for last waits for everything before it.
 // The hero used to be near the end of that queue -- 'build 21 · hero model: loading…' for minutes on a phone while
-// cannons and armor stands nobody could see yet came down first. Now a fetch marked 'first' (the hero, the crystal:
-// what the start screen actually shows) goes out at once, and every other model waits until those have landed, or 15s,
-// whichever comes first (so a hung fetch can't hold the whole hall hostage). Total bytes are unchanged; the game just
-// becomes playable long before the download is done.
-const firstLoads=[]; let firstGate=null;
-function firstLoadsDone(){ if(!firstGate) firstGate=new Promise(res=>{ setTimeout(()=>{ Promise.allSettled(firstLoads).then(res); setTimeout(res,15000); },0); }); return firstGate; }   // the snapshot waits one tick so every module's own top-level fetches have been registered first
-function fetchBytes(url,prio){ if(!HAS_ASSETS) return new Promise(()=>{}); if(prio==='first'){ const p=fetchBytesNow(url); firstLoads.push(p.catch(()=>{})); return p; } return firstLoadsDone().then(()=>fetchBytesNow(url)); }
+// cannons and armor stands nobody could see yet came down first, and the sword in the hero's hand arrived after wave
+// one. Loads now run in three tiers, each waiting for the one before it to land (or a timeout, so one hung fetch can
+// never hold the hall hostage): 'first' is what the start screen shows (the hero, the crystal, the sword in hand);
+// 'soon' is what getting in and placing needs (mark-I defenses and their shots, the wave-one goblin, the raven, the
+// portal, a map's own decor, a co-op friend's hero); everything else is 'later' and streams behind while the player
+// is already building. Upgrade marks, familiars and the tavern's armor stands aren't loaded at all until something
+// first asks for them (see their own modules). Total bytes at rest are unchanged; what changes is when they matter.
+const loadTiers={first:[],soon:[]}; const tierGates={};
+function tierDone(t){ if(!tierGates[t]) tierGates[t]=new Promise(res=>{ setTimeout(()=>{ (t==='soon'?tierDone('first'):Promise.resolve()).then(()=>Promise.allSettled(loadTiers[t])).then(res); setTimeout(res,t==='first'?15000:40000); },0); }); return tierGates[t]; }   // the snapshot waits one tick so every module's own top-level fetches have been registered first
+function fetchBytes(url,prio){ if(!HAS_ASSETS) return new Promise(()=>{}); if(prio==='first'){ const p=fetchBytesNow(url); loadTiers.first.push(p.catch(()=>{})); return p; } if(prio==='soon'){ const p=tierDone('first').then(()=>fetchBytesNow(url)); loadTiers.soon.push(p.catch(()=>{})); return p; } return tierDone('soon').then(()=>fetchBytesNow(url)); }
 function fetchBytesNow(url){ const plain=url.replace(/\.[0-9a-f]{8}\.glb\.txt$/,'.glb.txt'); return fetchRetry(url,3).then(r=>r.ok||plain===url?r:fetchRetry(plain,2)).catch(()=>fetchRetry(plain,2)).then(r=>{   /* the unstamped file is kept alongside as a fallback */ if(!r.ok) throw new Error('HTTP '+r.status+' '+url); if(!/\.txt(\?|$)/.test(url)) return r.arrayBuffer(); return r.text().then(t=>{ const b=atob(t.replace(/\s+/g,'')); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u.buffer; }); }); }
 // the hero model itself is fetched by installHero() (70-hero2.js, runs right after this) — H.g (the plain
 // primitive hero) covers the moment before that fetch resolves, same as it always covers a hero switch mid-game.
@@ -749,8 +752,8 @@ function mobAnim(e,dt){ const m=e.mdl, A=m.actions; let st; if(e.dead) st='death
   else if(st==='walk'){ const nat=MOBDIM[e.kind].nat, hs=mobSpd(e)/e.h; const useRun=A.run&&A.run!==A.walk&&Math.abs(hs-nat.run)<Math.abs(hs-nat.walk); const k=useRun?'run':(A.walk?'walk':'run'); if(A[k]){ A[k].timeScale=Math.max(.7,hs/(useRun?nat.run:nat.walk)); mobPlay(m,k,{fade:.15}); } }
   else mobPlay(m,'idle',{fade:.2});
   m.mixer.update(dt); }
-function fetchMobGLB(kind,url){ fetchBytes(url).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,MOBDIM[kind].fit); toonify(root,fit.scale); MOBGLB[kind]={wrap:fit.wrap,map:mapClips(gltf.animations||[]),scale:fit.scale}; }catch(e){ console.warn('mob model '+kind,e); } },e=>console.warn('mob model '+kind,e))).catch(e=>console.warn('mob model '+kind+' ('+url+')',e)); }
-if(typeof GOBLIN_GLB_B64!=='undefined') loadMobGLB('goblin',GOBLIN_GLB_B64); else fetchMobGLB('goblin',ASSET('goblin.glb'));
+function fetchMobGLB(kind,url,prio){ fetchBytes(url,prio).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,MOBDIM[kind].fit); toonify(root,fit.scale); MOBGLB[kind]={wrap:fit.wrap,map:mapClips(gltf.animations||[]),scale:fit.scale}; }catch(e){ console.warn('mob model '+kind,e); } },e=>console.warn('mob model '+kind,e))).catch(e=>console.warn('mob model '+kind+' ('+url+')',e)); }
+if(typeof GOBLIN_GLB_B64!=='undefined') loadMobGLB('goblin',GOBLIN_GLB_B64); else fetchMobGLB('goblin',ASSET('goblin.glb'),'soon');   // wave one's mob: needed before the horn, not before the hero
 fetchMobGLB('orc',ASSET('orc.glb')); fetchMobGLB('ogre',ASSET('ogre.glb')); fetchMobGLB('archer',ASSET('bandit.glb')); fetchMobGLB('troll',ASSET('trollmob.glb')); fetchMobGLB('trollboss',ASSET('trollboss.glb'));   // mobs with a model in assets/ use it; in the single-file build these never resolve and the block figures stay
 
 // ================= CAMERA =================
@@ -1119,7 +1122,7 @@ function frame(now){ requestAnimationFrame(frame); const dt=Math.min(.05,(now-la
 requestAnimationFrame(frame);
 
 // ================= TEST HOOK =================
-window.__dd={S,hero,cam,enemies,defs,projs,orbs,loot,grid,DEFS,MOBS,stat,mobSpd,gear:()=>gear,rollItem,dropLoot,resetGear,heroStat,heroMult,heroDmg,kill,Meta,SLOTS,applyGear,saveGear,pickup,tierOf,statStr,RNAME,RCSS,loadHeroGLB,toggleHero,ghost:()=>placing?{x:ghostPos[0],z:ghostPos[1],yaw:ghostYaw,ok:ghostOk,why:ghostReason,stage:placeStage,dist:Math.hypot(ghostPos[0]-hero.x,ghostPos[1]-hero.z),sector:!!ghostSector&&ghostSector.children.length>0}:null,rotateGhost,unstick,music:()=>({on:musicOn,mode:musicMode,step:mStep}),hoverSector:()=>!!hoverSector,heroModel:()=>GLBH?{label:GLBH.label,useGLB,clips:Object.keys(GLBH.map),cur:GLBH.cur?GLBH.cur.getClip().name:null,scale:GLBH.scale,height:GLBH.height,visible:GLBH.wrap.visible}:null,mobTemplate:k=>MOBGLB[k],scene,mobModel:k=>MOBGLB[k]?{clips:Object.keys(MOBGLB[k].map),scale:MOBGLB[k].scale}:null,mobState:e=>e&&e.mdl&&e.mdl.glb?{cur:e.mdl.cur?e.mdl.cur.getClip().name:null,time:e.mdl.cur?e.mdl.cur.time:0}:null,setHeroYaw:d=>{ heroYawOff=d; },deathCut:()=>deathCut,camPos:()=>({x:camera.position.x,y:camera.position.y,z:camera.position.z}),hurtCrystal,SFX,rails:()=>RAILBOXES.map(b=>({x0:+b.x0.toFixed(2),x1:+b.x1.toFixed(2),z0:+b.z0.toFixed(2),z1:+b.z1.toFixed(2),top:+b.top.toFixed(2)})),
+window.__dd={placeDefAt,upgradeDef,S,hero,cam,enemies,defs,projs,orbs,loot,grid,DEFS,MOBS,stat,mobSpd,gear:()=>gear,rollItem,dropLoot,resetGear,heroStat,heroMult,heroDmg,kill,Meta,SLOTS,applyGear,saveGear,pickup,tierOf,statStr,RNAME,RCSS,loadHeroGLB,toggleHero,ghost:()=>placing?{x:ghostPos[0],z:ghostPos[1],yaw:ghostYaw,ok:ghostOk,why:ghostReason,stage:placeStage,dist:Math.hypot(ghostPos[0]-hero.x,ghostPos[1]-hero.z),sector:!!ghostSector&&ghostSector.children.length>0}:null,rotateGhost,unstick,music:()=>({on:musicOn,mode:musicMode,step:mStep}),hoverSector:()=>!!hoverSector,heroModel:()=>GLBH?{label:GLBH.label,useGLB,clips:Object.keys(GLBH.map),cur:GLBH.cur?GLBH.cur.getClip().name:null,scale:GLBH.scale,height:GLBH.height,visible:GLBH.wrap.visible}:null,mobTemplate:k=>MOBGLB[k],scene,mobModel:k=>MOBGLB[k]?{clips:Object.keys(MOBGLB[k].map),scale:MOBGLB[k].scale}:null,mobState:e=>e&&e.mdl&&e.mdl.glb?{cur:e.mdl.cur?e.mdl.cur.getClip().name:null,time:e.mdl.cur?e.mdl.cur.time:0}:null,setHeroYaw:d=>{ heroYawOff=d; },deathCut:()=>deathCut,camPos:()=>({x:camera.position.x,y:camera.position.y,z:camera.position.z}),hurtCrystal,SFX,rails:()=>RAILBOXES.map(b=>({x0:+b.x0.toFixed(2),x1:+b.x1.toFixed(2),z0:+b.z0.toFixed(2),z1:+b.z1.toFixed(2),top:+b.top.toFixed(2)})),
   start:()=>{ if(S.phase==='start'){ S.phase='build'; $('start').classList.add('hide'); cam.x=hero.x; cam.y=hero.y+5; cam.z=hero.z+8; cam.d=cam.dist; } },
   startWave, place:(k,cx,cz,rot)=>placeDef(k,cx,cz,rot||0), spawn:spawnEnemy, select, confirmPlace, swing, repair, upgrade, sell, jump, setKeys:(o)=>Object.assign(K,o), r:renderer,
   step:(dt,n)=>{ for(let i=0;i<(n||1);i++) update(dt||1/60); },

@@ -23,7 +23,7 @@ const TVCSS=`
 .tv-body{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding:10px 12px 90px;border-top:2px solid #6b5a3c;background:#0b071266}
 .tv-pane{display:none} .tv-pane.on{display:block}
 .tv-sub{display:flex;align-items:center;gap:8px;margin:2px 0 8px;font-size:13px;letter-spacing:2px;color:var(--gold);font-weight:bold;white-space:nowrap}
-.tv-sub .tv-n{color:#c9b8a0;letter-spacing:0;font-weight:normal;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis} .tv-sub .sp{flex:1}
+.tv-sub .tv-n{color:#c9b8a0;letter-spacing:0;font-weight:normal;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis} .tv-sub .sp{flex:1}.tv-sub{flex-wrap:wrap;row-gap:6px}.tv-grp{grid-column:1/-1;font-size:12px;letter-spacing:2px;color:var(--gold);font-weight:bold;margin:6px 0 -4px}.tv-btn.sm{min-height:34px;padding:4px 10px;font-size:11px;letter-spacing:.5px}
 .tv-btn{min-height:44px;padding:6px 14px;background:linear-gradient(#3a2a44,#1c1424);border:2px solid #6b5a3c;border-radius:8px;color:#fff;font:bold 13px Georgia,serif;letter-spacing:1px;cursor:pointer;box-shadow:0 2px 0 #000;white-space:nowrap}
 .tv-btn.hot{background:linear-gradient(#7a2a2e,#3e1416);border-color:var(--gold)}
 .tv-btn:disabled{opacity:.45;cursor:default;box-shadow:none}
@@ -96,8 +96,12 @@ function tvDeltas(it){ const eq=gear[it.slot]; const keys=Object.keys(it.stats);
 // ---- panes ----
 function tvRenderBag(){ const bag=Meta.bag(); let eqH='<div class="tv-sub">EQUIPPED</div>'; for(const s of SLOTS){ const it=gear[s]; eqH+=it?tvCard(it,'eq'):tvEmptyCard(s); }
   const junk=bag.filter(Meta.isJunk).length;
-  let bagH='<div class="tv-sub">BAG <span class="tv-n">'+bag.length+'/'+Meta.BAG_CAP+'</span><span class="sp"></span><button class="tv-btn" data-act="selljunk" id="tv-selljunk"'+(junk?'':' disabled')+'>Sell junk'+(junk?' ('+junk+')':'')+'</button></div>';
-  bagH+=bag.length?'<div class="tv-grid">'+bag.map(it=>tvCard(it,'bag',tvVs(it))).join('')+'</div>':'<div class="tv-empty">Your bag is empty. The horde drops loot — walk over it to bag it.</div>';
+  const sortMode=Meta.bagSort(), SORT_LABEL={type:'⚔ by type',rarity:'★ by rarity',newest:'newest first'};   // one button that cycles: small enough for a phone's header row
+  let bagH='<div class="tv-sub">BAG <span class="tv-n">'+bag.length+'/'+Meta.BAG_CAP+'</span><span class="sp"></span><button class="tv-btn sm" data-act="sort" id="tv-sort" title="Change how the bag is sorted">'+SORT_LABEL[sortMode]+'</button><button class="tv-btn" data-act="selljunk" id="tv-selljunk"'+(junk?'':' disabled')+'>Sell junk'+(junk?' ('+junk+')':'')+'</button></div>';
+  // sorted by type or rarity, the grid gets a heading per group so the eye can jump straight to "amulets" or "epics"
+  const shown=Meta.sortedBag(); let cards='', grp=null; const grpOf=it=>sortMode==='type'?it.slot:sortMode==='rarity'?it.rarity:null;
+  for(const it of shown){ const g=grpOf(it); if(g!==null&&g!==grp){ grp=g; const n=shown.filter(x=>grpOf(x)===g).length; cards+=sortMode==='type'?'<div class="tv-grp">'+SICON[g]+' '+g.toUpperCase()+(g==='armor'?'':'S')+' <span class="tv-n">'+n+'</span></div>':'<div class="tv-grp" style="color:'+RCSS[g]+'">'+RNAME[g].toUpperCase()+' <span class="tv-n">'+n+'</span></div>'; } cards+=tvCard(it,'bag',tvVs(it)); }
+  bagH+=bag.length?'<div class="tv-grid">'+cards+'</div>':'<div class="tv-empty">Your bag is empty. The horde drops loot — walk over it to bag it.</div>';
   $('tv-bag').innerHTML='<div class="tv-bag2"><div class="tv-eq">'+eqH+'</div><div>'+bagH+'</div></div>'; }
 function tvRenderShop(){ const st=Meta.stock(), gold=Meta.gold(); let h='<div class="tv-sub"><span class="tv-n">'+tvEsc(Meta.tierLine())+'</span><span class="sp"></span><button class="tv-btn" data-act="restock" id="tv-restock"'+(gold>=Meta.restockCost()?'':' disabled')+'>Restock ('+tvG(Meta.restockCost())+' gold)</button></div>';
   h+=st.length?'<div class="tv-grid">'+st.map((it,i)=>{ const c=Meta.canBuy(i), p=Meta.buyPrice(it); return tvCard(it,'shop',tvVs(it)+'<button class="tv-btn hot" data-act="buy" data-i="'+i+'"'+(c.ok?'':' disabled')+'>Buy ('+tvG(p)+' gold)</button>'+(c.ok?'':'<div class="why">'+tvEsc(c.why)+'</div>')); }).join('')+'</div>':'<div class="tv-empty">Sold out — restock to see new wares.</div>';
@@ -145,6 +149,7 @@ function tvClick(e){ const t=e.target.closest('[data-act]'); if(!t||t.disabled) 
   else if(a==='unequip'){ if(Meta.unequip(D.slot)) tvSay('Unequipped'); TV.sel=null; tvRenderTab(true); }
   else if(a==='sell'){ const it=Meta.bag().find(b=>b.id===D.id); const g=Meta.sell(D.id); if(g) tvSay('Sold '+(it?it.name:'item')+' for '+tvG(g)+' gold'); TV.sel=null; tvRenderTab(true); }
   else if(a==='selljunk'){ const r=Meta.sellJunk(); tvSay(r.n?'Sold '+r.n+' item'+(r.n===1?'':'s')+' for '+tvG(r.gold)+' gold':'Nothing worth selling'); TV.sel=null; tvRenderTab(true); }
+  else if(a==='sort'){ const m=Meta.BAG_SORTS, i=m.indexOf(Meta.bagSort()); Meta.setBagSort(m[(i+1)%m.length]); tvRenderTab(true); }
   else if(a==='buy'){ const i=+D.i, it=Meta.stock()[i], c=Meta.canBuy(i); if(!c.ok) tvSay(c.why); else if(Meta.buy(i)) tvSay('Bought '+it.name); TV.sel=null; tvRenderTab(true); }
   else if(a==='restock'){ if(Meta.restock()) tvSay('Fresh stock on the table'); else tvSay('Need '+tvG(Meta.restockCost())+' gold to restock'); TV.sel=null; tvRenderTab(true); }
   else if(a==='spend'){ const s=Meta.SKILLS.find(s=>s.id===D.id); if(Meta.spend(D.id)) tvSay(s.name+' — '+Meta.skillValue(D.id)); else tvSay(Meta.points()?'That skill is maxed':'No skill points — hold waves to earn xp'); tvRenderTab(true); }

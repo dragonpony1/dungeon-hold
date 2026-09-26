@@ -21,7 +21,7 @@ function add(id,heroGlbName,label){
   if(PARTY.has(id)) return id;
   const p={id,x:0,y:0,z:0,yaw:0,targetX:0,targetZ:0,targetYaw:0,moving:false,ready:false,wrap:null};
   PARTY.set(id,p);
-  fetchBytes(ASSET(heroGlbName)).then(buf=>{
+  fetchBytes(ASSET(heroGlbName),'soon').then(buf=>{
     if(!PARTY.has(id)) return;   // removed while its model was still loading
     loadPuppetGLB(buf,label||heroGlbName,loaded=>{
       if(!PARTY.has(id)){ disposePuppet(loaded); return; }

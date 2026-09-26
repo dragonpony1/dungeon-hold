@@ -41,6 +41,14 @@ function canRespec(){ return spentPoints()>0&&st.gold>=respecCost(); }
 function respec(){ if(!canRespec()) return false; addGold(-respecCost(),'respec'); SKILLS.forEach(s=>st.skills[s.id]=0); applyGear(); saveMeta(); SFX.mana(); toast('Skill points refunded — '+points()+' to spend'); return true; }
 // ---- bag ----
 function bagFull(){ return st.bag.length>=BAG_CAP; }
+// how the bag is SHOWN: 'type' groups by slot (weapon · armor · charm · amulet · familiar), best rarity first within
+// each; 'rarity' is best-first across the lot; 'newest' is the latest pickup first. The bag itself stays in pickup order
+// (equip() and the armory splice by id, and saves stay stable) -- the views ask sortedBag() for their order. Remembered
+// in localStorage (ddBagSort) so the choice survives a reload, like the sound and music toggles.
+const BAG_SORTS=['type','rarity','newest']; let bagSort='type'; try{ const v=localStorage.getItem('ddBagSort'); if(BAG_SORTS.includes(v)) bagSort=v; }catch(e){}
+function setBagSort(v){ if(!BAG_SORTS.includes(v)) return false; bagSort=v; try{ localStorage.setItem('ddBagSort',v); }catch(e){} metaVer++; return true; }   // metaVer: every open view re-renders on the next frame
+function sortedBag(){ const b=st.bag.slice(); const six=it=>{ const i=SLOTS.indexOf(it.slot); return i<0?99:i; }, sc=it=>+it.score||0;
+  if(bagSort==='type') b.sort((a,c)=>six(a)-six(c)||c.rarity-a.rarity||sc(c)-sc(a)); else if(bagSort==='rarity') b.sort((a,c)=>c.rarity-a.rarity||sc(c)-sc(a)||six(a)-six(c)); else b.reverse(); return b; }
 function bagIdx(id){ return st.bag.findIndex(b=>b.id===id); }
 function bagItem(it,why){ if(!validItem(it)) return false; fixItem(it); if(bagIdx(it.id)>=0||bagFull()) return false; st.bag.push(it); saveMeta(); return true; }
 function htmlToast(h,t){ $('toast').innerHTML=h; $('toast').style.opacity=1; toastT=t||3.4; }
@@ -96,7 +104,7 @@ Object.assign(Meta,{
   BAG_CAP, XP, SKILLS, SKILL_MAX, xpToNext, fmtG, isJunk, bagKey,
   gold:()=>st.gold, addGold, level:()=>st.level, xp:()=>st.xp, points, spentPoints, canRespec, respecCost, respec, spend,
   skill:id=>st.skills[id]||0, skills:()=>Object.assign({},st.skills), skillValue:id=>{ const s=SKILLS.find(s=>s.id===id); return s?s.fmt(s.per*st.skills[id]):''; },
-  bag:()=>st.bag, bagFull, sell:sellItem, sellJunk, equip, unequip,
+  bag:()=>st.bag, sortedBag, bagSort:()=>bagSort, setBagSort, BAG_SORTS, bagFull, sell:sellItem, sellJunk, equip, unequip,
   stock:()=>st.stock, stockTier:()=>st.stockTier, tierLine, restockCost, restock, buyPrice, canBuy, buy,
   best:()=>st.best, runs:()=>st.runs, summary, version:()=>metaVer, save:saveMeta,
   state:()=>JSON.parse(JSON.stringify(st)), reset:metaReset, addXP, giveGold:n=>addGold(n,'refund'), giveItem:it=>bagItem(it,'give') });

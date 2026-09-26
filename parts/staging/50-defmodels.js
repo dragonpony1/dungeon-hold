@@ -18,7 +18,7 @@ function hingeSplit(root,frac){ root.updateMatrixWorld(true); const box=new THRE
   root.add(top); root.userData.hinge={y:ySplit,top:nTop,bottom:nBot}; return top; }
 function regDefGLB(kind,gltf,markIdx){ const root=gltf.scene||gltf.scenes[0]; if(HINGE[kind]) hingeSplit(root,HINGE[kind]); let targetH=DEF_H[kind]||2; if(DEF_W[kind]){ root.updateMatrixWorld(true); const sz=new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3()); targetH=DEF_W[kind]*sz.y/Math.max(sz.x,sz.z,1e-6); } const fit=fitModel(root,targetH); toonify(root,fit.scale); let turn=null; root.traverse(o=>{ if(!turn&&o!==root&&DEF_TURN.test(o.name||'')) turn=o.name; }); (DEFGLB[kind]=DEFGLB[kind]||[])[markIdx||0]={wrap:fit.wrap,scale:fit.scale,turn}; }
 function loadDefGLB(kind,b64,markIdx,cb){ try{ const u=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)); new THREE.GLTFLoader().parse(u.buffer,'',gltf=>{ try{ regDefGLB(kind,gltf,markIdx); if(cb) cb(null); }catch(e){ console.warn('defense model '+kind,e); if(cb) cb(e); } },e=>{ console.warn('defense model '+kind,e); if(cb) cb(e); }); }catch(e){ console.warn('defense model '+kind,e); if(cb) cb(e); } }
-function fetchDefGLB(kind,url,markIdx){ fetchBytes(url).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ regDefGLB(kind,gltf,markIdx); }catch(e){ console.warn('defense model '+kind,e); } },e=>console.warn('defense model '+kind,e))).catch(e=>console.warn('defense model '+kind+' ('+url+')',e)); }
+function fetchDefGLB(kind,url,markIdx,prio){ fetchBytes(url,prio).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ regDefGLB(kind,gltf,markIdx); }catch(e){ console.warn('defense model '+kind,e); } },e=>console.warn('defense model '+kind,e))).catch(e=>console.warn('defense model '+kind+' ('+url+')',e)); }
 function defTemplate(kind,lvl){ const list=DEFGLB[kind]; if(!list) return null; let i=Math.min(list.length-1,Math.max(0,(lvl||1)-1)); while(i>=0&&!list[i]) i--; return i>=0?list[i]:null; }
 // the procedural ring's spore puffs and faint area disc, reused over the Meshy rings
 function sporeHub(){ const hub=new THREE.Group(); for(let k=0;k<7;k++){ const a=k/7*TAU, r=.4+((k*5)%3)*.55; const pf=glow(0xd08aff,.7+((k*3)%2)*.3,.3); pf.position.set(Math.cos(a)*r,.4,Math.sin(a)*r); pf.userData.ph=k*.31; hub.add(pf); } return hub; }
@@ -34,21 +34,28 @@ makeDef=function(kind,ghost,lvl){ const T=defTemplate(kind,lvl); if(!T) return m
   else g.add(blob(.95));
   return g; };
 // re-skin a built defense whenever its mark (or a late-loading model) calls for a different look — checked every frame, cheaply
-function reskinDefs(){ for(const d of defs){ const T=defTemplate(d.kind,d.lvl); if(!T||d.mdl.userData.tpl===T) continue; const old=d.mdl; scene.remove(old); d.mdl=makeDef(d.kind,false,d.lvl); d.mdl.position.copy(old.position); d.mdl.rotation.y=d.rot; d.mdl.scale.copy(old.scale); scene.add(d.mdl); } }
+function reskinDefs(){ for(const d of defs){ ensureDefMark(d.kind,d.lvl); ensureDefMark(d.kind,d.lvl+1); const T=defTemplate(d.kind,d.lvl); if(!T||d.mdl.userData.tpl===T) continue; const old=d.mdl; scene.remove(old); d.mdl=makeDef(d.kind,false,d.lvl); d.mdl.position.copy(old.position); d.mdl.rotation.y=d.rot; d.mdl.scale.copy(old.scale); scene.add(d.mdl); } }
 { const base=makeDef; makeDef=function(kind,ghost,lvl){ const m=base(kind,ghost,lvl); if(kind==='spike') m.scale.x*=1.66; return m; }; }   // the hedge is five cells wide now: stretch the three-cell model to match
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); reskinDefs(); }; }
 // the ballista (harpoon turret) by mark: tier models from Meshy; marks beyond the last one reuse it
-for(let i=1;i<=4;i++) fetchDefGLB('harpoon',ASSET('ballista-'+i+'.glb'),i-1);   // Mark I..IV; Mark V keeps the tier-4 look
-fetchDefGLB('spike',ASSET('hedge.glb'),0);   // the bramble hedge (Meshy), all marks
-for(let i=1;i<=4;i++) fetchDefGLB('acorn',ASSET('cannon-'+i+'.glb'),i-1);   // the acorn cannon (Meshy) Mark I..IV; Mark V keeps the tier-4 look
-for(let i=1;i<=4;i++) fetchDefGLB('slice',ASSET('mushroom-'+i+'.glb'),i-1);   // the mushroom ring (Meshy) Mark I..IV; Mark V keeps the tier-4 look
-for(let i=1;i<=4;i++) fetchDefGLB('totem',ASSET('totem-'+i+'.glb'),i-1);   // the rune totem (Meshy) Mark I..IV; Mark V keeps the tier-4 look
-for(let i=1;i<=4;i++) fetchDefGLB('frost',ASSET('frost-'+i+'.glb'),i-1);   // the frost spire (Meshy, "cold tower") Mark I..IV; Mark V keeps the tier-4 look
-for(let i=1;i<=4;i++) fetchDefGLB('snare',ASSET('snare-'+i+'.glb'),i-1);   // the snare tower (Meshy) Mark I..IV; Mark V keeps the tier-4 look
+// Mark I comes down with the 'soon' tier (it's what placing shows); marks II..IV are only registered here and fetched
+// the moment a defense of that kind first reaches them -- plus the next mark up, prefetched, so the upgrade after that
+// lands already dressed. Until a mark's model arrives, defTemplate() falls back to the highest loaded mark, as it always
+// did. That's ~24 models (~30MB) that no longer come down before the player has even placed anything.
+const DEF_LAZY={}, DEF_ASKED={};
+function defMarks(kind,base){ fetchDefGLB(kind,ASSET(base+'-1.glb'),0,'soon'); DEF_LAZY[kind]=[null,ASSET(base+'-2.glb'),ASSET(base+'-3.glb'),ASSET(base+'-4.glb')]; }
+function ensureDefMark(kind,lvl){ const list=DEF_LAZY[kind]; if(!list) return false; const i=Math.min(3,(lvl||1)-1); if(i<1||!list[i]) return false; const key=kind+':'+i; if(DEF_ASKED[key]) return false; DEF_ASKED[key]=true; fetchDefGLB(kind,list[i],i,'first'); return true; }
+defMarks('harpoon','ballista');   // Mark I..IV; Mark V keeps the tier-4 look
+fetchDefGLB('spike',ASSET('hedge.glb'),0,'soon');   // the bramble hedge (Meshy), all marks
+defMarks('acorn','cannon');   // the acorn cannon (Meshy) Mark I..IV; Mark V keeps the tier-4 look
+defMarks('slice','mushroom');   // the mushroom ring (Meshy) Mark I..IV; Mark V keeps the tier-4 look
+defMarks('totem','totem');   // the rune totem (Meshy) Mark I..IV; Mark V keeps the tier-4 look
+defMarks('frost','frost');   // the frost spire (Meshy, "cold tower") Mark I..IV; Mark V keeps the tier-4 look
+defMarks('snare','snare');   // the snare tower (Meshy) Mark I..IV; Mark V keeps the tier-4 look
 // the four elemental halos (Meshy): one sigil disc each, all marks — the glow ring drawn over them (game.js, auraRing) is what grows with each mark, not the model
-fetchDefGLB('zap',ASSET('aura-zap.glb'),0); fetchDefGLB('venom',ASSET('aura-venom.glb'),0); fetchDefGLB('ember',ASSET('aura-ember.glb'),0); fetchDefGLB('dazzle',ASSET('aura-dazzle.glb'),0);
+fetchDefGLB('zap',ASSET('aura-zap.glb'),0,'soon'); fetchDefGLB('venom',ASSET('aura-venom.glb'),0,'soon'); fetchDefGLB('ember',ASSET('aura-ember.glb'),0,'soon'); fetchDefGLB('dazzle',ASSET('aura-dazzle.glb'),0,'soon');
 // the acorn the cannon fires: Meshy's acorn, toon-shaded, ~0.34 tall; the procedural one until it lands
-{ let tpl=null; const proc=acornMesh; fetchBytes(ASSET('acorn.glb')).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,.64); toonify(root,fit.scale); const w=fit.wrap; w.children[0].position.y-=.32; tpl=w; }catch(e){ console.warn('acorn model',e); } },e=>console.warn('acorn model',e))).catch(e=>console.warn('acorn model',e));
+{ let tpl=null; const proc=acornMesh; fetchBytes(ASSET('acorn.glb'),'soon').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,.64); toonify(root,fit.scale); const w=fit.wrap; w.children[0].position.y-=.32; tpl=w; }catch(e){ console.warn('acorn model',e); } },e=>console.warn('acorn model',e))).catch(e=>console.warn('acorn model',e));
   acornMesh=function(){ if(!tpl) return proc(); const g=tpl.clone(); g.rotation.set(rnd()*6,rnd()*6,0); return g; }; }
 // the bolt the ballista fires: Meshy's model comes standing up (head at +Y, fletching at -Y, the usual export
 // convention for a narrow prop), so it's rotated onto its side before fitting so its shaft runs along Z, forward,
@@ -57,7 +64,7 @@ fetchDefGLB('zap',ASSET('aura-zap.glb'),0); fetchDefGLB('venom',ASSET('aura-veno
 // scales to a target length along Z instead, and centres the model instead of bottom-pivoting it, since a flying
 // bolt is aimed from its middle, not stood on a floor.
 { let tpl=null; const proc=harpoonMesh;
-  fetchBytes(ASSET('ballista-bolt.glb')).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
+  fetchBytes(ASSET('ballista-bolt.glb'),'soon').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
       const root=gltf.scene||gltf.scenes[0]; root.rotation.x=-PI/2; root.updateMatrixWorld(true);
       const box=new THREE.Box3().setFromObject(root); const size=box.getSize(new THREE.Vector3());
       const sc=1.5/Math.max(size.z,1e-6), ctr=box.getCenter(new THREE.Vector3());
@@ -65,4 +72,4 @@ fetchDefGLB('zap',ASSET('aura-zap.glb'),0); fetchDefGLB('venom',ASSET('aura-veno
       toonify(root,sc); const w=new THREE.Group(); w.add(inner); tpl=w;
     }catch(e){ console.warn('ballista bolt model',e); } },e=>console.warn('ballista bolt model',e))).catch(e=>console.warn('ballista bolt model',e));
   harpoonMesh=function(){ if(!tpl) return proc(); return tpl.clone(); }; }
-window.__defglb={load:loadDefGLB,fetch:fetchDefGLB,list:()=>Object.fromEntries(Object.entries(DEFGLB).map(([k,v])=>[k,v.map(t=>t?{scale:+t.scale.toFixed(3),turn:t.turn}:null)]))};
+window.__defglb={load:loadDefGLB,fetch:fetchDefGLB,ensure:ensureDefMark,asked:()=>Object.keys(DEF_ASKED),list:()=>Object.fromEntries(Object.entries(DEFGLB).map(([k,v])=>[k,v.map(t=>t?{scale:+t.scale.toFixed(3),turn:t.turn}:null)]))};

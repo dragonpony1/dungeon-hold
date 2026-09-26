@@ -621,13 +621,32 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   loading…" for minutes on a phone turned out to be queue order, not a hang. Some sixty models (~80MB of base64)
   are requested the moment the page runs and a browser keeps about six connections open per host, so the hero —
   requested by a late module — sat behind cannons, mushrooms, totems and armor stands nobody could see yet, and
-  the build line (which only updates once the hero lands) read as "still loading" the whole time. A fetch can now
-  be marked `'first'` (the hero, the crystal: what the start screen actually shows); those go out at once and every
-  other model waits until they have landed, or 15s, whichever comes first. Total bytes are unchanged; the hall is
-  just playable long before the download finishes. The build line also shows the real build number from the first
-  frame now instead of `head.html`'s old placeholder — that literal "build 21" had already sent one real playtest
-  down a cache-clearing rabbit hole. `loadorder-test.mjs` records the real request order and proves the hero and
-  crystal are the first two out, nothing else is even requested until both have finished, and the gate then opens.
+  the build line (which only updates once the hero lands) read as "still loading" the whole time, and the sword in
+  the hero's hand arrived after wave one. Loads now run in three tiers, each waiting for the one before it to land
+  (or a timeout, so one hung fetch can never hold the hall hostage): `'first'` is what the start screen shows (the
+  hero, the crystal, the sword in hand — `80-weapons.js` already fetched only the equipped one); `'soon'` is what
+  getting in and placing needs (mark-I defenses and their shots, the wave-one goblin, the raven, the portal, a map's
+  own decor, a co-op friend's hero); everything else is `'later'` and streams behind while the player is already
+  building (the music, `40-music.js`, waits on the first tier too). And three things aren't loaded at start at
+  all any more: a defense's marks II–IV are fetched the moment one first reaches them, with the next mark prefetched
+  so the upgrade after that lands dressed (`50-defmodels.js`, `ensureDefMark` from `reskinDefs`; `defTemplate`'s
+  fall-back to the highest loaded mark is what it always did); a familiar's model when one of that kind is first
+  called for (`85-familiars.js`); a set's armor-stand mannequin when a stashed piece of that set first needs it
+  (`96-armory.js`). The startup stream went from 59 model requests to 25, and the ~30MB of upgrade marks now only
+  come down for kinds actually placed. The build line also shows the real build number from the first frame instead
+  of `head.html`'s old placeholder — that literal "build 21" had already sent one real playtest down a
+  cache-clearing rabbit hole. `loadorder-test.mjs` (15/15) records the real request order: the three firsts, nothing
+  else requested until they've finished, the soon tier next, the later tier only once the whole soon tier has landed,
+  no upgrade mark / familiar / armor stand at start, and a placed ballista asking for Mark II, then Mark III on
+  upgrade, which actually lands.
+- Bag sorting (`sortedBag`/`setBagSort` in `10-meta.js`; `20-tavern.js`; `68-paperdoll.js`): the bag page sorts
+  by type (slot order — weapon · armor · charm · amulet · familiar — best rarity first within each, with a heading
+  per group so the eye can jump straight to "amulets"), by rarity (best first, a heading per rarity), or newest
+  first; one small button in the BAG header cycles the three, and the choice is remembered (`ddBagSort`) like the
+  sound toggles. Type is the default. The bag itself is never reordered — `equip()`, the armory and saves all splice
+  by id and stay stable — only the views ask for `sortedBag()`, and the character sheet's inventory grid follows the
+  same order. `bagsort-test.mjs` (19/19) bags eight scrambled pieces and checks every mode's order and headings, the
+  cycle, the reload, the sheet's grid, and that equipping the top card equips exactly that piece.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

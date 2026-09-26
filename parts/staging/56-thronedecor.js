@@ -34,7 +34,7 @@ if(MAP.throne){
   function warmGlow(root){ root.traverse(o=>{ const m=o.isMesh&&o.material; if(!m||m.userData.__wg) return; m.userData.__wg=true;
     m.onBeforeCompile=sh=>{ sh.fragmentShader=sh.fragmentShader.replace('#include <emissivemap_fragment>',
       '#include <emissivemap_fragment>\n  totalEmissiveRadiance += vec3(.22,.11,.03);'); }; }); }
-  function loadThroneProp(name,targetH,cb){ fetchBytes(ASSET(name)).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
+  function loadThroneProp(name,targetH,cb){ fetchBytes(ASSET(name),'soon').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
       const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,targetH); toonify(root,fit.scale); purpleGlow(root); cb(fit.wrap);
     }catch(e){ console.warn('throne decor '+name,e); } },e=>console.warn('throne decor '+name,e))).catch(e=>console.warn('throne decor '+name,e)); }
   // fitModel always scales a model to a target HEIGHT (its own Y extent) — right for anything that stands
@@ -43,7 +43,7 @@ if(MAP.throne){
   // Y equal 4" tried to stretch a few centimetres of thickness up to 4 units, and dragged X and Z (a uniform
   // scale) out to over a hundred — a slab far bigger than the room, thick enough to read as a low ceiling
   // (build 83's "ceiling under a carpet"). This fits by X (the model's long edge) instead.
-  function loadThronePropW(name,targetW,cb){ fetchBytes(ASSET(name)).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
+  function loadThronePropW(name,targetW,cb){ fetchBytes(ASSET(name),'soon').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
       const root=gltf.scene||gltf.scenes[0]; root.updateMatrixWorld(true);
       const box=new THREE.Box3().setFromObject(root), size=box.getSize(new THREE.Vector3());
       const sc=targetW/Math.max(size.x,1e-6), cx=(box.min.x+box.max.x)/2, cz=(box.min.z+box.max.z)/2;

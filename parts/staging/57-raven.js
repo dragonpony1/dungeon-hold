@@ -21,7 +21,7 @@ const perch=(()=>{ const g=new THREE.Group(); const bark=mat(0x6a4e34), barkD=ma
 perch.position.set(RX,baseY,RZ);
 world.add(perch);
 let wrap=null, state='hidden', pop=0, lastPhase=null;
-fetchBytes(ASSET('raven.glb')).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
+fetchBytes(ASSET('raven.glb'),'soon').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
     const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,1.6); toonify(root,fit.scale);
     wrap=fit.wrap; wrap.visible=false; wrap.scale.setScalar(0); scene.add(wrap);
   }catch(e){ console.warn('raven model',e); } },e=>console.warn('raven model',e))).catch(e=>console.warn('raven model',e));
