@@ -638,7 +638,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=135;
+const BUILD=136;
 const HIDEOUT_BUILD=/*HIDEOUT*/0;   // the embedded hideout page's own build number (its <meta name="hideout-build">), stamped in by assemble.mjs when the hideout rides along; 0 in a page without it
 { const sa=$('standalone'); if(sa&&/github\.io$/i.test(location.hostname)) sa.style.display='none'; }
 { const es=$('essentials'); if(es&&TOUCH) es.innerHTML='<kbd>joystick</kbd> move &nbsp;·&nbsp; <kbd>drag</kbd> look &nbsp;·&nbsp; <kbd>⚔</kbd> swing &nbsp;·&nbsp; <kbd>tap a hotbar slot</kbd> to place a defense &nbsp;·&nbsp; <kbd>📯</kbd> sounds the horn &nbsp;·&nbsp; the rest is taught on map one'; }   // the one line a new player needs; the rest is folded below the buttons   // the link to the standalone build shows everywhere but on that build

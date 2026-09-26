@@ -813,6 +813,9 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   Also in this build: hideout build 16 -- Matt's three display racks (Carousel Stand, Horizontal Rack, Vertical Rack)
   added to the Trade-O-Matic from this session at his ask (shrunk like the ballistas; gear rests on them like a shelf),
   pushed to hideout-wip as 4c9feba; and `hideout-test.mjs` follows hideout build 15's Cart (two gear per sludge).
+- Build 136: "I lost the wipe history and update buttons" -- the fresh reload (now labelled update / fresh reload) and
+  wipe-saves buttons are back in plain sight on a small line of their own just above the build line; the testing
+  shortcuts stay folded.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Eight more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry. The Holy set is next.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
