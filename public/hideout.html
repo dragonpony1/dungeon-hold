@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="17">
+<meta name="hideout-build" content="18">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -191,7 +191,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 17;
+const HIDEOUT_BUILD = 18;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -1788,8 +1788,26 @@ function collide(nx, nz, ox, oz) {
 }
 
 let lastT = performance.now();
+// Keep-alive support for a host page (the game) that loads the hideout once and hides/shows it instead of rebuilding
+// it every visit: post 'hideout:hide' / 'hideout:show' to this frame. Hidden, it draws nothing; shown again, it
+// re-reads what the game may have changed meanwhile (gear bag, locker) and waits for a click to enter.
+let hiddenByHost = false;
+window.addEventListener('message', (e) => {
+  if (e.source !== window.parent || window.parent === window) return;
+  if (e.data === 'hideout:hide') {
+    hiddenByHost = true;
+    if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
+  } else if (e.data === 'hideout:show') {
+    hiddenByHost = false; lastT = performance.now();
+    Object.assign(BAG, loadBag());
+    rewardBannerShown = false; refreshRewardsFresh();
+    pollDroppedGear();
+    document.getElementById('start').style.display = 'flex';
+  }
+});
 function animate(now) {
   requestAnimationFrame(animate);
+  if (hiddenByHost) return;
   const dt = Math.min(0.05, (now-lastT)/1000); lastT = now;
   if (active) {
     vel.set(0,0,0);
