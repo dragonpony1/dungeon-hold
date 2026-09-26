@@ -58,8 +58,11 @@ canvas{display:block}
 #cauldronHeader{background:linear-gradient(#4a1a3a,#2a0f22);padding:16px 20px 12px;text-align:center;border-bottom:3px solid #a5509a}
 #cauldronHeader h1{margin:0;color:#f0b8ff;font-size:1.7em;letter-spacing:0.04em;text-shadow:0 2px 4px #000}
 #cauldronHeader p{margin:4px 0 0;color:#c890c8;font-size:0.85em;font-style:italic}
-#cauldronScrap{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;background:#150c15;border:1px solid #6b2a5a;border-radius:8px;padding:8px 14px;color:#ffdca0;font-weight:bold}
-#cauldronScrap img{width:26px;height:26px;object-fit:contain}
+#cauldronBag{display:flex;justify-content:center;gap:8px;margin-top:12px;flex-wrap:wrap}
+.cpill{display:flex;align-items:center;gap:5px;background:#150c15;border:2px solid #6b2a5a;border-radius:8px;padding:4px 8px;font-weight:bold;color:#ffdca0}
+.cpill img{width:22px;height:22px;object-fit:contain}
+.cpill.empty{opacity:0.45}
+.csection{color:#c890c8;font-size:0.8em;font-style:italic;margin:6px 2px 6px;letter-spacing:0.02em}
 #cauldronBody{padding:14px 18px;overflow-y:auto}
 .crow{display:flex;align-items:center;gap:8px;padding:8px;margin-bottom:8px;background:linear-gradient(#3a2a3a,#241824);border:1px solid #6b3a5a;border-radius:10px}
 .crow .cslot{display:flex;flex-direction:column;align-items:center;gap:2px;flex:0 0 auto}
@@ -121,8 +124,8 @@ canvas{display:block}
   <button id="cauldronClose">&times;</button>
   <div id="cauldronHeader">
     <h1>CAULDRON CART</h1>
-    <p>Turn Battle Scrap into powerful sludge.</p>
-    <div id="cauldronScrap"><img src="/assets/hideout/items/battle_scrap.webp"> <span id="cauldronScrapText"></span></div>
+    <p>Salvage what you carried in, then refine it upward.</p>
+    <div id="cauldronBag"></div>
   </div>
   <div id="cauldronBody"><div id="cauldronRows"></div></div>
 </div></div>
@@ -903,66 +906,103 @@ document.getElementById('forgeCraftBtn').onclick = () => {
   buildForgeGrid(); writeSave();
 };
 
-// ============= CAULDRON CART (single-input tiered sludge chain) =============
-const CAULDRON_COST = 5;
-const CAULDRON_TIERS = [
-  { id:'common',    name:'Common Sludge',    outIcon: ITEMS_DIR+'common_sludge.png',
-    inIcon: ITEMS_DIR+'battle_scrap.webp',   inName:'Common Gear',    inGet:()=>BAG.common,          inConsume:n=>{ BAG.common-=n; writeBag(); },
-    add:n=>SAVE.commonSludge+=n },
-  { id:'uncommon',  name:'Uncommon Sludge',  outIcon: ITEMS_DIR+'uncommon_sludge.png',
-    inIcon: ITEMS_DIR+'common_sludge.png',   inName:'Common Sludge',  inGet:()=>SAVE.commonSludge,   inConsume:n=>SAVE.commonSludge-=n,
-    add:n=>SAVE.uncommonSludge+=n },
-  { id:'rare',      name:'Rare Sludge',      outIcon: ITEMS_DIR+'sludge_jar.webp',
-    inIcon: ITEMS_DIR+'uncommon_sludge.png', inName:'Uncommon Sludge',inGet:()=>SAVE.uncommonSludge, inConsume:n=>SAVE.uncommonSludge-=n,
-    add:n=>SAVE.sludge+=n },
-  { id:'legendary', name:'Legendary Sludge', outIcon: ITEMS_DIR+'legendary_sludge.png',
-    inIcon: ITEMS_DIR+'sludge_jar.webp',     inName:'Rare Sludge',    inGet:()=>SAVE.sludge,         inConsume:n=>SAVE.sludge-=n,
-    add:n=>SAVE.legendarySludge+=n },
+// ============= CAULDRON CART (salvage carried-in gear, then refine sludge upward) =============
+// Every rarity of gear is worth five of the one below it — common 1, uncommon 5, rare 25, epic 125,
+// legendary 625 in Common Gear terms — without needing an extra sludge tier: epic feeds Legendary
+// Sludge at 5:1 and a legendary piece is a whole Legendary Sludge on its own.
+// colors match the main game's RCSS table (parts/game.js on the main branch) so a rarity reads the same on both sides of the portal
+const RARITIES = [
+  { id:'common',    name:'Common Gear',    color:'#d8d8d8' },
+  { id:'uncommon',  name:'Uncommon Gear',  color:'#5ad05a' },
+  { id:'rare',      name:'Rare Gear',      color:'#6aa8ff' },
+  { id:'epic',      name:'Epic Gear',      color:'#c070ff' },
+  { id:'legendary', name:'Legendary Gear', color:'#ffc040' },
 ];
-function tierById(id) { return CAULDRON_TIERS.find(t => t.id === id); }
+const RARITY_RANK = { common:0, uncommon:1, rare:2, epic:3, legendary:4 };
+const SLUDGE = {
+  common:    { name:'Common Sludge',    icon: ITEMS_DIR+'common_sludge.png',    get:()=>SAVE.commonSludge,    add:n=>SAVE.commonSludge+=n },
+  uncommon:  { name:'Uncommon Sludge',  icon: ITEMS_DIR+'uncommon_sludge.png',  get:()=>SAVE.uncommonSludge,  add:n=>SAVE.uncommonSludge+=n },
+  rare:      { name:'Rare Sludge',      icon: ITEMS_DIR+'sludge_jar.webp',      get:()=>SAVE.sludge,          add:n=>SAVE.sludge+=n },
+  legendary: { name:'Legendary Sludge', icon: ITEMS_DIR+'legendary_sludge.png', get:()=>SAVE.legendarySludge, add:n=>SAVE.legendarySludge+=n },
+};
+const RECIPES = [
+  { id:'sv_common',    kind:'salvage', gear:'common',    cost:5, out:'common' },
+  { id:'sv_uncommon',  kind:'salvage', gear:'uncommon',  cost:5, out:'uncommon' },
+  { id:'sv_rare',      kind:'salvage', gear:'rare',      cost:5, out:'rare' },
+  { id:'sv_epic',      kind:'salvage', gear:'epic',      cost:5, out:'legendary' },
+  { id:'sv_legendary', kind:'salvage', gear:'legendary', cost:1, out:'legendary' },
+  { id:'rf_uncommon',  kind:'refine',  sludge:'common',   cost:5, out:'uncommon' },
+  { id:'rf_rare',      kind:'refine',  sludge:'uncommon', cost:5, out:'rare' },
+  { id:'rf_legendary', kind:'refine',  sludge:'rare',     cost:5, out:'legendary' },
+];
+function recipeById(id) { return RECIPES.find(r => r.id === id); }
+function recipeInput(r) {
+  if (r.kind === 'salvage') {
+    const ra = RARITIES.find(x => x.id === r.gear);
+    return { name: ra.name, icon: ITEMS_DIR+'battle_scrap.webp', color: ra.color, get: () => BAG[r.gear] || 0, consume: n => { BAG[r.gear] -= n; writeBag(); } };
+  }
+  const s = SLUDGE[r.sludge];
+  return { name: s.name, icon: s.icon, color: null, get: s.get, consume: n => s.add(-n) };
+}
+
+function renderBagStrip() {
+  const el = document.getElementById('cauldronBag');
+  el.innerHTML = '';
+  RARITIES.forEach(ra => {
+    const n = BAG[ra.id] || 0;
+    const pill = document.createElement('div');
+    pill.className = 'cpill' + (n ? '' : ' empty');
+    pill.style.borderColor = ra.color;
+    pill.innerHTML = '<img src="'+ITEMS_DIR+'battle_scrap.webp"><b style="color:'+ra.color+'">'+n+'</b>';
+    attachTooltip(pill, n + ' ' + ra.name);
+    el.appendChild(pill);
+  });
+}
 
 function buildCauldronRows() {
   const wrap = document.getElementById('cauldronRows');
   wrap.innerHTML = '';
-  CAULDRON_TIERS.forEach(tier => {
-    const short = tier.inGet() < CAULDRON_COST ? ' short' : '';
-    const row = document.createElement('div');
-    row.className = 'crow';
-    row.dataset.id = tier.id;
-    const inSlot = '<div class="cslot"><img class="cicon" src="'+tier.inIcon+'"><span class="cqty'+short+'">need '+CAULDRON_COST+'</span></div>';
-    const outSlot = '<div class="cslot"><img class="cicon" src="'+tier.outIcon+'"><span class="cqty">have '+tierStock(tier)+'</span></div>';
-    row.innerHTML = inSlot + '<span class="carrow">&rarr;</span>' + outSlot
-      + '<span class="cname">'+tier.name+'</span>'
-      + '<button class="ccraft">Craft</button>';
-    const cslots = row.querySelectorAll('.cslot');
-    attachTooltip(cslots[0].querySelector('img'), tier.inName);
-    attachTooltip(cslots[1].querySelector('img'), tier.name);
-    row.querySelector('.ccraft').onclick = () => craftSludge(tier.id);
-    wrap.appendChild(row);
+  renderBagStrip();
+  [['salvage', 'Salvage — turn the gear you carried in into sludge'], ['refine', 'Refine — five of a sludge make one of the next']].forEach(([kind, label]) => {
+    const h = document.createElement('div'); h.className = 'csection'; h.textContent = label; wrap.appendChild(h);
+    RECIPES.filter(r => r.kind === kind).forEach(r => {
+      const inp = recipeInput(r), out = SLUDGE[r.out];
+      const have = inp.get(), short = have < r.cost ? ' short' : '';
+      const row = document.createElement('div');
+      row.className = 'crow';
+      row.dataset.id = r.id;
+      const frame = inp.color ? ' style="border-color:'+inp.color+';box-shadow:0 0 6px '+inp.color+'66"' : '';
+      row.innerHTML = '<div class="cslot"><img class="cicon" src="'+inp.icon+'"'+frame+'><span class="cqty'+short+'">'+have+'/'+r.cost+'</span></div>'
+        + '<span class="carrow">&rarr;</span>'
+        + '<div class="cslot"><img class="cicon" src="'+out.icon+'"><span class="cqty">have '+out.get()+'</span></div>'
+        + '<span class="cname">'+out.name+'</span>'
+        + '<button class="ccraft">'+(kind === 'salvage' ? 'Salvage all' : 'Craft')+'</button>';
+      const cslots = row.querySelectorAll('.cslot');
+      attachTooltip(cslots[0].querySelector('img'), inp.name + ' — have ' + have + ', need ' + r.cost);
+      attachTooltip(cslots[1].querySelector('img'), out.name);
+      row.querySelector('.ccraft').onclick = () => craftRecipe(r.id, kind === 'salvage');
+      wrap.appendChild(row);
+    });
   });
   renderCauldronPanel();
 }
-function tierStock(tier) {
-  if (tier.id === 'common') return SAVE.commonSludge;
-  if (tier.id === 'uncommon') return SAVE.uncommonSludge;
-  if (tier.id === 'rare') return SAVE.sludge;
-  return SAVE.legendarySludge;
-}
 function renderCauldronPanel() {
-  document.getElementById('cauldronScrapText').textContent = BAG.common + ' Common Gear';
   document.querySelectorAll('.crow').forEach(row => {
-    const tier = tierById(row.dataset.id);
-    row.querySelector('.ccraft').disabled = tier.inGet() < CAULDRON_COST;
+    const r = recipeById(row.dataset.id);
+    row.querySelector('.ccraft').disabled = recipeInput(r).get() < r.cost;
   });
 }
-function craftSludge(id) {
-  const tier = tierById(id);
-  if (tier.inGet() < CAULDRON_COST) { flashMsg('Not enough ' + tier.inName); sfxFail(); return; }
-  tier.inConsume(CAULDRON_COST);
-  tier.add(1);
+function craftRecipe(id, all) {
+  const r = recipeById(id), inp = recipeInput(r), out = SLUDGE[r.out];
+  const times = all ? Math.floor(inp.get() / r.cost) : 1;
+  if (times < 1 || inp.get() < r.cost) { flashMsg('Not enough ' + inp.name); sfxFail(); return; }
+  inp.consume(r.cost * times);
+  out.add(times);
   document.getElementById('sludge').textContent = SAVE.sludge;
-  flashMsg('Crafted 1 ' + tier.name);
-  sfxCraftBubble();
+  flashMsg(r.kind === 'salvage'
+    ? 'Salvaged ' + (r.cost * times) + ' ' + inp.name + ' → ' + times + ' ' + out.name
+    : 'Crafted 1 ' + out.name);
+  sfxCraft(r.kind === 'salvage' ? RARITY_RANK[r.gear] : 0);
   buildCauldronRows(); writeSave();
 }
 let cauldronWasActive = false;
@@ -1030,6 +1070,13 @@ function sfxFail() { sfxSweep(220, 70, 0.35, 'sawtooth', 0.16); }
 function sfxUnique() {
   [523,659,784,1046,1318,1568].forEach((f,i) => sfxTone(f, 0.28, 'triangle', 0.13, i*0.08));
   sfxSweep(1200, 2400, 0.4, 'sine', 0.05, 0.05);
+}
+// the cauldron bubble, plus more on top the rarer the gear going in (rank: common 0 … legendary 4)
+function sfxCraft(rank) {
+  sfxCraftBubble();
+  if (rank >= 2) setTimeout(sfxSuccess, 260);
+  if (rank >= 3) sfxTone(1046, 0.3, 'triangle', 0.14, 0.55);
+  if (rank >= 4) sfxSweep(900, 2600, 0.6, 'sine', 0.07, 0.6);
 }
 
 // TEMPORARY — lets Matt audition each crafting sound on demand instead of fighting RNG. Remove once the sounds are settled.

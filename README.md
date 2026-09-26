@@ -612,8 +612,9 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   the hideout's own acceptance step (its Cauldron Cart reads the carried count, crafting spends it down to 0 in
   storage, and a later carry lands on that 0 rather than resurrecting what was used up — the whole reason the
   contract says ADD), both ways out, the title-screen button, a fresh load restoring from `ddMeta`, and the page
-  standalone. The hideout side kept pace in the same afternoon (its `a3e6b0e`): the Cart now reads `dd_gear_bag`,
-  `epic` is one of its default keys, its testing seed is gone, and its Worker answers CORS for
+  standalone. The hideout side kept pace in the same afternoon (`a3e6b0e`, then `ca52e25`): the Cart reads
+  `dd_gear_bag` and salvages every rarity (a row per rarity, five counts in its header, the frames in this game's own
+  `RCSS` colours), `epic` is one of its default keys, its testing seed is gone, and its Worker answers CORS for
   `dragonpony1.github.io`, so the game hands the derived page that Worker as its API base when served from GitHub
   Pages (same-origin everywhere else). Not linked yet: hideout-forged mythic/unique gear coming back into the game
   (needs a real item database, per the brief).

@@ -72,11 +72,14 @@ if(frame){
   check("embedded: the BACK TO THE HALL button is on its entry overlay",await frame.evaluate(()=>{ const b=document.getElementById('leaveBtn'); return !!b&&getComputedStyle(b).display!=='none'; }));
   check("the hideout's own save loaded (the room's starter items are in its hotbar)",await frame.evaluate(()=>!!document.querySelector('#inv .slot')));
   // the brief's own acceptance step: open the Cauldron Cart in there and see the Common Gear number match what was carried
-  const cauldron=await frame.evaluate(()=>{ openCauldron(); return {text:document.getElementById('cauldronScrapText').textContent,bag:JSON.parse(JSON.stringify(BAG))}; });
-  check("the Cauldron Cart shows the carried gear: 5 Common Gear (3 seeded + 2 carried)",cauldron.text==='5 Common Gear',JSON.stringify(cauldron));
+  // the Cart (hideout-wip ca52e25) salvages every rarity: five pills in its header, one per rarity in rank order, each a <b> count
+  const cauldron=await frame.evaluate(()=>{ openCauldron(); return {pills:[...document.querySelectorAll('#cauldronBag b')].map(b=>+b.textContent),rows:[...document.querySelectorAll('#cauldronRows .crow')].map(r=>r.dataset.id),bag:JSON.parse(JSON.stringify(BAG))}; });
+  check("the Cauldron Cart's header shows the carried gear per rarity: 5 common (3 seeded + 2 carried), 0, 2 rare, 1 epic, 0",JSON.stringify(cauldron.pills)==='[5,0,2,1,0]',JSON.stringify(cauldron.pills));
+  check("...with a salvage row for every rarity, epic included",['sv_common','sv_uncommon','sv_rare','sv_epic','sv_legendary'].every(id=>cauldron.rows.includes(id)),cauldron.rows.join(' '));
   check("the hideout's BAG mirrors every key the game wrote, epic included",cauldron.bag.common===5&&cauldron.bag.rare===2&&cauldron.bag.epic===1&&cauldron.bag.uncommon===0&&cauldron.bag.legendary===0,JSON.stringify(cauldron.bag));
-  const crafted=await frame.evaluate(()=>{ craftSludge('common'); return {text:document.getElementById('cauldronScrapText').textContent,stored:JSON.parse(localStorage.getItem('dd_gear_bag')).common,sludge:SAVE.commonSludge}; });
-  check("crafting Common Sludge spends 5 Common Gear for real: the Cart reads 0 and dd_gear_bag.common is 0 in storage",crafted.text==='0 Common Gear'&&crafted.stored===0&&crafted.sludge>=1,JSON.stringify(crafted));
+  const crafted=await frame.evaluate(()=>{ craftRecipe('sv_common',false); return {pills:[...document.querySelectorAll('#cauldronBag b')].map(b=>+b.textContent),common:BAG.common,stored:JSON.parse(localStorage.getItem('dd_gear_bag')).common,sludge:SAVE.commonSludge}; });
+  check("salvaging once spends 5 common gear for real: BAG and the header read 0, dd_gear_bag.common is 0 in storage, one Common Sludge made",crafted.common===0&&crafted.pills[0]===0&&crafted.stored===0&&crafted.sludge>=1,JSON.stringify(crafted));
+  check("...and the other rarities are untouched by it",JSON.stringify(crafted.pills.slice(1))==='[0,2,1,0]',JSON.stringify(crafted.pills));
   await frame.evaluate(()=>closeCauldron());
   for(let i=0;i<200&&!responses.some(r=>/\/hideout\/assets\/hideout\/floor\.glb\.txt$/.test(r.url));i++) await sleep(50);
   const floor=responses.find(r=>/\/hideout\/assets\/hideout\/floor\.glb\.txt$/.test(r.url));
