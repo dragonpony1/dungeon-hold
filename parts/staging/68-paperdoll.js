@@ -41,7 +41,47 @@ const css=`#hud .bars{width:300px}#hud .bar{height:20px}#hud .bar b{font-size:13
 #doll .fg-hint{font-size:12px;color:var(--gold2);text-align:center;padding:6px;border:1px dashed var(--copper);border-radius:3px;margin-bottom:8px;letter-spacing:1px}
 @media (max-width:980px){#doll .dl-grid{grid-template-columns:1fr 1fr}#doll .dl-col.mid{grid-column:1/3;order:-1}#doll .dl-figure{height:260px}#doll .dl-lower{grid-template-columns:1fr}}
 @media (max-width:640px){#doll .dl-grid{grid-template-columns:1fr}#doll .dl-col.mid{grid-column:auto}#doll h1{font-size:17px;letter-spacing:4px}#doll h1 .orn{width:40px}#doll .inv{grid-template-columns:repeat(6,1fr)}}
-@media (max-width:700px){#hud .bars{width:190px}#hud .bar{height:16px}#hud .res{font-size:15px;gap:10px}#hud .res .gold{font-size:14px}#hud #xpline{font-size:12px}}`;
+@media (max-width:700px){#hud .bars{width:190px}#hud .bar{height:16px}#hud .res{font-size:15px;gap:10px}#hud .res .gold{font-size:14px}#hud #xpline{font-size:12px}}
+#doll .dl-box{width:calc(100vw - 16px);min-height:calc(100vh - 16px);max-height:calc(100vh - 16px);padding:14px 22px 16px;font-size:clamp(14px,.55vw + 7px,19px)}
+#doll h1{font-size:1.6em}#doll .pl{font-size:.78em}#doll .dl-x{width:44px;height:44px;font-size:20px}
+#doll .dl-grid{grid-template-columns:minmax(0,1fr) minmax(360px,1fr) minmax(0,1fr);gap:16px}
+#doll .dl-pane{font-size:.95em;padding:10px 12px 11px}
+#doll .dl-slot .nm{font-size:1.12em}#doll .dl-slot .st{font-size:.9em}#doll .dl-slot .em{font-size:.95em}#doll .dl-slot .tier{font-size:.66em}
+#doll .ic-box{width:66px;height:66px;font-size:36px}
+#doll .fg-row .fg-l{font-size:.95em}#doll .fg-row .fg-l small{font-size:.78em}#doll .fg-row .fg-v{font-size:1.08em}#doll .fg-btns button{font-size:.8em;padding:5px 8px}
+#doll .fg-meter{height:19px}#doll .fg-meter span{font-size:.72em;line-height:19px}#doll .fg-cost{font-size:.86em}
+#doll .dl-figure{height:clamp(150px,17vh,380px)}#doll .dl-col.mid .dl-vitals{margin-top:8px}#doll .dl-col.mid .dl-pane{padding:8px 10px 9px}#doll .vt{font-size:.95em}#doll .vt .vl{width:auto;min-width:92px}#doll .vt .vb{height:14px}
+#doll .dl-stat{max-width:190px}#doll .dl-stat i{font-size:.7em}#doll .dl-stat b{font-size:1.3em}#doll .dl-stat .md{width:54px;height:54px;font-size:26px}#doll .dl-stat.big .md{width:62px;height:62px;font-size:30px}
+#doll .inv-c{font-size:28px}#doll .inv-c em{font-size:.66em}
+#doll .cd-nm{font-size:1.25em}#doll .cd-sub{font-size:.72em}#doll .cd-l{font-size:1em}#doll .cd-l.mute{font-size:.85em}#doll .cd-fl{font-size:.9em}#doll .cd-btns button{font-size:.8em}
+#doll .dl-sum{font-size:.95em}#doll .dl-sum .lv{font-size:1.25em}#doll .dl-foot{font-size:.85em}#doll .dl-mini{font-size:.78em}
+#doll .dl-setband{margin-top:12px}
+#doll .dl-sets{display:grid;grid-template-columns:1fr;gap:10px;font-size:1em;color:var(--mute);line-height:1.45}
+#doll .dl-sets .sr{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;padding:9px 11px;border:1px solid var(--line);border-left:4px solid var(--sc,#a5602a);border-radius:3px;background:#0b0a0d}
+#doll .dl-sets .sr.zero{grid-template-columns:auto 1fr;padding:6px 10px;opacity:.85}#doll .sr.zero .sp{width:44px;height:55px;font-size:24px}#doll .sr.zero .sp img{filter:grayscale(.85) brightness(.5)}#doll .sr.zero .sn{font-size:1em}#doll .sr.zero .sn small{color:#6f6459;font-size:.75em;letter-spacing:1px;margin-left:6px}#doll .sz{font-size:.8em;color:#7d7286;line-height:1.35;margin-top:2px}#doll .sz .k{color:var(--gold2)}
+#doll .dl-sets .sr.on{background:linear-gradient(90deg,color-mix(in srgb,var(--sc) 14%,#0b0a0d),#0b0a0d 60%)}
+#doll .sp{position:relative;width:100px;height:125px;border:1px solid var(--line);border-radius:3px;background:radial-gradient(ellipse at 50% 62%,#2a1c22,#0b0a0d 72%);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:46px}
+#doll .sp img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}#doll .sp.dim img{filter:grayscale(.85) brightness(.5)}
+#doll .sn{font-size:1.2em;color:var(--cream);letter-spacing:1px}#doll .sn b{color:var(--sc);font-weight:normal}
+#doll .spips{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}
+#doll .spips span{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:56px;padding:3px 3px 2px;border:1px solid var(--line);border-radius:3px;font-size:.72em;letter-spacing:1px;color:#6f6459;background:#08070a;text-transform:uppercase}
+#doll .spips span i{font-style:normal;font-size:1.9em;filter:grayscale(1) opacity(.4)}
+#doll .spips span.worn{border-color:var(--sc);color:var(--cream)}#doll .spips span.worn i{filter:none}
+#doll .spips span.bag{border-style:dashed;border-color:color-mix(in srgb,var(--sc) 55%,#3a2618);color:var(--mute)}#doll .spips span.bag i{filter:grayscale(.3) opacity(.8)}
+#doll .sb{margin-top:4px;padding:5px 8px;border-radius:3px;background:#08070a;border:1px solid var(--line);font-size:.95em;color:#7d7286}
+#doll .sb.lit{border-color:var(--sc);color:var(--cream);box-shadow:inset 0 0 14px color-mix(in srgb,var(--sc) 18%,transparent)}#doll .sb .k{display:inline-block;min-width:90px;color:var(--gold2);font-size:.78em;letter-spacing:2px}#doll .sb.lit .k::after{content:' ✓';color:var(--sc)}
+#doll .dl-loads{margin-top:12px}#doll .ld-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+#doll .ld{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 5px;border:1px solid var(--line);border-radius:3px;background:#0b0a0d;text-align:center;min-width:0}
+#doll .ld.cur{border-color:var(--gold2);box-shadow:0 0 14px #e6b66244}
+#doll .ld-pic{position:relative;width:100%;aspect-ratio:4/5;max-height:84px;display:flex;align-items:center;justify-content:center;border:1px solid var(--lc,#3a2618);border-radius:3px;background:radial-gradient(ellipse at 50% 62%,#2a1c22,#0b0a0d 72%);overflow:hidden;font-size:34px;color:#6f6459}
+#doll .ld-pic img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}#doll .ld-pic .ia{position:static;width:80%;height:80%}
+#doll .ld-nm{font-size:.82em;color:var(--cream);letter-spacing:1px;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+#doll .ld-sub{font-size:.68em;color:var(--mute);line-height:1.25;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#doll .ld-buff{font-size:.72em;line-height:1.25;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6f6459}#doll .ld[data-ld]{cursor:help}#doll .ld.pv{border-color:var(--gold2)}#doll .dl-setband.prev{border-style:dashed;border-color:var(--gold2)}#doll .dl-setband.prev .pl{color:#fff}
+#doll .ld-b{display:flex;gap:3px;flex-wrap:nowrap;justify-content:center}
+#doll .ld-b button{background:linear-gradient(#3a2216,#1d120c);border:1px solid var(--copper);border-radius:2px;color:var(--gold2);font:bold .66em Georgia,serif;letter-spacing:0;padding:4px 6px;cursor:pointer}#doll .ld-b button:hover:not(:disabled){border-color:var(--ember);color:#fff}#doll .ld-b button:disabled{opacity:.35;cursor:default}#doll .ld-b button.arm{border-color:#ff6a5a;color:#ffb0a0}
+@media (max-width:980px){#doll .dl-grid{grid-template-columns:1fr 1fr}#doll .ld-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){#doll .dl-grid{grid-template-columns:1fr}#doll .dl-box{padding:12px 12px 14px}}`;
 const st=document.createElement('style'); st.textContent=css; document.head.appendChild(st);
 const D={open:false,timer:0,html:'',hint:false,sel:null,cv:null};
 const SNAME={weapon:'weapon',armor:'armor',charm:'charm',amulet:'amulet',familiar:'familiar'};
@@ -60,8 +100,52 @@ function slotPanel(s){ const it=gear[s], F=Meta.forge; let inner;
         (left?'<div class="fg-cost">next upgrade <b>'+Meta.fmtG(cost)+' ●</b>'+(gold<cost?' · <span class="no">need '+Meta.fmtG(cost-gold)+' more</span>':'')+'</div>':'')+rows; } }
   return '<div class="dl-slot dl-pane '+s+'" data-slot="'+s+'"><div class="pl">'+SNAME[s]+'</div>'+inner+'</div>'; }
 function medal(k,l,v,big){ return '<div class="dl-stat'+(big?' big':'')+'" style="--c:'+(MDC[k]||'#a5602a')+'"><span class="md">'+l.split(' ')[0]+'</span><i>'+l.split(' ').slice(1).join(' ')+'</i><b>'+v+'</b><em></em></div>'; }
-function setsPanel(){ if(!Meta.sets) return ''; const c=Meta.sets.counts(), a=Meta.sets.active(); const rows=Object.keys(Meta.sets.SETS).map(n=>{ const S=Meta.sets.SETS[n], k=c[n]|0, act=a.find(x=>x.name===n); return '<div class="sr'+(act?' on':'')+'"><span>'+S.ic+' <b>'+n+' '+k+'/5</b>'+(act?'<br>'+act.text:k?'<br><span style="color:#6f6459">'+(k>=3?'':'3 pieces: '+S.text[0]+' · ')+'5 pieces: '+S.text[1]+'</span>':'<br><span style="color:#6f6459">3 pieces: '+S.text[0]+'</span>')+'</span></div>'; }).join('');
-  return '<div class="dl-pane dl-sets"><div class="pl">set bonuses</div>'+rows+'<div style="font-size:10px;color:#6f6459;margin-top:4px">only the great sets carry an "of the …" name; each piece counts</div></div>'; }
+// ---- the sets band (build 141): "the tab screen is the only place you can see your sets and what they do ... mostly I need to
+// see my sets and their bonuses a little better". Every registered set gets a card across the full width: a picture of its
+// armor (the set's own dressed stand, rendered by probes/setpictures.mjs), the count, a pip per slot saying whether that
+// piece is worn, in the bag (or armory) unworn, or not found yet, and both bonuses with the ones you have lit.
+const SET_PICS=['forest','void'];   // parts/assets/set-<k>.png exists for these
+function setPic(P){ const k=P&&P.unlock&&String(P.unlock.id||'').replace(/^stand-/,''); return k&&SET_PICS.includes(k)&&(typeof HAS_ASSETS==='undefined'||HAS_ASSETS)?'assets/set-'+k+'.png':null; }
+// "I am wanting to see the sets so I can see the buff, that's the main reason for changing loadouts": point at a loadout card and
+// the band shows what THAT loadout would give -- its pieces as the pips, its bonuses lit -- instead of what you wear now
+function setsPanel(){ if(!Meta.sets) return ''; const so=Meta.sets.setOf, bag=Meta.bag(), arm=Meta.armory?Meta.armory():[];
+  const PL=D.ldPrev!=null&&LD[D.ldPrev]?LD[D.ldPrev]:null, pv=PL?Object.fromEntries(SLOTS.map(s=>{ const f=PL.ids[s]&&findItem(PL.ids[s]); return [s,f?f.it:null]; })):null, on=s=>pv?pv[s]:gear[s];
+  const c={}; for(const s of SLOTS){ const n=on(s)&&so(on(s)); if(n) c[n]=(c[n]|0)+1; } const a=Object.keys(c).filter(n=>c[n]>=3).map(n=>({name:n}));
+  const owned=n=>SLOTS.filter(s=>(on(s)&&so(on(s))===n)||(gear[s]&&so(gear[s])===n)||bag.some(x=>x.slot===s&&so(x)===n)||arm.some(x=>x.slot===s&&so(x)===n)).length;
+  const names=Object.keys(Meta.sets.SETS).sort((x,y)=>((c[y]|0)-(c[x]|0))||(owned(y)-owned(x)));   /* the set you wear most first, then the one you hold most pieces of */
+  const cards=names.map(n=>{ const S=Meta.sets.SETS[n], P=Meta.packs&&Meta.packs.get(n), css=(P&&P.css)||'#a5602a', k=c[n]|0, act=a.find(x=>x.name===n);
+    if(!owned(n)){ const pz=setPic(P); return '<div class="sr zero" style="--sc:'+css+'"><div class="sp">'+S.ic+(pz?'<img src="'+pz+'" alt="" onerror="this.remove()">':'')+'</div><div><div class="sn">'+S.ic+' <b>'+n+' '+k+'/5</b> <small>not found yet</small></div><div class="sz"><span class="k">3</span> '+S.text[0]+' · <span class="k">5</span> '+S.text[1]+'</div></div></div>'; }   /* a set with no piece yet: one compact row, so the one you are collecting keeps the room */
+    const pips=SLOTS.map(s=>{ const w=!!(on(s)&&so(on(s))===n), b=!w&&!pv&&(bag.some(x=>x.slot===s&&so(x)===n)||arm.some(x=>x.slot===s&&so(x)===n)); const lab=w?(pv?'in it':'worn'):b?'in bag':SNAME[s]; return '<span class="'+(w?'worn':b?'bag':'')+'" title="'+SNAME[s]+(w?(pv?' — in this loadout':' — worn'):b?' — you have it, not worn':pv?' — not in this loadout':' — not found yet')+'"><i>'+SICON[s]+'</i>'+lab+'</span>'; }).join('');
+    const pic=setPic(P);
+    return '<div class="sr'+(act?' on':'')+'" style="--sc:'+css+'"><div class="sp'+(k?'':' dim')+'">'+S.ic+(pic?'<img src="'+pic+'" alt="" onerror="this.remove()">':'')+'</div><div><div class="sn">'+S.ic+' <b>'+n+' '+k+'/5</b></div><div class="spips">'+pips+'</div>'+
+      '<div class="sb'+(k>=3?' lit':'')+'"><span class="k">3 PIECES</span>'+S.text[0]+'</div><div class="sb'+(k>=5?' lit':'')+'"><span class="k">ALL 5</span>'+S.text[1]+'</div></div></div>'; }).join('');
+  return '<div class="dl-pane dl-setband'+(pv?' prev':'')+'"><div class="pl">'+(pv?'loadout '+(D.ldPrev+1)+' would give':'sets · 3 pieces for the small bonus, all 5 for the big one')+'</div><div class="dl-sets">'+cards+'</div></div>'; }
+// ---- LOADOUTS (build 141): "give me 4 loadout buttons ... maybe a picture of the armor set". Four slots under the hero; SAVE keeps
+// what you wear now (the five item ids), WEAR puts it all back on from the bag or the armory. A piece sold or carried to the
+// hideout since is reported, a piece above your level is refused as usual. localStorage 'dd_loadouts' (the wipe clears dd* keys).
+const LD_KEY='dd_loadouts', LD_N=4;
+let LD=(()=>{ try{ const a=JSON.parse(localStorage.getItem(LD_KEY)); if(Array.isArray(a)) return Array.from({length:LD_N},(_,i)=>a[i]&&typeof a[i]==='object'&&a[i].ids&&typeof a[i].ids==='object'?a[i]:null); }catch(e){} return Array(LD_N).fill(null); })();
+function ldSave(){ try{ localStorage.setItem(LD_KEY,JSON.stringify(LD)); }catch(e){} }
+function findItem(id){ for(const s of SLOTS) if(gear[s]&&gear[s].id===id) return {it:gear[s],where:'worn'}; const b=Meta.bag().find(x=>x.id===id); if(b) return {it:b,where:'bag'}; const a=(Meta.armory?Meta.armory():[]).find(x=>x.id===id); return a?{it:a,where:'arm'}:null; }
+function ldStore(i){ const ids={}, names={}; let n=0; for(const s of SLOTS) if(gear[s]){ ids[s]=gear[s].id; names[s]=gear[s].name; n++; } if(!n){ toast('Wear something first — a loadout keeps what you have on'); return false; } LD[i]={ids,names,at:Date.now()}; ldSave(); D.ldArm=null; toast('Loadout '+(i+1)+' saved'); if(SFX.pickup) SFX.pickup(); return true; }
+function ldWorn(L){ const ks=SLOTS.filter(s=>L.ids[s]); return ks.length>0&&ks.every(s=>gear[s]&&gear[s].id===L.ids[s]); }
+function ldWear(i){ const L=LD[i]; if(!L) return false; let on=0, miss=0, gated=0, full=0;
+  for(const s of SLOTS){ const id=L.ids[s]; if(!id) continue; if(gear[s]&&gear[s].id===id) continue; const f=findItem(id); if(!f){ miss++; continue; }
+    if(f.where==='arm'){ if(!(Meta.unstash&&Meta.unstash(id))){ full++; continue; } }
+    if(Meta.equip(id)) on++; else gated++; }
+  const bits=[]; if(miss) bits.push(miss+' gone (sold, scrapped or carried to the hideout)'); if(gated) bits.push(gated+' refused'); if(full) bits.push(full+' stuck in the armory — the bag is full');
+  toast('Loadout '+(i+1)+(on?' on — '+on+' piece'+(on===1?'':'s')+' changed':' — nothing to change')+(bits.length?' · '+bits.join(' · '):'')); render(); return on>0; }
+function ldInfo(L,i){ const items=SLOTS.map(s=>L.ids[s]?findItem(L.ids[s]):null), have=items.filter(Boolean).map(f=>f.it), missing=SLOTS.filter(s=>L.ids[s]).length-have.length;
+  const tally={}; for(const it of have){ const n=Meta.sets&&Meta.sets.setOf(it); if(n) tally[n]=(tally[n]||0)+1; } let top=null; for(const n in tally) if(tally[n]>=3&&(!top||tally[n]>tally[top])) top=n;
+  const P=top&&Meta.packs?Meta.packs.get(top):null, sp=setPic(P), armor=items[SLOTS.indexOf('armor')], lead=armor?armor.it:have[0];
+  const picture=sp?(P.ic||'')+'<img src="'+sp+'" alt="" onerror="this.remove()">':lead?pic(lead,lead.slot):'⬚';
+  const name=top?top.replace(/^of the /,'')+' set':'Loadout '+(i+1); const S=top&&Meta.sets.SETS[top]; const full=S?(tally[top]>=5?S.text[1]:S.text[0]):''; const power=S&&tally[top]>=5?((S.text[1].match(/([A-Z][A-Z ]{3,}[A-Z]):/)||[])[1]||'full set'):''; const buff=S?'<span style="color:'+(P?P.css:'#e6b662')+'">'+S.ic+' '+tally[top]+'/5 · '+(power||full)+'</span>':'no set bonus'; const sub=(missing?'<span style="color:#ff9a7a">'+missing+' gone</span> · ':'')+have.length+' piece'+(have.length===1?'':'s')+(top?' · '+tally[top]+'/5':'');
+  return {picture,name,sub,buff,full,css:P?P.css:(lead?RCSS[lead.rarity]:null)}; }
+function loadoutsPane(){ const arm=D.ldArm&&Date.now()-D.ldArm.t<3000?D.ldArm.i:-1;
+  const cards=LD.map((L,i)=>{ const save='<button data-act="ldsave" data-i="'+i+'"'+(arm===i?' class="arm"':'')+' title="keep what you wear now in this slot">'+(arm===i?'REPLACE?':'SAVE')+'</button>';
+    if(!L) return '<div class="ld empty"><div class="ld-pic">＋</div><div class="ld-nm">Loadout '+(i+1)+'</div><div class="ld-sub" title="SAVE keeps what you wear now">empty</div><div class="ld-b"><button data-act="ldwear" data-i="'+i+'" disabled>WEAR</button>'+save+'</div></div>';
+    const inf=ldInfo(L,i), cur=ldWorn(L); return '<div class="ld'+(cur?' cur':'')+(D.ldPrev===i?' pv':'')+'" data-ld="'+i+'"'+(inf.css?' style="--lc:'+inf.css+'"':'')+'><div class="ld-pic">'+inf.picture+'</div><div class="ld-nm">'+inf.name+'</div><div class="ld-buff" title="'+(inf.full||'').replace(/"/g,'&quot;')+'">'+inf.buff+'</div><div class="ld-sub">'+inf.sub+'</div><div class="ld-b"><button data-act="ldwear" data-i="'+i+'"'+(cur?' disabled':'')+'>'+(cur?'WORN':'WEAR')+'</button>'+save+'</div></div>'; }).join('');
+  return '<div class="dl-pane dl-loads"><div class="pl">loadouts</div><div class="ld-row">'+cards+'</div></div>'; }
 function bagGrid(){ const bag=Meta.sortedBag?Meta.sortedBag():Meta.bag(), cap=Meta.BAG_CAP||24; let cells=''; for(let i=0;i<cap;i++){ const it=bag[i]; if(!it){ cells+='<div class="inv-c"></div>'; continue; } const sel=D.sel&&D.sel.from==='bag'&&D.sel.id===it.id; const pk=Meta.packs&&Meta.packs.of(it); const badge=pk?'<span class="tv-setbadge" style="color:'+pk.css+'" title="Part of a set: '+it.name.replace(/"/g,'&quot;')+'">'+pk.ic+'</span>':''; const setStyle=pk?' style="border-color:'+pk.css+'"':''; cells+='<div class="inv-c has r'+it.rarity+(sel?' sel':'')+(lvOk(it)?'':' lock')+'"'+setStyle+' data-act="pick" data-id="'+it.id+'" title="'+it.name+(lvOk(it)?'':' — needs level '+it.req)+'">'+badge+(it.locked?'<span class="dl-lock" title="Locked">🔒</span>':'')+'<span>'+pic(it,it.slot)+'</span><em>'+(lvOk(it)?'T'+tierN(it):'🔒'+it.req)+'</em></div>'; } return cells; }
 function armGrid(){ const arm=Meta.armory?Meta.armory():[], cap=Meta.armoryCap||8; let cells=''; for(let i=0;i<cap;i++){ const it=arm[i]; if(!it){ cells+='<div class="inv-c stand"></div>'; continue; } const sel=D.sel&&D.sel.from==='arm'&&D.sel.id===it.id; cells+='<div class="inv-c has r'+it.rarity+(sel?' sel':'')+'" data-act="pickarm" data-id="'+it.id+'" title="'+it.name+'"><span>'+pic(it,it.slot)+'</span><em>T'+tierN(it)+'</em></div>'; } return cells; }
 function selected(){ if(!D.sel) return null; if(D.sel.from==='eq'){ const it=gear[D.sel.slot]; return it&&it.id===D.sel.id?it:null; } if(D.sel.from==='arm') return (Meta.armory?Meta.armory():[]).find(b=>b.id===D.sel.id)||null; return Meta.bag().find(b=>b.id===D.sel.id)||null; }
@@ -78,8 +162,8 @@ function build(){ const stt=window.__feel?window.__feel.stats():{dmg:heroDmg(),a
     (D.hint&&Meta.forge?'<div class="fg-hint">🔨 The anvil: buy upgrades for it with gold, straight into each piece of gear below (up to its allowance)</div>':'')+
     '<div class="dl-grid"><div class="dl-col">'+slotPanel('weapon')+slotPanel('armor')+slotPanel('familiar')+'</div>'+
     '<div class="dl-col mid"><div class="dl-figure"><div class="arch"></div><div class="glow"></div><div class="vig"></div></div>'+
-      '<div class="dl-vitals"><div class="vt"><span class="vl">❤ HP</span><div class="vb"><i style="width:'+Math.round(hpF*100)+'%"></i></div><span class="vn">'+stt.hp+'</span></div><div class="vt"><span class="vl">⚔ ATTACK</span><span class="vn"><b>'+stt.dmg+'</b></span></div><div class="vt"><span class="vl">💧 MANA</span><div class="vb mp"><i style="width:'+Math.round(mnF*100)+'%"></i></div><span class="vn">'+Math.round(S.mana)+'</span></div><div class="vt"><span class="vl">🛡 DEFENSE</span><span class="vn"><b>'+stt.armor+'%</b></span></div></div></div>'+
-    '<div class="dl-col">'+slotPanel('charm')+slotPanel('amulet')+setsPanel()+'</div></div>'+
+      '<div class="dl-vitals"><div class="vt"><span class="vl">❤ HP</span><div class="vb"><i style="width:'+Math.round(hpF*100)+'%"></i></div><span class="vn">'+stt.hp+'</span></div><div class="vt"><span class="vl">⚔ ATTACK</span><span class="vn"><b>'+stt.dmg+'</b></span></div><div class="vt"><span class="vl">💧 MANA</span><div class="vb mp"><i style="width:'+Math.round(mnF*100)+'%"></i></div><span class="vn">'+Math.round(S.mana)+'</span></div><div class="vt"><span class="vl">🛡 DEFENSE</span><span class="vn"><b>'+stt.armor+'%</b></span></div></div>'+loadoutsPane()+setsPanel()+'</div>'+
+    '<div class="dl-col">'+slotPanel('charm')+slotPanel('amulet')+'</div></div>'+
     '<div class="dl-strip">'+medal('dps','💥 DPS',stt.dps,true)+medal('dmg','⚔ Damage',stt.dmg)+medal('aps','⚡ Swings / s',(+stt.aps).toFixed(2))+medal('magic','✨ Magic',stt.magic||'—')+medal('armor','🛡 Armor',stt.armor+'%')+medal('tow','🏹 Defenses',(stt.tow>=0?'+':'')+stt.tow+'%')+medal('hp','❤ Health',stt.hp)+'</div>'+
     '<div class="dl-lower"><div class="dl-pane"><div class="inv-head"><div class="pl lft">inventory · '+bagN+' / '+cap+'</div><button class="dl-mini" data-act="selljunk">SELL JUNK</button><button class="dl-mini" data-act="tavern">🍺 TAVERN</button></div><div class="inv" style="margin-top:8px">'+bagGrid()+'</div>'+(Meta.armory?'<div class="pl lft" style="margin-top:10px">armory · '+Meta.armory().length+' / '+(Meta.armoryCap||8)+' stands</div><div class="inv arm">'+armGrid()+'</div>':'')+'</div><div class="dl-pane">'+itemCard()+'</div></div>'+
     '<div class="dl-foot"><span>LEVEL '+lvl+' · <b>● '+M.fmtG(M.gold())+' gold</b></span><span><b>Tab</b> closes · click a piece to read it · gold buys upgrades that stay on the item</span></div></div>'; }
@@ -98,11 +182,15 @@ function ensure(){ if(el) return; el=document.createElement('div'); el.id='doll'
     else if(act==='lock'){ const on=Meta.toggleLock(ds.id); if(on!==null) toast(on?'Locked — never scrapped or sold as junk':'Unlocked'); render(); }
     else if(act==='sell'){ const it=Meta.bag().find(b=>b.id===ds.id); const g=Meta.sell(ds.id); if(g) toast('Sold '+(it?it.name:'item')+' for '+Meta.fmtG(g)+' ●'); D.sel=null; render(); }
     else if(act==='selljunk'){ const r=Meta.sellJunk(); toast(r.n?'Sold '+r.n+' item'+(r.n===1?'':'s')+' for '+Meta.fmtG(r.gold)+' ●':'Nothing worth selling'); D.sel=null; render(); }
+    else if(act==='ldsave'){ const i=+ds.i; if(LD[i]&&!(D.ldArm&&D.ldArm.i===i&&Date.now()-D.ldArm.t<3000)){ D.ldArm={i,t:Date.now()}; render(); return; } ldStore(i); render(); }
+    else if(act==='ldwear'){ ldWear(+ds.i); }
     else if(act==='up'){ const it=gear[ds.slot]; if(!it||!Meta.forge) return; const n=Meta.forge.upgrade(it.id,ds.key,+ds.n||1); if(!n){ const c=Meta.forge.can(it,ds.key); toast(c.why||'cannot upgrade that'); } render(); } });
+  el.addEventListener('mouseover',e=>{ const c=e.target.closest('.ld[data-ld]'); const i=c?+c.dataset.ld:null; if(i!==D.ldPrev){ D.ldPrev=i; render(); } });
+  el.addEventListener('mouseleave',()=>{ if(D.ldPrev!=null){ D.ldPrev=null; render(); } });
   const b=document.createElement('button'); b.id='dollbtn'; b.title='Character sheet & forge (Tab)'; b.textContent='👤'; b.addEventListener('click',open); $('hud').appendChild(b); }
 function render(){ const h=build(); if(h!==D.html){ D.html=h; el.innerHTML=h; } const f=el.querySelector('.dl-figure'); if(f&&D.cv.parentNode!==f) f.prepend(D.cv); }
 function open(hint){ ensure(); if(D.open||S.phase==='start'||(typeof Tavern!=='undefined'&&Tavern&&Tavern.isOpen())) return false; D.open=true; D.hint=hint===true; D.sel=null; render(); el.classList.remove('hide'); if(document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play'); for(const k in K) K[k]=0; D.timer=setInterval(render,250); return true; }
-function close(){ if(!D.open) return false; D.open=false; el.classList.add('hide'); clearInterval(D.timer); D.timer=0; return true; }
+function close(){ if(!D.open) return false; D.open=false; D.ldPrev=null; el.classList.add('hide'); clearInterval(D.timer); D.timer=0; return true; }
 function toggle(){ return D.open?close():open(); }
 { const prev=Meta.isOpen; Meta.isOpen=()=>D.open||!!prev(); }
 // ----- the portrait: the hall's own hero model, lit for a portrait and rendered by a second camera that only sees layer 1
@@ -124,5 +212,5 @@ function dollFrame(dt){ const fig=el&&el.querySelector('.dl-figure'); if(!fig||!
 addEventListener('keydown',e=>{ if(e.code==='Tab'||e.code==='KeyC'){ if(S.phase==='start'||S.phase==='dead'||S.phase==='won') return; if(e.code==='Tab') e.preventDefault(); if(typeof Tavern!=='undefined'&&Tavern&&Tavern.isOpen()) return; toggle(); e.stopImmediatePropagation(); return; }
   if(D.open){ if(e.code==='Escape'||e.code==='KeyI'||e.code==='KeyB'){ e.preventDefault(); close(); } e.stopImmediatePropagation(); } },true);
 ensure();
-window.__doll={open,close,isOpen:()=>D.open,html:()=>el?el.innerHTML:'',select:(id,from,slot)=>{ D.sel=id?{id,from:from||'bag',slot}:null; if(D.open) render(); },selected:()=>D.sel,portrait:()=>D.cv?{w:D.cv.width,h:D.cv.height,cam:!!PC}:null,forge:()=>null,setForge:()=>{}};
+window.__doll={preview:i=>{ D.ldPrev=i==null?null:i; if(D.open) render(); },loadouts:()=>JSON.parse(JSON.stringify(LD)),saveLoadout:ldStore,wearLoadout:ldWear,LD_KEY,open,close,isOpen:()=>D.open,html:()=>el?el.innerHTML:'',select:(id,from,slot)=>{ D.sel=id?{id,from:from||'bag',slot}:null; if(D.open) render(); },selected:()=>D.sel,portrait:()=>D.cv?{w:D.cv.width,h:D.cv.height,cam:!!PC}:null,forge:()=>null,setForge:()=>{}};
 })();

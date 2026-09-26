@@ -851,6 +851,21 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   player's own placement clip (`parts/assets/sfx-place.mp3`, cut to the one hit, 10 KB; Mark II and a repair share it),
   and every fourth bolt from each ballista plays the player's shot clip (`parts/assets/sfx-ballista.mp3`), the synth
   twang on the other three. Hideout build 19 rides along (its save now keeps a 9-slot hotbar and a 27-slot bag).
+- Build 141: the Tab sheet, from the playtest ("it's so small to read ... give me 4 loadout buttons ... mostly I need to
+  see my sets and their bonuses ... that's the main reason for changing loadouts"). It fills the window with larger type.
+  Under the hero, four LOADOUT cards: SAVE keeps the five pieces you wear (asking once before replacing one), WEAR puts
+  them back on from the bag or the armory and says which are gone; each card shows its set's armor picture and the
+  bonus it brings ("5/5 · TWIN SHOT"), and pointing at one turns the sets panel into "loadout N would give". Below
+  them, the sets panel: the set you wear most first, a picture of its dressed armor stand (`probes/setpictures.mjs`
+  renders `parts/assets/set-<k>.png`), a pip per slot (worn, in the bag, not found), both bonuses lit as they apply;
+  a set with no piece yet is one compact row. `dd_loadouts` in localStorage (the wipe clears it). The Forest set's
+  familiar now fires quick green thorns instead of slow lobbed balls: the Wisp's spark and the Moss Sprite's pod fly
+  1.6x faster, the pod's arc flattened to a skim, with a faint green trail (85-familiars.js; the Imp's fireball is a
+  touch quicker too). Map one gets the throne room's gothic doors in its three spawn archways, from a slim copy of the
+  model (`hall-door.glb`, textures cut to 1024 px: 0.7 MB instead of 7.9). Fixed from build 140: once the hideout had
+  preloaded, the "E step through the portal" prompt stopped showing. Hideout build 20 rides along (the Side Table).
+  Suites: loadout-test.mjs, halldoors-test.mjs (new), forestset-test.mjs (thorns), armory-test.mjs (the gate checks
+  moved to map two, the formula brought up to date).
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Eight more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry. The Holy set is next.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

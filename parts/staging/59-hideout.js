@@ -83,7 +83,7 @@ function go(carry){ if(carry){ const c=carryGear(); const parts=[]; if(c.n) part
 function passThrough(){ go(true); }
 // E at the portal: keyboard E and the touch 🔧 button both arrive through upgrade(), the same hook the raven uses
 { const prev=upgrade; upgrade=function(pos){ if(canUse()){ passThrough(); return; } return prev(pos); }; }
-{ const ph=Meta.hud; Meta.hud=()=>{ ph(); if(canUse()&&!wrap){ const el=$('prompt'); const want=HAS_ASSETS?'E  step through the portal (the hideout)':'E  the portal (hideout: folder build only)'; if(el.textContent!==want) el.textContent=want; } }; }
+{ const ph=Meta.hud; Meta.hud=()=>{ ph(); if(canUse()&&!shown){   /* !shown, not !wrap: since build 140 the frame is kept (and preloaded), so the wrapper exists between visits and the prompt vanished once it did */ const el=$('prompt'); const want=HAS_ASSETS?'E  step through the portal (the hideout)':'E  the portal (hideout: folder build only)'; if(el.textContent!==want) el.textContent=want; } }; }
 // the title screen: a visit outside a run, next to the TAVERN button
 { const tav=$('tavbtn'); if(tav){ const b=document.createElement('button'); b.id='hideoutbtn'; b.className='big alt'; b.textContent='🔮 THE HIDEOUT'; b.addEventListener('click',e=>{ e.stopPropagation(); if(S.phase==='start') passThrough(); }); tav.insertAdjacentElement('afterend',b); } }
 // pulled back out the moment a visit's phase ends for any reason (the horn, the crystal falling, the last wave held).

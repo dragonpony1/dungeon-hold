@@ -638,7 +638,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=140;
+const BUILD=141;
 let HIDEOUT_SHOWN=false, RENDERS=0;   // 59-hideout.js raises HIDEOUT_SHOWN while its overlay covers the hall: the hall keeps simulating (a co-op host must) but stops drawing under it
 const HIDEOUT_BUILD=/*HIDEOUT*/0;   // the embedded hideout page's own build number (its <meta name="hideout-build">), stamped in by assemble.mjs when the hideout rides along; 0 in a page without it
 { const sa=$('standalone'); if(sa&&/github\.io$/i.test(location.hostname)) sa.style.display='none'; }

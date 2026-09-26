@@ -21,7 +21,7 @@ addSet({name:'of the Void',ic:'🌌',col:0x8a3dff,css:'#c070ff',emissive:0x5a2bd
 // fading four points a wave to a 6% floor, worth ×1.5. Small, readable bonuses; BRAMBLE roots what the hero hits.
 addSet({name:'of the Forest',ic:'🌲',col:0x5ad05a,css:'#5ad05a',emissive:0x1f6a2a,minR:1,chance:w=>w<1?0:Math.min(.4,Math.max(.1,.4-.05*(w-4))),valueMul:1.5,
   three:{hp:.08,move:.04},five:{hp:.15,move:.08,dmg:.10},text:['+8% health · +4% move','+15% health · +8% move · +10% hero damage · TWIN SHOT: your familiar fires two bolts in a spread, half again as far, a little quicker'],
-  fam:{twin:true,spread:.26,rate:1.25,range:1.5},   // the five-piece power on the familiar (applied below): two bolts in a spread, farther, a little quicker -- an obvious boon
+  fam:{twin:true,spread:.26,rate:1.25,range:1.5,thorns:true},   /* thorns (build 141, 85-familiars.js): the shots fly as quick green thorns, not slow lobbed balls */   // the five-piece power on the familiar (applied below): two bolts in a spread, farther, a little quicker -- an obvious boon
   unlock:{id:'stand-forest',name:'Forest Armor Stand',model:'armor-stand-forest.glb',slot:'armor',rarity:1,reason:'The Forest set, complete'},   // the locker reward, so the starter set teaches that too
   models:{sword:'venom',staff:'staff-hazel',bow:'bow-yew',armor:'stand-forest'},   // the green blade, the plain wood staff and bow, the forest mannequin
   sfx:()=>{ beep(523,.5,'sine',.07,0); setTimeout(()=>beep(784,.45,'triangle',.05,200),90); setTimeout(()=>beep(1047,.4,'sine',.04,400),180); }});   // a rising woodland chime
