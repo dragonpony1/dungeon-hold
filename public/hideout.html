@@ -148,7 +148,6 @@ function loadSave(){
     if (s) {
       if (!s.placed) s.placed = [];
       if (s.legendarySludge === undefined) s.legendarySludge = 20; // testing stockpile
-      if (s.battleScrap === undefined) s.battleScrap = 999; // testing stockpile — real source is dungeon-run drops, not built yet
       if (s.commonSludge === undefined) s.commonSludge = 0;
       if (s.uncommonSludge === undefined) s.uncommonSludge = 0;
       if (!s.gear) s.gear = []; // mythic gear the player owns — lives on the player's save, never on a machine (multiple players could share one machine)
@@ -160,7 +159,7 @@ function loadSave(){
       return s;
     }
   } catch(e){}
-  return { sludge: 99999, legendarySludge: 20, battleScrap: 999, commonSludge: 0, uncommonSludge: 0, gear: [], shelves: {}, inv: [...STARTER_ITEMS], placed: [] };
+  return { sludge: 99999, legendarySludge: 20, commonSludge: 0, uncommonSludge: 0, gear: [], shelves: {}, inv: [...STARTER_ITEMS], placed: [] };
 }
 function writeSave(){ localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); }
 const SAVE = loadSave();
@@ -170,6 +169,21 @@ document.getElementById('sludge').textContent = SAVE.sludge;
 const PLAYER_KEY = 'dd_hideout_player_id';
 let PLAYER_ID = localStorage.getItem(PLAYER_KEY);
 if (!PLAYER_ID) { PLAYER_ID = 'Guest-' + Math.random().toString(36).slice(2,6).toUpperCase(); localStorage.setItem(PLAYER_KEY, PLAYER_ID); }
+
+// The gear bag is the handoff point between the main game and the hideout: leftover gear carried through the
+// portal becomes counts per rarity here, and the Cauldron Cart consumes them. It has its own key so the main
+// game only has to read-modify-write this one small object, never the hideout's save.
+const BAG_KEY = 'dd_gear_bag';
+function loadBag() {
+  let b = null;
+  try { b = JSON.parse(localStorage.getItem(BAG_KEY)); } catch(e) {}
+  // testing seed until real dungeon drops feed this — carries over whatever the old in-save stockpile had left
+  if (!b) b = { common: SAVE.battleScrap !== undefined ? SAVE.battleScrap : 999 };
+  return Object.assign({ common: 0, uncommon: 0, rare: 0, epic: 0, legendary: 0 }, b);
+}
+function writeBag() { localStorage.setItem(BAG_KEY, JSON.stringify(BAG)); }
+const BAG = loadBag();
+writeBag();
 
 const ITEMS_DIR = '/assets/hideout/items/';
 const GEAR = {
@@ -395,8 +409,9 @@ function spawnPlacedItem(gid, pos, ry) {
   pickupables.push(entry);
 }
 
-// exits back to the main game — SAVE lives in localStorage on this same origin, so it's already
-// there waiting when index.html loads. There's no entrance portal in the main game yet (separate task).
+// exits back to the main game — SAVE lives in localStorage on this same origin, so it's already there
+// when index.html loads. The main game embeds a copy of this file and keys off the exact text of the
+// href line below, so don't reword or reformat that line.
 function usePortal() {
   writeSave();
   window.location.href = '/';
@@ -894,7 +909,7 @@ document.getElementById('forgeCraftBtn').onclick = () => {
 const CAULDRON_COST = 5;
 const CAULDRON_TIERS = [
   { id:'common',    name:'Common Sludge',    outIcon: ITEMS_DIR+'common_sludge.png',
-    inIcon: ITEMS_DIR+'battle_scrap.webp',   inName:'Common Gear',    inGet:()=>SAVE.battleScrap,    inConsume:n=>SAVE.battleScrap-=n,
+    inIcon: ITEMS_DIR+'battle_scrap.webp',   inName:'Common Gear',    inGet:()=>BAG.common,          inConsume:n=>{ BAG.common-=n; writeBag(); },
     add:n=>SAVE.commonSludge+=n },
   { id:'uncommon',  name:'Uncommon Sludge',  outIcon: ITEMS_DIR+'uncommon_sludge.png',
     inIcon: ITEMS_DIR+'common_sludge.png',   inName:'Common Sludge',  inGet:()=>SAVE.commonSludge,   inConsume:n=>SAVE.commonSludge-=n,
@@ -936,7 +951,7 @@ function tierStock(tier) {
   return SAVE.legendarySludge;
 }
 function renderCauldronPanel() {
-  document.getElementById('cauldronScrapText').textContent = SAVE.battleScrap + ' Common Gear';
+  document.getElementById('cauldronScrapText').textContent = BAG.common + ' Common Gear';
   document.querySelectorAll('.crow').forEach(row => {
     const tier = tierById(row.dataset.id);
     row.querySelector('.ccraft').disabled = tier.inGet() < CAULDRON_COST;
@@ -957,6 +972,7 @@ function openCauldron() {
   cauldronWasActive = active;
   if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
   document.getElementById('cauldronWrap').style.display = 'flex';
+  Object.assign(BAG, loadBag()); // re-read in case the main game is open in another tab and just added to it
   buildCauldronRows();
 }
 function closeCauldron() {
