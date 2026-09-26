@@ -880,6 +880,17 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   gold flash and a soft chime; a tip left undone wiggles and glows after 14 s, then every 10 s; a tick waiting for
   Enter pulses green. "Archway" became "portal" in the guide and lessons (the doors now stand in archways). Hideout
   build 21 rides along (gear on furniture sized to each spot).
+- Build 144: the throne room (map two) loads each decor model once: 56-thronedecor.js fetches and parses a model once
+  and clones it for every placement (the door was fetched 4 times at 10 MB each, the railing 12 times), the doors use
+  map one's slim hall-door.glb, and the decor textures were re-encoded (13 models 12.1 MB -> 5.1 MB); fetchBytesNow
+  shares one download per URL while it is in flight and lets a hung one go after 40 s. Map two now downloads 42 MB
+  in 41 files instead of 109 MB in 60, playable after about 30 s at 25 Mbps instead of 44. The Bramble Hedge gets the
+  player's tier models as its Marks II-IV (hedge-1..4.glb; the uploads' unused normal and metal maps dropped and the
+  colour maps cut to 1024 px: about 9 MB each to 0.6 MB), loaded lazily like the other defenses; a placed hedge now
+  keeps its five-cell length (the stretch used to be undone every frame, so only the placement ghost showed it), and a
+  higher mark grows taller, not longer. Co-op guests now load a defense's Mark II-IV models too (they only ever saw
+  Mark I). Hideout builds 22 (machines already standing for new players) and 23 (the wardrobe honours takeBack) ride
+  along. New suites: throneload-test.mjs, bramble-test.mjs; probes/thronetimes.mjs measures map two before and after.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Eight more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry. The Holy set is next.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

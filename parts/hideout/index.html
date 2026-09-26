@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="22">
+<meta name="hideout-build" content="23">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -53,6 +53,7 @@ canvas{display:block}
 #forgeGearGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
 .fgear{border:2px solid #6b3a1a;border-radius:10px;background:linear-gradient(#3a2a1c,#241811);padding:8px;text-align:center;cursor:pointer;color:#e8c9a0}
 .fgear.sel{border-color:#ffb347;box-shadow:0 0 12px #ff8c3388}
+.fgear.taken{opacity:0.6;cursor:default}
 .fgear .swatch{width:100%;aspect-ratio:1;border-radius:8px;margin-bottom:6px;object-fit:contain;background:#150c06;box-sizing:border-box;padding:6px}
 .fgear .fname{font-size:0.85em;font-weight:bold;line-height:1.15}
 .fgear .fsub{font-size:0.7em;margin-top:2px;opacity:0.9}
@@ -185,12 +186,12 @@ canvas{display:block}
   <button id="gearClose">&times;</button>
   <div id="gearHeader">
     <h1>INVENTORY</h1>
-    <p>Drag furniture between your bag and hotbar. Click a gear piece to put it on display.</p>
+    <p>Drag things between your bag and hotbar. Select gear in the hotbar, then click to put it on display.</p>
   </div>
   <div id="gearBody">
     <div class="isection">Bag</div><div id="invBag" class="islotgrid"></div>
     <div class="isection">Hotbar — keys 1 to 9</div><div id="invHot" class="islotgrid"></div>
-    <div class="isection">Gear — click a piece to put it on display for everyone</div><div id="gearGrid"></div>
+    <div id="gearWaiting" style="display:none"><div class="isection">Waiting for room in your bag — click one to move it in</div><div id="gearGrid"></div></div>
   </div>
 </div></div>
 
@@ -208,7 +209,7 @@ canvas{display:block}
   <button id="lockerClose">&times;</button>
   <div id="lockerHeader">
     <h1>WALL LOCKER</h1>
-    <p>What you locked in the dungeon, and what the dungeon owed you.</p>
+    <p>What you locked in the dungeon, and what the dungeon owed you. Click a piece to take it.</p>
   </div>
   <div id="lockerBody">
     <div class="lsection">Locked &amp; carried in</div><div id="lockerCarried" class="lgrid"></div>
@@ -223,7 +224,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 22;
+const HIDEOUT_BUILD = 23;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -294,6 +295,11 @@ function loadSave(){
           s.starterLayout = 1;
         } catch (e) { console.error('starter layout skipped', e); }
       }
+      // forged gear lives in the bag now, like everything else you own; whatever doesn't fit stays in s.gear and is
+      // listed in the I panel until there's room. Guarded for the same reason as above.
+      try {
+        s.gear = s.gear.filter(g => { const i = s.bag.indexOf(null); if (i < 0) return true; s.bag[i] = { kind: 'forged', rec: g }; return false; });
+      } catch (e) { console.error('gear move skipped', e); }
       return s;
     }
   } catch(e){}
@@ -312,6 +318,40 @@ function giveItem(gid, prefer) {
     if (i >= 0) { arr[i] = gid; return true; }
   }
   return false;
+}
+// A slot holds a furniture id (a string), a piece of gear, or null. Gear is {kind:'carried', rec} (the game's own item
+// record, taken out of the wall locker) or {kind:'forged', rec} (from the Forge). It rides in the bag like furniture;
+// selected in the hotbar, a click puts it on display for everyone, and picking it back up returns it to the hotbar.
+const isGearItem = v => !!v && typeof v === 'object' && !!v.rec;
+function gearKey(v) { return (v.kind === 'forged' ? 'f:' : 'c:') + v.rec.id; }
+function gearPiece(v) { return v.kind === 'forged' ? pieceFromForged(v.rec) : pieceFromCarried(v.rec); }
+function slotIcon(v) { return isGearItem(v) ? cutoutIcon(gearPiece(v).icon) : GEAR[v].icon; }
+function slotTip(v) { if (!isGearItem(v)) return GEAR[v].name; const p = gearPiece(v); return p.tip || p.desc; }
+function slotColor(v) { return isGearItem(v) ? gearPiece(v).color : null; }
+function slotArrays() { return [SAVE.hotbar, SAVE.bag].concat(SAVE.placed.filter(p => p.store).map(p => p.store)); }
+function takeGearByKey(key) {
+  for (const arr of slotArrays()) {
+    const i = arr.findIndex(v => isGearItem(v) && gearKey(v) === key);
+    if (i >= 0) { const v = arr[i]; arr[i] = null; return { v, arr, i }; }
+  }
+  return null;
+}
+// nowhere to put it: forged gear waits in SAVE.gear (listed in the I panel), a carried piece goes back to the locker
+function stashGear(v) {
+  if (v.kind === 'forged') SAVE.gear.push(v.rec);
+  else { const list = loadCarried(); if (!list.some(c => c.id === v.rec.id)) list.push(v.rec); writeCarried(list); }
+}
+// the gear art is painted on a white card; in a slot that reads as a sticky note, so slots show it cut out (the plain
+// file until the cut-out is ready, then the slots redraw)
+const cutoutCache = {};
+function cutoutIcon(url) {
+  if (!(url in cutoutCache)) {
+    cutoutCache[url] = null;
+    const img = new Image();
+    img.onload = () => { try { cutoutCache[url] = knockOutWhite(img).toDataURL(); refreshSlotViews(); } catch (e) {} };
+    img.src = url;
+  }
+  return cutoutCache[url] || url;
 }
 
 // a lightweight per-browser display tag — just so a shared drop can say who left it
@@ -406,9 +446,11 @@ const RARITIES = [
 ];
 const RARITY_RANK = { common:0, uncommon:1, rare:2, epic:3, legendary:4 };
 
-// Trophies the player locked in the dungeon and carried through the portal. The game appends to this
-// list and leaves everything else alone; we only remove a record when it goes onto the shared display,
-// and append one when it's picked back up. The cauldron never reads it — these aren't scrap.
+// Trophies the player locked in the dungeon and carried through the portal — the wall locker's contents. The game
+// appends to this list; we remove a record when it's taken out into the hideout bag (or, for an armor-stand reward,
+// as furniture), and only put one back if the bag is full when a displayed piece is picked up. A takeBack record (the
+// game wants that piece back in the hall) is never removed here — we set rewardTaken and the game collects it.
+// The cauldron never reads it — these aren't scrap.
 const CARRIED_KEY = 'dd_gear_carried';
 function loadCarried() { try { const a = JSON.parse(localStorage.getItem(CARRIED_KEY)); return Array.isArray(a) ? a : []; } catch(e) { return []; } }
 function writeCarried(list) { localStorage.setItem(CARRIED_KEY, JSON.stringify(list)); }
@@ -418,6 +460,15 @@ const SLOT_ICON = {
   familiar: ITEMS_DIR+'mythic_familiar.png', charm: ITEMS_DIR+'mythic_trinket.png',
 };
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c])); }
+// what the Forge makes — up here, not with the Forge, because forged gear can sit in the hotbar, which is drawn on load
+// (gear is category-only for now — the real gear database doesn't exist yet, this just proves the loop)
+const MYTHIC_GEAR = {
+  weapon:   { name:'Mythic Weapon',   icon: ITEMS_DIR+'mythic_weapon.png' },
+  amulet:   { name:'Mythic Amulet',   icon: ITEMS_DIR+'mythic_amulet.png' },
+  armor:    { name:'Mythic Armor',    icon: ITEMS_DIR+'mythic_armor.png' },
+  familiar: { name:'Mythic Familiar', icon: ITEMS_DIR+'mythic_familiar.png' },
+  trinket:  { name:'Mythic Trinket',  icon: ITEMS_DIR+'mythic_trinket.png' },
+};
 
 // ============= SCENE =============
 const scene = new THREE.Scene();
@@ -579,7 +630,7 @@ Object.keys(PAINTINGS).forEach(gid => { BUILTIN_MODELS[gid] = () => makePainting
 (function refundUnplaceable() {
   const gone = [];
   for (const arr of [SAVE.hotbar, SAVE.bag]) arr.forEach((gid, i) => {
-    if (!gid || !GEAR[gid] || hasModel(gid)) return;
+    if (!gid || isGearItem(gid) || !GEAR[gid] || hasModel(gid)) return;
     SAVE.sludge += GEAR[gid].cost || 0; gone.push(GEAR[gid].name); arr[i] = null;
   });
   if (!gone.length) return;
@@ -835,18 +886,26 @@ loadPropsAfterShell();
 
 const texLoader = new THREE.TextureLoader();
 
-let selectedGear = null, selectedSlot = null; // selectedGear is whatever sits in the selected hotbar slot
-function syncSelection() { selectedGear = selectedSlot === null ? null : SAVE.hotbar[selectedSlot] || null; }
+// the selected hotbar slot drives placing: furniture there is selectedGear (the placement ghost), gear there is
+// selectedDropGearId (the display ghost) — both follow the slot, so emptying or re-selecting it clears them
+let selectedGear = null, selectedSlot = null, selectedDropGearId = null;
+function syncSelection() {
+  const v = selectedSlot === null ? null : SAVE.hotbar[selectedSlot] || null;
+  selectedGear = isGearItem(v) ? null : v;
+  selectedDropGearId = isGearItem(v) ? gearKey(v) : null;
+}
 function renderInv() {
   const el = document.getElementById('inv'); el.innerHTML = '';
-  SAVE.hotbar.forEach((gid, i) => {
+  SAVE.hotbar.forEach((v, i) => {
     const d = document.createElement('div');
-    d.className = 'slot' + (selectedSlot === i ? ' sel' : '') + (gid ? '' : ' empty');
+    d.className = 'slot' + (selectedSlot === i ? ' sel' : '') + (v ? '' : ' empty');
     d.style.position = 'relative';
-    d.innerHTML = (gid ? '<img src="'+GEAR[gid].icon+'" style="width:100%;height:100%;object-fit:contain">' : '')
+    const col = v && slotColor(v);
+    if (col && selectedSlot !== i) d.style.borderColor = col; // gear wears its rarity colour
+    d.innerHTML = (v ? '<img src="'+slotIcon(v)+'" style="width:100%;height:100%;object-fit:contain">' : '')
       + '<span style="position:absolute;top:2px;left:4px;font:11px monospace;color:#fff;text-shadow:0 0 3px #000">'+(i+1)+'</span>';
     d.onclick = () => selectHotbarIndex(i);
-    if (gid) attachTooltip(d, GEAR[gid].name);
+    if (v) attachTooltip(d, slotTip(v));
     el.appendChild(d);
   });
 }
@@ -855,7 +914,7 @@ renderInv();
 function selectHotbarIndex(i) {
   if (i < 0 || i >= HOTBAR_SIZE) return;
   selectedSlot = selectedSlot === i ? null : i;
-  syncSelection(); selectedDropGearId = null;
+  syncSelection();
   renderInv();
 }
 document.addEventListener('keydown', e => {
@@ -867,7 +926,7 @@ window.addEventListener('wheel', e => {
   if (ghost) { ghostRy += (e.deltaY > 0 ? 1 : -1) * 0.12; return; } // smooth turn while actively placing something
   if (dropGhost) { dropGhostRy += (e.deltaY > 0 ? 1 : -1) * 0.12; return; }
   selectedSlot = ((selectedSlot === null ? -1 : selectedSlot) + (e.deltaY > 0 ? 1 : -1) + HOTBAR_SIZE) % HOTBAR_SIZE;
-  syncSelection(); selectedDropGearId = null;
+  syncSelection();
   renderInv();
 }, { passive: false });
 
@@ -1005,7 +1064,7 @@ function commitPlacement() {
 // ============= SHARED GEAR DISPLAY (drop mythic/unique gear so anyone visiting can see or pick it up) =============
 // Furniture placement above is purely local (SAVE.placed). Gear display is shared across everyone —
 // backed by a Durable Object on the Worker — because Matt wants friends to see and grab what's dropped.
-// A "piece" is anything the player can put on display: a forged mythic/unique from SAVE.gear, or a trophy
+// A "piece" is anything the player can put on display: a forged mythic/unique from the Forge, or a trophy
 // carried in from the dungeon (dd_gear_carried). Both are normalized to this one shape.
 function pieceFromForged(g) {
   const cat = MYTHIC_GEAR[g.type] ? MYTHIC_GEAR[g.type].name : g.type;
@@ -1038,10 +1097,13 @@ function pieceFromCarried(c) {
 function pieceFromShared(item) { // a row from the Worker's shared table
   return item.kind === 'carried' && item.payload ? pieceFromCarried(item.payload) : pieceFromForged(item);
 }
-function allPieces() { return SAVE.gear.map(pieceFromForged).concat(loadCarried().map(pieceFromCarried)); }
-function findPiece(key) { return allPieces().find(p => p.key === key) || null; }
+// gear you own lives in slots, so that's where a piece is found (placing uses the selected hotbar slot's)
+function findPiece(key) {
+  for (const arr of slotArrays()) for (const v of arr) if (isGearItem(v) && gearKey(v) === key) return gearPiece(v);
+  return null;
+}
 
-let selectedDropGearId = null, dropGhost = null, dropGhostId = null, dropGhostRy = 0;
+let dropGhost = null, dropGhostId = null, dropGhostRy = 0;
 const worldGear = new Map(); // shared-drop id -> {group, hit, data, piece}
 
 function makeGearStandGroup(piece, translucent, size) {
@@ -1135,13 +1197,16 @@ function updateDropGhost() {
 
 async function commitDropPlacement() {
   if (!dropGhost || !selectedDropGearId) return;
-  const piece = findPiece(selectedDropGearId);
+  const key = selectedDropGearId;
+  const piece = findPiece(key);
   if (!piece) return;
   const pos = { x: dropGhost.position.x, y: dropGhost.position.y, z: dropGhost.position.z }; // y is the slot surface when snapped, the floor otherwise
   const ry = dropGhost.rotation.y;
   const onHolder = dropSnap ? GEAR[dropSnap.entry.gid].name : null;
   scene.remove(dropGhost); dropGhost = null; dropGhostId = null; dropSnap = null;
-  selectedDropGearId = null;
+  // out of the hotbar right away, so a second click while the request is out can't send it twice
+  const taken = takeGearByKey(key);
+  syncSelection(); renderInv();
   try {
     const res = await fetch('/api/hideout/gear', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -1150,17 +1215,16 @@ async function commitDropPlacement() {
     });
     if (!res.ok) throw new Error('drop failed: ' + res.status);
     const { item } = await res.json();
-    if (piece.kind === 'forged') {
-      const idx = SAVE.gear.findIndex(g => g.id === piece.id);
-      if (idx >= 0) SAVE.gear.splice(idx, 1);
-      writeSave();
-    } else {
-      writeCarried(loadCarried().filter(c => c.id !== piece.id)); // it lives on the shared table now, not in the bag
-    }
+    writeSave(); // it lives on the shared table now
     spawnWorldGear(item);
     flashMsg((onHolder ? 'Set on the ' + onHolder + ': ' : 'Displayed ') + piece.desc);
   } catch (e) {
     console.error(e);
+    if (taken) { // back where it was (or the first free slot, or its fallback home) — never lost
+      if (taken.arr[taken.i] === null) taken.arr[taken.i] = taken.v;
+      else if (!giveItem(taken.v, 'hotbar')) stashGear(taken.v);
+      writeSave(); syncSelection(); refreshSlotViews();
+    }
     flashMsg('Could not display it — check your connection and try again');
   }
 }
@@ -1212,15 +1276,20 @@ async function pickupSharedGear(id) {
       flashMsg(piece.label + ' is in your bag — press I and drag it to your hotbar');
       return;
     }
-    if (piece.kind === 'carried' || piece.kind === 'furniture') { // no model yet: back to the locker to wait
+    if (piece.kind === 'furniture') { // a stand with no model yet (or no room in the bag): back to the locker to wait
       const list = loadCarried();
       if (!list.some(c => c.id === piece.id)) list.push(piece.payload);
       writeCarried(list);
-    } else {
-      SAVE.gear.push({ id: crypto.randomUUID(), type: item.type, tier: item.tier, name: item.name, craftedAt: item.createdAt || Date.now() });
-      writeSave();
+      flashMsg('Picked up ' + piece.label + ' — it waits in the wall locker');
+      return;
     }
-    flashMsg('Picked up ' + piece.desc);
+    // gear comes back to your hotbar, like picked-up furniture, so putting it somewhere else is quick
+    const v = piece.kind === 'carried'
+      ? { kind: 'carried', rec: piece.payload }
+      : { kind: 'forged', rec: { id: crypto.randomUUID(), type: item.type, tier: item.tier, name: item.name, craftedAt: item.createdAt || Date.now() } };
+    if (giveItem(v, 'hotbar')) flashMsg('Picked up ' + piece.desc);
+    else { stashGear(v); flashMsg('Picked up ' + piece.desc + ' — your bag is full, so it went to ' + (v.kind === 'forged' ? 'the waiting list in your inventory (I)' : 'the wall locker')); }
+    writeSave(); refreshSlotViews();
   } catch (e) {
     console.error(e);
     flashMsg('Could not pick that up — check your connection');
@@ -1237,15 +1306,16 @@ async function pollDroppedGear() {
   } catch (e) { /* offline for this tick — next poll will retry */ }
 }
 
+// forged gear that found no free slot (the bag was full) waits here; a click moves it into the bag once there's room
 function buildGearGrid() {
   const grid = document.getElementById('gearGrid');
   grid.innerHTML = '';
-  const pieces = SAVE.gear.map(pieceFromForged);
-  if (!pieces.length) {
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#88a0b0;padding:20px">No forged gear yet — the Forge makes Mythic pieces. Trophies carried in from the dungeon are in the wall locker.</div>';
-    return;
-  }
-  pieces.forEach(piece => grid.appendChild(pieceCell(piece, sel => pickForDisplay(piece, sel, closeGearPanel))));
+  document.getElementById('gearWaiting').style.display = SAVE.gear.length ? 'block' : 'none';
+  SAVE.gear.forEach(g => grid.appendChild(pieceCell(pieceFromForged(g), () => {
+    if (!giveItem({ kind: 'forged', rec: g }, 'bag')) { flashMsg('Your bag and hotbar are full — make room first'); return; }
+    SAVE.gear.splice(SAVE.gear.indexOf(g), 1);
+    writeSave(); buildGearGrid(); refreshSlotViews();
+  })));
 }
 let gearWasActive = false;
 function openGearPanel() {
@@ -1260,13 +1330,15 @@ function openGearPanel() {
 function renderSlotGrid(container, arr, cols) {
   container.innerHTML = '';
   container.style.gridTemplateColumns = 'repeat(' + cols + ', 46px)';
-  arr.forEach((gid, i) => {
+  arr.forEach((v, i) => {
     const d = document.createElement('div');
-    d.className = 'islot' + (gid ? '' : ' empty');
+    d.className = 'islot' + (v ? '' : ' empty');
     d.__slot = { arr, i };
-    if (gid) {
-      d.innerHTML = '<img src="' + GEAR[gid].icon + '">';
-      attachTooltip(d, GEAR[gid].name);
+    if (v) {
+      d.innerHTML = '<img src="' + slotIcon(v) + '">';
+      const col = slotColor(v);
+      if (col) { d.style.borderColor = col; d.style.boxShadow = '0 0 6px ' + col + '66'; } // gear wears its rarity colour
+      attachTooltip(d, slotTip(v));
       d.addEventListener('pointerdown', ev => startSlotDrag(ev, arr, i, d));
     }
     container.appendChild(d);
@@ -1292,7 +1364,7 @@ function startSlotDrag(ev, arr, i, el) {
   if (ev.button !== 0 || !arr[i]) return;
   ev.preventDefault();
   const img = document.createElement('img');
-  img.src = GEAR[arr[i]].icon; img.className = 'dragicon';
+  img.src = slotIcon(arr[i]); img.className = 'dragicon';
   document.body.appendChild(img);
   slotDrag = { arr, i, img, el };
   el.classList.add('dragsrc');
@@ -1369,10 +1441,29 @@ function takeFurnitureReward(piece) {
   flashMsg(piece.label + ' is in your bag — press I and drag it to your hotbar');
   loadGltf(PROPS_DIR + MODEL_MAP[piece.gid]).catch(() => {}); // start the download now so it's ready to place
 }
-function pickForDisplay(piece, wasSelected, closeFn) {
-  selectedDropGearId = wasSelected ? null : piece.key;
-  selectedSlot = null; syncSelection(); renderInv();
-  closeFn();
+// A piece the game wants back in the hall (takeBack: the training's last Forest piece) is only ever TAKEN: we mark
+// rewardTaken and the game moves it into the hero's bag when the hideout closes (93-gearsets.js collectLastPiece).
+// It never goes on display or into the hideout bag — the game hands the piece over either way, so a copy kept here
+// would be a duplicate.
+function takeBackReward(piece) {
+  const list = loadCarried();
+  const rec = list.find(c => c.id === piece.id);
+  if (!rec) return;
+  if (rec.rewardTaken) { flashMsg('Already taken — it\'ll be in your bag when you go back to the hall'); return; }
+  rec.rewardTaken = true; rec.rewardSeen = true;
+  writeCarried(list);
+  refreshRewardsFresh(); buildLockerGrids();
+  sfxSuccess();
+  flashMsg(piece.label + ' taken — it\'ll be in your bag when you go back to the hall');
+}
+// any other gear comes out into the hideout bag — from there it goes to the hotbar and onto display like furniture
+function takeGearFromLocker(piece) {
+  if (!giveItem({ kind: 'carried', rec: piece.payload }, 'bag')) { flashMsg('Your bag and hotbar are full — make room first'); return; }
+  writeCarried(loadCarried().filter(c => c.id !== piece.id)); // it's yours now, out of the locker
+  writeSave(); refreshSlotViews();
+  refreshRewardsFresh(); buildLockerGrids();
+  sfxSuccess();
+  flashMsg(piece.label + ' is in your bag — press I and drag it to your hotbar to put it on display');
 }
 function buildLockerGrids() {
   const carried = loadCarried().map(pieceFromCarried);
@@ -1380,8 +1471,15 @@ function buildLockerGrids() {
     const grid = document.getElementById(id);
     grid.innerHTML = '';
     if (!list.length) { grid.innerHTML = '<div class="lempty">' + emptyText + '</div>'; return; }
-    list.forEach(piece => grid.appendChild(pieceCell(piece,
-      piece.kind === 'furniture' ? () => takeFurnitureReward(piece) : sel => pickForDisplay(piece, sel, closeLocker))));
+    list.forEach(piece => {
+      const back = piece.kind === 'carried' && !!piece.payload.takeBack, taken = back && !!piece.payload.rewardTaken;
+      if (taken) piece.sub = '✓ Taken — it goes back to the hall with you';
+      if (piece.kind === 'carried') piece.tip = (piece.tip || piece.desc) + (taken ? ' · taken: the game puts it in your bag when you go back'
+        : back ? ' · click to take it — the game puts it in your bag when you go back to the hall' : ' · click to put it in your bag');
+      const cell = pieceCell(piece, () => piece.kind === 'furniture' ? takeFurnitureReward(piece) : back ? takeBackReward(piece) : takeGearFromLocker(piece));
+      if (taken) cell.classList.add('taken');
+      grid.appendChild(cell);
+    });
   };
   fill('lockerCarried', carried.filter(p => !p.payload.reward), 'Nothing here yet — lock a piece in the dungeon and carry it through the portal.');
   fill('lockerRewards', carried.filter(p => p.payload.reward), 'No rewards waiting.');
@@ -1670,15 +1768,7 @@ document.addEventListener('keydown', e => {
   if (document.getElementById('chestWrap').style.display === 'flex') closeChest();
 });
 
-// ============= THE FORGE (Legendary Sludge -> gamble for mythic gear) =============
-// gear is category-only for now — the real gear database doesn't exist yet, this just proves the loop
-const MYTHIC_GEAR = {
-  weapon:   { name:'Mythic Weapon',   icon: ITEMS_DIR+'mythic_weapon.png' },
-  amulet:   { name:'Mythic Amulet',   icon: ITEMS_DIR+'mythic_amulet.png' },
-  armor:    { name:'Mythic Armor',    icon: ITEMS_DIR+'mythic_armor.png' },
-  familiar: { name:'Mythic Familiar', icon: ITEMS_DIR+'mythic_familiar.png' },
-  trinket:  { name:'Mythic Trinket',  icon: ITEMS_DIR+'mythic_trinket.png' },
-};
+// ============= THE FORGE (Legendary Sludge -> gamble for mythic gear; MYTHIC_GEAR is defined up top) =============
 const FORGE_COST = 5, FORGE_SUCCESS_CHANCE = 0.35, UNIQUE_PROC_CHANCE = 0.1; // proc rolls only on a success — name/odds easy to retune later
 // placeholder name-roller — stands in for the real loot generator until that exists. A proc needs an actual name, not "Unique Mythic Trinket"
 const UNIQUE_NAME_PARTS = {
@@ -1701,7 +1791,8 @@ function buildForgeGrid() {
   grid.innerHTML = '';
   Object.keys(MYTHIC_GEAR).forEach(key => {
     const g = MYTHIC_GEAR[key];
-    const owned = SAVE.gear.filter(x => x.type === key).length;
+    const owned = SAVE.gear.filter(x => x.type === key).length // waiting list + everything in your slots
+      + slotArrays().flat().filter(v => isGearItem(v) && v.kind === 'forged' && v.rec.type === key).length;
     const el = document.createElement('div');
     el.className = 'fgear' + (forgeSelected === key ? ' sel' : '');
     el.style.position = 'relative';
@@ -1741,11 +1832,15 @@ document.getElementById('forgeCraftBtn').onclick = () => {
   if (Math.random() < FORGE_SUCCESS_CHANCE) {
     const isUnique = Math.random() < UNIQUE_PROC_CHANCE;
     const uniqueName = isUnique ? rollUniqueName() : null;
-    SAVE.gear.push({ id: crypto.randomUUID(), type: forgeSelected, tier: isUnique ? 'unique' : 'mythic', name: uniqueName, craftedAt: Date.now() });
+    const rec = { id: crypto.randomUUID(), type: forgeSelected, tier: isUnique ? 'unique' : 'mythic', name: uniqueName, craftedAt: Date.now() };
+    const bagged = giveItem({ kind: 'forged', rec }, 'bag'); // a full bag keeps it on the waiting list in the I panel
+    if (!bagged) SAVE.gear.push(rec);
+    const where = bagged ? ' It’s in your bag (press I).' : ' Your bag is full — it’s waiting in your inventory (press I).';
     out.className = isUnique ? 'unique' : 'success';
     out.innerHTML = isUnique
-      ? '✨ UNIQUE PROC! ✨ You forged <b>' + uniqueName + '</b>, a unique ' + MYTHIC_GEAR[forgeSelected].name + '!'
-      : 'Success! Forged: <b>' + MYTHIC_GEAR[forgeSelected].name + '</b> — it’s in your gear now.';
+      ? '✨ UNIQUE PROC! ✨ You forged <b>' + uniqueName + '</b>, a unique ' + MYTHIC_GEAR[forgeSelected].name + '!' + where
+      : 'Success! Forged: <b>' + MYTHIC_GEAR[forgeSelected].name + '</b>.' + where;
+    refreshSlotViews();
     setTimeout(isUnique ? sfxUnique : sfxSuccess, 90);
   } else {
     out.className = 'fail';
