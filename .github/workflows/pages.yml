@@ -32,6 +32,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Pull the latest hideout (the hideout-wip branch) into the embedded copy
+        run: node sync-hideout.mjs   # every deploy carries the newest hideout page; the build fails loudly if its shape changed (embedHideout's anchors)
       - name: Build the game (index.html + assets)
         run: DIST=./dist EXTRA=./parts/staging node assemble.mjs
       - name: Disable Jekyll processing (serve .glb.txt etc. as-is)

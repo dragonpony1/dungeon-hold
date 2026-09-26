@@ -41,7 +41,7 @@ node familiar-test.mjs                  # the single-file fallback suite reads $
 Suites: feat, loot, glb, place, csp, mob, mobpath, meta, tavern, tavernroom, familiar, familiars2, cone, music, defglb,
 ballista, lootfeel, weapons, towers, paperdoll, casino, ogre, forge, fix-r1, fix-r2, heroes, void, sets, throne, campaign, maps,
 moat, aim, newmobs, trollboss, armory, totem, pause, pwa, share, hideout, loadorder, bagsort, gearlock, coop-rewards,
-voidset, halo-column, ballista-rig, forestset, and the verify-* adversarial suites. Run them one at a
+voidset, halo-column, ballista-rig, forestset, trainer, and the verify-* adversarial suites. Run them one at a
 time: ten in parallel time out on page loads (the page is 6.8 MB).
 
 ## Adding Meshy art
@@ -744,6 +744,21 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   Forest 0/5" tells a new player a set exists before the first piece lands. `forestset-test.mjs` covers the chance curve from the real roll at waves 0/1/6/12,
   the Common floor, the lesson firing once, the bonuses on the multiplier hook, the reward, BRAMBLE on a knight's hit,
   the blade and the aura; `sets-test.mjs` now expects both sets.
+- The training ground (`96-trainer.js`, new; build 132) -- the second of the map-one training wheels. On map one, until
+  it is held, a guide card on the left names the ONE next thing to do and ticks it off by watching what the game actually
+  did, never a timer: pick a defense (the key on the hero's first hotbar slot, by name), set it on the lane, sound the
+  horn, swing and walk over an orb (`SFX.mana` fires only for an orb), walk over the piece the held wave drops
+  (`Meta.onPickup` true), equip it (`Meta.equip` true), then a second defense or a Mark II. Progress lives in `dd_trainer`
+  so a run that ends early resumes at its step; the card shows only in the build and wave phases, steps aside for the
+  tavern, never shows on a later map or after map one is held, and a ✕ hides it for good. The first build phase opens
+  with a THE TRAINING GROUND banner. Touch devices get tap wording. `trainer-test.mjs` walks all seven steps in order,
+  the reload-and-resume, the completion line, the tavern, the ✕, map two and a held map one.
+- The title screen now links the standalone web build (dragonpony1.github.io/dungeon-hold, new tab) so it is one click
+  from the artifact; the line hides on that host itself.
+- Hideout update checks: the Pages workflow runs `node sync-hideout.mjs` before every build, so every deploy carries the
+  newest hideout-wip page (this build found c6d1996, hideout build 11, unannounced), and the same sync runs here before
+  every push so the artifact matches. The build still fails loudly if upstream's shape changes. The committed copy and
+  `parts/hideout/UPSTREAM` record what was last synced by hand.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Eight more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry. The Holy set is next.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
