@@ -62,6 +62,7 @@ if(frame){
   check("the derived page knows it's embedded and has its API base hook",await frame.evaluate(()=>typeof HIDEOUT_API_BASE==='string'&&HIDEOUT_EMBEDDED===true&&HIDEOUT_API_BASE===''));
   check("embedded: the BACK TO THE HALL button is on its entry overlay",await frame.evaluate(()=>{ const b=document.getElementById('leaveBtn'); return !!b&&getComputedStyle(b).display!=='none'; }));
   check("the hideout's own save loaded (the room's starter items are in its hotbar)",await frame.evaluate(()=>!!document.querySelector('#inv .slot')));
+  check("hideout build 19's save format: SAVE.hotbar (9 slots) and SAVE.bag (27) replace SAVE.inv",await frame.evaluate(()=>typeof SAVE==='object'&&Array.isArray(SAVE.hotbar)&&SAVE.hotbar.length===9&&Array.isArray(SAVE.bag)&&SAVE.bag.length===27&&!('inv' in SAVE)),await frame.evaluate(()=>typeof SAVE==='object'?JSON.stringify({keys:Object.keys(SAVE),hotbar:SAVE.hotbar&&SAVE.hotbar.length,bag:SAVE.bag&&SAVE.bag.length}):typeof SAVE));
   // the brief's own acceptance step: open the Cauldron Cart in there and see the Common Gear number match what was carried
   // the Cart (hideout-wip ca52e25) salvages every rarity: five pills in its header, one per rarity in rank order, each a <b> count
   const cauldron=await frame.evaluate(()=>{ openCauldron(); return {pills:[...document.querySelectorAll('#cauldronBag b')].map(b=>+b.textContent),rows:[...document.querySelectorAll('#cauldronRows .crow')].map(r=>r.dataset.id),bag:JSON.parse(JSON.stringify(BAG))}; });
@@ -93,11 +94,20 @@ await page.waitForFunction(()=>window.__hideout.isOpen(),null,{timeout:5000}).ca
 const gearBag2=await page.evaluate(()=>JSON.parse(localStorage.getItem('dd_gear_bag')));
 check("a later carry adds to what the Cart left (3+1=4), rather than resurrecting the 2 already crafted away",gearBag2.common===4&&gearBag2.rare===2&&gearBag2.epic===1&&gearBag2.someday==='kept',JSON.stringify(gearBag2));
 await page.evaluate(()=>window.__hideout.close());
+// hideout build 18 keep-alive (build 140): the frame survives the close, hidden; the hall draws again
+const kept=await page.evaluate(()=>{ const f=document.getElementById('hideoutFrame'), w=document.getElementById('hideoutWrap'); return {frame:!!f,hidden:!!w&&getComputedStyle(w).visibility==='hidden',open:window.__hideout.isOpen(),preloaded:window.__hideout.preloaded(),loaded:window.__hideout.loaded(),inHideout:document.body.classList.contains('inHideout')}; });
+check("closing keeps the one hideout frame, hidden by visibility (its page keeps running), and the hall is back in charge",kept.frame&&kept.hidden&&!kept.open&&kept.preloaded&&kept.loaded&&!kept.inHideout,JSON.stringify(kept));
+{ const r0=await page.evaluate(()=>window.__dd.renders()); const drew=await page.waitForFunction(r=>window.__dd.renders()>r,r0,{timeout:15000}).then(()=>true).catch(()=>false); check("with the hideout hidden the hall draws again",drew,JSON.stringify({r0,after:await page.evaluate(()=>window.__dd.renders())})); }
 // an empty bag: E goes straight through, no prompt; then the horn pulls you back out
-await page.evaluate(()=>window.__dd.step(1/60,2));
+await page.evaluate(()=>{ window.__dd.step(1/60,2); window.__dbgKeys=[]; addEventListener('keydown',e=>window.__dbgKeys.push(e.code+'@'+(e.target&&e.target.tagName)),true); });
+const dbgBefore=await page.evaluate(()=>({near:window.__hideout.near(),open:window.__hideout.isOpen(),active:document.activeElement&&document.activeElement.tagName,phase:window.__dd.S.phase,tav:window.__meta.isOpen(),portal:window.__portal.state(),hero:[+window.__dd.hero.x.toFixed(1),+window.__dd.hero.z.toFixed(1)],ppos:window.__portal.pos(),wrapVis:getComputedStyle(document.getElementById('hideoutWrap')).visibility,inert:document.getElementById('hideoutWrap').inert}));
 await page.keyboard.press('KeyE');
 await page.waitForFunction(()=>window.__hideout.isOpen(),null,{timeout:5000}).catch(()=>{});
-check("with nothing to carry, E steps straight through",await page.evaluate(()=>window.__hideout.isOpen()));
+const dbgAfter=await page.evaluate(()=>({keys:window.__dbgKeys,open:window.__hideout.isOpen(),opens:window.__hideout.opens()}));
+check("with nothing to carry, E steps straight through",await page.evaluate(()=>window.__hideout.isOpen()),JSON.stringify({dbgBefore,dbgAfter}));
+const shownAgain=await page.evaluate(async()=>{ const f=document.getElementById('hideoutFrame'); await new Promise(r=>setTimeout(r,300)); const doc=f.contentDocument; const start=doc&&doc.getElementById('start'); const r0=window.__dd.renders(); await new Promise(r=>setTimeout(r,1500)); return {sameFrame:!!f&&document.querySelectorAll('#hideoutFrame').length===1,visible:getComputedStyle(document.getElementById('hideoutWrap')).visibility==='visible',startShown:!!start&&start.style.display==='flex',rendersWhileShown:window.__dd.renders()-r0}; });
+check("reopening shows the same frame again and posts 'hideout:show': its click-to-enter screen is back",shownAgain.sameFrame&&shownAgain.visible&&shownAgain.startShown,JSON.stringify(shownAgain));
+check("the hall stops drawing under the overlay (it keeps simulating for a co-op host)",shownAgain.rendersWhileShown===0,JSON.stringify(shownAgain));
 await page.evaluate(()=>window.__dd.startWave());
 await page.waitForFunction(()=>!window.__hideout.isOpen(),null,{timeout:5000}).catch(()=>{});
 check("the horn closes the hideout automatically",!(await page.evaluate(()=>window.__hideout.isOpen()))&&await page.evaluate(()=>window.__dd.S.phase==='wave'));
@@ -134,6 +144,20 @@ check("the three display racks are shop items with a model each, served as .glb.
 check("standalone: no BACK TO THE HALL button (its own crystal portal is the way out, to ../)",await page3.evaluate(()=>!document.getElementById('leaveBtn')));
 await page3.close();
 
+// preload (build 140): four seconds into a run's first build phase the frame is made hidden, unasked, so the download and
+// the room build happen behind the hall and the first trip through the portal is instant
+{ const c=await browser.newContext(); const pp=await c.newPage(); await pp.goto(BASE+"/?silent",{timeout:90000}); await pp.waitForFunction(()=>window.__dd&&window.__hideout&&window.__meta,null,{timeout:60000});
+  await pp.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); });
+  const early=await pp.evaluate(()=>({frame:!!document.getElementById('hideoutFrame'),open:window.__hideout.isOpen()}));
+  const pre=await pp.waitForFunction(()=>window.__hideout.preloaded(),null,{timeout:15000}).then(()=>true).catch(()=>false);
+  const st=await pp.evaluate(()=>({open:window.__hideout.isOpen(),hidden:getComputedStyle(document.getElementById('hideoutWrap')).visibility==='hidden',inHideout:document.body.classList.contains('inHideout'),src:window.__hideout.url()}));
+  check("a run's first build phase preloads the hideout frame, hidden, without a visit",!early.frame&&pre&&!st.open&&st.hidden&&!st.inHideout&&/hideout\/index\.html\?embed=1/.test(st.src),JSON.stringify({early,pre,st}));
+  const loaded=await pp.waitForFunction(()=>window.__hideout.loaded(),null,{timeout:90000}).then(()=>true).catch(()=>false);
+  const r0=await pp.evaluate(()=>window.__dd.renders()); const drew=await pp.waitForFunction(r=>window.__dd.renders()>r,r0,{timeout:15000}).then(()=>true).catch(()=>false);
+  check("...its page loads behind the hall (told to hide as soon as it can listen) while the hall keeps drawing",loaded&&drew,JSON.stringify({loaded,r0,drew}));
+  const first=await pp.evaluate(()=>{ const f=document.getElementById('hideoutFrame'); const t0=performance.now(); window.__hideout.open(); return {open:window.__hideout.isOpen(),same:document.getElementById('hideoutFrame')===f,ms:performance.now()-t0,loaded:window.__hideout.loaded(),opens:window.__hideout.opens()}; });
+  check("the first trip uses that frame: open is the same element, already loaded, instant",first.open&&first.same&&first.loaded&&first.ms<50&&first.opens===1,JSON.stringify(first));
+  await c.close(); }
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
 // under a strict CSP like the artifact host's (connect-src 'self': no blob: fetches), the room still builds -- the
 // embedded textures are decoded from their bytes (patchHideoutLoader in assemble.mjs), not fetched from object URLs

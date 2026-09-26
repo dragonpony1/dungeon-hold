@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="17">
+<meta name="hideout-build" content="19">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -114,12 +114,30 @@ canvas{display:block}
 #gearHeader p{margin:4px 0 0;color:#8ab0c8;font-size:0.85em;font-style:italic}
 #gearBody{padding:16px 20px;overflow-y:auto}
 #gearGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.isection{color:#a0c0d8;font-size:0.8em;font-style:italic;margin:8px 2px 5px;letter-spacing:0.02em}
+.islotgrid{display:grid;gap:4px;justify-content:center;margin-bottom:6px}
+.islot{width:46px;height:46px;box-sizing:border-box;border:2px solid #4a6a8a;border-radius:6px;background:#0b1520;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;user-select:none}
+.islot.empty{cursor:default;border-style:dashed;opacity:0.6}
+.islot img{width:40px;height:40px;object-fit:contain;pointer-events:none}
+.islot.dragsrc{opacity:0.3}
+.islot.droptarget{border-color:#ffe08a;box-shadow:0 0 8px #ffe08a88}
+.dragicon{position:fixed;width:46px;height:46px;object-fit:contain;pointer-events:none;z-index:100;transform:translate(-50%,-50%);filter:drop-shadow(0 4px 8px #000)}
+.slot.empty{opacity:0.55}
+#chestWrap{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:20}
+#chestPanel{position:relative;width:min(520px,94vw);max-height:92vh;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px #000a;font-family:Georgia,'Times New Roman',serif;background:linear-gradient(#2a1c10,#160e08);border:3px solid #a5762a}
+#chestHeader{background:linear-gradient(#4a3014,#2a1a0a);padding:14px 20px 10px;text-align:center;border-bottom:3px solid #c9a227}
+#chestHeader h1{margin:0;color:#ffe2a0;font-size:1.5em;letter-spacing:0.04em;text-shadow:0 2px 4px #000}
+#chestHeader p{margin:4px 0 0;color:#c8a878;font-size:0.85em;font-style:italic}
+#chestBody{padding:10px 20px 14px;overflow-y:auto}
+#chestBody .isection{color:#c8a878}
+#chestBody .islot{border-color:#7a5a2a;background:#150e08}
+#chestClose{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:#000c;color:#fff;border:2px solid #a55;font:16px monospace;cursor:pointer;z-index:2}
 .fgear.unique{border-color:#ffcf3a;box-shadow:0 0 12px #ffcf3a66}
 #gearClose{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:#000c;color:#fff;border:2px solid #a55;font:16px monospace;cursor:pointer;z-index:2}
 #tooltip{position:fixed;display:none;z-index:50;background:#150e08;color:#ffe9b0;border:1px solid #a5762a;border-radius:6px;padding:5px 10px;font:bold 13px Georgia,serif;pointer-events:none;box-shadow:0 4px 12px #000a;max-width:220px}
 </style>
 </head><body>
-<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: your gear<div id="loadWrap"><div id="loadBar" class="indeterminate"><div id="loadFill"></div></div><div id="loadLine">Loading…</div></div></div>
+<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: inventory<div id="loadWrap"><div id="loadBar" class="indeterminate"><div id="loadFill"></div></div><div id="loadLine">Loading…</div></div></div>
 <div id="crosshair"></div>
 <div id="hud">Rare Sludge: <b id="sludge">0</b></div>
 <div id="prompt"></div>
@@ -166,10 +184,24 @@ canvas{display:block}
 <div id="gearWrap"><div id="gearPanel">
   <button id="gearClose">&times;</button>
   <div id="gearHeader">
-    <h1>YOUR GEAR</h1>
-    <p>Pick a piece, then walk out and click to display it in the Hideout for everyone.</p>
+    <h1>INVENTORY</h1>
+    <p>Drag furniture between your bag and hotbar. Click a gear piece to put it on display.</p>
   </div>
-  <div id="gearBody"><div id="gearGrid"></div></div>
+  <div id="gearBody">
+    <div class="isection">Bag</div><div id="invBag" class="islotgrid"></div>
+    <div class="isection">Hotbar — keys 1 to 9</div><div id="invHot" class="islotgrid"></div>
+    <div class="isection">Gear — click a piece to put it on display for everyone</div><div id="gearGrid"></div>
+  </div>
+</div></div>
+
+<div id="chestWrap"><div id="chestPanel">
+  <button id="chestClose">&times;</button>
+  <div id="chestHeader"><h1>BANDED CHEST</h1><p>Drag things in and out — it holds 25.</p></div>
+  <div id="chestBody">
+    <div class="isection">Chest</div><div id="chestSlots" class="islotgrid"></div>
+    <div class="isection">Bag</div><div id="chestBag" class="islotgrid"></div>
+    <div class="isection">Hotbar</div><div id="chestHot" class="islotgrid"></div>
+  </div>
 </div></div>
 
 <div id="lockerWrap"><div id="lockerPanel">
@@ -191,13 +223,18 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 17;
+const HIDEOUT_BUILD = 19;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
 // ============= SAVE DATA =============
 const SAVE_KEY = 'dd_hideout_save_v2';
 const STARTER_ITEMS = ['vending_machine', 'sludge_cauldron', 'ore_forge', 'portal', 'wall_locker'];
+// Furniture you own lives in slots: a 9-slot hotbar (keys 1-9, what you place from) and a bag you drag between.
+// Each placed chest has its own slots. A slot holds one catalog id or null.
+const HOTBAR_SIZE = 9, BAG_SIZE = 27, CHEST_SIZE = 25;
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'x' + Math.random().toString(36).slice(2));
+const padSlots = (a, n) => { a = (a || []).map(v => v || null); while (a.length < n) a.push(null); return a; };
 function loadSave(){
   try {
     const s = JSON.parse(localStorage.getItem(SAVE_KEY));
@@ -207,19 +244,43 @@ function loadSave(){
       if (s.commonSludge === undefined) s.commonSludge = 0;
       if (s.uncommonSludge === undefined) s.uncommonSludge = 0;
       if (!s.gear) s.gear = []; // mythic gear the player owns — lives on the player's save, never on a machine (multiple players could share one machine)
-      s.gear.forEach(g => { if (!g.id) g.id = (crypto.randomUUID ? crypto.randomUUID() : 'g'+Math.random().toString(36).slice(2)); }); // stable id so a piece can be selected/removed even as the array shifts
+      s.gear.forEach(g => { if (!g.id) g.id = uid(); }); // stable id so a piece can be selected/removed even as the array shifts
+      // the old single hotbar list (inv, unlimited) becomes the 9-slot hotbar plus the bag
+      if (!s.hotbar) {
+        const old = (s.inv || []).filter(Boolean);
+        s.hotbar = old.slice(0, HOTBAR_SIZE);
+        s.bag = old.slice(HOTBAR_SIZE);
+      }
+      delete s.inv;
+      s.hotbar = padSlots(s.hotbar, HOTBAR_SIZE).slice(0, HOTBAR_SIZE);
+      s.bag = padSlots(s.bag, BAG_SIZE);
+      s.placed.forEach(p => { if (!p.pid) p.pid = uid(); if (p.gid === 'chest') p.store = padSlots(p.store, CHEST_SIZE); });
       // give returning saves any starter item they never had (e.g. the crafting stations used to be fixed room fixtures)
+      const chests = s.placed.filter(p => p.store).map(p => p.store);
       STARTER_ITEMS.forEach(gid => {
-        if (!s.inv.includes(gid) && !s.placed.some(p=>p.gid===gid)) s.inv.push(gid);
+        const owned = [s.hotbar, s.bag, ...chests].some(a => a.includes(gid)) || s.placed.some(p => p.gid === gid);
+        if (owned) return;
+        const i = s.bag.indexOf(null);
+        if (i >= 0) s.bag[i] = gid; else s.bag.push(gid);
       });
       return s;
     }
   } catch(e){}
-  return { sludge: 99999, legendarySludge: 20, commonSludge: 0, uncommonSludge: 0, gear: [], inv: [...STARTER_ITEMS], placed: [] };
+  return { sludge: 99999, legendarySludge: 20, commonSludge: 0, uncommonSludge: 0, gear: [],
+    hotbar: padSlots(STARTER_ITEMS.slice(), HOTBAR_SIZE), bag: padSlots([], BAG_SIZE), placed: [] };
 }
 function writeSave(){ localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); }
 const SAVE = loadSave();
 document.getElementById('sludge').textContent = SAVE.sludge;
+// puts an item in the first free slot — new things (bought, rewards) go to the bag, picked-up furniture back to the
+// hotbar so moving things stays quick; false when both are full
+function giveItem(gid, prefer) {
+  for (const arr of prefer === 'hotbar' ? [SAVE.hotbar, SAVE.bag] : [SAVE.bag, SAVE.hotbar]) {
+    const i = arr.indexOf(null);
+    if (i >= 0) { arr[i] = gid; return true; }
+  }
+  return false;
+}
 
 // a lightweight per-browser display tag — just so a shared drop can say who left it
 const PLAYER_KEY = 'dd_hideout_player_id';
@@ -481,12 +542,12 @@ const BUILTIN_MODELS = {};
 Object.keys(PAINTINGS).forEach(gid => { BUILTIN_MODELS[gid] = () => makePainting(gid); });
 
 // The Side Table and Heraldic Rug were on sale before they had 3D models, so a bought one could never be placed.
-// They're off the shelf now (SHOP_STOCK), and any sitting in the hotbar are refunded once.
+// They're off the shelf now (SHOP_STOCK), and any sitting in the hotbar or bag are refunded once.
 (function refundUnplaceable() {
   const gone = [];
-  SAVE.inv = SAVE.inv.filter(gid => {
-    if (!GEAR[gid] || hasModel(gid)) return true;
-    SAVE.sludge += GEAR[gid].cost || 0; gone.push(GEAR[gid].name); return false;
+  for (const arr of [SAVE.hotbar, SAVE.bag]) arr.forEach((gid, i) => {
+    if (!gid || !GEAR[gid] || hasModel(gid)) return;
+    SAVE.sludge += GEAR[gid].cost || 0; gone.push(GEAR[gid].name); arr[i] = null;
   });
   if (!gone.length) return;
   writeSave();
@@ -603,10 +664,10 @@ function scaleFor(gid) { return SCALE_MAP[gid] || DEFAULT_PLACE_SCALE; }
 const pickupables = []; // every freely-placed item can be picked back up, separate from its "use" interaction (if any)
 const RADIUS_MAP = { vending_machine: 2.3, sludge_cauldron: 2.1, ore_forge: 2.4, portal: 1.4, wall_locker: 1.0 };
 STAND_SETS.forEach(s => { RADIUS_MAP['stand_' + s] = 0.6; });
-function spawnPlacedItem(gid, pos, ry) {
+function spawnPlacedItem(gid, pos, ry, pid) {
   const scale = scaleFor(gid);
   const r = RADIUS_MAP[gid] || 0.9*scale;
-  const entry = { gid, x: pos.x, y: pos.y, z: pos.z, ry, obj: null, useHit: null, light: null, isWall: WALL_ITEMS.has(gid) };
+  const entry = { gid, pid, x: pos.x, y: pos.y, z: pos.z, ry, obj: null, useHit: null, light: null, isWall: WALL_ITEMS.has(gid) };
   if (!entry.isWall) { // things hung on the wall don't block the floor
     entry.collider = {minX:pos.x-r,maxX:pos.x+r,minZ:pos.z-r,maxZ:pos.z+r};
     colliders.push(entry.collider);
@@ -655,6 +716,14 @@ function spawnPlacedItem(gid, pos, ry) {
       interactables.push({ mesh: hit, prompt: 'E: Open the wall locker', onUse: openLocker });
       makeArcaneSteam(entry, new THREE.Box3().setFromObject(obj));
     }
+    if (gid === 'chest') {
+      const b = new THREE.Box3().setFromObject(obj), sz = b.getSize(new THREE.Vector3());
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(sz.x + 0.3, sz.y + 0.3, sz.z + 0.3), new THREE.MeshBasicMaterial({visible:false}));
+      hit.position.copy(b.getCenter(new THREE.Vector3()));
+      scene.add(hit);
+      entry.useHit = hit;
+      interactables.push({ mesh: hit, prompt: 'E: Open the chest', onUse: () => openChest(entry) });
+    }
   });
 
   let pickHit;
@@ -690,6 +759,10 @@ function tryPickup() {
   const entry = pickupables.find(p => p.pickHit === hits[0].object);
   if (!entry || hits[0].distance >= pickupRange(entry)) return;
   if (entry.isSharedGear) { pickupSharedGear(entry.dropId); return; }
+  const rec = SAVE.placed.find(p => p.pid && p.pid === entry.pid)
+    || SAVE.placed.find(p => p.gid===entry.gid && p.x===entry.x && p.z===entry.z && p.ry===entry.ry);
+  if (rec && rec.store && rec.store.some(Boolean)) { flashMsg('Empty the chest before picking it up'); return; }
+  if (!giveItem(entry.gid, 'hotbar')) { flashMsg('No room — your hotbar and bag are both full'); return; }
   if (entry.obj) scene.remove(entry.obj);
   scene.remove(entry.pickHit);
   if (entry.useHit) { scene.remove(entry.useHit); interactables.splice(interactables.findIndex(i => i.mesh === entry.useHit), 1); }
@@ -697,10 +770,8 @@ function tryPickup() {
   if (entry.fx) { scene.remove(entry.fx.points); releaseLight(entry.fx.light); arcaneFx.splice(arcaneFx.indexOf(entry.fx), 1); }
   if (entry.collider) colliders.splice(colliders.indexOf(entry.collider), 1);
   pickupables.splice(pickupables.indexOf(entry), 1);
-  const idx = SAVE.placed.findIndex(p => p.gid===entry.gid && p.x===entry.x && p.z===entry.z && p.ry===entry.ry);
-  if (idx >= 0) SAVE.placed.splice(idx, 1);
-  SAVE.inv.push(entry.gid);
-  renderInv(); writeSave();
+  if (rec) SAVE.placed.splice(SAVE.placed.indexOf(rec), 1);
+  syncSelection(); renderInv(); writeSave();
   flashMsg('Picked up ' + GEAR[entry.gid].name);
 }
 
@@ -711,7 +782,7 @@ async function loadPropsAfterShell() {
   await shellReady;
   const jobs = SAVE.placed.filter(p => hasModel(p.gid))
     .sort((a, b) => (PROP_PRIORITY[a.gid] ?? 5) - (PROP_PRIORITY[b.gid] ?? 5))
-    .map(p => () => spawnPlacedItem(p.gid, {x:p.x, y:p.y ?? GROUND_Y, z:p.z}, p.ry));
+    .map(p => () => spawnPlacedItem(p.gid, {x:p.x, y:p.y ?? GROUND_Y, z:p.z}, p.ry, p.pid));
   jobs.unshift(() => placeProp(PROPS_DIR+'chandelier.glb', 1.0, {x:0, y:GROUND_Y+4.5, z:0}, 0));
   propsTotal = jobs.length; propsDone = 0; renderLoadUI();
   let next = 0;
@@ -724,32 +795,33 @@ async function loadPropsAfterShell() {
   };
   await Promise.all([worker(), worker(), worker()]);
   // then quietly fetch whatever is still on the hotbar, so selecting one to place is instant
-  for (const gid of new Set(SAVE.inv)) if (MODEL_MAP[gid]) loadGltf(PROPS_DIR + MODEL_MAP[gid]).catch(() => {});
+  for (const gid of new Set(SAVE.hotbar)) if (gid && MODEL_MAP[gid]) loadGltf(PROPS_DIR + MODEL_MAP[gid]).catch(() => {});
 }
 loadPropsAfterShell();
 
 const texLoader = new THREE.TextureLoader();
 
-let selectedGear = null;
+let selectedGear = null, selectedSlot = null; // selectedGear is whatever sits in the selected hotbar slot
+function syncSelection() { selectedGear = selectedSlot === null ? null : SAVE.hotbar[selectedSlot] || null; }
 function renderInv() {
   const el = document.getElementById('inv'); el.innerHTML = '';
-  SAVE.inv.forEach((gid, i) => {
+  SAVE.hotbar.forEach((gid, i) => {
     const d = document.createElement('div');
-    d.className = 'slot' + (selectedGear===gid ? ' sel' : '');
+    d.className = 'slot' + (selectedSlot === i ? ' sel' : '') + (gid ? '' : ' empty');
     d.style.position = 'relative';
-    d.innerHTML = '<img src="'+GEAR[gid].icon+'" style="width:100%;height:100%;object-fit:contain">'
-      + (i < 9 ? '<span style="position:absolute;top:2px;left:4px;font:11px monospace;color:#fff;text-shadow:0 0 3px #000">'+(i+1)+'</span>' : '');
-    d.onclick = () => { selectedGear = (selectedGear===gid) ? null : gid; selectedDropGearId = null; renderInv(); };
-    attachTooltip(d, GEAR[gid].name);
+    d.innerHTML = (gid ? '<img src="'+GEAR[gid].icon+'" style="width:100%;height:100%;object-fit:contain">' : '')
+      + '<span style="position:absolute;top:2px;left:4px;font:11px monospace;color:#fff;text-shadow:0 0 3px #000">'+(i+1)+'</span>';
+    d.onclick = () => selectHotbarIndex(i);
+    if (gid) attachTooltip(d, GEAR[gid].name);
     el.appendChild(d);
   });
 }
 renderInv();
 
 function selectHotbarIndex(i) {
-  if (i < 0 || i >= SAVE.inv.length) return;
-  const gid = SAVE.inv[i];
-  selectedGear = (selectedGear === gid) ? null : gid;
+  if (i < 0 || i >= HOTBAR_SIZE) return;
+  selectedSlot = selectedSlot === i ? null : i;
+  syncSelection(); selectedDropGearId = null;
   renderInv();
 }
 document.addEventListener('keydown', e => {
@@ -760,10 +832,8 @@ window.addEventListener('wheel', e => {
   e.preventDefault();
   if (ghost) { ghostRy += (e.deltaY > 0 ? 1 : -1) * 0.12; return; } // smooth turn while actively placing something
   if (dropGhost) { dropGhostRy += (e.deltaY > 0 ? 1 : -1) * 0.12; return; }
-  if (!SAVE.inv.length) return;
-  let idx = selectedGear ? SAVE.inv.indexOf(selectedGear) : -1;
-  idx = (idx + (e.deltaY > 0 ? 1 : -1) + SAVE.inv.length) % SAVE.inv.length;
-  selectedGear = SAVE.inv[idx];
+  selectedSlot = ((selectedSlot === null ? -1 : selectedSlot) + (e.deltaY > 0 ? 1 : -1) + HOTBAR_SIZE) % HOTBAR_SIZE;
+  syncSelection(); selectedDropGearId = null;
   renderInv();
 }, { passive: false });
 
@@ -805,7 +875,7 @@ function loadPctText(url) {
 }
 
 function isAnyPanelOpen() {
-  return ['vendWrap','forgeWrap','cauldronWrap','gearWrap','lockerWrap'].some(id => document.getElementById(id).style.display === 'flex');
+  return ['vendWrap','forgeWrap','cauldronWrap','gearWrap','lockerWrap','chestWrap'].some(id => document.getElementById(id).style.display === 'flex');
 }
 
 function updateGhost() {
@@ -886,11 +956,14 @@ function commitPlacement() {
   // the ghost's bottom edge is where the piece sits — on the floor, or up a wall if it was lifted
   const pos = {x: ghost.position.x, y: ghost.position.y + ghost.userData.bottomOffset, z: ghost.position.z};
   const ry = ghost.rotation.y;
-  spawnPlacedItem(gid, pos, ry);
-  SAVE.placed.push({gid, x: pos.x, y: pos.y, z: pos.z, ry});
-  SAVE.inv.splice(SAVE.inv.indexOf(gid), 1);
+  const pid = uid();
+  const rec = {pid, gid, x: pos.x, y: pos.y, z: pos.z, ry};
+  if (gid === 'chest') rec.store = padSlots([], CHEST_SIZE);
+  SAVE.placed.push(rec);
+  spawnPlacedItem(gid, pos, ry, pid);
+  if (selectedSlot !== null && SAVE.hotbar[selectedSlot] === gid) SAVE.hotbar[selectedSlot] = null;
   scene.remove(ghost); ghost = null; ghostGid = null;
-  selectedGear = null;
+  syncSelection(); // the slot stays selected, now empty
   renderInv(); writeSave();
   flashMsg('Placed ' + GEAR[gid].name);
 }
@@ -1096,12 +1169,12 @@ async function pickupSharedGear(id) {
     const { item } = await res.json();
     removeWorldGear(id);
     const piece = pieceFromShared(item);
-    if (piece.kind === 'furniture' && hasModel(piece.gid)) {
+    if (piece.kind === 'furniture' && hasModel(piece.gid) && giveItem(piece.gid, 'bag')) {
       // an armor stand put on display as a plaque (what the hideout did before stands were furniture): picking it up
-      // hands over the real thing, straight to the hotbar
-      SAVE.inv.push(piece.gid); writeSave(); renderInv();
+      // hands over the real thing, into the bag (a full bag sends it back to the locker below instead)
+      writeSave(); renderInv(); refreshSlotViews();
       loadGltf(PROPS_DIR + MODEL_MAP[piece.gid]).catch(() => {});
-      flashMsg(piece.label + ' is on your hotbar — select it to place it');
+      flashMsg(piece.label + ' is in your bag — press I and drag it to your hotbar');
       return;
     }
     if (piece.kind === 'carried' || piece.kind === 'furniture') { // no model yet: back to the locker to wait
@@ -1145,7 +1218,92 @@ function openGearPanel() {
   if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
   document.getElementById('gearWrap').style.display = 'flex';
   buildGearGrid();
+  refreshSlotViews();
 }
+
+// ============= SLOTS (bag, hotbar and chests) with drag and drop =============
+function renderSlotGrid(container, arr, cols) {
+  container.innerHTML = '';
+  container.style.gridTemplateColumns = 'repeat(' + cols + ', 46px)';
+  arr.forEach((gid, i) => {
+    const d = document.createElement('div');
+    d.className = 'islot' + (gid ? '' : ' empty');
+    d.__slot = { arr, i };
+    if (gid) {
+      d.innerHTML = '<img src="' + GEAR[gid].icon + '">';
+      attachTooltip(d, GEAR[gid].name);
+      d.addEventListener('pointerdown', ev => startSlotDrag(ev, arr, i, d));
+    }
+    container.appendChild(d);
+  });
+}
+let openChestRec = null, chestWasActive = false;
+function refreshSlotViews() {
+  syncSelection();
+  renderInv();
+  if (document.getElementById('gearWrap').style.display === 'flex') {
+    renderSlotGrid(document.getElementById('invBag'), SAVE.bag, 9);
+    renderSlotGrid(document.getElementById('invHot'), SAVE.hotbar, 9);
+  }
+  if (openChestRec) {
+    renderSlotGrid(document.getElementById('chestSlots'), openChestRec.store, 5);
+    renderSlotGrid(document.getElementById('chestBag'), SAVE.bag, 9);
+    renderSlotGrid(document.getElementById('chestHot'), SAVE.hotbar, 9);
+  }
+}
+// press on an item, drag it over another slot and let go: the two swap (an empty slot just takes it)
+let slotDrag = null, dropHover = null;
+function startSlotDrag(ev, arr, i, el) {
+  if (ev.button !== 0 || !arr[i]) return;
+  ev.preventDefault();
+  const img = document.createElement('img');
+  img.src = GEAR[arr[i]].icon; img.className = 'dragicon';
+  document.body.appendChild(img);
+  slotDrag = { arr, i, img, el };
+  el.classList.add('dragsrc');
+  tooltipEl.style.display = 'none';
+  moveSlotDrag(ev);
+}
+function slotUnder(ev) { const u = document.elementFromPoint(ev.clientX, ev.clientY); return u && u.closest('.islot'); }
+function moveSlotDrag(ev) {
+  if (!slotDrag) return;
+  slotDrag.img.style.left = ev.clientX + 'px'; slotDrag.img.style.top = ev.clientY + 'px';
+  const t = slotUnder(ev);
+  if (t !== dropHover) { if (dropHover) dropHover.classList.remove('droptarget'); dropHover = t; if (t) t.classList.add('droptarget'); }
+}
+window.addEventListener('pointermove', moveSlotDrag);
+window.addEventListener('pointerup', ev => {
+  if (!slotDrag) return;
+  const d = slotDrag; slotDrag = null;
+  d.img.remove(); d.el.classList.remove('dragsrc');
+  if (dropHover) { dropHover.classList.remove('droptarget'); dropHover = null; }
+  const t = slotUnder(ev);
+  if (t && t.__slot && !(t.__slot.arr === d.arr && t.__slot.i === d.i)) {
+    const { arr, i } = t.__slot;
+    const moving = d.arr[d.i];
+    d.arr[d.i] = arr[i];
+    arr[i] = moving;
+    writeSave();
+  }
+  refreshSlotViews();
+});
+function openChest(entry) {
+  const rec = SAVE.placed.find(p => p.pid === entry.pid);
+  if (!rec) return;
+  rec.store = padSlots(rec.store, CHEST_SIZE);
+  openChestRec = rec;
+  chestWasActive = active;
+  if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
+  document.getElementById('chestWrap').style.display = 'flex';
+  refreshSlotViews();
+}
+function closeChest() {
+  document.getElementById('chestWrap').style.display = 'none';
+  openChestRec = null;
+  if (chestWasActive) canvas.requestPointerLock();
+}
+document.getElementById('chestClose').onclick = closeChest;
+document.getElementById('chestWrap').addEventListener('click', e => { if (e.target.id === 'chestWrap') closeChest(); });
 function closeGearPanel() {
   document.getElementById('gearWrap').style.display = 'none';
   if (gearWasActive) canvas.requestPointerLock();
@@ -1168,16 +1326,17 @@ function pieceCell(piece, onPick) {
 }
 function takeFurnitureReward(piece) {
   if (!hasModel(piece.gid)) { flashMsg(piece.label + ' can be placed once its 3D model is added'); return; }
+  if (!giveItem(piece.gid, 'bag')) { flashMsg('Your bag and hotbar are full — make room first'); return; }
   writeCarried(loadCarried().filter(c => c.id !== piece.id)); // claimed: it leaves the locker (the game's own ledger stops a re-grant)
-  SAVE.inv.push(piece.gid); writeSave(); renderInv();
+  writeSave(); renderInv();
   refreshRewardsFresh(); buildLockerGrids();
   sfxSuccess();
-  flashMsg(piece.label + ' is on your hotbar — select it to place it');
+  flashMsg(piece.label + ' is in your bag — press I and drag it to your hotbar');
   loadGltf(PROPS_DIR + MODEL_MAP[piece.gid]).catch(() => {}); // start the download now so it's ready to place
 }
 function pickForDisplay(piece, wasSelected, closeFn) {
   selectedDropGearId = wasSelected ? null : piece.key;
-  selectedGear = null; renderInv();
+  selectedSlot = null; syncSelection(); renderInv();
   closeFn();
 }
 function buildLockerGrids() {
@@ -1450,6 +1609,7 @@ document.addEventListener('keydown', e => {
   if (document.getElementById('cauldronWrap').style.display === 'flex') closeCauldron();
   if (document.getElementById('gearWrap').style.display === 'flex') closeGearPanel();
   if (document.getElementById('lockerWrap').style.display === 'flex') closeLocker();
+  if (document.getElementById('chestWrap').style.display === 'flex') closeChest();
 });
 
 // ============= THE FORGE (Legendary Sludge -> gamble for mythic gear) =============
@@ -1647,10 +1807,10 @@ document.getElementById('cauldronWrap').addEventListener('click', e => { if (e.t
 function buyItem(gid) {
   const g = GEAR[gid];
   if (SAVE.sludge < g.cost) { flashMsg('Not enough Rare Sludge'); return; }
+  if (!giveItem(gid, 'bag')) { flashMsg('Your bag and hotbar are full — make room first'); return; }
   SAVE.sludge -= g.cost;
-  SAVE.inv.push(gid);
   document.getElementById('sludge').textContent = SAVE.sludge;
-  flashMsg('Traded for: ' + g.name);
+  flashMsg('Traded for: ' + g.name + ' — it\'s in your bag (press I)');
   renderVendPanel(); renderInv(); writeSave();
 }
 
@@ -1749,8 +1909,8 @@ function keyName(e) {
 document.addEventListener('keydown', e => {
   const k = keyName(e);
   keys[k] = true;
-  if (k === 'e') tryInteract();
-  if (k === 'g') tryPickup();
+  if (k === 'e' && active) tryInteract(); // only while walking around — never through an open panel
+  if (k === 'g' && active) tryPickup();
   if (k === 'space') { e.preventDefault(); if (grounded) { velY = JUMP_SPEED; grounded = false; } }
   if (k === 'r' && ghost) { ghostRy += Math.PI/6; }
   if (k === 'r' && dropGhost) { dropGhostRy += Math.PI/6; }
@@ -1788,8 +1948,26 @@ function collide(nx, nz, ox, oz) {
 }
 
 let lastT = performance.now();
+// Keep-alive support for a host page (the game) that loads the hideout once and hides/shows it instead of rebuilding
+// it every visit: post 'hideout:hide' / 'hideout:show' to this frame. Hidden, it draws nothing; shown again, it
+// re-reads what the game may have changed meanwhile (gear bag, locker) and waits for a click to enter.
+let hiddenByHost = false;
+window.addEventListener('message', (e) => {
+  if (e.source !== window.parent || window.parent === window) return;
+  if (e.data === 'hideout:hide') {
+    hiddenByHost = true;
+    if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
+  } else if (e.data === 'hideout:show') {
+    hiddenByHost = false; lastT = performance.now();
+    Object.assign(BAG, loadBag());
+    rewardBannerShown = false; refreshRewardsFresh();
+    pollDroppedGear();
+    document.getElementById('start').style.display = 'flex';
+  }
+});
 function animate(now) {
   requestAnimationFrame(animate);
+  if (hiddenByHost) return;
   const dt = Math.min(0.05, (now-lastT)/1000); lastT = now;
   if (active) {
     vel.set(0,0,0);

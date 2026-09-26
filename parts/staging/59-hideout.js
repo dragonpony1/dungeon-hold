@@ -40,7 +40,7 @@ const HIDEOUT_NAV=Q.has('hideoutnav')?(Q.get('hideoutnav')||'/hideout.html'):nul
 const BAG_KEY='dd_gear_bag';
 const CARRY_KEY='dd_gear_carried';   // whole items (locked pieces), see the header
 const RARITY_KEY=['common','uncommon','rare','epic','legendary'];   // RNAME, lower-cased, by the game's own numeric rarity 0..4
-let wrap=null, frame=null, opens=0, lastCarry=null;
+let wrap=null, frame=null, shown=false, opens=0, lastCarry=null, preloadT=null, loaded=false, focusT=null;   // one frame for the whole run (hideout build 18: 'hideout:hide' / 'hideout:show' keep it alive between visits), created hidden ahead of the first trip
 const clampR=r=>Math.max(0,Math.min(4,Math.round(+r)||0));
 function readBag(){ let b=null; try{ b=JSON.parse(localStorage.getItem(BAG_KEY)); }catch(e){} return (b&&typeof b==='object'&&!Array.isArray(b))?b:{}; }
 function readCarried(){ let a=null; try{ a=JSON.parse(localStorage.getItem(CARRY_KEY)); }catch(e){} return Array.isArray(a)?a.filter(x=>x&&typeof x==='object'):[]; }
@@ -56,18 +56,26 @@ function carryGear(){ const bag=Meta.bag(); const counts={}; RARITY_KEY.forEach(
 function bagSummary(){ const c={}; Meta.bag().filter(it=>!it.locked).forEach(it=>{ const k=RARITY_KEY[clampR(it.rarity)]; c[k]=(c[k]||0)+1; }); return RARITY_KEY.filter(k=>c[k]).map(k=>c[k]+' '+k).join(', '); }
 function portalNear(){ if(!window.__portal||window.__portal.state()!=='shown') return false; const p=window.__portal.pos(); return Math.hypot(hero.x-p.x,hero.z-p.z)<NEAR; }
 function canUse(){ return portalNear()&&!placing&&!Meta.isOpen()&&S.phase==='build'; }
-function openHideout(){ if(wrap) return false;
-  if(!HAS_ASSETS){ toast('The hideout only exists in the folder build (dist/hideout/)'); return false; }
-  wrap=document.createElement('div'); wrap.id='hideoutWrap'; wrap.style.cssText='position:fixed;inset:0;z-index:20;background:#000;';
+// the frame is made once and kept: hidden (visibility, so its page keeps running its loads) between visits, and the
+// hideout page told which it is -- 'hideout:hide' stops it drawing and releases the mouse, 'hideout:show' re-reads the
+// gear bag and the locker, re-arms the rewards banner and brings back its click-to-enter screen (hideout build 18)
+function post(msg){ try{ if(frame&&frame.contentWindow) frame.contentWindow.postMessage(msg,'*'); }catch(e){} }   // a bare command string, nothing in it to leak
+function makeFrame(){ if(frame) return frame;
+  wrap=document.createElement('div'); wrap.id='hideoutWrap'; wrap.style.cssText='position:fixed;inset:0;z-index:20;background:#000;visibility:hidden;'; wrap.inert=true;   /* hidden AND inert: the kept frame must never hold focus or keys while the hall is in charge */
   frame=document.createElement('iframe'); frame.id='hideoutFrame';
   frame.src=HIDEOUT_URL+'?embed=1'+(HIDEOUT_API?'&api='+encodeURIComponent(HIDEOUT_API):'');
-  frame.setAttribute('allow','pointer-lock; fullscreen'); frame.style.cssText='width:100%;height:100%;border:0;display:block;';
-  wrap.appendChild(frame); document.body.appendChild(wrap);
+  frame.setAttribute('allow','fullscreen');   /* pointer lock needs no allow entry in a same-origin frame, and 'pointer-lock' is not a feature name Chrome knows (it logged an error) */ frame.style.cssText='width:100%;height:100%;border:0;display:block;';
+  frame.addEventListener('load',()=>{ loaded=true; if(!shown) post('hideout:hide'); });   // a frame made ahead of the visit starts hidden the moment its page can listen
+  wrap.appendChild(frame); document.body.appendChild(wrap); return frame; }
+function preload(){ if(frame||!HAS_ASSETS||HIDEOUT_NAV) return false; if(navigator.connection&&navigator.connection.saveData) return false; makeFrame(); return true; }   // the download and the room build happen in the background between waves, so the first trip is as quick as the second
+function openHideout(){ if(shown) return false;
+  if(!HAS_ASSETS){ toast('The hideout only exists in the folder build (dist/hideout/)'); return false; }
+  const fresh=!frame; makeFrame(); shown=true; HIDEOUT_SHOWN=true; wrap.inert=false; wrap.style.visibility='visible'; if(!fresh&&loaded) post('hideout:show');
   if(document.pointerLockElement&&document.exitPointerLock) document.exitPointerLock();
   document.body.classList.add('inHideout'); opens++; SFX.enter();
-  setTimeout(()=>{ try{ if(frame) frame.contentWindow.focus(); }catch(e){} },50);   // keys go to the hideout, not the hall, from the first press
+  clearTimeout(focusT); focusT=setTimeout(()=>{ focusT=null; try{ if(frame&&shown) frame.contentWindow.focus(); }catch(e){} },50);   // keys go to the hideout, not the hall, from the first press -- and never to a frame already hidden again (a stray late focus was swallowing the hall's next E)
   return true; }
-function closeHideout(why){ if(!wrap) return false; wrap.remove(); wrap=null; frame=null; document.body.classList.remove('inHideout'); if(why) toast(why); try{ window.focus(); }catch(e){} return true; }
+function closeHideout(why){ if(!shown) return false; shown=false; HIDEOUT_SHOWN=false; clearTimeout(focusT); focusT=null; post('hideout:hide'); wrap.style.visibility='hidden'; wrap.inert=true; try{ frame.blur(); if(document.activeElement&&document.activeElement.blur) document.activeElement.blur(); }catch(e){} document.body.classList.remove('inHideout'); if(why) toast(why); try{ window.focus(); }catch(e){} return true; }   // keys go back to the hall at once
 addEventListener('message',e=>{ if(frame&&e.source===frame.contentWindow&&e.data&&e.data.type==='hideout:exit') closeHideout(); });
 function go(carry){ if(carry){ const c=carryGear(); const parts=[]; if(c.n) parts.push(c.n+' scrapped for the Cart'); if(c.carried.length) parts.push(c.carried.length+' carried through as gear'); if(parts.length) toast(parts.join(' · ')); } Meta.save(); if(HIDEOUT_NAV){ location.href=HIDEOUT_NAV; return; } openHideout(); }
 // no panel, no choice, no toast worth reading: the split was decided in the bag with the lock, and the hideout's own Cart
@@ -80,6 +88,7 @@ function passThrough(){ go(true); }
 { const tav=$('tavbtn'); if(tav){ const b=document.createElement('button'); b.id='hideoutbtn'; b.className='big alt'; b.textContent='🔮 THE HIDEOUT'; b.addEventListener('click',e=>{ e.stopPropagation(); if(S.phase==='start') passThrough(); }); tav.insertAdjacentElement('afterend',b); } }
 // pulled back out the moment a visit's phase ends for any reason (the horn, the crystal falling, the last wave held).
 // Polled rather than hooked into Meta.update, since update() itself stops running on the dead/won screens.
-setInterval(()=>{ if(wrap&&S.phase!=='build'&&S.phase!=='start') closeHideout(S.phase==='wave'?'The horn sounds — back to the hall!':null); },250);
-window.__hideout={isOpen:()=>!!wrap,open:openHideout,close:()=>closeHideout(),near:portalNear,url:()=>frame?frame.src:null,opens:()=>opens,passThrough,carry:carryGear,lastCarry:()=>lastCarry,readBag,readCarried,BAG_KEY,CARRY_KEY,build:()=>HIDEOUT_BUILD};
+setInterval(()=>{ if(shown&&S.phase!=='build'&&S.phase!=='start') closeHideout(S.phase==='wave'?'The horn sounds — back to the hall!':null);
+  if(!frame&&preloadT===null&&S.phase==='build') preloadT=setTimeout(preload,4000); },250);   // the first build phase of a run: four seconds in (the hall's own priority loads have gone out by then), the hideout starts loading behind the hall
+window.__hideout={isOpen:()=>shown,open:openHideout,close:()=>closeHideout(),near:portalNear,url:()=>frame?frame.src:null,opens:()=>opens,preloaded:()=>!!frame&&!shown,loaded:()=>loaded,preload,passThrough,carry:carryGear,lastCarry:()=>lastCarry,readBag,readCarried,BAG_KEY,CARRY_KEY,build:()=>HIDEOUT_BUILD};
 })();

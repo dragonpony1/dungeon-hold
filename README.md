@@ -840,6 +840,17 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   of 21.1), with the decoder wired in the page. The build-time decode stays as a fallback behind `UNMESHOPT=1` for a
   host that refuses WebAssembly, and the build line keeps its "no wasm" probe. hideout-test.mjs checks the dist
   mirrors upstream, the decoder reports supported and the room builds, and the fallback still strips a model in node.
+- Build 140: a real horn. The START WAVE horn is a ship's horn recorded by Felix Blume (freesound.org), cut from his
+  three-blast take to one blast (5.5 s, mono, a fade over the tail, `parts/assets/sfx-horn.mp3`, 67 KB) and played
+  like the ogre's laugh, with the old two-note beep as the fallback. And hideout build 18's keep-alive: the game now
+  makes ONE hideout frame per run and keeps it, hidden between visits ('hideout:hide' stops it drawing and releases
+  the mouse; 'hideout:show' re-reads the gear bag and the locker and brings back its click-to-enter screen), and
+  makes that frame hidden four seconds into the first build phase so it downloads and builds behind the hall and even
+  the first trip is instant. The hall keeps simulating under the overlay (a co-op host must) but no longer draws
+  under it. hideout-test.mjs and music-test.mjs check all of it. Also from the playtest: a defense set down plays the
+  player's own placement clip (`parts/assets/sfx-place.mp3`, cut to the one hit, 10 KB; Mark II and a repair share it),
+  and every fourth bolt from each ballista plays the player's shot clip (`parts/assets/sfx-ballista.mp3`), the synth
+  twang on the other three. Hideout build 19 rides along (its save now keeps a 9-slot hotbar and a 27-slot bag).
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Eight more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry. The Holy set is next.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
