@@ -43,7 +43,7 @@ makeDef=function(kind,ghost,lvl){ const T=defTemplate(kind,lvl); if(!T) return m
   return g; };
 // re-skin a built defense whenever its mark (or a late-loading model) calls for a different look — checked every frame, cheaply
 function reskinDefs(){ for(const d of defs){ ensureDefMark(d.kind,d.lvl); ensureDefMark(d.kind,d.lvl+1); const T=defTemplate(d.kind,d.lvl); if(!T||d.mdl.userData.tpl===T) continue; const old=d.mdl; scene.remove(old); d.mdl=makeDef(d.kind,false,d.lvl); d.mdl.position.copy(old.position); d.mdl.rotation.y=d.rot; d.mdl.scale.copy(old.scale); scene.add(d.mdl); } }
-{ const base=makeDef; makeDef=function(kind,ghost,lvl){ const m=base(kind,ghost,lvl); if(kind==='spike') m.scale.x*=1.66; return m; }; }   // the hedge is five cells wide now: stretch the three-cell model to match
+{ const base=makeDef; makeDef=function(kind,ghost,lvl){ const m=base(kind,ghost,lvl); if(kind!=='spike') return m; const s=new THREE.Group(); s.name='stretch'; s.scale.x=1.66; while(m.children.length) s.add(m.children[0]); m.add(s); return m; }; }   // the hedge is five cells wide now: stretch the three-cell model to match -- on an inner group, since updateDefs sets d.mdl.scale uniformly every frame (the pop and the 7%-a-mark growth) and wiped a stretch on the root after one frame, so only the ghost was ever wide
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); reskinDefs(); }; }
 // the ballista (harpoon turret) by mark: tier models from Meshy; marks beyond the last one reuse it
 // Mark I comes down with the 'soon' tier (it's what placing shows); marks II..IV are only registered here and fetched
@@ -54,7 +54,7 @@ const DEF_LAZY={}, DEF_ASKED={};
 function defMarks(kind,base){ fetchDefGLB(kind,ASSET(base+'-1.glb'),0,'soon'); DEF_LAZY[kind]=[null,ASSET(base+'-2.glb'),ASSET(base+'-3.glb'),ASSET(base+'-4.glb')]; }
 function ensureDefMark(kind,lvl){ const list=DEF_LAZY[kind]; if(!list) return false; const i=Math.min(3,(lvl||1)-1); if(i<1||!list[i]) return false; const key=kind+':'+i; if(DEF_ASKED[key]) return false; DEF_ASKED[key]=true; fetchDefGLB(kind,list[i],i,'first'); return true; }
 defMarks('harpoon','ballista');   // Mark I..IV; Mark V keeps the tier-4 look
-fetchDefGLB('spike',ASSET('hedge.glb'),0,'soon');   // the bramble hedge (Meshy), all marks
+defMarks('spike','hedge');   // the bramble hedge (Meshy) Mark I..IV; Mark V keeps the tier-4 look (hedge-1 is the hedge every mark used to share; II-IV are the player's T2-T4 cut to one 1024 px base-colour map, all toonify() reads)
 defMarks('acorn','cannon');   // the acorn cannon (Meshy) Mark I..IV; Mark V keeps the tier-4 look
 defMarks('slice','mushroom');   // the mushroom ring (Meshy) Mark I..IV; Mark V keeps the tier-4 look
 defMarks('totem','totem');   // the rune totem (Meshy) Mark I..IV; Mark V keeps the tier-4 look
