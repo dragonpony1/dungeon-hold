@@ -637,7 +637,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=124;
+const BUILD=125;
 function heroStatus(msg){ const el=$('buildline'); if(el) el.textContent='build '+BUILD+' · '+msg; }
 heroStatus('hero model: loading…');   // head.html's own text is a placeholder from an old build; the real number goes up before any model is asked for
 const OLSKIN=new THREE.ShaderMaterial({side:THREE.BackSide,fog:true,skinning:true,

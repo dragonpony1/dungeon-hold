@@ -69,12 +69,10 @@ await page.waitForFunction(()=>window.__portal.loaded(),null,{timeout:60000}); a
 await page.evaluate(()=>{ localStorage.setItem('dd_gear_bag',JSON.stringify({common:2})); localStorage.setItem('dd_gear_carried',JSON.stringify([{id:'theirs-1',name:'Already Displayed',slot:'charm',rarity:3,from:'hideout'}])); });
 const ppos=await page.evaluate(()=>window.__portal.pos());
 await page.evaluate(p=>{ window.__dd.setHero(p.x+.6,p.z+.6); window.__dd.step(1/60,3); },ppos);
-await page.keyboard.press('KeyE'); await sleep(100);
-const askText=await page.evaluate(()=>document.getElementById('hideoutAsk').textContent);
-check("the prompt splits the bag: scrap the 3 unlocked pieces, carry the 1 locked piece through whole",/Scrap the 3 unlocked pieces/.test(askText)&&/carry your 1 locked piece through whole/.test(askText)&&/1 legendary/.test(askText)&&/1 rare/.test(askText),askText.slice(0,200));
-await page.click('#hideoutAsk button:has-text("CARRY IT ALL")');
+await page.keyboard.press('KeyE');
 await page.waitForFunction(()=>window.__hideout.isOpen(),null,{timeout:5000}).catch(()=>{});
 const after=await page.evaluate(ids=>({bag:window.__meta.bag().length,counts:JSON.parse(localStorage.getItem('dd_gear_bag')),carried:JSON.parse(localStorage.getItem('dd_gear_carried')),last:window.__hideout.lastCarry()}),ids);
+check("no prompt at the door: E walked straight through into the hideout",await page.evaluate(()=>window.__hideout.isOpen()&&!document.getElementById('hideoutAsk')));
 check("the unlocked three became counts, added to what was there (common 2+1=3, rare 1, legendary 1)",after.counts.common===3&&after.counts.rare===1&&after.counts.legendary===1&&after.counts.epic===0,JSON.stringify(after.counts));
 check("the locked mythic rode through whole: a record with its id, name, slot, rarity and stats, from dungeon-hold, no lock flag",(()=>{ const r=after.carried.find(x=>x.id===ids.mythic); return !!r&&r.name==='Emberfang, the Cool One'&&r.slot==='weapon'&&r.rarity===4&&r.stats&&Object.keys(r.stats).length>0&&r.from==='dungeon-hold'&&typeof r.carriedAt==='number'&&r.locked===undefined; })(),JSON.stringify(after.carried.map(x=>x.name)));
 check("a record the hideout side already held was left alone (read-modify-write)",after.carried.length===2&&after.carried[0].id==='theirs-1'&&after.carried[0].name==='Already Displayed');
@@ -83,12 +81,9 @@ await page.evaluate(()=>window.__hideout.close());
 
 // ---- all locked: nothing to scrap, the prompt says so, counts untouched ----
 const solo=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; const it=d.rollItem(3,'amulet'); it.rarity=3; it.name='Kept Amulet'; M.onPickup(it); M.toggleLock(it.id); d.step(1/60,2); return it.id; });
-await page.keyboard.press('KeyE'); await sleep(100);
-const askText2=await page.evaluate(()=>document.getElementById('hideoutAsk').textContent);
-check("with only a locked piece the prompt offers to carry it whole and promises no scrap",/Carry your 1 locked piece through whole/.test(askText2)&&/Nothing gets scrapped/.test(askText2),askText2.slice(0,160));
-await page.click('#hideoutAsk button:has-text("CARRY IT ALL")'); await page.waitForFunction(()=>window.__hideout.isOpen(),null,{timeout:5000}).catch(()=>{});
+await page.keyboard.press('KeyE'); await page.waitForFunction(()=>window.__hideout.isOpen(),null,{timeout:5000}).catch(()=>{});
 const after2=await page.evaluate(()=>({counts:JSON.parse(localStorage.getItem('dd_gear_bag')),carried:JSON.parse(localStorage.getItem('dd_gear_carried')).map(x=>x.id),bag:window.__meta.bag().length}));
-check("counts unchanged, the amulet appended, bag empty",after2.counts.common===3&&after2.counts.epic===0&&after2.carried.length===3&&after2.carried[2]===solo&&after2.bag===0,JSON.stringify(after2));
+check("with only a locked piece: nothing scrapped, the amulet appended whole, bag empty",after2.counts.common===3&&after2.counts.epic===0&&after2.carried.length===3&&after2.carried[2]===solo&&after2.bag===0,JSON.stringify(after2));
 await page.evaluate(()=>window.__hideout.close());
 await page.evaluate(()=>{ const d=window.__dd; d.setHero(30,30); d.step(1/60,2); });
 

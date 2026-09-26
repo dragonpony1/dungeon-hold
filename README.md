@@ -605,9 +605,10 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   `legendary`, plus this game's own `epic` under its own name), always read-modify-write and ADDED to — the
   Cauldron Cart decrements these as it crafts, so an absolute write would resurrect used-up gear — with a field the
   hideout side owns left untouched. What goes in is the bag: every unequipped piece, which leaves the bag for good;
-  worn gear and the armory's kept treasures are never touched. It's a PROMPT at the portal (CARRY IT ALL & GO / JUST
-  VISIT / STAY), not automatic, since the bag is also where a player parks pieces they mean to equip or sell later.
-  `hideout-test.mjs` (43/43) drives the real E keypress, the prompt, the counts, the iframe actually
+  worn gear and the armory's kept treasures are never touched. There is no prompt at the door (there was one for a
+  build; the player asked for none): lock what you keep — see the lock below — and everything else unequipped is
+  scrap, decided in the bag ahead of time; the hideout's own Cart and gear panel are where the results show up.
+  `hideout-test.mjs` (42/42) drives the real E keypress walking straight through, the counts, the iframe actually
   running the hideout's page with its models loading from `hideout/assets/` and nothing leaking to the site root,
   the hideout's own acceptance step (its Cauldron Cart reads the carried count, crafting spends it down to 0 in
   storage, and a later carry lands on that 0 rather than resurrecting what was used up — the whole reason the
@@ -653,13 +654,13 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   bag card's detail panel (the tavern and the character sheet both). A locked piece is never scrapped at the portal
   and never sold — not by Sell junk, not by the Sell button, which stays disabled until it's unlocked — and it leads
   its group in the sorted bag so what's being kept is easy to spot. The flag lives on the item, so it rides along
-  worn, kept or saved. At the portal the prompt now splits the bag: "scrap the N unlocked pieces for the Cart, and
-  carry your M locked pieces through whole, as gear for the hideout's display"; the locked ones leave the bag as
+  worn, kept or saved. At the portal there's no prompt and no choice: the unlocked pieces become scrap for the Cart
+  and the locked ones ride through whole, as gear for the hideout's display — the locked ones leave the bag as
   whole item records appended to `localStorage` `dd_gear_carried` — the hideout's second contract, an array of items
   (id, name, slot, rarity 0–4, lvl, tier, stats, value, score, `from:'dungeon-hold'`, `carriedAt`), read-modify-write,
   never the same id twice — for the hideout to list in YOUR GEAR and put on a stand or the shared display (its side,
   in progress). `gearlock-test.mjs` covers the lock from both views, the junk sale and the Sell button refusing a
-  locked piece, the sort order, the split prompt, the two contracts written correctly (counts for the unlocked, whole
+  locked piece, the sort order, the walk-through with no prompt, the two contracts written correctly (counts for the unlocked, whole
   records for the locked, a record the hideout side already held left alone), the all-locked case, and a reload.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.

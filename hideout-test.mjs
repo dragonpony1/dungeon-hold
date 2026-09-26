@@ -40,19 +40,10 @@ check("beside the archway: near",await page.evaluate(()=>window.__hideout.near()
 const prompt=await page.evaluate(()=>document.getElementById('prompt').textContent);
 check("the E prompt names the portal and the hideout",/portal/i.test(prompt)&&/hideout/i.test(prompt),prompt);
 
-await page.keyboard.press('KeyE');   // the game's own keydown -> upgrade() chain, not a direct call
-await sleep(100);
-check("a real E press with gear in the bag asks first (no overlay yet)",await page.evaluate(()=>window.__hideout.asking()&&!window.__hideout.isOpen()));
-const askText=await page.evaluate(()=>document.getElementById('hideoutAsk').textContent);
-check("the prompt counts the bag (4 pieces: 2 common, 1 rare, 1 epic)",/\b4\b/.test(askText)&&/2 common/.test(askText)&&/1 rare/.test(askText)&&/1 epic/.test(askText),askText.slice(0,160));
-await page.click('#hideoutAsk button:has-text("STAY")'); await sleep(50);
-check("STAY: panel gone, nothing opened, bag untouched",await page.evaluate(()=>!window.__hideout.asking()&&!window.__hideout.isOpen()&&window.__meta.bag().length===4));
-
 const heroBefore=await page.evaluate(()=>({x:+window.__dd.hero.x.toFixed(2),z:+window.__dd.hero.z.toFixed(2)}));
-await page.keyboard.press('KeyE'); await sleep(100);
-await page.click('#hideoutAsk button:has-text("CARRY IT ALL")');
+await page.keyboard.press('KeyE');   // the game's own keydown -> upgrade() chain, not a direct call
 await page.waitForFunction(()=>window.__hideout.isOpen(),null,{timeout:5000}).catch(()=>{});
-check("CARRY IT ALL & GO opens the hideout overlay",await page.evaluate(()=>window.__hideout.isOpen()));
+check("a real E press with gear in the bag walks straight through: no prompt at the door, the overlay opens",await page.evaluate(()=>window.__hideout.isOpen()&&!document.getElementById('hideoutAsk')));
 const gearBag=await page.evaluate(()=>JSON.parse(localStorage.getItem('dd_gear_bag')));
 check("dd_gear_bag was ADDED to, not replaced: common 3+2=5, rare 1+1=2, epic 0+1=1, the rest 0",
   gearBag.common===5&&gearBag.rare===2&&gearBag.epic===1&&gearBag.uncommon===0&&gearBag.legendary===0,JSON.stringify(gearBag));
@@ -97,8 +88,7 @@ if(frame){
 }
 // the reason the contract says ADD, never overwrite: after the Cart used the gear up, a fresh carry lands on top of 0
 await page.evaluate(()=>{ const it=window.__dd.rollItem(0); it.rarity=0; window.__meta.onPickup(it); window.__dd.step(1/60,2); });
-await page.keyboard.press('KeyE'); await sleep(100);
-await page.click('#hideoutAsk button:has-text("CARRY IT ALL")');
+await page.keyboard.press('KeyE');
 await page.waitForFunction(()=>window.__hideout.isOpen(),null,{timeout:5000}).catch(()=>{});
 const gearBag2=await page.evaluate(()=>JSON.parse(localStorage.getItem('dd_gear_bag')));
 check("a later carry adds to what the Cart left (0+1=1), rather than resurrecting the 5 already crafted away",gearBag2.common===1&&gearBag2.rare===2&&gearBag2.epic===1&&gearBag2.someday==='kept',JSON.stringify(gearBag2));
@@ -107,7 +97,7 @@ await page.evaluate(()=>window.__hideout.close());
 await page.evaluate(()=>window.__dd.step(1/60,2));
 await page.keyboard.press('KeyE');
 await page.waitForFunction(()=>window.__hideout.isOpen(),null,{timeout:5000}).catch(()=>{});
-check("with nothing to carry, E steps straight through (no prompt)",await page.evaluate(()=>window.__hideout.isOpen()&&!window.__hideout.asking()));
+check("with nothing to carry, E steps straight through",await page.evaluate(()=>window.__hideout.isOpen()));
 await page.evaluate(()=>window.__dd.startWave());
 await page.waitForFunction(()=>!window.__hideout.isOpen(),null,{timeout:5000}).catch(()=>{});
 check("the horn closes the hideout automatically",!(await page.evaluate(()=>window.__hideout.isOpen()))&&await page.evaluate(()=>window.__dd.S.phase==='wave'));
@@ -126,7 +116,7 @@ check("...and the emptied bag stayed empty, dd_gear_bag intact",restored.bag===0
 check("a THE HIDEOUT button sits on the title screen",await page2.evaluate(()=>{ const b=document.getElementById('hideoutbtn'); return !!b&&b.textContent.includes('HIDEOUT')&&window.__dd.S.phase==='start'; }));
 await page2.click('#hideoutbtn');
 await page2.waitForFunction(()=>window.__hideout.isOpen(),null,{timeout:5000}).catch(()=>{});
-check("it opens the hideout from the title screen (empty bag: no prompt)",await page2.evaluate(()=>window.__hideout.isOpen()&&!window.__hideout.asking()));
+check("it opens the hideout from the title screen",await page2.evaluate(()=>window.__hideout.isOpen()));
 await sleep(600);
 check("...and the phase watcher leaves a title-screen visit alone",await page2.evaluate(()=>window.__hideout.isOpen()&&window.__dd.S.phase==='start'));
 await page2.evaluate(()=>window.__hideout.close());
