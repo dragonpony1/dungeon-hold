@@ -587,7 +587,8 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   shop, the Forge's mythic-gear gamble, the Cauldron Cart's tiered sludge crafting, free furniture placement, and a
   shared gear display backed by a Cloudflare Durable Object). It's folded in exactly as it ships — `parts/hideout/`
   holds its `index.html`, `vendor/` and `assets/` byte-for-byte, never edited here, so a newer upstream copy drops
-  straight in — and the assembler derives the embedded variant into `dist/hideout/` at build time: site-root paths
+  straight in (`node sync-hideout.mjs` pulls the branch and records the hash in `parts/hideout/UPSTREAM`) — and the
+  assembler derives the embedded variant into `dist/hideout/` at build time: site-root paths
   made relative (the site root isn't `/` on GitHub Pages or the artifact), a `?api=` base for its shared-gear
   Worker, an exit that knows when it's embedded, and a BACK TO THE HALL button on its entry overlay (its own crystal
   portal starts unplaced, in the hotbar). Every rewrite is anchored and fails the build loudly if upstream moves. Its models ship as
@@ -658,8 +659,9 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   and the locked ones ride through whole, as gear for the hideout's display — the locked ones leave the bag as
   whole item records appended to `localStorage` `dd_gear_carried` — the hideout's second contract, an array of items
   (id, name, slot, rarity 0–4, lvl, tier, stats, value, score, `from:'dungeon-hold'`, `carriedAt`), read-modify-write,
-  never the same id twice — for the hideout to list in YOUR GEAR and put on a stand or the shared display (its side,
-  in progress). `gearlock-test.mjs` covers the lock from both views, the junk sale and the Sell button refusing a
+  never the same id twice. The hideout side landed the same day (`dd083cb`): YOUR GEAR lists carried trophies next to
+  its forged mythics (slot icon, this game's rarity colour, name, level) and they go onto the shared display through
+  the same flow, the record leaving `dd_gear_carried` only then and coming back if picked up; the Cart never sees them. `gearlock-test.mjs` covers the lock from both views, the junk sale and the Sell button refusing a
   locked piece, the sort order, the walk-through with no prompt, the two contracts written correctly (counts for the unlocked, whole
   records for the locked, a record the hideout side already held left alone), the all-locked case, and a reload.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.

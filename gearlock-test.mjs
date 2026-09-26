@@ -12,6 +12,7 @@ const PORT=8903, BASE="http://127.0.0.1:"+PORT;
 const server=await serve(PORT,{dist:DIST});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const ctx=await browser.newContext(); const errors=[]; const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function frameOf(page,part){ for(let i=0;i<200;i++){ const f=page.frames().find(f=>f.url().includes(part)); if(f) return f; await sleep(50); } return null; }
 async function newPage(){ const p=await ctx.newPage(); p.on("pageerror",e=>errors.push(String(e))); await p.goto(BASE+"/?silent&nogate",{timeout:90000});
   await p.waitForFunction(()=>window.__dd&&window.__meta&&window.__tavern&&window.__doll&&window.__hideout&&window.__portal,null,{timeout:60000});
   await p.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); }); return p; }
@@ -76,6 +77,12 @@ check("no prompt at the door: E walked straight through into the hideout",await 
 check("the unlocked three became counts, added to what was there (common 2+1=3, rare 1, legendary 1)",after.counts.common===3&&after.counts.rare===1&&after.counts.legendary===1&&after.counts.epic===0,JSON.stringify(after.counts));
 check("the locked mythic rode through whole: a record with its id, name, slot, rarity and stats, from dungeon-hold, no lock flag",(()=>{ const r=after.carried.find(x=>x.id===ids.mythic); return !!r&&r.name==='Emberfang, the Cool One'&&r.slot==='weapon'&&r.rarity===4&&r.stats&&Object.keys(r.stats).length>0&&r.from==='dungeon-hold'&&typeof r.carriedAt==='number'&&r.locked===undefined; })(),JSON.stringify(after.carried.map(x=>x.name)));
 check("a record the hideout side already held was left alone (read-modify-write)",after.carried.length===2&&after.carried[0].id==='theirs-1'&&after.carried[0].name==='Already Displayed');
+// ...and the hideout (hideout-wip dd083cb) shows it: YOUR GEAR lists carried trophies next to forged mythics
+{ const frame=await frameOf(page,'hideout/index.html');
+  await frame.waitForFunction(()=>window.THREE&&typeof buildGearGrid==='function'&&typeof openGearPanel==='function',null,{timeout:60000}).catch(()=>{});
+  const shown=await frame.evaluate(id=>{ openGearPanel(); const cards=[...document.querySelectorAll('#gearGrid .fgear')].map(el=>({name:(el.querySelector('.fname')||{}).textContent,sub:(el.querySelector('.fsub')||{}).textContent})); const piece=allPieces().find(p=>p.kind==='carried'&&p.id===id); closeGearPanel(); return {cards,piece:piece&&{kind:piece.kind,type:piece.type,tier:piece.tier,label:piece.label}}; },ids.mythic);
+  check("YOUR GEAR in the hideout lists the carried mythic by name, as a legendary weapon",!!shown.piece&&shown.piece.kind==='carried'&&shown.piece.type==='weapon'&&shown.piece.tier==='legendary'&&shown.cards.some(c=>c.name==='Emberfang, the Cool One'&&/legendary weapon/i.test(c.sub||'')),JSON.stringify(shown));
+  check("...and the record stays in dd_gear_carried until it's put on the shared display",await frame.evaluate(id=>loadCarried().some(c=>c.id===id),ids.mythic)); }
 check("the bag is empty afterwards and lastCarry reports both halves",after.bag===0&&after.last.n===3&&after.last.carried.length===1&&after.last.carried[0]===ids.mythic,JSON.stringify(after.last));
 await page.evaluate(()=>window.__hideout.close());
 

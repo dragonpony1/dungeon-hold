@@ -44,6 +44,7 @@ canvas{display:block}
 .fgear.sel{border-color:#ffb347;box-shadow:0 0 12px #ff8c3388}
 .fgear .swatch{width:100%;aspect-ratio:1;border-radius:8px;margin-bottom:6px;object-fit:contain;background:#150c06;box-sizing:border-box;padding:6px}
 .fgear .fname{font-size:0.85em;font-weight:bold;line-height:1.15}
+.fgear .fsub{font-size:0.7em;margin-top:2px;opacity:0.9}
 #forgeCraftBtn{display:block;width:100%;border:none;cursor:pointer;padding:14px;border-radius:24px;font-family:inherit;font-weight:bold;font-size:1.15em;letter-spacing:0.04em;color:#3a1808;background:linear-gradient(#ffb347,#d4700f);border:2px solid #ffdca0;box-shadow:inset 0 1px 0 #ffffff77}
 #forgeCraftBtn:hover:not(:disabled){filter:brightness(1.1)}
 #forgeCraftBtn:disabled{cursor:default;opacity:0.45}
@@ -220,6 +221,30 @@ const MODEL_MAP = {
   sludge_cauldron: 'sludge_cauldron.glb', ore_forge: 'ore_forge.glb',
   portal: 'crystal_portal.glb',
 };
+
+// rarity table shared by the cauldron, the gear panel and the shared display — colors match the main game's
+// RCSS table (parts/game.js on the main branch) so a rarity reads the same on both sides of the portal
+const RARITIES = [
+  { id:'common',    name:'Common Gear',    short:'Common',    color:'#d8d8d8', icon: ITEMS_DIR+'gear_common.png' },
+  { id:'uncommon',  name:'Uncommon Gear',  short:'Uncommon',  color:'#5ad05a', icon: ITEMS_DIR+'gear_uncommon.png' },
+  { id:'rare',      name:'Rare Gear',      short:'Rare',      color:'#6aa8ff', icon: ITEMS_DIR+'gear_rare.png' },
+  { id:'epic',      name:'Epic Gear',      short:'Epic',      color:'#c070ff', icon: ITEMS_DIR+'gear_epic.png' },
+  { id:'legendary', name:'Legendary Gear', short:'Legendary', color:'#ffc040', icon: ITEMS_DIR+'gear_legendary.png' },
+];
+const RARITY_RANK = { common:0, uncommon:1, rare:2, epic:3, legendary:4 };
+
+// Trophies the player locked in the dungeon and carried through the portal. The game appends to this
+// list and leaves everything else alone; we only remove a record when it goes onto the shared display,
+// and append one when it's picked back up. The cauldron never reads it — these aren't scrap.
+const CARRIED_KEY = 'dd_gear_carried';
+function loadCarried() { try { const a = JSON.parse(localStorage.getItem(CARRIED_KEY)); return Array.isArray(a) ? a : []; } catch(e) { return []; } }
+function writeCarried(list) { localStorage.setItem(CARRIED_KEY, JSON.stringify(list)); }
+// the game's slots drawn with the mythic category art — its "charm" is our trinket
+const SLOT_ICON = {
+  weapon: ITEMS_DIR+'mythic_weapon.png', armor: ITEMS_DIR+'mythic_armor.png', amulet: ITEMS_DIR+'mythic_amulet.png',
+  familiar: ITEMS_DIR+'mythic_familiar.png', charm: ITEMS_DIR+'mythic_trinket.png',
+};
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c])); }
 
 // ============= SCENE =============
 const scene = new THREE.Scene();
@@ -610,18 +635,37 @@ function commitPlacement() {
 // ============= SHARED GEAR DISPLAY (drop mythic/unique gear so anyone visiting can see or pick it up) =============
 // Furniture placement above is purely local (SAVE.placed). Gear display is shared across everyone —
 // backed by a Durable Object on the Worker — because Matt wants friends to see and grab what's dropped.
-function gearDisplayName(entry) {
-  const cat = MYTHIC_GEAR[entry.type] ? MYTHIC_GEAR[entry.type].name : entry.type;
-  return entry.name ? entry.name + ' (' + cat + ')' : cat;
+// A "piece" is anything the player can put on display: a forged mythic/unique from SAVE.gear, or a trophy
+// carried in from the dungeon (dd_gear_carried). Both are normalized to this one shape.
+function pieceFromForged(g) {
+  const cat = MYTHIC_GEAR[g.type] ? MYTHIC_GEAR[g.type].name : g.type;
+  return { kind:'forged', key:'f:'+g.id, id:g.id, type:g.type, tier:g.tier, name:g.name || null,
+    icon: MYTHIC_GEAR[g.type] ? MYTHIC_GEAR[g.type].icon : SLOT_ICON.weapon,
+    color: g.tier === 'unique' ? '#ffcf3a' : '#cfa0ff',
+    label: g.name || cat, desc: g.name ? g.name + ' (' + cat + ')' : cat, sub: null, payload: null };
 }
+function pieceFromCarried(c) {
+  const ra = RARITIES[c.rarity] || RARITIES[0];
+  const slot = SLOT_ICON[c.slot] ? c.slot : 'weapon';
+  const lvl = c.lvl ? ', Lv ' + c.lvl : '';
+  return { kind:'carried', key:'c:'+c.id, id:c.id, type:c.slot, tier:ra.id, name:c.name,
+    icon: SLOT_ICON[slot], color: ra.color,
+    label: c.name, desc: c.name + ' (' + ra.short + ' ' + c.slot + lvl + ')',
+    sub: ra.short + ' ' + c.slot + (c.lvl ? ' · Lv ' + c.lvl : ''), payload: c };
+}
+function pieceFromShared(item) { // a row from the Worker's shared table
+  return item.kind === 'carried' && item.payload ? pieceFromCarried(item.payload) : pieceFromForged(item);
+}
+function allPieces() { return SAVE.gear.map(pieceFromForged).concat(loadCarried().map(pieceFromCarried)); }
+function findPiece(key) { return allPieces().find(p => p.key === key) || null; }
 
 let selectedDropGearId = null, dropGhost = null, dropGhostId = null, dropGhostRy = 0;
-const worldGear = new Map(); // shared-drop id -> {group, hit, data}
+const worldGear = new Map(); // shared-drop id -> {group, hit, data, piece}
 
-function makeGearStandGroup(item, translucent) {
+function makeGearStandGroup(piece, translucent) {
   const g = new THREE.Group();
-  const stand = box(0.5, 0.9, 0.5, item.tier === 'unique' ? 0x8a5a1a : 0x4a3a8a);
-  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: iconTexture2(MYTHIC_GEAR[item.type].icon) }));
+  const stand = box(0.5, 0.9, 0.5, new THREE.Color(piece.color).multiplyScalar(0.55).getHex());
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: iconTexture2(piece.icon) }));
   spr.position.y = 0.75; spr.scale.set(0.6, 0.6, 1);
   if (translucent) {
     stand.material.transparent = true; stand.material.opacity = 0.5;
@@ -642,11 +686,11 @@ function updateDropGhost() {
     if (dropGhost) { scene.remove(dropGhost); dropGhost = null; dropGhostId = null; }
     return;
   }
-  const entry = SAVE.gear.find(g => g.id === selectedDropGearId);
-  if (!entry) { selectedDropGearId = null; return; }
   if (dropGhostId !== selectedDropGearId) {
+    const piece = findPiece(selectedDropGearId);
+    if (!piece) { selectedDropGearId = null; if (dropGhost) { scene.remove(dropGhost); dropGhost = null; dropGhostId = null; } return; }
     if (dropGhost) scene.remove(dropGhost);
-    dropGhost = makeGearStandGroup(entry, true);
+    dropGhost = makeGearStandGroup(piece, true);
     scene.add(dropGhost);
     dropGhostId = selectedDropGearId;
     dropGhostRy = 0;
@@ -659,24 +703,29 @@ function updateDropGhost() {
 
 async function commitDropPlacement() {
   if (!dropGhost || !selectedDropGearId) return;
-  const entry = SAVE.gear.find(g => g.id === selectedDropGearId);
-  if (!entry) return;
+  const piece = findPiece(selectedDropGearId);
+  if (!piece) return;
   const pos = { x: dropGhost.position.x, y: GROUND_Y, z: dropGhost.position.z };
   const ry = dropGhostRy;
   scene.remove(dropGhost); dropGhost = null; dropGhostId = null;
-  const idx = SAVE.gear.findIndex(g => g.id === selectedDropGearId);
   selectedDropGearId = null;
   try {
     const res = await fetch('/api/hideout/gear', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ type: entry.type, tier: entry.tier, name: entry.name, x: pos.x, y: pos.y, z: pos.z, ry, droppedBy: PLAYER_ID }),
+      body: JSON.stringify({ kind: piece.kind, type: piece.type, tier: piece.tier, name: piece.name, payload: piece.payload,
+        x: pos.x, y: pos.y, z: pos.z, ry, droppedBy: PLAYER_ID }),
     });
     if (!res.ok) throw new Error('drop failed: ' + res.status);
     const { item } = await res.json();
-    if (idx >= 0) SAVE.gear.splice(idx, 1);
-    writeSave();
+    if (piece.kind === 'forged') {
+      const idx = SAVE.gear.findIndex(g => g.id === piece.id);
+      if (idx >= 0) SAVE.gear.splice(idx, 1);
+      writeSave();
+    } else {
+      writeCarried(loadCarried().filter(c => c.id !== piece.id)); // it lives on the shared table now, not in the bag
+    }
     spawnWorldGear(item);
-    flashMsg('Displayed ' + gearDisplayName(entry));
+    flashMsg('Displayed ' + piece.desc);
   } catch (e) {
     console.error(e);
     flashMsg('Could not display it — check your connection and try again');
@@ -685,17 +734,18 @@ async function commitDropPlacement() {
 
 function spawnWorldGear(item) {
   if (worldGear.has(item.id)) return;
-  const group = makeGearStandGroup(item, false);
+  const piece = pieceFromShared(item);
+  const group = makeGearStandGroup(piece, false);
   group.position.set(item.x, item.y, item.z);
   group.rotation.y = item.ry || 0;
-  const label = labelSprite(item.name || MYTHIC_GEAR[item.type].name, item.tier === 'unique' ? '#ffcf3a' : '#cfa0ff');
+  const label = labelSprite(piece.label, piece.color);
   label.position.set(0, 1.35, 0); label.scale.set(1.7, 0.42, 1);
   group.add(label);
   scene.add(group);
   const hit = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.7, 0.9), new THREE.MeshBasicMaterial({ visible: false }));
   hit.position.set(item.x, item.y + 0.85, item.z);
   scene.add(hit);
-  worldGear.set(item.id, { group, hit, data: item });
+  worldGear.set(item.id, { group, hit, data: item, piece });
   pickupables.push({ isSharedGear: true, dropId: item.id, pickHit: hit });
 }
 function removeWorldGear(id) {
@@ -713,9 +763,16 @@ async function pickupSharedGear(id) {
     if (!res.ok) throw new Error('pickup failed: ' + res.status);
     const { item } = await res.json();
     removeWorldGear(id);
-    SAVE.gear.push({ id: crypto.randomUUID(), type: item.type, tier: item.tier, name: item.name, craftedAt: item.createdAt || Date.now() });
-    writeSave();
-    flashMsg('Picked up ' + gearDisplayName(item));
+    const piece = pieceFromShared(item);
+    if (piece.kind === 'carried') {
+      const list = loadCarried();
+      if (!list.some(c => c.id === piece.id)) list.push(piece.payload);
+      writeCarried(list);
+    } else {
+      SAVE.gear.push({ id: crypto.randomUUID(), type: item.type, tier: item.tier, name: item.name, craftedAt: item.createdAt || Date.now() });
+      writeSave();
+    }
+    flashMsg('Picked up ' + piece.desc);
   } catch (e) {
     console.error(e);
     flashMsg('Could not pick that up — check your connection');
@@ -735,21 +792,24 @@ async function pollDroppedGear() {
 function buildGearGrid() {
   const grid = document.getElementById('gearGrid');
   grid.innerHTML = '';
-  if (!SAVE.gear.length) {
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#88a0b0;padding:20px">No gear yet — forge some Mythic gear first.</div>';
+  const pieces = allPieces();
+  if (!pieces.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#88a0b0;padding:20px">No gear yet — forge some Mythic gear, or lock a piece in the dungeon and carry it through the portal.</div>';
     return;
   }
-  SAVE.gear.forEach(entry => {
-    const g = MYTHIC_GEAR[entry.type];
+  pieces.forEach(piece => {
+    const sel = selectedDropGearId === piece.key;
     const el = document.createElement('div');
-    el.className = 'fgear' + (entry.tier === 'unique' ? ' unique' : '') + (selectedDropGearId === entry.id ? ' sel' : '');
-    el.innerHTML = '<img class="swatch" src="'+g.icon+'"><div class="fname">'+(entry.name || g.name)+'</div>';
+    el.className = 'fgear' + (piece.kind === 'forged' && piece.tier === 'unique' ? ' unique' : '') + (sel ? ' sel' : '');
+    if (piece.kind === 'carried' && !sel) { el.style.borderColor = piece.color; el.style.boxShadow = '0 0 10px ' + piece.color + '55'; }
+    el.innerHTML = '<img class="swatch" src="'+piece.icon+'"><div class="fname">'+esc(piece.label)+'</div>'
+      + (piece.sub ? '<div class="fsub" style="color:'+piece.color+'">'+esc(piece.sub)+'</div>' : '');
     el.onclick = () => {
-      selectedDropGearId = (selectedDropGearId === entry.id) ? null : entry.id;
+      selectedDropGearId = sel ? null : piece.key;
       selectedGear = null; renderInv();
       closeGearPanel();
     };
-    attachTooltip(el, gearDisplayName(entry));
+    attachTooltip(el, piece.desc);
     grid.appendChild(el);
   });
 }
@@ -910,15 +970,6 @@ document.getElementById('forgeCraftBtn').onclick = () => {
 // Every rarity of gear is worth five of the one below it — common 1, uncommon 5, rare 25, epic 125,
 // legendary 625 in Common Gear terms — without needing an extra sludge tier: epic feeds Legendary
 // Sludge at 5:1 and a legendary piece is a whole Legendary Sludge on its own.
-// colors match the main game's RCSS table (parts/game.js on the main branch) so a rarity reads the same on both sides of the portal
-const RARITIES = [
-  { id:'common',    name:'Common Gear',    color:'#d8d8d8' },
-  { id:'uncommon',  name:'Uncommon Gear',  color:'#5ad05a' },
-  { id:'rare',      name:'Rare Gear',      color:'#6aa8ff' },
-  { id:'epic',      name:'Epic Gear',      color:'#c070ff' },
-  { id:'legendary', name:'Legendary Gear', color:'#ffc040' },
-];
-const RARITY_RANK = { common:0, uncommon:1, rare:2, epic:3, legendary:4 };
 const SLUDGE = {
   common:    { name:'Common Sludge',    icon: ITEMS_DIR+'common_sludge.png',    get:()=>SAVE.commonSludge,    add:n=>SAVE.commonSludge+=n },
   uncommon:  { name:'Uncommon Sludge',  icon: ITEMS_DIR+'uncommon_sludge.png',  get:()=>SAVE.uncommonSludge,  add:n=>SAVE.uncommonSludge+=n },
@@ -939,7 +990,7 @@ function recipeById(id) { return RECIPES.find(r => r.id === id); }
 function recipeInput(r) {
   if (r.kind === 'salvage') {
     const ra = RARITIES.find(x => x.id === r.gear);
-    return { name: ra.name, icon: ITEMS_DIR+'battle_scrap.webp', color: ra.color, get: () => BAG[r.gear] || 0, consume: n => { BAG[r.gear] -= n; writeBag(); } };
+    return { name: ra.name, icon: ra.icon, color: ra.color, get: () => BAG[r.gear] || 0, consume: n => { BAG[r.gear] -= n; writeBag(); } };
   }
   const s = SLUDGE[r.sludge];
   return { name: s.name, icon: s.icon, color: null, get: s.get, consume: n => s.add(-n) };
@@ -953,7 +1004,7 @@ function renderBagStrip() {
     const pill = document.createElement('div');
     pill.className = 'cpill' + (n ? '' : ' empty');
     pill.style.borderColor = ra.color;
-    pill.innerHTML = '<img src="'+ITEMS_DIR+'battle_scrap.webp"><b style="color:'+ra.color+'">'+n+'</b>';
+    pill.innerHTML = '<img src="'+ra.icon+'"><b style="color:'+ra.color+'">'+n+'</b>';
     attachTooltip(pill, n + ' ' + ra.name);
     el.appendChild(pill);
   });
@@ -1195,7 +1246,7 @@ function animate(now) {
       }
       if (pHits.length && pHits[0].distance < 2.5) {
         const p = pickupables.find(pp => pp.pickHit === pHits[0].object);
-        const label = p.isSharedGear ? gearDisplayName(worldGear.get(p.dropId).data) : GEAR[p.gid].name;
+        const label = p.isSharedGear ? worldGear.get(p.dropId).piece.desc : GEAR[p.gid].name;
         lines.push('G: Pick up ' + label);
       }
       if (lines.length) { pr.textContent = lines.join('   ·   '); pr.style.display = 'block'; }
