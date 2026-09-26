@@ -724,6 +724,15 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   `assemble.mjs` now applies the same two anchored rewrites to `dist/hideout/vendor/GLTFLoader.js` at build time, the
   source copy staying stock. `hideout-test.mjs` (47/47) loads the page under that CSP and checks all six shell files parse
   and the tiles come in textured with no blob/CSP error. On GitHub Pages nothing changes: no such policy there.
+- Hideout copy at `55709b6` (hideout build 10): a placeable Arcane Wardrobe, the physical home of `dd_gear_carried`, with
+  a reward contract of its own -- a reward is a normal `dd_gear_carried` record with `reward:true` and an optional
+  `reason` shown under the name; the hideout adds `rewardSeen` when the locker is opened, shows an arcane banner on
+  entry and steams the wardrobe until then. The Void unlock (build 130) now speaks that contract: the first full wear
+  appends the Void Armor Stand as a legendary armor-slot reward (`reward-stand-void`, reason "The Void set, complete",
+  `model` named for the hideout's later use) and the game keeps its own granted ledger in `dd_hideout_unlocks` (one
+  entry per unlock id) so a reward that has been claimed -- the record leaves the list when the piece goes on display --
+  is never granted twice. `voidset-test.mjs` (22/22) walks the grant, the hideout's `rewardSeen` and foreign record
+  surviving a re-check, and the claimed reward staying claimed.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="9">
+<meta name="hideout-build" content="10">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
 canvas{display:block}
@@ -47,6 +48,23 @@ canvas{display:block}
 .fgear .fname{font-size:0.85em;font-weight:bold;line-height:1.15}
 .fgear .fsub{font-size:0.7em;margin-top:2px;opacity:0.9}
 #buildTag{position:fixed;bottom:6px;left:8px;color:#fff7;font:11px monospace;pointer-events:none;z-index:11}
+
+#lockerWrap{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:20}
+#lockerPanel{position:relative;width:min(560px,94vw);max-height:90vh;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px #000a;font-family:Georgia,'Times New Roman',serif;background:linear-gradient(#2a1c10,#160e08);border:3px solid #a5762a}
+#lockerHeader{background:linear-gradient(#4a3014,#2a1a0a);padding:16px 20px 12px;text-align:center;border-bottom:3px solid #c9a227}
+#lockerHeader h1{margin:0;color:#ffe2a0;font-size:1.7em;letter-spacing:0.04em;text-shadow:0 2px 4px #000}
+#lockerHeader p{margin:4px 0 0;color:#c8a878;font-size:0.85em;font-style:italic}
+#lockerBody{padding:14px 20px;overflow-y:auto}
+.lsection{color:#c8a878;font-size:0.8em;font-style:italic;margin:6px 2px 8px;letter-spacing:0.02em}
+.lgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.lempty{grid-column:1/-1;text-align:center;color:#8a7a60;padding:14px;font-size:0.9em}
+#lockerClose{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:#000c;color:#fff;border:2px solid #a55;font:16px monospace;cursor:pointer;z-index:2}
+
+#rewardBanner{position:fixed;top:18%;left:50%;transform:translateX(-50%) scale(0.9);text-align:center;pointer-events:none;z-index:15;opacity:0;transition:opacity 0.6s,transform 0.6s;font-family:'Cinzel Decorative',Georgia,serif}
+#rewardBanner.show{opacity:1;transform:translateX(-50%) scale(1)}
+#rewardBanner .big{font-size:clamp(28px,5vw,58px);font-weight:700;letter-spacing:0.08em;color:#e2b6ff;text-shadow:0 0 12px #c070ff,0 0 30px #8a2be2,0 0 60px #4b0082,0 2px 0 #2a0040;animation:arcanePulse 1.6s ease-in-out infinite}
+#rewardBanner .small{margin-top:10px;font-size:clamp(14px,1.8vw,20px);color:#9fe8ff;text-shadow:0 0 10px #2ad4ff,0 0 24px #0077aa;letter-spacing:0.12em}
+@keyframes arcanePulse{0%,100%{text-shadow:0 0 12px #c070ff,0 0 30px #8a2be2,0 0 60px #4b0082,0 2px 0 #2a0040}50%{text-shadow:0 0 18px #e0a0ff,0 0 44px #b050ff,0 0 90px #6a00c0,0 2px 0 #2a0040}}
 #forgeCraftBtn{display:block;width:100%;border:none;cursor:pointer;padding:14px;border-radius:24px;font-family:inherit;font-weight:bold;font-size:1.15em;letter-spacing:0.04em;color:#3a1808;background:linear-gradient(#ffb347,#d4700f);border:2px solid #ffdca0;box-shadow:inset 0 1px 0 #ffffff77}
 #forgeCraftBtn:hover:not(:disabled){filter:brightness(1.1)}
 #forgeCraftBtn:disabled{cursor:default;opacity:0.45}
@@ -99,6 +117,7 @@ canvas{display:block}
 <div id="msg"></div>
 <div id="tooltip"></div>
 <div id="buildTag"></div>
+<div id="rewardBanner"><div class="big">YOU'VE GOT REWARDS</div><div class="small"></div></div>
 <div id="inv"></div>
 <div id="vendWrap"><div id="vendPanel">
   <button id="vendClose">&times;</button>
@@ -143,19 +162,31 @@ canvas{display:block}
   <div id="gearBody"><div id="gearGrid"></div></div>
 </div></div>
 
+<div id="lockerWrap"><div id="lockerPanel">
+  <button id="lockerClose">&times;</button>
+  <div id="lockerHeader">
+    <h1>WALL LOCKER</h1>
+    <p>What you locked in the dungeon, and what the dungeon owed you.</p>
+  </div>
+  <div id="lockerBody">
+    <div class="lsection">Locked &amp; carried in</div><div id="lockerCarried" class="lgrid"></div>
+    <div class="lsection">Rewards</div><div id="lockerRewards" class="lgrid"></div>
+  </div>
+</div></div>
+
 <script src="/vendor/three.min.js"></script>
 <script src="/vendor/GLTFLoader.js"></script>
 <script>
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 9;
+const HIDEOUT_BUILD = 10;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
 // ============= SAVE DATA =============
 const SAVE_KEY = 'dd_hideout_save_v2';
-const STARTER_ITEMS = ['vending_machine', 'sludge_cauldron', 'ore_forge', 'portal'];
+const STARTER_ITEMS = ['vending_machine', 'sludge_cauldron', 'ore_forge', 'portal', 'wall_locker'];
 function loadSave(){
   try {
     const s = JSON.parse(localStorage.getItem(SAVE_KEY));
@@ -218,6 +249,7 @@ const GEAR = {
   ore_forge:         { name:'Ore Forge',         icon:ITEMS_DIR+'ore_forge.png',          cost:12 },
   vending_machine:   { name:'Trade-O-Matic',     icon:ITEMS_DIR+'vending_machine.png',    cost:0, notShop:true },
   portal:            { name:'Crystal Portal',    icon:ITEMS_DIR+'portal.png',             cost:0, notShop:true },
+  wall_locker:       { name:'Ornate Wall Locker', icon:ITEMS_DIR+'wall_locker.png',       cost:0, notShop:true },
 };
 
 // which catalog items have a real 3D model to place in the world (some are icon-only so far)
@@ -230,6 +262,7 @@ const MODEL_MAP = {
   vending_machine: 'vending_machine.glb',
   sludge_cauldron: 'sludge_cauldron.glb', ore_forge: 'ore_forge.glb',
   portal: 'crystal_portal.glb',
+  wall_locker: 'arcane_wardrobe.glb',
 };
 
 // rarity table shared by the cauldron, the gear panel and the shared display — colors match the main game's
@@ -288,6 +321,7 @@ document.addEventListener('pointerlockchange', () => {
   active = document.pointerLockElement === canvas;
   if (!suppressStart) document.getElementById('start').style.display = active ? 'none' : 'flex';
   suppressStart = false;
+  if (active) maybeShowRewardBanner();
 });
 document.addEventListener('mousemove', e => {
   if (!active) return;
@@ -326,10 +360,10 @@ function place(name, rx, ry, pos, scaleY) {
   }, (e) => console.error(name, e));
 }
 
-// generic furniture/prop loader: url is a full path, scale is uniform, sits on its own bottom at pos.y
-function placeProp(url, scale, pos, ry, onLoad) {
-  return loadGltf(url).then((gltf) => {
-    const obj = gltf.scene.clone();
+// generic prop placer: source is a Promise of a template Object3D (cloned here), scale is uniform, sits on its own bottom at pos.y
+function placeSource(source, scale, pos, ry, onLoad) {
+  return source.then((template) => {
+    const obj = template.clone();
     obj.scale.setScalar(scale);
     obj.rotation.y = ry || 0;
     const b0 = new THREE.Box3().setFromObject(obj);
@@ -337,7 +371,16 @@ function placeProp(url, scale, pos, ry, onLoad) {
     scene.add(obj);
     if (onLoad) onLoad(obj);
     return obj;
-  }, (e) => console.error(url, e));
+  }, (e) => console.error(e));
+}
+function placeProp(url, scale, pos, ry, onLoad) { return placeSource(loadGltf(url).then(g => g.scene), scale, pos, ry, onLoad); }
+
+// catalog items with no GLB can be built from primitives here so a feature can ship before its art does
+const BUILTIN_MODELS = {};
+function hasModel(gid) { return !!(MODEL_MAP[gid] || BUILTIN_MODELS[gid]); }
+function sourceFor(gid) {
+  if (MODEL_MAP[gid]) return loadGltf(PROPS_DIR + MODEL_MAP[gid]).then(g => g.scene);
+  return Promise.resolve(BUILTIN_MODELS[gid]());
 }
 
 // Load order: the shell (walls, floor, ceiling) is what makes the room feel loaded, so it goes first and
@@ -405,11 +448,11 @@ function box(w,h,d,color) {
 const PROPS_DIR = '/assets/hideout/props/';
 const PROP_PRIORITY = { portal: 0, vending_machine: 1, ore_forge: 1, sludge_cauldron: 1 }; // the things you walk up to first
 
-const SCALE_MAP = { vending_machine: (EYE_HEIGHT/1.90)*3.5*0.75, sludge_cauldron: 2.0, ore_forge: 2.6, portal: 2.0 }; // portal scale kept modest on purpose — easy to bump up once Matt sees it in place
+const SCALE_MAP = { vending_machine: (EYE_HEIGHT/1.90)*3.5*0.75, sludge_cauldron: 2.0, ore_forge: 2.6, portal: 2.0, wall_locker: 1.5 }; // portal scale kept modest on purpose — easy to bump up once Matt sees it in place
 const DEFAULT_PLACE_SCALE = 1.7; // every Meshy prop is normalized so its longest axis is ~1.9 raw units regardless of what it is, so scale 1.0 reads as toy-sized next to the player
 function scaleFor(gid) { return SCALE_MAP[gid] || DEFAULT_PLACE_SCALE; }
 const pickupables = []; // every freely-placed item can be picked back up, separate from its "use" interaction (if any)
-const RADIUS_MAP = { vending_machine: 2.3, sludge_cauldron: 2.1, ore_forge: 2.4, portal: 1.4 };
+const RADIUS_MAP = { vending_machine: 2.3, sludge_cauldron: 2.1, ore_forge: 2.4, portal: 1.4, wall_locker: 1.0 };
 function spawnPlacedItem(gid, pos, ry) {
   const scale = scaleFor(gid);
   const r = RADIUS_MAP[gid] || 0.9*scale;
@@ -417,52 +460,60 @@ function spawnPlacedItem(gid, pos, ry) {
   entry.collider = {minX:pos.x-r,maxX:pos.x+r,minZ:pos.z-r,maxZ:pos.z+r};
   colliders.push(entry.collider);
 
-  const loaded = placeProp(PROPS_DIR + MODEL_MAP[gid], scale, pos, ry, (obj) => {
+  const loaded = placeSource(sourceFor(gid), scale, pos, ry, (obj) => {
     entry.obj = obj;
     if (gid === 'vending_machine') {
       const hit = new THREE.Mesh(new THREE.BoxGeometry(3.6,5.4,2.8), new THREE.MeshBasicMaterial({visible:false}));
-      hit.position.set(pos.x, GROUND_Y+2.7, pos.z);
+      hit.position.set(pos.x, pos.y+2.7, pos.z);
       scene.add(hit);
       entry.useHit = hit;
       interactables.push({ mesh: hit, prompt: 'E: Use the Trade-O-Matic', onUse: openVending });
       entry.light = new THREE.PointLight(0xcc88ff, 2.2, 14);
-      entry.light.position.set(pos.x, GROUND_Y+3, pos.z);
+      entry.light.position.set(pos.x, pos.y+3, pos.z);
       scene.add(entry.light);
     }
     if (gid === 'ore_forge') {
       const hit = new THREE.Mesh(new THREE.BoxGeometry(4.2,3.2,4.2), new THREE.MeshBasicMaterial({visible:false}));
-      hit.position.set(pos.x, GROUND_Y+1.6, pos.z);
+      hit.position.set(pos.x, pos.y+1.6, pos.z);
       scene.add(hit);
       entry.useHit = hit;
       interactables.push({ mesh: hit, prompt: 'E: Use the Forge', onUse: openForge });
       entry.light = new THREE.PointLight(0xff8833, 2.2, 14);
-      entry.light.position.set(pos.x, GROUND_Y+2.5, pos.z);
+      entry.light.position.set(pos.x, pos.y+2.5, pos.z);
       scene.add(entry.light);
     }
     if (gid === 'sludge_cauldron') {
       const hit = new THREE.Mesh(new THREE.BoxGeometry(4.0,3.4,4.0), new THREE.MeshBasicMaterial({visible:false}));
-      hit.position.set(pos.x, GROUND_Y+1.7, pos.z);
+      hit.position.set(pos.x, pos.y+1.7, pos.z);
       scene.add(hit);
       entry.useHit = hit;
       interactables.push({ mesh: hit, prompt: 'E: Use the Cauldron Cart', onUse: openCauldron });
       entry.light = new THREE.PointLight(0xcc66ff, 2.2, 14);
-      entry.light.position.set(pos.x, GROUND_Y+2.5, pos.z);
+      entry.light.position.set(pos.x, pos.y+2.5, pos.z);
       scene.add(entry.light);
     }
     if (gid === 'portal') {
       const hit = new THREE.Mesh(new THREE.BoxGeometry(2.4,4.2,1.8), new THREE.MeshBasicMaterial({visible:false}));
-      hit.position.set(pos.x, GROUND_Y+2.1, pos.z);
+      hit.position.set(pos.x, pos.y+2.1, pos.z);
       scene.add(hit);
       entry.useHit = hit;
       interactables.push({ mesh: hit, prompt: 'E: Step through the portal', onUse: usePortal });
       entry.light = new THREE.PointLight(0x66ccff, 2.4, 12);
-      entry.light.position.set(pos.x, GROUND_Y+2.2, pos.z);
+      entry.light.position.set(pos.x, pos.y+2.2, pos.z);
       scene.add(entry.light);
+    }
+    if (gid === 'wall_locker') {
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(2.2,3.3,1.4), new THREE.MeshBasicMaterial({visible:false}));
+      hit.position.set(pos.x, pos.y+1.55, pos.z);
+      scene.add(hit);
+      entry.useHit = hit;
+      interactables.push({ mesh: hit, prompt: 'E: Open the wall locker', onUse: openLocker });
+      makeArcaneSteam(entry, new THREE.Box3().setFromObject(obj));
     }
   });
 
   const pickHit = new THREE.Mesh(new THREE.BoxGeometry(r*1.8, 3.2, r*1.8), new THREE.MeshBasicMaterial({visible:false}));
-  pickHit.position.set(pos.x, GROUND_Y+1.2, pos.z);
+  pickHit.position.set(pos.x, pos.y+1.2, pos.z);
   scene.add(pickHit);
   entry.pickHit = pickHit;
   pickupables.push(entry);
@@ -488,6 +539,7 @@ function tryPickup() {
   scene.remove(entry.pickHit);
   if (entry.useHit) { scene.remove(entry.useHit); interactables.splice(interactables.findIndex(i => i.mesh === entry.useHit), 1); }
   if (entry.light) scene.remove(entry.light);
+  if (entry.fx) { scene.remove(entry.fx.points); scene.remove(entry.fx.light); arcaneFx.splice(arcaneFx.indexOf(entry.fx), 1); }
   colliders.splice(colliders.indexOf(entry.collider), 1);
   pickupables.splice(pickupables.indexOf(entry), 1);
   const idx = SAVE.placed.findIndex(p => p.gid===entry.gid && p.x===entry.x && p.z===entry.z && p.ry===entry.ry);
@@ -502,9 +554,9 @@ function tryPickup() {
 async function loadPropsAfterShell() {
   await shellReady;
   placeProp(PROPS_DIR+'chandelier.glb', 1.0, {x:0, y:GROUND_Y+4.5, z:0}, 0);
-  const queue = SAVE.placed.filter(p => MODEL_MAP[p.gid])
+  const queue = SAVE.placed.filter(p => hasModel(p.gid))
     .sort((a, b) => (PROP_PRIORITY[a.gid] ?? 5) - (PROP_PRIORITY[b.gid] ?? 5));
-  for (const p of queue) await spawnPlacedItem(p.gid, {x:p.x, y:GROUND_Y, z:p.z}, p.ry);
+  for (const p of queue) await spawnPlacedItem(p.gid, {x:p.x, y:p.y ?? GROUND_Y, z:p.z}, p.ry);
 }
 loadPropsAfterShell();
 
@@ -604,8 +656,8 @@ function useShelf(id) {
 let ghost = null, ghostGid = null, ghostRy = 0;
 
 function loadModelFor(gid, cb) {
-  if (!MODEL_MAP[gid]) return;
-  loadGltf(PROPS_DIR + MODEL_MAP[gid]).then((gltf) => cb(gltf.scene), (e) => console.error(gid, e));
+  if (!hasModel(gid)) return;
+  sourceFor(gid).then(cb, (e) => console.error(gid, e));
 }
 
 function makeGhostFrom(source, scale) {
@@ -625,11 +677,11 @@ function makeGhostFrom(source, scale) {
 }
 
 function isAnyPanelOpen() {
-  return ['vendWrap','forgeWrap','cauldronWrap','gearWrap'].some(id => document.getElementById(id).style.display === 'flex');
+  return ['vendWrap','forgeWrap','cauldronWrap','gearWrap','lockerWrap'].some(id => document.getElementById(id).style.display === 'flex');
 }
 
 function updateGhost() {
-  const canPlace = active && selectedGear && MODEL_MAP[selectedGear] && !isAnyPanelOpen();
+  const canPlace = active && selectedGear && hasModel(selectedGear) && !isAnyPanelOpen();
   if (!canPlace) {
     if (ghost) { scene.remove(ghost); ghost = null; ghostGid = null; }
     return;
@@ -658,10 +710,11 @@ function updateGhost() {
 function commitPlacement() {
   if (!ghost || !selectedGear) return;
   const gid = selectedGear;
-  const pos = {x: ghost.position.x, y: GROUND_Y, z: ghost.position.z};
+  // the ghost's bottom edge is where the piece sits — on the floor, or up a wall if it was lifted
+  const pos = {x: ghost.position.x, y: ghost.position.y + ghost.userData.bottomOffset, z: ghost.position.z};
   const ry = ghost.rotation.y;
   spawnPlacedItem(gid, pos, ry);
-  SAVE.placed.push({gid, x: pos.x, z: pos.z, ry});
+  SAVE.placed.push({gid, x: pos.x, y: pos.y, z: pos.z, ry});
   SAVE.inv.splice(SAVE.inv.indexOf(gid), 1);
   scene.remove(ghost); ghost = null; ghostGid = null;
   selectedGear = null;
@@ -685,10 +738,13 @@ function pieceFromCarried(c) {
   const ra = RARITIES[c.rarity] || RARITIES[0];
   const slot = SLOT_ICON[c.slot] ? c.slot : 'weapon';
   const lvl = c.lvl ? ', Lv ' + c.lvl : '';
+  const stats = c.stats && typeof c.stats === 'object' ? Object.entries(c.stats).map(([k, v]) => k + ' ' + v).join(', ') : '';
+  const desc = c.name + ' (' + ra.short + ' ' + c.slot + lvl + ')';
   return { kind:'carried', key:'c:'+c.id, id:c.id, type:c.slot, tier:ra.id, name:c.name,
     icon: SLOT_ICON[slot], color: ra.color,
-    label: c.name, desc: c.name + ' (' + ra.short + ' ' + c.slot + lvl + ')',
-    sub: ra.short + ' ' + c.slot + (c.lvl ? ' · Lv ' + c.lvl : ''), payload: c };
+    label: c.name, desc,
+    sub: c.reward ? (c.reason || 'Reward') : ra.short + ' ' + c.slot + (c.lvl ? ' · Lv ' + c.lvl : ''),
+    tip: desc + (stats ? ' — ' + stats : ''), payload: c };
 }
 function pieceFromShared(item) { // a row from the Worker's shared table
   return item.kind === 'carried' && item.payload ? pieceFromCarried(item.payload) : pieceFromForged(item);
@@ -829,26 +885,12 @@ async function pollDroppedGear() {
 function buildGearGrid() {
   const grid = document.getElementById('gearGrid');
   grid.innerHTML = '';
-  const pieces = allPieces();
+  const pieces = SAVE.gear.map(pieceFromForged);
   if (!pieces.length) {
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#88a0b0;padding:20px">No gear yet — forge some Mythic gear, or lock a piece in the dungeon and carry it through the portal.</div>';
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#88a0b0;padding:20px">No forged gear yet — the Forge makes Mythic pieces. Trophies carried in from the dungeon are in the wall locker.</div>';
     return;
   }
-  pieces.forEach(piece => {
-    const sel = selectedDropGearId === piece.key;
-    const el = document.createElement('div');
-    el.className = 'fgear' + (piece.kind === 'forged' && piece.tier === 'unique' ? ' unique' : '') + (sel ? ' sel' : '');
-    if (piece.kind === 'carried' && !sel) { el.style.borderColor = piece.color; el.style.boxShadow = '0 0 10px ' + piece.color + '55'; }
-    el.innerHTML = '<img class="swatch" src="'+piece.icon+'"><div class="fname">'+esc(piece.label)+'</div>'
-      + (piece.sub ? '<div class="fsub" style="color:'+piece.color+'">'+esc(piece.sub)+'</div>' : '');
-    el.onclick = () => {
-      selectedDropGearId = sel ? null : piece.key;
-      selectedGear = null; renderInv();
-      closeGearPanel();
-    };
-    attachTooltip(el, piece.desc);
-    grid.appendChild(el);
-  });
+  pieces.forEach(piece => grid.appendChild(pieceCell(piece, sel => pickForDisplay(piece, sel, closeGearPanel))));
 }
 let gearWasActive = false;
 function openGearPanel() {
@@ -863,6 +905,139 @@ function closeGearPanel() {
 }
 document.getElementById('gearClose').onclick = closeGearPanel;
 document.getElementById('gearWrap').addEventListener('click', e => { if (e.target.id === 'gearWrap') closeGearPanel(); });
+
+// ============= WALL LOCKER (the physical home of carried-in trophies and dungeon rewards) =============
+// one grid cell for any piece, shared by YOUR GEAR and the locker
+function pieceCell(piece, onPick) {
+  const sel = selectedDropGearId === piece.key;
+  const el = document.createElement('div');
+  el.className = 'fgear' + (piece.kind === 'forged' && piece.tier === 'unique' ? ' unique' : '') + (sel ? ' sel' : '');
+  if (piece.kind === 'carried' && !sel) { el.style.borderColor = piece.color; el.style.boxShadow = '0 0 10px ' + piece.color + '55'; }
+  el.innerHTML = '<img class="swatch" src="'+piece.icon+'"><div class="fname">'+esc(piece.label)+'</div>'
+    + (piece.sub ? '<div class="fsub" style="color:'+piece.color+'">'+esc(piece.sub)+'</div>' : '');
+  el.onclick = () => onPick(sel);
+  attachTooltip(el, piece.tip || piece.desc);
+  return el;
+}
+function pickForDisplay(piece, wasSelected, closeFn) {
+  selectedDropGearId = wasSelected ? null : piece.key;
+  selectedGear = null; renderInv();
+  closeFn();
+}
+function buildLockerGrids() {
+  const carried = loadCarried().map(pieceFromCarried);
+  const fill = (id, list, emptyText) => {
+    const grid = document.getElementById(id);
+    grid.innerHTML = '';
+    if (!list.length) { grid.innerHTML = '<div class="lempty">' + emptyText + '</div>'; return; }
+    list.forEach(piece => grid.appendChild(pieceCell(piece, sel => pickForDisplay(piece, sel, closeLocker))));
+  };
+  fill('lockerCarried', carried.filter(p => !p.payload.reward), 'Nothing here yet — lock a piece in the dungeon and carry it through the portal.');
+  fill('lockerRewards', carried.filter(p => p.payload.reward), 'No rewards waiting.');
+}
+let lockerWasActive = false;
+function openLocker() {
+  lockerWasActive = active;
+  if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
+  document.getElementById('lockerWrap').style.display = 'flex';
+  buildLockerGrids();
+  markRewardsSeen(); // opening the locker is what quiets the "you've got rewards" banner
+}
+function closeLocker() {
+  document.getElementById('lockerWrap').style.display = 'none';
+  if (lockerWasActive) canvas.requestPointerLock();
+}
+document.getElementById('lockerClose').onclick = closeLocker;
+document.getElementById('lockerWrap').addEventListener('click', e => { if (e.target.id === 'lockerWrap') closeLocker(); });
+
+// ============= REWARD BANNER (big arcane callout on entry while unseen rewards wait in the locker) =============
+function unseenRewards() { return loadCarried().filter(c => c.reward && !c.rewardSeen); }
+let rewardBannerShown = false;
+function maybeShowRewardBanner() {
+  if (rewardBannerShown) return;
+  const n = unseenRewards().length;
+  if (!n) return;
+  rewardBannerShown = true;
+  const el = document.getElementById('rewardBanner');
+  el.querySelector('.small').textContent = n + (n === 1 ? ' reward is' : ' rewards are') + ' waiting in the wall locker';
+  el.classList.add('show');
+  sfxArcane();
+  setTimeout(() => el.classList.remove('show'), 5200);
+}
+// rewardSeen is our own flag on the game's record — the game never edits records once written, so it survives
+function markRewardsSeen() {
+  const list = loadCarried();
+  let changed = false;
+  list.forEach(c => { if (c.reward && !c.rewardSeen) { c.rewardSeen = true; changed = true; } });
+  if (changed) { writeCarried(list); refreshRewardsFresh(); }
+}
+
+// ============= ARCANE STEAM (motes rise off the wardrobe while unseen rewards wait inside) =============
+const arcaneFx = [];
+let rewardsFresh = false, lastFreshCheck = 0;
+function refreshRewardsFresh() { rewardsFresh = unseenRewards().length > 0; }
+refreshRewardsFresh();
+let softDotTex = null;
+function softDot() {
+  if (softDotTex) return softDotTex;
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const g = cv.getContext('2d');
+  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(255,255,255,1)'); grad.addColorStop(0.35, 'rgba(255,255,255,0.6)'); grad.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
+  softDotTex = new THREE.CanvasTexture(cv);
+  return softDotTex;
+}
+function makeArcaneSteam(entry, bb) {
+  const N = 70;
+  const fx = {
+    N, p: [], life: 2.2,
+    cx: (bb.max.x + bb.min.x) / 2, cz: (bb.max.z + bb.min.z) / 2, topY: bb.max.y,
+    hw: (bb.max.x - bb.min.x) / 2 * 0.8, hd: (bb.max.z - bb.min.z) / 2 * 0.8,
+  };
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+  const mat = new THREE.PointsMaterial({ size: 0.32, map: softDot(), vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  fx.points = new THREE.Points(geo, mat);
+  fx.light = new THREE.PointLight(0xa050ff, 0, 9);
+  fx.light.position.set(fx.cx, fx.topY + 0.6, fx.cz);
+  for (let i = 0; i < N; i++) { fx.p.push({}); respawnParticle(fx, i, true); }
+  scene.add(fx.points); scene.add(fx.light);
+  arcaneFx.push(fx);
+  entry.fx = fx;
+}
+function respawnParticle(fx, i, scatter) {
+  const q = fx.p[i];
+  q.x0 = fx.cx + (Math.random() * 2 - 1) * fx.hw;
+  q.z0 = fx.cz + (Math.random() * 2 - 1) * fx.hd;
+  q.age = scatter ? Math.random() * fx.life : 0;
+  q.speed = 0.55 + Math.random() * 0.45;
+  q.phase = Math.random() * Math.PI * 2;
+  q.sway = 0.08 + Math.random() * 0.12;
+  q.cyan = Math.random() < 0.3;
+}
+function updateArcaneFx(dt, now) {
+  for (const fx of arcaneFx) {
+    fx.points.visible = rewardsFresh;
+    fx.light.intensity = rewardsFresh ? 1.1 + Math.sin(now / 420) * 0.5 : 0;
+    if (!rewardsFresh) continue;
+    const pos = fx.points.geometry.attributes.position.array, col = fx.points.geometry.attributes.color.array;
+    for (let i = 0; i < fx.N; i++) {
+      const q = fx.p[i];
+      q.age += dt;
+      if (q.age > fx.life) respawnParticle(fx, i, false);
+      const f = q.age / fx.life;
+      pos[i*3]   = q.x0 + Math.sin(now / 600 + q.phase) * q.sway * f;
+      pos[i*3+1] = fx.topY - 0.15 + f * 1.6 * q.speed;
+      pos[i*3+2] = q.z0 + Math.cos(now / 700 + q.phase) * q.sway * f;
+      const a = f < 0.2 ? f / 0.2 : 1 - (f - 0.2) / 0.8; // fade in, then out — under additive blending darker = fainter
+      col[i*3] = (q.cyan ? 0.35 : 0.75) * a; col[i*3+1] = (q.cyan ? 0.85 : 0.35) * a; col[i*3+2] = 1.0 * a;
+    }
+    fx.points.geometry.attributes.position.needsUpdate = true;
+    fx.points.geometry.attributes.color.needsUpdate = true;
+  }
+}
 
 // ============= TRADE-O-MATIC =============
 const SHOP_STOCK = Object.keys(GEAR).filter(gid => !GEAR[gid].notShop);
@@ -916,6 +1091,7 @@ document.addEventListener('keydown', e => {
   if (document.getElementById('forgeWrap').style.display === 'flex') closeForge();
   if (document.getElementById('cauldronWrap').style.display === 'flex') closeCauldron();
   if (document.getElementById('gearWrap').style.display === 'flex') closeGearPanel();
+  if (document.getElementById('lockerWrap').style.display === 'flex') closeLocker();
 });
 
 // ============= THE FORGE (Legendary Sludge -> gamble for mythic gear) =============
@@ -1169,6 +1345,12 @@ function sfxCraft(rank) {
   if (rank >= 3) sfxTone(1046, 0.3, 'triangle', 0.14, 0.55);
   if (rank >= 4) sfxSweep(900, 2600, 0.6, 'sine', 0.07, 0.6);
 }
+// rising arcane chord with a shimmer over it, for the rewards banner
+function sfxArcane() {
+  [392, 523, 659, 880].forEach((f, i) => sfxTone(f, 0.55, 'sine', 0.1, i * 0.12));
+  sfxSweep(600, 2400, 0.9, 'sine', 0.05, 0.1);
+  sfxSweep(2400, 900, 0.9, 'sine', 0.04, 0.6);
+}
 
 // TEMPORARY — lets Matt audition each crafting sound on demand instead of fighting RNG. Remove once the sounds are settled.
 (function addSfxPreview() {
@@ -1293,6 +1475,8 @@ function animate(now) {
       else pr.style.display = 'none';
     }
   }
+  if (now - lastFreshCheck > 2000) { lastFreshCheck = now; refreshRewardsFresh(); }
+  updateArcaneFx(dt, now);
   renderer.render(scene, camera);
 }
 animate(performance.now());

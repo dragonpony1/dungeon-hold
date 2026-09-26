@@ -1,6 +1,6 @@
 // ===== THE VOID SET, FLESHED OUT (94-voidset.js, 93-gearsets.js, 99-network.js, game.js): the set's own code-built sword
 // on the knight, the five-piece power (this wearer's Dazzling Halos +75%, applied for the defense's OWNER, a co-op guest
-// included), the hideout unlock record written once and never overwritten, the hero's aura kept, and mana orbs worth
+// included), the hideout reward written once and never twice, the hero's aura kept, and mana orbs worth
 // 25% more. Section A runs solo; section B is a real host + guest pair (needs the `peer` package, like the co-op suites).
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 let PeerServer=null; try { ({ PeerServer } = await import("peer")); } catch(e) {}
@@ -26,13 +26,20 @@ const dmgOf=(p,i)=>p.evaluate(i=>{ const d=window.__dd, def=d.defs[i]; const cfg
   check("the hero's violet aura is on (kept as it was)",await page.evaluate(()=>window.__meta.packs.aura().on));
   check("the set's five-piece text now names the halo power",await page.evaluate(()=>/DAZZLING HALOS \+75%/.test(window.__meta.packs.get('of the Void').text[1])));
 
-  // the unlock record
-  const u1=await page.evaluate(()=>window.__voidset.unlocks()['stand-void']);
-  check("wearing all five writes the hideout unlock: the Void armor stand, unseen, unclaimed",!!u1&&u1.set==='of the Void'&&u1.name==='Void Armor Stand'&&u1.model==='armor-stand-void.glb'&&u1.seen===false&&u1.claimed===false&&typeof u1.at==='number',JSON.stringify(u1));
-  await page.evaluate(()=>{ const u=JSON.parse(localStorage.getItem('dd_hideout_unlocks')); u['stand-void'].seen=true; u.theirs={id:'theirs',seen:false}; localStorage.setItem('dd_hideout_unlocks',JSON.stringify(u)); });   // the hideout side marks it seen and adds a key of its own
+  // the unlock: a reward record in the hideout's wall locker (dd_gear_carried, reward:true), plus the game's own granted ledger
+  const u1=await page.evaluate(()=>({led:window.__voidset.unlocks()['stand-void'],rew:window.__voidset.carried().filter(r=>r.reward),all:window.__voidset.carried().length}));
+  const r1=u1.rew[0];
+  check("wearing all five puts ONE reward in the locker: the Void Armor Stand, a carried record with reward:true and a reason, legendary, armor slot, from dungeon-hold",u1.rew.length===1&&u1.all===1&&!!r1&&r1.id==='reward-stand-void'&&r1.name==='Void Armor Stand'&&r1.reward===true&&r1.reason==='The Void set, complete'&&r1.slot==='armor'&&r1.rarity===4&&r1.from==='dungeon-hold'&&typeof r1.carriedAt==='number'&&r1.model==='armor-stand-void.glb'&&r1.set==='of the Void',JSON.stringify(r1));
+  check("...and the game's own ledger remembers it was granted (id, set, name, model, the reward's id, when)",!!u1.led&&u1.led.set==='of the Void'&&u1.led.name==='Void Armor Stand'&&u1.led.model==='armor-stand-void.glb'&&u1.led.rewardId==='reward-stand-void'&&u1.led.at===r1.carriedAt,JSON.stringify(u1.led));
+  // the hideout opens the locker (rewardSeen) and later takes the stand onto the display (the record leaves the list); the game re-checks and grants nothing twice
+  await page.evaluate(()=>{ const a=JSON.parse(localStorage.getItem('dd_gear_carried')); a[0].rewardSeen=true; a.push({id:'theirs',name:'Their Thing',slot:'charm',rarity:1,from:'hideout'}); localStorage.setItem('dd_gear_carried',JSON.stringify(a)); });
   await page.evaluate(ids=>{ const M=window.__meta; M.unequip('charm'); window.__dd.step(1/60,2); M.equip(ids[2]); window.__dd.step(1/60,2); },worn.ids);
-  const u2=await page.evaluate(()=>JSON.parse(localStorage.getItem('dd_hideout_unlocks')));
-  check("taking a piece off and back on rewrites nothing: seen stays true, the timestamp stays, the hideout's own key stays",u2['stand-void'].seen===true&&u2['stand-void'].at===u1.at&&!!u2.theirs,JSON.stringify(u2));
+  const u2=await page.evaluate(()=>window.__voidset.carried());
+  check("taking a piece off and back on rewrites nothing: the hideout's rewardSeen stays, its own record stays, still one reward",u2.length===2&&u2[0].id==='reward-stand-void'&&u2[0].rewardSeen===true&&u2[0].carriedAt===r1.carriedAt&&u2[1].id==='theirs',JSON.stringify(u2));
+  await page.evaluate(()=>{ const a=JSON.parse(localStorage.getItem('dd_gear_carried')).filter(r=>r.id!=='reward-stand-void'); localStorage.setItem('dd_gear_carried',JSON.stringify(a)); });   // claimed: the stand went onto the display
+  await page.evaluate(ids=>{ const M=window.__meta; M.unequip('charm'); window.__dd.step(1/60,2); M.equip(ids[2]); window.__dd.step(1/60,2); window.__voidset.check(); },worn.ids);
+  const u3=await page.evaluate(()=>window.__voidset.carried().filter(r=>r.reward).length);
+  check("once claimed (the record gone from the list) the reward is never granted again -- the ledger says so",u3===0,JSON.stringify({rewardsNow:u3}));
 
   // the sword on the knight
   await page.evaluate(()=>window.__heroes.select('knight'));

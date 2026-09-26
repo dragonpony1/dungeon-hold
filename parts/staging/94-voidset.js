@@ -7,9 +7,8 @@
 // defenses: a full Void wearer's DAZZLING HALOS hit 75% harder -- pack.defKind, applied in stat(d,'dmg') for the
 // defense's OWNER (the host by their worn sets; a co-op guest by the kind map their client reports, 99-network.js),
 // so a friend's halos carry the friend's set, never the host's. (3) The unlock: the first time all five pieces are worn,
-// a record goes into localStorage 'dd_hideout_unlocks' (the hideout's third contract -- an object keyed by unlock id,
-// read-modify-write, the game only ever adds; the hideout flips seen/claimed) naming the Void armor stand that waits in
-// the hideout's locker. The set's drop light (a violet column), sound and the hero's aura are 93's and unchanged.
+// a REWARD record (the hideout's contract: a dd_gear_carried record with reward:true and a reason) goes into the
+// hideout's wall locker -- the Void armor stand -- and the game's own ledger 'dd_hideout_unlocks' remembers it was granted. The set's drop light (a violet column), sound and the hero's aura are 93's and unchanged.
 (function(){
 const VOID='of the Void';
 // ---- the sword ----
@@ -51,13 +50,26 @@ function lashTick(dt){
     if(hit){ d.lashT=lashCd(d); pulse(d.x,d.z,0x8a3dff); if(SFX.rift) SFX.rift(); } else d.lashT=.1; }
   for(let i=PULSES.length-1;i>=0;i--){ const p=PULSES[i]; p.t+=dt; const sc=1+p.t*7; p.m.scale.set(sc,sc,1); p.m.material.opacity=Math.max(0,.8-p.t*2.4); if(p.t>.4){ scene.remove(p.m); p.m.geometry.dispose(); p.m.material.dispose(); PULSES.splice(i,1); } } }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); lashTick(dt); }; }
-// ---- the unlock ----
-const UNLOCK_KEY='dd_hideout_unlocks';
+// ---- the unlock: a REWARD in the hideout's wall locker ----
+// The hideout (build 10+) keeps an Arcane Wardrobe, the physical home of dd_gear_carried, and its reward contract is
+// simple: a reward is a normal dd_gear_carried record (id, name, slot, rarity 0..4, lvl, tier, stats, value, score,
+// from:'dungeon-hold', carriedAt) with two extra fields -- reward:true (required) and reason (optional, shown under the
+// item's name). Same append-only rules as the portal's trophies (59-hideout.js): read-modify-write, unique ids, the game
+// never edits a record once written (the hideout adds rewardSeen:true when the locker is opened, and removes the record
+// when the piece goes onto the shared display). On entry with an unseen reward the hideout shows its arcane banner and the
+// wardrobe steams until the locker is opened. What the game grants for the first full wear of a set is pack.unlock -- the
+// Void: its dressed armor stand (model named for the hideout's later use). Because a claimed reward LEAVES the carried
+// list, the game keeps its own ledger of what it has granted (localStorage dd_hideout_unlocks, the game's alone: one entry
+// per unlock id) so the same reward is never granted twice.
+const UNLOCK_KEY='dd_hideout_unlocks', CARRY_KEY='dd_gear_carried';
 function readUnlocks(){ let u=null; try{ u=JSON.parse(localStorage.getItem(UNLOCK_KEY)); }catch(e){} return (u&&typeof u==='object'&&!Array.isArray(u))?u:{}; }
+function readCarried(){ let a=null; try{ a=JSON.parse(localStorage.getItem(CARRY_KEY)); }catch(e){} return Array.isArray(a)?a:[]; }
+function rewardRecord(p,un){ return {id:'reward-'+un.id,name:un.name,slot:un.slot||'armor',rarity:un.rarity===undefined?4:un.rarity,tier:5,stats:{},value:0,score:0,set:p.name,model:un.model,from:'dungeon-hold',carriedAt:Date.now(),reward:true,reason:un.reason||('The set '+p.name+', complete')}; }
 let lastVer=-1, announced={};
 function checkUnlocks(){ for(const p of fullPacks()){ const un=p.unlock; if(!un) continue; const u=readUnlocks(); if(u[un.id]){ announced[un.id]=true; continue; }
-    u[un.id]={id:un.id,set:p.name,name:un.name,model:un.model,at:Date.now(),seen:false,claimed:false}; try{ localStorage.setItem(UNLOCK_KEY,JSON.stringify(u)); }catch(e){}
-    if(!announced[un.id]){ announced[un.id]=true; toast(p.ic+' The set '+p.name+' is complete — something new waits in the hideout\'s locker'); floatText(hero.x,hero.y+2.4,hero.z,un.name.toUpperCase()+' UNLOCKED',p.css); if(SFX.setBong) SFX.setBong(); } } }
+    const rec=rewardRecord(p,un); const list=readCarried(); if(!list.some(r=>r&&r.id===rec.id)) list.push(rec); try{ localStorage.setItem(CARRY_KEY,JSON.stringify(list)); }catch(e){}
+    u[un.id]={id:un.id,set:p.name,name:un.name,model:un.model,rewardId:rec.id,at:rec.carriedAt}; try{ localStorage.setItem(UNLOCK_KEY,JSON.stringify(u)); }catch(e){}
+    if(!announced[un.id]){ announced[un.id]=true; toast(p.ic+' The set '+p.name+' is complete — a reward waits in the hideout\'s wall locker'); floatText(hero.x,hero.y+2.4,hero.z,un.name.toUpperCase()+' UNLOCKED',p.css); if(SFX.setBong) SFX.setBong(); } } }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); const v=Meta.version(); if(v!==lastVer){ lastVer=v; checkUnlocks(); } }; }
-window.__voidset={sword:makeVoidSword,kindMap:defKindMap,kindBonus:defKindBonus,lashDmg,lashCd,pulses:()=>PULSES.length,unlocks:readUnlocks,check:checkUnlocks,UNLOCK_KEY};
+window.__voidset={sword:makeVoidSword,kindMap:defKindMap,kindBonus:defKindBonus,lashDmg,lashCd,pulses:()=>PULSES.length,unlocks:readUnlocks,carried:readCarried,rewardRecord,check:checkUnlocks,UNLOCK_KEY,CARRY_KEY};
 })();
