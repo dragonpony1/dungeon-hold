@@ -11,12 +11,33 @@ function json(data, status = 200) {
   });
 }
 
+// The main game serves its own copy of the hideout from GitHub Pages, so the shared-gear
+// calls arrive cross-origin from there.
+const ALLOWED_ORIGINS = new Set(['https://dragonpony1.github.io']);
+function corsHeaders(request) {
+  const origin = request.headers.get('origin');
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) return {};
+  return {
+    'access-control-allow-origin': origin,
+    'access-control-allow-methods': 'GET, POST, OPTIONS',
+    'access-control-allow-headers': 'content-type',
+    'access-control-max-age': '86400',
+    'vary': 'origin',
+  };
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/api/hideout/')) {
+      const cors = corsHeaders(request);
+      if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
       const stub = env.HIDEOUT.get(env.HIDEOUT.idFromName('main'));
-      return stub.fetch(request);
+      const res = await stub.fetch(request);
+      if (!Object.keys(cors).length) return res;
+      const out = new Response(res.body, res);
+      for (const [k, v] of Object.entries(cors)) out.headers.set(k, v);
+      return out;
     }
     return env.ASSETS.fetch(request);
   },

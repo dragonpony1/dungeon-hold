@@ -177,9 +177,7 @@ const BAG_KEY = 'dd_gear_bag';
 function loadBag() {
   let b = null;
   try { b = JSON.parse(localStorage.getItem(BAG_KEY)); } catch(e) {}
-  // testing seed until real dungeon drops feed this — carries over whatever the old in-save stockpile had left
-  if (!b) b = { common: SAVE.battleScrap !== undefined ? SAVE.battleScrap : 999 };
-  return Object.assign({ common: 0, uncommon: 0, rare: 0, epic: 0, legendary: 0 }, b);
+  return Object.assign({ common: 0, uncommon: 0, rare: 0, epic: 0, legendary: 0 }, b || {});
 }
 function writeBag() { localStorage.setItem(BAG_KEY, JSON.stringify(BAG)); }
 const BAG = loadBag();
