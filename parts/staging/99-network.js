@@ -555,14 +555,15 @@ onMessage('enemies',data=>{
 // world-sync. makeDef(kind,ghost,lvl) is fully monkey-patched by 50-defmodels.js into the same kind of synchronous,
 // GLB-aware builder makeMob is (defTemplate(kind,lvl) picks whatever's loaded, falling back to the procedural
 // shape) — a drop-in parallel. Unlike heroes or enemies, a defense never moves once placed, so there's no easing:
-// a puppet snaps straight to its spot and only ever rebuilds if its level changes (mirroring how reskinDefs
-// rebuilds the real thing on an upgrade or a late-loading model). y matters here too, the same lesson as flying
+// a puppet snaps straight to its spot and only rebuilds when its level changes or its mark's model lands late
+// (mirroring how reskinDefs rebuilds the real thing). y matters here too, the same lesson as flying
 // enemies — a defense standing on the throne room's dais or stairs (base, not just x/z) needs its real elevation,
 // or it would render as if planted in the floor below it. Deliberately skipped for this first cut: aiming (the
 // yoke turning toward a target), recoil, and the aura defenses' glow ring (defRingUpdate, 93-gearsets.js) — a
 // puppet just sits at its placed position and rotation, which is enough for enemies to visibly path around it.
 const DEFPUP=new Map();   // id -> {kind,lvl,mdl}
 function defPuppetAdd(id,kind,lvl,x,y,z,rot){
+  ensureDefMark(kind,lvl); ensureDefMark(kind,lvl+1);   // Marks II-IV are fetched lazily (50-defmodels.js), and only reskinDefs asks, over the local defs -- empty on a guest, who builds on the host -- so without this a guest never fetched them and saw every Mark II-V defense in its Mark I look
   const m=makeDef(kind,false,lvl); m.position.set(x,y,z); m.rotation.y=rot; scene.add(m);
   DEFPUP.set(id,{kind,lvl,mdl:m});
 }
@@ -581,7 +582,8 @@ onMessage('defs',data=>{
   data.list.forEach(d=>{ ids.add(d.id);
     let p=DEFPUP.get(d.id);
     if(!p){ defPuppetAdd(d.id,d.kind,d.lvl,d.x,d.y,d.z,d.rot); return; }
-    if(p.lvl!==d.lvl){ scene.remove(p.mdl); p.mdl=makeDef(d.kind,false,d.lvl); p.mdl.position.set(d.x,d.y,d.z); p.mdl.rotation.y=d.rot; scene.add(p.mdl); p.lvl=d.lvl; }
+    ensureDefMark(d.kind,d.lvl); ensureDefMark(d.kind,d.lvl+1); const T=defTemplate(d.kind,d.lvl);   // an upgrade on the host asks for that mark's model here too (and the next one up), as reskinDefs does for the host's own
+    if(p.lvl!==d.lvl||(T&&p.mdl.userData.tpl!==T)){ scene.remove(p.mdl); p.mdl=makeDef(d.kind,false,d.lvl); p.mdl.position.set(d.x,d.y,d.z); p.mdl.rotation.y=d.rot; scene.add(p.mdl); p.lvl=d.lvl; }   // a new mark, or its model just landed (the first build wore the mark below while it downloaded): the same test reskinDefs makes, caught on the host's next list, twice a second
   });
   [...DEFPUP.keys()].forEach(id=>{ if(!ids.has(id)) defPuppetRemove(id); });   // sold or destroyed on the host -- same roster-diff removal as heroes and enemies
 });

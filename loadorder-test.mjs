@@ -20,9 +20,9 @@ page.on("request",r=>{ const u=r.url().replace(BASE,''); if(/\.glb\.txt$/.test(u
 page.on("requestfinished",r=>{ const u=r.url().replace(BASE,''); if(/\.glb\.txt$/.test(u)) finished.push({u,t:Date.now()-t0}); });
 const name=u=>u.replace(/^\/assets\//,'').replace(/\.[0-9a-f]{8}\.glb\.txt$/,'');
 const isFirst=u=>/^(gnome|knight|witch|fighter|squire|ninja|crystal|sword-[a-z]+)$/.test(name(u));
-const isSoon=u=>/^(goblin|ballista-1|hedge|cannon-1|mushroom-1|totem-1|frost-1|snare-1|aura-[a-z]+|acorn|ballista-bolt|raven|hideout-portal)$/.test(name(u));
+const isSoon=u=>/^(goblin|ballista-1|hedge-1|cannon-1|mushroom-1|totem-1|frost-1|snare-1|aura-[a-z]+|acorn|ballista-bolt|raven|hideout-portal)$/.test(name(u));
 const isLater=u=>/^(orc|ogre|bandit|trollmob|trollboss|drake|smith)$/.test(name(u));
-const isLazy=u=>/^(armor-stand-|fam-|(ballista|cannon|mushroom|totem|frost|snare)-[234]$)/.test(name(u));
+const isLazy=u=>/^(armor-stand-|fam-|(ballista|hedge|cannon|mushroom|totem|frost|snare)-[234]$)/.test(name(u));
 
 await page.goto(BASE+"/?silent",{timeout:120000,waitUntil:'commit'});
 check("the build-line markup no longer carries the old 'build 21' placeholder",!/id="buildline">[^<]*build 21/.test(fs.readFileSync(DIST+"/index.html","utf8")));
