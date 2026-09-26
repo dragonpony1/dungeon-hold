@@ -7,14 +7,14 @@
 (function(){
 const CAP=8, ARM_CSS='.tb.no{color:#ff6a5a!important;border-color:#ff6a5a!important}';
 { const st=document.createElement('style'); st.textContent=ARM_CSS; document.head.appendChild(st); }
-function reqFor(it){ return Math.max(1,Math.round((it.lvl||1)*.3+(it.rarity|0))); }   // was *.8: a drop's level tracks the wave (effWave), which outruns hero level fast — by the throne room's own waves the drop level is already ~14 while a hero levelling at the normal kill/wave-held XP rate is only around 5, so *.8 (req ~11-15) locked out nearly everything. *.3 (req ~4-8 at that point) keeps common/uncommon in reach at your actual level and still makes rares and up something to grow into
+function reqFor(it){ if(it&&/ of the Forest$/.test(it.name||'')) return 1; return Math.max(1,Math.round((it.lvl||1)*.3+(it.rarity|0))); }   /* a Forest piece (the starter set, 93-gearsets.js) never asks for a level: a playtest hit "needs level 2" on the fourth green piece at level 1, with the fifth already waiting in the hideout's locker, and the set could not be completed */   // was *.8: a drop's level tracks the wave (effWave), which outruns hero level fast — by the throne room's own waves the drop level is already ~14 while a hero levelling at the normal kill/wave-held XP rate is only around 5, so *.8 (req ~11-15) locked out nearly everything. *.3 (req ~4-8 at that point) keeps common/uncommon in reach at your actual level and still makes rares and up something to grow into
 function ensureReq(it){ if(it&&typeof it==='object') it.req=reqFor(it); return it; }   // always recompute, not just when missing — a saved item's req is derived (lvl+rarity), not frozen at drop time, so a formula tweak like the one above reaches gear already in someone's bag, not just new drops
 { const prev=fixItem; fixItem=function(it){ const r=prev(it); ensureReq(it); return r; }; }   // legacy pieces (bag, stock, drops) get theirs on the way through
 { const prev=rollItem; rollItem=function(a,b,c){ return ensureReq(prev(a,b,c)); }; }
 for(const it of Meta.bag()) ensureReq(it); for(const s of SLOTS) if(gear[s]) ensureReq(gear[s]); (Meta.stock()||[]).forEach(ensureReq);
 let GATE=!new URLSearchParams(location.search).has('nogate');   // ?nogate: no level gate (the test suites that only care about the piece, not the level)
-const canWear=it=>!GATE||!it||!it.req||Meta.level()>=it.req;
-{ const prev=Meta.equip; Meta.equip=id=>{ const it=Meta.bag().find(b=>b.id===id); if(it&&!canWear(it)){ toast('Needs level '+it.req+' — you are level '+Meta.level()); return false; } return prev(id); }; }
+const canWear=it=>!GATE||MAPI===0||!it||!it.req||Meta.level()>=it.req;   // map one, the training ground, has no gate: its guide says 'equip it' and the game must not say no
+{ const prev=Meta.equip; Meta.equip=id=>{ const it=Meta.bag().find(b=>b.id===id); if(it&&!canWear(it)){ const msg='Needs level '+it.req+' — you are level '+Meta.level(); toast(msg); if(window.__lesson) window.__lesson.show(msg+'. Levels come from kills and waves held; the piece keeps in your bag until then.',7); return false; } return prev(id); }; }
 if(typeof tvTier==='function'){ const prev=tvTier; tvTier=function(it){ return prev(it)+(it.req?'<span class="tb'+(canWear(it)?'':' no')+'">Lv '+it.req+'</span>':''); }; }
 // --- the store ---
 let ARM=[]; try{ const a=JSON.parse(localStorage.getItem('ddArmory')); if(Array.isArray(a)) ARM=a.filter(validItem).map(fixItem).slice(0,CAP); }catch(e){}
