@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="15">
+<meta name="hideout-build" content="16">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -190,7 +190,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 15;
+const HIDEOUT_BUILD = 16;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -260,6 +260,9 @@ const GEAR = {
   torch_sconce:      { name:'Wall Torch',        icon:ITEMS_DIR+'torch_sconce.webp',      cost:2  },
   display_pedestal:  { name:'Display Pedestal',  icon:ITEMS_DIR+'display_pedestal.webp',  cost:6  },
   weapon_rack:       { name:'Weapon Rack',       icon:ITEMS_DIR+'weapon_rack.webp',       cost:5  },
+  carousel_stand:    { name:'Carousel Stand',    icon:ITEMS_DIR+'carousel_stand.png',     cost:8  },   // Matt's three display racks (Meshy, shrunk like the rest); they hold gear like a shelf
+  horizontal_rack:   { name:'Horizontal Rack',   icon:ITEMS_DIR+'horizontal_rack.png',    cost:6  },
+  vertical_rack:     { name:'Vertical Rack',     icon:ITEMS_DIR+'vertical_rack.png',      cost:6  },
   sludge_cauldron:   { name:'Sludge Cauldron',   icon:ITEMS_DIR+'sludge_cauldron.png',    cost:12 },
   ore_forge:         { name:'Ore Forge',         icon:ITEMS_DIR+'ore_forge.png',          cost:12 },
   vending_machine:   { name:'Trade-O-Matic',     icon:ITEMS_DIR+'vending_machine.png',    cost:0, notShop:true },
@@ -274,6 +277,7 @@ const MODEL_MAP = {
   campfire: 'campfire.glb', fireplace: 'fireplace.glb', lantern: 'lantern.glb',
   chest: 'chest.glb', table_stools: 'table_stools.glb', torch_sconce: 'torch_sconce.glb',
   display_pedestal: 'trophy_table.glb', weapon_rack: 'weapon_rack.glb',
+  carousel_stand: 'carousel_stand.glb', horizontal_rack: 'horizontal_rack.glb', vertical_rack: 'vertical_rack.glb',
   vending_machine: 'vending_machine.glb',
   sludge_cauldron: 'sludge_cauldron.glb', ore_forge: 'ore_forge.glb',
   portal: 'crystal_portal.glb',
@@ -1176,7 +1180,7 @@ function updateArcaneFx(dt, now) {
 // To make a new piece of furniture hold gear, add its catalog id here. Slots are found by dropping rays through the
 // model: each level, flat-topped surface with headroom above it becomes one or more spots, so a shelf gets two per
 // board, a table gets three across the top, a pedestal gets one.
-const HOLDER_ITEMS = new Set(['bookshelf_empty', 'display_pedestal', 'table_stools']);
+const HOLDER_ITEMS = new Set(['bookshelf_empty', 'display_pedestal', 'table_stools', 'carousel_stand', 'horizontal_rack', 'vertical_rack']);   // the racks: whatever flat rests detectSlots finds on them
 const SLOT_HEADROOM = 0.42; // world units of clear space a spot needs — the on-furniture icon stands 0.39 tall
 const slotCache = {}; // gid -> [Vector3] in the model's own (raw, unrotated) space, so they survive any placement
 function detectSlots(tmpl, minGap, margin) { // both in the model's raw units; margin = room needed either side of a spot
