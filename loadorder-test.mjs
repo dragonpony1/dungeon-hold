@@ -59,7 +59,8 @@ await sleep(300);
 check("upgrading it to Mark II asks for Mark III next",up.lvl===2&&up.asked.includes('harpoon:2')&&started.some(s=>name(s.u)==='ballista-3'),JSON.stringify(up));
 await page.waitForFunction(()=>{ const l=window.__defglb.list(); return l.harpoon&&l.harpoon[1]; },null,{timeout:30000}).catch(()=>{});
 check("...and the Mark II model actually lands and registers",await page.evaluate(()=>{ const l=window.__defglb.list(); return !!(l.harpoon&&l.harpoon[1]); }));
-check("the build line still reads the real build",/^build \d{3,}( · hideout build \d+)? · hero: /.test(await page.evaluate(()=>document.getElementById('buildline').textContent)));
+{ const bl=await page.evaluate(()=>document.getElementById('buildline').textContent);   // since build 142 the load timer rides on the line too, between the build numbers and the hero
+  check("the build line still reads the real build",/^build \d{3,}( · hideout build \d+)?( · no wasm)?( · ⏱ ready [0-9.]+ s · (still loading|everything [0-9.]+ s · [0-9.]+ MB))? · hero: /.test(bl),bl); }
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
 check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close();

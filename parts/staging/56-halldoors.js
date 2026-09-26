@@ -3,7 +3,8 @@
 // room-facing side, decorated face turned toward the hall, the mobs still stepping out of the swirl behind it. Map one is
 // where a new player starts, so it loads a slim copy -- hall-door.glb, the same model with its three 4K textures cut to
 // 1024 px (0.7 MB instead of 7.9, made with gltf-transform resize) -- fetched once at 'soon' priority, after the hall's own
-// first loads, and cloned for each gate.
+// first loads, and cloned for each gate. The throne room's own doors (56-thronedecor.js) now use this same slim file too; the
+// 7.6 MB original is gone.
 (function(){
 let placed=[]; window.__halldoors={placed:()=>placed.slice()};
 if(!MAP||MAP.id!=='hall') return;

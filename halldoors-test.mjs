@@ -1,5 +1,7 @@
 // ===== DOORS ON MAP ONE (56-halldoors.js, build 141): the throne room's gothic door stands in each of the Gnome Hall's three
 // spawn archways, from a slim copy of the model (textures cut to 1024 px); map two keeps its own doors and gets no extra.
+// Since the throne-room slim pass map two's doors are that same slim file (56-thronedecor.js, throneload-test.mjs), so the
+// 7.6 MB original is no longer shipped at all: check 2 now checks that instead of comparing against it.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs"; import path from "path"; import fs from "fs";
 const SP=path.dirname(new URL(import.meta.url).pathname); const DIST=process.env.DIST||SP+"/dist";
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
@@ -11,8 +13,8 @@ await page.evaluate(()=>{ window.__freeze=true; window.__dd.start(); });
 const got=await page.waitForFunction(()=>window.__halldoors.placed().length>=3,null,{timeout:90000}).then(()=>true).catch(()=>false);
 const d=await page.evaluate(()=>({map:window.__dd.map().id,placed:window.__halldoors.placed(),inWorld:(()=>{ let n=0; window.__dd.scene.traverse(o=>{ if(o.userData&&o.userData.hallDoor) n++; }); return n; })()}));
 check("map one: a door stands in each of the hall's three spawn archways (North, West, East), in the world",got&&d.map==='hall'&&d.placed.map(p=>p.lane).sort().join()==='E,N,W'&&d.inWorld===3,JSON.stringify(d));
-const raw=fs.statSync(SP+"/parts/assets/hall-door.glb").size, big=fs.statSync(SP+"/parts/assets/throne-door.glb").size;
-check("the hall's door is the slim copy: under 1 MB, against the throne room's 7.9 MB original",raw<1024*1024&&big>5*1024*1024&&fs.existsSync(DIST+"/assets/hall-door.glb.txt"),JSON.stringify({raw,big}));
+const raw=fs.statSync(SP+"/parts/assets/hall-door.glb").size, big=fs.existsSync(SP+"/parts/assets/throne-door.glb"), bigDist=fs.readdirSync(DIST+"/assets").filter(f=>/^throne-door\./.test(f));
+check("the hall's door is the slim copy, under 1 MB -- and the one door file for both maps: the 7.9 MB throne-door original is gone from the source and the build",raw<1024*1024&&!big&&!bigDist.length&&fs.existsSync(DIST+"/assets/hall-door.glb.txt"),JSON.stringify({raw,throneDoorSource:big,throneDoorDist:bigDist}));
 try{ await page.evaluate(()=>{ const dd=window.__dd; dd.setHero(0,-21); dd.setHeroYaw&&dd.setHeroYaw(Math.PI); dd.setCam&&dd.setCam(Math.PI,.12,5.5); dd.step(1/60,20); }); await page.screenshot({path:SP+"/parts/shots/hall-door-north.png",timeout:60000}); console.log("screenshot saved"); }catch(e){ console.log("screenshot skipped: "+String(e).slice(0,80)); }
 await page.evaluate(()=>{ try{ localStorage.setItem('ddMapsCleared','1'); }catch(e){} });
 await page.goto(BASE+"/?silent&nogate&map=1",{timeout:90000}); await page.waitForFunction(()=>window.__dd&&window.__halldoors,null,{timeout:60000});

@@ -34,22 +34,33 @@ if(MAP.throne){
   function warmGlow(root){ root.traverse(o=>{ const m=o.isMesh&&o.material; if(!m||m.userData.__wg) return; m.userData.__wg=true;
     m.onBeforeCompile=sh=>{ sh.fragmentShader=sh.fragmentShader.replace('#include <emissivemap_fragment>',
       '#include <emissivemap_fragment>\n  totalEmissiveRadiance += vec3(.22,.11,.03);'); }; }); }
-  function loadThroneProp(name,targetH,cb){ fetchBytes(ASSET(name),'soon').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
-      const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,targetH); toonify(root,fit.scale); purpleGlow(root); cb(fit.wrap);
-    }catch(e){ console.warn('throne decor '+name,e); } },e=>console.warn('throne decor '+name,e))).catch(e=>console.warn('throne decor '+name,e)); }
+  // ONE FETCH AND ONE PARSE PER MODEL: "it hardly loads, it does completely load, it's just very slow". Every call below
+  // used to fetch and parse its own copy of its model: the door once per gate (four 10 MB downloads), the raked railing
+  // twelve times, the chandelier, the rugs and the statues once per spot -- 109 MB for this map, half of it repeats, and a
+  // separate set of textures on the GPU for every copy. Now each model is fetched and parsed once into a prototype that
+  // never goes into the world itself, and every placement gets its own clone of it (the same geometry, materials and
+  // purple glow, shared); whatever a placement does to its copy (where it stands, a light, a flattened panel) stays on that
+  // copy. Same 'soon' tier as before, so nothing pops in later than it used to -- it just all arrives sooner.
+  const PROTO={}, USED={};   // PROTO: model|size|fit -> promise of its prototype; USED: model -> placements handed out (read by the test hook below)
   // fitModel always scales a model to a target HEIGHT (its own Y extent) — right for anything that stands
   // upright (a statue, a banner, a floor tile stood on end and rotated flat afterward), wrong for a model
   // that's already lying flat as authored, where Y is its thin dimension, not its size. Scaling that by "make
   // Y equal 4" tried to stretch a few centimetres of thickness up to 4 units, and dragged X and Z (a uniform
   // scale) out to over a hundred — a slab far bigger than the room, thick enough to read as a low ceiling
-  // (build 83's "ceiling under a carpet"). This fits by X (the model's long edge) instead.
-  function loadThronePropW(name,targetW,cb){ fetchBytes(ASSET(name),'soon').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
-      const root=gltf.scene||gltf.scenes[0]; root.updateMatrixWorld(true);
-      const box=new THREE.Box3().setFromObject(root), size=box.getSize(new THREE.Vector3());
-      const sc=targetW/Math.max(size.x,1e-6), cx=(box.min.x+box.max.x)/2, cz=(box.min.z+box.max.z)/2;
-      const inner=new THREE.Group(); inner.add(root); inner.scale.setScalar(sc); inner.position.set(-cx*sc,-box.min.y*sc,-cz*sc);
-      const wrap=new THREE.Group(); wrap.add(inner); toonify(root,sc); purpleGlow(root); cb(wrap);
-    }catch(e){ console.warn('throne decor '+name,e); } },e=>console.warn('throne decor '+name,e))).catch(e=>console.warn('throne decor '+name,e)); }
+  // (build 83's "ceiling under a carpet"). byW fits by X (the model's long edge) instead (loadThronePropW).
+  function protoOf(name,size,byW){ const key=name+'|'+size+(byW?'|w':''); return PROTO[key]||(PROTO[key]=fetchBytes(ASSET(name),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
+      const root=gltf.scene||gltf.scenes[0]; let wrap;
+      if(byW){ root.updateMatrixWorld(true);
+        const box=new THREE.Box3().setFromObject(root), sz=box.getSize(new THREE.Vector3());
+        const sc=size/Math.max(sz.x,1e-6), cx=(box.min.x+box.max.x)/2, cz=(box.min.z+box.max.z)/2;
+        const inner=new THREE.Group(); inner.add(root); inner.scale.setScalar(sc); inner.position.set(-cx*sc,-box.min.y*sc,-cz*sc);
+        wrap=new THREE.Group(); wrap.add(inner); toonify(root,sc); }
+      else { const fit=fitModel(root,size); toonify(root,fit.scale); wrap=fit.wrap; }
+      purpleGlow(root); res(wrap);
+    }catch(e){ rej(e); } },rej)))); }
+  const useProp=(name,size,byW,cb)=>protoOf(name,size,byW).then(p=>{ USED[name]=(USED[name]||0)+1; cb(p.clone()); }).catch(e=>console.warn('throne decor '+name,e));
+  function loadThroneProp(name,targetH,cb){ useProp(name,targetH,false,cb); }
+  function loadThronePropW(name,targetW,cb){ useProp(name,targetW,true,cb); }
   const place=(wrap,x,y,z,yaw)=>{ wrap.position.set(x,y,z); if(yaw) wrap.rotation.y=yaw; world.add(wrap); };
   // a thin collision box under a railing piece, so the hero can't just walk through it and off the drop it marks —
   // RAILBOXES (game.js) is otherwise empty on every map, so this only ever matters here. alongZ: true for a piece
@@ -82,16 +93,19 @@ if(MAP.throne){
   // units clear of it, which just reads as two separate things with a gap between them. The stone arch's own
   // posts sit at local z -1.4..-0.8 (the alcove side); +.4 puts the door just past their near face, still inside
   // the frame, decorated face turned to meet a hero walking up from the hall.
-  Object.entries(LANES).forEach(([k,l])=>{ loadThroneProp('throne-door.glb',3.6,wrap=>{
+  // "yes pare down the doors": the door is the slim copy map one already stands in its archways (hall-door.glb, the same
+  // model with its three 2048 px textures cut to 1024: 0.7 MB instead of 7.6), one fetch cloned for all four gates. One
+  // file for both maps also means a host that caches lets map two reuse the door map one already brought down.
+  const DOORS=[];
+  Object.entries(LANES).forEach(([k,l])=>{ loadThroneProp('hall-door.glb',3.6,wrap=>{
     const y=hgt[idx(l.cx,l.cz)]||0, fx=Math.sin(l.face), fz=Math.cos(l.face);
-    place(wrap,cw(l.cx)+fx*.4,y,cwz(l.cz)+fz*.4,l.face); }); });
+    place(wrap,cw(l.cx)+fx*.4,y,cwz(l.cz)+fz*.4,l.face); wrap.userData.throneDoor=k; DOORS.push({lane:k,model:'hall-door.glb',x:+wrap.position.x.toFixed(2),y,z:+wrap.position.z.toFixed(2),face:l.face}); }); });
   // the real hanging chandeliers, replacing the procedural gold rings at the same ceiling spots
   (world.userData.chandelierProcs||[]).forEach(ch=>{ ch.visible=false; });
   MAP.chandeliers.forEach(([chx,chz])=>loadThroneProp('chandelier.glb',3.2,wrap=>{ place(wrap,chx,13.8,chz,0);
     const l=new THREE.PointLight(C(0xffb05a),2.75,14,2); l.position.set(0,1,0); wrap.add(l); }));
-  // the real runed pillars, replacing the procedural stone columns at the same ten spots. One fetch, cloned per spot
-  // (unlike the chandeliers above — only 3 of those, but 10 of these, so it's worth not re-fetching the model ten
-  // times). Target height matches the procedural ones exactly: PH (the shaft) + the base/capital's own 1 unit.
+  // the real runed pillars, replacing the procedural stone columns at the same ten spots, one clone per spot.
+  // Target height matches the procedural ones exactly: PH (the shaft) + the base/capital's own 1 unit.
   (world.userData.pillarProcs||[]).forEach(p=>{ p.visible=false; });
   { const PH=MAP.pillarH||6; loadThroneProp('throne-pillar.glb',PH+1,wrap=>{
       MAP.pillars.forEach(([px,pz])=>{ const t=wrap.clone(); t.position.set(cw(px),hgt[idx(px,pz)]||0,cwz(pz)); world.add(t); }); }); }
@@ -215,6 +229,8 @@ if(MAP.throne){
   // the three landings each have a front walk the full width of the hall, where the two side flights and the
   // middle one all meet; the rug's long axis (local X) already runs that way at yaw 0, no rotation needed.
   [15,22,29].forEach(lz=>loadThronePropW('throne-rug.glb',8.0,wrap=>place(wrap,tx0,hgt[idx(tx,lz)]+.03,cwz(lz),0)));
+  // test hook: the doors as placed, and per model how many placements it served (each from one fetch)
+  window.__thronedecor={doors:()=>DOORS.slice(),used:()=>Object.assign({},USED),protos:()=>Object.keys(PROTO)};
   /* the ambient stained-glass windows tiled around the hall — pulled out with the pair behind the throne, same
      re-figuring-placement reason. The wall panel motif right above stays on, so the bare wall is still visible.
   loadThroneProp('throne-window.glb',4.2,wrap=>{
