@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="20">
+<meta name="hideout-build" content="21">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -223,7 +223,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 20;
+const HIDEOUT_BUILD = 21;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -1012,11 +1012,12 @@ function findPiece(key) { return allPieces().find(p => p.key === key) || null; }
 let selectedDropGearId = null, dropGhost = null, dropGhostId = null, dropGhostRy = 0;
 const worldGear = new Map(); // shared-drop id -> {group, hit, data, piece}
 
-function makeGearStandGroup(piece, translucent, compact) {
-  // compact = sitting in a holder's slot (shelf, tabletop, pedestal): just the icon, no stand, low enough to fit under the next shelf
+function makeGearStandGroup(piece, translucent, size) {
+  // size = sitting on a holder's spot (shelf, tabletop, pedestal, hook): just the icon, as big as the spot's room allows,
+  // no stand. null = standing on the floor on its own little plinth.
   const g = new THREE.Group();
   const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: iconTexture2(piece.icon) }));
-  if (compact) { spr.position.y = 0.17; spr.scale.set(0.38, 0.38, 1); } // the art has a little transparent margin, so this rests it on the board
+  if (size) { spr.position.y = size * 0.45; spr.scale.set(size, size, 1); } // the art has a little transparent margin, so this rests it on the surface
   else {
     const stand = box(0.5, 0.9, 0.5, new THREE.Color(piece.color).multiplyScalar(0.55).getHex());
     if (translucent) { stand.material.transparent = true; stand.material.opacity = 0.5; }
@@ -1067,7 +1068,7 @@ function knockOutWhite(img) {
   return cv;
 }
 
-let dropSnap = null, dropGhostCompact = false, dropGhostPiece = null;
+let dropSnap = null, dropGhostSize = null, dropGhostPiece = null;
 function updateDropGhost() {
   const canPlace = active && selectedDropGearId && !isAnyPanelOpen();
   if (!canPlace) {
@@ -1078,8 +1079,8 @@ function updateDropGhost() {
     const piece = findPiece(selectedDropGearId);
     if (!piece) { selectedDropGearId = null; if (dropGhost) { scene.remove(dropGhost); dropGhost = null; dropGhostId = null; } return; }
     if (dropGhost) scene.remove(dropGhost);
-    dropGhostPiece = piece; dropGhostCompact = false;
-    dropGhost = makeGearStandGroup(piece, true, false);
+    dropGhostPiece = piece; dropGhostSize = null;
+    dropGhost = makeGearStandGroup(piece, true, null);
     scene.add(dropGhost);
     dropGhostId = selectedDropGearId;
     dropGhostRy = 0;
@@ -1089,12 +1090,12 @@ function updateDropGhost() {
   const ahead = new THREE.Vector3(camera.position.x + flat.x*dist, GROUND_Y, camera.position.z + flat.z*dist);
   // aiming at a free spot on furniture (shelf, tabletop, pedestal) pulls the ghost onto it
   dropSnap = aimedFreeSlot();
-  const compact = !!dropSnap;
-  if (compact !== dropGhostCompact) {
+  const size = dropSnap ? dropSnap.pos.size : null;
+  if (size !== dropGhostSize) {
     scene.remove(dropGhost);
-    dropGhost = makeGearStandGroup(dropGhostPiece, true, compact);
+    dropGhost = makeGearStandGroup(dropGhostPiece, true, size);
     scene.add(dropGhost);
-    dropGhostCompact = compact;
+    dropGhostSize = size;
   }
   if (dropSnap) { dropGhost.position.copy(dropSnap.pos); dropGhost.rotation.y = dropSnap.ry; }
   else { dropGhost.rotation.y = dropGhostRy; dropGhost.position.copy(ahead); }
@@ -1132,27 +1133,27 @@ async function commitDropPlacement() {
   }
 }
 
-function buildWorldGearVisual(item, piece, compact) {
-  const group = makeGearStandGroup(piece, false, compact);
+function buildWorldGearVisual(item, piece, size) {
+  const group = makeGearStandGroup(piece, false, size);
   group.position.set(item.x, item.y, item.z);
   group.rotation.y = item.ry || 0;
-  if (!compact) { // on a shelf the label would poke through the board above; the look-at prompt names it instead
+  if (!size) { // on a spot the label would poke through the board above; the look-at prompt names it instead
     const label = labelSprite(piece.label, piece.color);
     label.position.set(0, 1.35, 0); label.scale.set(1.7, 0.42, 1);
     group.add(label);
   }
   scene.add(group);
-  const hit = new THREE.Mesh(compact ? new THREE.BoxGeometry(0.45, 0.42, 0.45) : new THREE.BoxGeometry(0.9, 1.7, 0.9), new THREE.MeshBasicMaterial({ visible: false }));
-  hit.position.set(item.x, item.y + (compact ? 0.21 : 0.85), item.z);
+  const hit = new THREE.Mesh(size ? new THREE.BoxGeometry(size * 1.1, size, size * 1.1) : new THREE.BoxGeometry(0.9, 1.7, 0.9), new THREE.MeshBasicMaterial({ visible: false }));
+  hit.position.set(item.x, item.y + (size ? size / 2 : 0.85), item.z);
   scene.add(hit);
   return { group, hit };
 }
 function spawnWorldGear(item) {
   if (worldGear.has(item.id)) return;
   const piece = pieceFromShared(item);
-  const compact = isOnAnySlot(item);
-  const { group, hit } = buildWorldGearVisual(item, piece, compact);
-  worldGear.set(item.id, { group, hit, data: item, piece, compact });
+  const slot = slotAt(item), size = slot ? slot.size : null;
+  const { group, hit } = buildWorldGearVisual(item, piece, size);
+  worldGear.set(item.id, { group, hit, data: item, piece, size });
   pickupables.push({ isSharedGear: true, dropId: item.id, pickHit: hit });
 }
 function removeWorldGear(id) {
@@ -1461,30 +1462,32 @@ function updateArcaneFx(dt, now) {
 // model: each level, flat-topped surface with headroom above it becomes one or more spots, so a shelf gets two per
 // board, a table gets three across the top, a pedestal gets one.
 const HOLDER_ITEMS = new Set(['bookshelf_empty', 'display_pedestal', 'table_stools', 'carousel_stand', 'horizontal_rack', 'vertical_rack', 'small_table']);   // the racks: whatever flat rests detectSlots finds on them
-const SLOT_HEADROOM = 0.42; // world units of clear space a spot needs — the on-furniture icon stands 0.39 tall
+const SLOT_HEADROOM = 0.42; // world units of clear space a spot needs at the least
+const ICON_MIN = 0.3, ICON_MAX = 0.95; // world size of gear shown on a spot: as big as its room allows, within these
 const slotCache = {}; // gid -> [Vector3] in the model's own (raw, unrotated) space, so they survive any placement
 function detectSlots(tmpl, minGap, margin) { // both in the model's raw units; margin = room needed either side of a spot
   tmpl.updateMatrixWorld(true);
   const bb = new THREE.Box3().setFromObject(tmpl), s = bb.getSize(new THREE.Vector3()), c = bb.getCenter(new THREE.Vector3());
   const rc = new THREE.Raycaster();
   // every surface a downward ray meets at this x, top to bottom; a flat one with minGap of clear space above it
-  // (measured to the previous hit of ANY kind — the underside of the board above, a crown, a trophy already there) is usable
+  // (measured to the previous hit of ANY kind — the underside of the board above, a crown, a trophy already there) is
+  // usable, and that clear space is remembered as the spot's headroom (Infinity for an open top)
   const usableAt = (x) => {
     rc.set(new THREE.Vector3(x, bb.max.y + 1, c.z), new THREE.Vector3(0, -1, 0));
     const out = []; let above = Infinity;
     for (const h of rc.intersectObject(tmpl, true)) {
       const y = h.point.y;
       const flat = h.face && h.face.normal.clone().transformDirection(h.object.matrixWorld).y > 0.8;
-      if (flat && y > bb.min.y + s.y * 0.15 && above - y >= minGap && !out.some(o => Math.abs(o - y) < 0.02)) out.push(y);
+      if (flat && y > bb.min.y + s.y * 0.15 && above - y >= minGap && !out.some(o => Math.abs(o.y - y) < 0.02)) out.push({ y, room: above - y });
       if (above - y > 0.005) above = y;
     }
     return out;
   };
   // the centre line defines the levels; a lone level low down is a base ring, not a shelf
-  let levels = usableAt(c.x);
+  let levels = usableAt(c.x).map(o => o.y);
   if (levels.length < 3) levels = levels.filter(y => y > bb.min.y + s.y * 0.4);
   const xs = s.x < 0.6 ? [c.x] : s.x < 1.4 ? [c.x - s.x * 0.22, c.x + s.x * 0.22] : [c.x - s.x * 0.28, c.x, c.x + s.x * 0.28];
-  const has = (x, level) => usableAt(x).some(y => Math.abs(y - level) < 0.04);
+  const at = (x, level) => usableAt(x).find(o => Math.abs(o.y - level) < 0.04);
   const slots = [];
   for (const level of levels) for (const x0 of xs) {
     // the spot needs the same surface a little to either side, so an icon never hangs off an edge;
@@ -1492,12 +1495,24 @@ function detectSlots(tmpl, minGap, margin) { // both in the model's raw units; m
     const inward = Math.sign(c.x - x0);
     for (let k = 0; k < 3; k++) {
       const x = x0 + inward * k * margin * 0.6;
-      if (!(has(x, level) && has(x - margin, level) && has(x + margin, level))) continue;
-      if (!slots.some(p => Math.abs(p.y - level - 0.01) < 0.04 && Math.abs(p.x - x) < margin * 2.2)) slots.push(new THREE.Vector3(x, level + 0.01, c.z));
+      const here = at(x, level);
+      if (!(here && at(x - margin, level) && at(x + margin, level))) continue;
+      if (!slots.some(p => Math.abs(p.y - level - 0.01) < 0.04 && Math.abs(p.x - x) < margin * 2.2)) {
+        const v = new THREE.Vector3(x, level + 0.01, c.z);
+        v.room = here.room;
+        slots.push(v);
+      }
       break;
     }
   }
+  // how far each spot is from its nearest neighbour on the same level, so side-by-side icons never overlap
+  for (const v of slots) v.span = Math.min(Infinity, ...slots.filter(o => o !== v && Math.abs(o.y - v.y) < 0.04).map(o => Math.abs(o.x - v.x)));
   return slots;
+}
+// the world size of the icon a spot can show: what fits under whatever is above it and beside its neighbour
+function slotSizeWorld(v, scale) {
+  if (v.fixed) return v.fixed;
+  return Math.max(ICON_MIN, Math.min(ICON_MAX, v.room * scale - 0.06, v.span * scale * 0.92));
 }
 // Stands with hooks instead of shelves (no flat rest for detectSlots to find): gear hangs just under each arm tip.
 // Tips measured from the model's own vertices, in raw model units (x, y, z).
@@ -1505,16 +1520,22 @@ const HOOK_POINTS = {
   carousel_stand: [[0.28, 0.87, 0.62], [-0.27, 0.83, 0.62], [-0.27, 0.83, -0.62], [0.28, 0.91, -0.62],
                    [0.32, 1.42, 0.58], [-0.32, 1.51, 0.58], [-0.32, 1.51, -0.58], [0.31, 1.43, -0.59]],
 };
-const HOOK_DROP = 0.44; // world units from a tip down to the bottom of the hanging icon, so its top sits at the hook
+const HOOK_ICON = 0.5; // world size of gear hanging from a hook
 function slotsFor(gid) {
   if (slotCache[gid]) return Promise.resolve(slotCache[gid]);
-  if (HOOK_POINTS[gid]) return Promise.resolve(slotCache[gid] = HOOK_POINTS[gid].map(([x, y, z]) => new THREE.Vector3(x, y - HOOK_DROP / scaleFor(gid), z)));
+  if (HOOK_POINTS[gid]) return Promise.resolve(slotCache[gid] = HOOK_POINTS[gid].map(([x, y, z]) => {
+    // the spot is the bottom of the hanging icon, so its top sits just under the arm tip
+    const v = new THREE.Vector3(x, y - (HOOK_ICON + 0.04) / scaleFor(gid), z);
+    v.fixed = HOOK_ICON;
+    return v;
+  }));
   return sourceFor(gid).then(tmpl => (slotCache[gid] = detectSlots(tmpl, SLOT_HEADROOM / scaleFor(gid), 0.2 / scaleFor(gid))));
 }
+// a holder's spots in the room, each carrying .size — the world size of icon it shows
 function holderSlotsWorld(entry) {
   if (!entry.obj || !entry.slots) return [];
   entry.obj.updateMatrixWorld(true);
-  return entry.slots.map(v => entry.obj.localToWorld(v.clone()));
+  return entry.slots.map(v => { const w = entry.obj.localToWorld(v.clone()); w.size = slotSizeWorld(v, entry.obj.scale.x); return w; });
 }
 function slotOccupied(p) {
   for (const w of worldGear.values()) if (Math.hypot(w.data.x - p.x, w.data.y - p.y, w.data.z - p.z) < 0.15) return true;
@@ -1529,7 +1550,7 @@ function aimedFreeSlot() {
     if (!entry.slots) continue;
     for (const p of holderSlotsWorld(entry)) {
       if (slotOccupied(p)) continue;
-      const v = p.clone().add(new THREE.Vector3(0, 0.2, 0)).sub(o); // aim at where the icon will sit, not the board itself
+      const v = p.clone().add(new THREE.Vector3(0, p.size * 0.45, 0)).sub(o); // aim at where the icon will sit, not the board itself
       const t = v.dot(d);
       if (t < 0.4 || t > 5) continue;
       const off = v.addScaledVector(d, -t).length();
@@ -1538,21 +1559,24 @@ function aimedFreeSlot() {
   }
   return best;
 }
-function isOnAnySlot(item) {
+// the spot a displayed item sits on (with its .size), or null if it stands on the floor
+function slotAt(item) {
   const p = new THREE.Vector3(item.x, item.y, item.z);
   for (const entry of pickupables) {
-    if (entry.slots && holderSlotsWorld(entry).some(s => s.distanceTo(p) < 0.15)) return true;
+    if (!entry.slots) continue;
+    const s = holderSlotsWorld(entry).find(s => s.distanceTo(p) < 0.15);
+    if (s) return s;
   }
-  return false;
+  return null;
 }
-// when a holder finishes loading, gear already sitting on its spots (it may have arrived first) swaps to the compact look
+// when a holder finishes loading, gear already sitting on its spots (it may have arrived first) re-sizes to fit the spot
 function restyleGearOnHolder() {
   for (const [id, w] of worldGear) {
-    const compact = isOnAnySlot(w.data);
-    if (compact === w.compact) continue;
+    const slot = slotAt(w.data), size = slot ? slot.size : null;
+    if (size === w.size) continue;
     scene.remove(w.group); scene.remove(w.hit);
-    const built = buildWorldGearVisual(w.data, w.piece, compact);
-    w.group = built.group; w.hit = built.hit; w.compact = compact;
+    const built = buildWorldGearVisual(w.data, w.piece, size);
+    w.group = built.group; w.hit = built.hit; w.size = size;
     const pi = pickupables.findIndex(p => p.dropId === id);
     if (pi >= 0) pickupables[pi].pickHit = built.hit;
   }
