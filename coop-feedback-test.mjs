@@ -115,10 +115,19 @@ async function tickBoth(hostPage,guestPage,batches=6,size=5){
     return d.S.phase; },totalWaves);
   check("the last wave clearing for real calls the genuine winMap() -- host's own phase becomes 'won'",hostPhase==='won',hostPhase);
 
-  for(let i=0;i<6;i++){ await hostPage.evaluate(()=>window.__dd.step(1/60,1)); await guestPage.evaluate(()=>window.__dd.step(1/60,1)); }
-  await new Promise(r=>setTimeout(r,150));
-
-  const guestPhase=await guestPage.evaluate(()=>window.__dd.S.phase);
+  // the whole wave-clear above ran inside ONE synchronous evaluate() call, unlike every other tick loop in this
+  // suite -- zero yields back to the browser's own event loop between steps, so every message the host queued
+  // during it (heroes/world/enemies/defs/pickups, all real 10Hz broadcasts now, phase 12 having added one more
+  // channel to that list) only gets a chance to actually flush once the call returns. A fixed short wait after
+  // was fine for phase 11's smaller message volume but is exactly the kind of guessed-delay race this session has
+  // hit before (join timeouts, hero-swap settling) -- polling for the real state instead doesn't need to know why
+  // the backlog takes as long as it does, just that it eventually clears.
+  let guestPhase=null;
+  for(let i=0;i<60&&guestPhase!=='won';i++){
+    await hostPage.evaluate(()=>window.__dd.step(1/60,1)); await guestPage.evaluate(()=>window.__dd.step(1/60,1));
+    await new Promise(r=>setTimeout(r,20));
+    guestPhase=await guestPage.evaluate(()=>window.__dd.S.phase);
+  }
   check("the guest's own S.phase moves to 'won' too",guestPhase==='won',guestPhase);
   const guestTitle=await guestPage.evaluate(()=>document.getElementById('deadh1').textContent);
   check("titled HALL HELD for a guest's win, not SHATTERED",guestTitle==='HALL HELD',guestTitle);

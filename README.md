@@ -548,14 +548,38 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   code's format, the collision retry (and that it gives up after a bounded number of tries rather than looping
   forever), the timeout message itself, and the late-success path, all via mocking `window.__net.host`/`.join`
   rather than needing a real, deliberately-broken network to reproduce a hang on demand.
-- Co-op, still open: loot never reaches a guest at all — a real player playtest caught this too ("i joined him and
-  never saw any loot drop"). `hostBroadcastHeroes/World/Enemies/Defs` (99-network.js) cover every other shared-hall
-  system, but there's no loot channel; a guest's own local `loot` array (game.js) only ever fills from THEIR OWN
-  local combat, which in co-op never happens, so it stays permanently empty. Bigger than the hit-feedback fix this
-  resembles at first glance: loot isn't just something to render as a puppet, a guest needs to actually be able to
-  collect it into THEIR OWN persistent bag (the whole reason per-player gear was worth building in the first place,
-  phase 8) — needs its own pickup-request/grant round trip, not just a read-only sync. Scoped as follow-up work, not
-  yet started.
+- Co-op, phase 12: loot and mana orbs are now real for a guest, and mana is per-player. Two real-play asks landed
+  together here because orb pickup is exactly where a guest's own mana pool gets earned into. "i joined him and never
+  saw any loot drop" shared its exact root cause with the phase-11 hit-feedback bug: `kill(e)` (game.js) spawns both
+  loot and orbs into the host's own arrays, and `updateLoot`/`updateOrbs` only ever check proximity against the LOCAL
+  `hero`, so a guest's own always-empty arrays never grow. `hostBroadcastPickups` (99-network.js) now syncs both as
+  puppets (`LOOTPUP`/`ORBPUP`, same roster-diff pattern as mobs/defs), and — the part puppets alone couldn't cover —
+  `guestPickupTick` sends a pickup request the instant the guest's own hero is close enough; the host validates the
+  item still exists (first-come-first-served, someone else may have got it), removes it for real, and grants it back
+  to that guest specifically. Loot turned out simpler than first designed: `Meta.onPickup(it,pos)` (10-meta.js) is
+  ALREADY the complete real pickup flow (bag it, or auto-sell for gold if full) and always returns true for a valid
+  item — the equip-or-sell-for-mana fallback `pickup()` itself falls through to is dead code in the real game, never
+  reached — so `guestApplyLoot` just calls `Meta.onPickup` directly, scoped to the guest's own bag/gold for free.
+  Then "mana seems to be shared, we need to change that — split into separate pools per player": each guest gets a
+  `guestMana` entry seeded at `MAP.mana||260` (the exact fallback `S`'s own init already uses — the default 'hall'
+  map never sets `MAP.mana`, a real bug the new test caught immediately when the pool came back `undefined`), earned
+  into by orb pickups (value scaled by THAT guest's own reported mana stat, now riding the 15Hz `input` payload) and
+  the wave-held bonus (`Meta.onWaveHeld` wrapped to credit every connected pool the same `50+10*wave`, host-only by
+  construction since a guest's own `S.phase` never reaches 'wave'). Spending needed no game.js changes at all:
+  `hostTryPlaceDef`/`hostDefAction` temporarily point the shared `S.mana` binding at the acting guest's own pool for
+  the duration of each synchronous call and read it back after, so `placeDefAt`/`repair`/`upgradeDef`/`sell`'s own
+  real cost formulas and messaging land on the right pool untouched. `hostBroadcastWorld` gains `manas` (every
+  player's own pool by peer id; the old `mana` field keeps its host's-own meaning) and the guest's `Meta.hud` reads
+  its own entry for both the number and the hotbar affordability styling. DU stays hall-wide on purpose — a
+  structural cap on the hall, not a personal resource. Gold/xp for a wave-held are still host-only (10-meta.js's own
+  `onWaveHeld`), a separate gap deliberately not widened into here. `coop-pickups-test.mjs` (21/21) drives all of it
+  through real physics — an enemy killed for real, orbs and a dropped item settling for real, the guest actually
+  walking to where each landed — and proves the pools are genuinely independent both ways (the host's own mana
+  boosted to 50k changes nothing for the guest; the guest's own spend never touches the host's). Three older suites
+  needed their stale shared-mana assertions updated to match (`coop-defplace-test.mjs`), and one guessed-delay race
+  in `coop-feedback-test.mjs` surfaced once a fifth broadcast channel joined the others — its section 3 runs an
+  entire wave-clear inside ONE synchronous `evaluate()` with no yields, so every queued message only flushes once it
+  returns; now polls for the real state instead.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

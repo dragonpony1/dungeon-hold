@@ -75,6 +75,25 @@
 // just never told a guest's own GAME. guestShowRunEnd reuses the same #dead overlay finishDeath()/winMap() already
 // show solo, retitled for a guest (never Meta.onRunEnd -- that's the single-player reward/campaign-progress hook,
 // scored off THIS client's own wave/gear, not something the host's outcome should trigger for a guest at all).
+// Phase 12: loot and mana orbs are real for a guest now, and mana is per-player. Both of a real playtest's asks
+// landed together since orb pickup is exactly where a guest's own pool gets earned into. "never saw any loot drop"
+// shared its exact root cause with phase 11's hit-feedback bug: kill(e) (game.js) spawns both into the host's own
+// arrays and updateLoot/updateOrbs only ever check the LOCAL hero, so a guest's own always-empty arrays never grow.
+// hostBroadcastPickups syncs both as puppets (LOOTPUP/ORBPUP, the same roster-diff pattern as mobs/defs), and
+// guestPickupTick/hostGuestPickupLoot/Orb add the part puppets alone can't: a real pickup request the instant the
+// guest's own hero is close, validated and removed for real on the host (first-come-first-served), granted back to
+// that guest specifically. Loot is simpler than first designed -- Meta.onPickup(it,pos) (10-meta.js) is ALREADY the
+// complete real pickup flow and always returns true, the equip-or-sell-for-MANA fallback pickup() falls through to
+// is dead code in the real game -- so guestApplyLoot just calls it directly, scoped to the guest's own bag for free.
+// Then "split mana into separate pools per player": guestMana, seeded at MAP.mana||260 (S's own exact fallback --
+// the default 'hall' map never sets MAP.mana at all, a real bug coop-pickups-test.mjs caught the moment the pool
+// came back undefined), earned into by orb pickups (scaled by THAT guest's own mana stat, now on the 15Hz input
+// payload) and the wave-held bonus (Meta.onWaveHeld wrapped, host-only by construction). Spending needed no game.js
+// change: hostTryPlaceDef/hostDefAction point the shared S.mana binding at the acting guest's own pool for the
+// duration of each synchronous call and read it back after, so the real cost formulas land on the right pool
+// untouched. hostBroadcastWorld gains `manas` (everyone's own pool by peer id; `mana` keeps its host's-own meaning),
+// and a guest's Meta.hud reads its own entry. DU stays hall-wide on purpose. Gold/xp for a wave-held are still
+// host-only (10-meta.js's own onWaveHeld) -- a separate gap, deliberately not widened into here.
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -198,11 +217,25 @@ function heroLabel(pick){ const h=window.__heroes.list().find(h=>h.id===pick); r
 const guestIn=new Map();     // id -> latest {w,s,a,d,shift,yaw,pick}
 const guestHero=new Map();   // id -> {x,y,z,yaw,hp,max,hurtT,dead} the host moves each tick from guestIn, same collision rules as the real hero
 const GUEST_MAX_HP=100, GUEST_REACH=2.4, GUEST_DMG=8;   // hero's own unequipped defaults/fallbacks (game.js: hero={hp:100,max:100,reach:2.4}, heroDmg()'s own base is 8) -- GUEST_MAX_HP now doubles as applyGear()'s own "100" base for the gear-scaled max below; REACH/DMG only matter if a 'swing' somehow arrives without them
+// each guest gets their OWN mana pool, seeded at the same MAP.mana baseline the hall itself started with -- not a
+// share of the host's own S.mana, which stays exactly what it always was, the HOST's own pool. See the phase-12
+// header comment (top of file) for why this replaced a single shared S.mana for defense costs.
+const guestMana=new Map();   // id -> number
+const MAP_MANA=MAP.mana||260;   // the exact fallback S's own init (game.js: const S={mana:MAP.mana||260,...}) already uses -- some maps (the default 'hall' among them) never set their own MAP.mana at all
+// the wave-held bonus (updateWave, game.js) only ever credits S.mana -- and, same as gold/xp (10-meta.js's own
+// onWaveHeld, a separate, still-host-only gap not fixed here), only the HOST ever sees it, since a guest's own
+// local S.phase never reaches 'wave' at all (startWave() is blocked for them below). Meta.onWaveHeld(effWave())
+// is the one clean hook already firing at that exact moment -- host-only, by construction, so no role check would
+// even be needed, but kept for clarity -- reused here to credit every connected guest's own pool with the same
+// bonus their real teammate defending alongside them just earned, using the identical 50+10*wave formula.
+{ const origOnWaveHeld=Meta.onWaveHeld;
+  Meta.onWaveHeld=w=>{ origOnWaveHeld(w);
+    if(role==='host'){ const bonus=50+10*w; guestMana.forEach((v,id)=>guestMana.set(id,Math.round((v+bonus)*10)/10)); } }; }
 function guestInputTick(dt){
   if(role!=='host') return;
   guestIn.forEach((inp,id)=>{
     let g=guestHero.get(id);
-    if(!g){ const ox=guestHero.size*1.5; g={x:ox,y:0,z:6,yaw:0,hp:GUEST_MAX_HP,max:GUEST_MAX_HP,hurtT:0,dead:0,spawnX:ox}; guestHero.set(id,g); }
+    if(!g){ const ox=guestHero.size*1.5; g={x:ox,y:0,z:6,yaw:0,hp:GUEST_MAX_HP,max:GUEST_MAX_HP,hurtT:0,dead:0,spawnX:ox}; guestHero.set(id,g); guestMana.set(id,MAP_MANA); }
     const s=guestStats.get(id);
     // gear-scaled max hp, delta-preserving on increase -- the same pattern applyGear() (game.js) uses for the real hero
     const newMax=Math.round((GUEST_MAX_HP+(s?s.stat.hp:0))*(s?s.mult.hp:1));
@@ -241,7 +274,8 @@ function hurtGuestHero(id,dmg){
 // health bar, hurt flash/SFX, death toast and movement-freeze-on-death all read the LOCAL hero (game.js), and that
 // local hero's own enemies array stays empty (a guest can't start a wave), so hurtHero() never fires through real
 // local gameplay -- targeted (toId) rather than broadcast, since nobody else needs to know a guest's own raw hp
-window.__combat={ guestHero:id=>{ const g=guestHero.get(id); return g?{x:+g.x.toFixed(2),z:+g.z.toFixed(2),hp:g.hp,max:g.max,dead:g.dead}:null; } };   // guestHero itself is this module's own private state (not re-exposed anywhere else, deliberately -- other modules reach it only through Meta.heroes()); this is purely a test hook
+window.__combat={ guestHero:id=>{ const g=guestHero.get(id); return g?{x:+g.x.toFixed(2),z:+g.z.toFixed(2),hp:g.hp,max:g.max,dead:g.dead}:null; },
+  guestMana:id=>guestMana.has(id)?guestMana.get(id):null };   // guestHero/guestMana are this module's own private state (not re-exposed anywhere else, deliberately -- other modules reach them only through Meta.heroes()/hostTryPlaceDef etc.); this object is purely a test hook
 // co-op combat, part 1: enemies can now notice and damage a guest's hero, not just the host's own -- Meta.heroes()
 // (game.js) is the hook updateEnemies/landHit read every tick; each entry closes over a live guestHero record, so
 // isDead()/hurt() always reflect the CURRENT state at the moment an attack actually lands, not a stale snapshot
@@ -378,8 +412,8 @@ function guestSendInput(dt){
   if(role!=='guest') return;
   syncTIn+=dt; if(syncTIn<1/15) return; syncTIn=0;
   send('input',{w:K.w?1:0,s:K.s?1:0,a:K.a?1:0,d:K.d?1:0,shift:K.shift?1:0,yaw:+cam.yaw.toFixed(3),pick:window.__heroes.pick(),
-    stat:{tow:heroStat('tow'),trate:heroStat('trate'),tarea:heroStat('tarea'),move:heroStat('move'),def:heroStat('def'),hp:heroStat('hp'),regen:heroStat('regen')},
-    mult:{tow:heroMult('tow'),tcd:heroMult('tcd'),aoe:heroMult('aoe'),move:heroMult('move'),hp:heroMult('hp')}});
+    stat:{tow:heroStat('tow'),trate:heroStat('trate'),tarea:heroStat('tarea'),move:heroStat('move'),def:heroStat('def'),hp:heroStat('hp'),regen:heroStat('regen'),mana:heroStat('mana')},
+    mult:{tow:heroMult('tow'),tcd:heroMult('tcd'),aoe:heroMult('aoe'),move:heroMult('move'),hp:heroMult('hp'),mana:heroMult('mana')}});
 }
 
 // ---- phase 5: the host's real crystal/wave state, so a guest is helping defend ONE hall rather than tracking a
@@ -393,7 +427,12 @@ let syncTW=0;
 function hostBroadcastWorld(dt){
   if(role!=='host'||!conns.size) return;
   syncTW+=dt; if(syncTW<1/10) return; syncTW=0;   // crystal/wave state changes slowly; 10Hz is plenty
-  send('world',{crystal:S.crystal,crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,waveTotal:MAP.waves,mapName:MAP.name,mana:S.mana,du:S.du,duCap:DU_CAP});
+  // manas: phase 12 -- every connected player's OWN mana pool, keyed by peer id (mana is spent, and its display,
+  // is per-player now; du/duCap below stay hall-wide on purpose, a structural cap on the hall itself, not a
+  // personal resource). mana:S.mana stays too, unchanged meaning (the HOST's own pool) -- nothing else reads it
+  // differently than before, so no existing caller (tests included) needed to change.
+  const manas={}; manas[peer.id]=S.mana; guestMana.forEach((v,id)=>{ manas[id]=v; });
+  send('world',{crystal:S.crystal,crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,waveTotal:MAP.waves,mapName:MAP.name,mana:S.mana,manas,du:S.du,duCap:DU_CAP});
 }
 // a guest's own local S.phase never actually moves through 'deathcut'/'dead'/'won' -- only the HOST's real crystal
 // hitting 0, or its real last wave breaking, does that (hurtCrystal/winMap, game.js), and neither one so much as
@@ -439,10 +478,11 @@ onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded) guestShowRunEnd(da
     else if(w.phase==='build'){ $('wavet').textContent=w.wave?'HALL HELD — BUILD PHASE':'BUILD PHASE'; $('phaset').textContent='Only the host can start the next wave'; }
     else if(w.phase==='won'){ $('wavet').textContent='HALL HELD — '+w.mapName+' CLEARED'; $('phaset').textContent=''; }
     else if(w.phase==='dead'){ $('wavet').textContent='THE CRYSTAL FELL'; $('phaset').textContent=''; }
-    // the shared hall's real mana/roots, not this guest's own disconnected local numbers -- same source a
-    // guest's placement/repair/upgrade requests actually draw from (hostTryPlaceDef/hostDefAction below)
-    setT('mana',Math.floor(w.mana)); setT('du',w.du+'/'+w.duCap);
-    DEFKEYS.forEach(k=>{ const el=$('slot-'+k), cfg=DEFS[k]; const cls='slot'+(placing===k?' sel':'')+((w.mana<cfg.mana||w.du+cfg.du>w.duCap)?' poor':''); if(el.className!==cls) el.className=cls; }); } }; }
+    // this guest's OWN mana pool (phase 12 -- no longer the shared hall number), keyed out of w.manas by this
+    // client's own peer id; the hall's real roots/DU cap stay shared, a structural cap on the hall, not personal
+    const myMana=(w.manas&&window.__net.myId()in w.manas)?w.manas[window.__net.myId()]:0;
+    setT('mana',Math.floor(myMana)); setT('du',w.du+'/'+w.duCap);
+    DEFKEYS.forEach(k=>{ const el=$('slot-'+k), cfg=DEFS[k]; const cls='slot'+(placing===k?' sel':'')+((myMana<cfg.mana||w.du+cfg.du>w.duCap)?' poor':''); if(el.className!==cls) el.className=cls; }); } }; }
 
 // ---- phase 5, enemies slice: the host's real enemies, read-only puppets on every guest's screen. makeMob(kind) is
 // synchronous (MOBGLB is pre-fetched at page load, game.js) so a puppet can be built the instant it's first seen,
@@ -544,6 +584,10 @@ onMessage('defs',data=>{
     if(role==='guest'){ send('place',{kind,x:+x.toFixed(2),z:+z.toFixed(2),yaw:+rot.toFixed(3)}); return null; }
     return origPlaceDefAt(kind,x,z,rot);
   }; }
+// phase 12: mana cost checks/spends below read/write the shared S.mana binding -- but by the time this runs it's
+// been temporarily swapped to mean THIS guest's own pool (see the S.mana swap around the call site, same trick
+// hostDefAction below already uses), so placeDefAt's own internal S.mana-=cfg.mana (game.js) lands on the right
+// pool with zero changes to game.js itself.
 function hostTryPlaceDef(kind,x,z,yaw,fromId){
   if(role!=='host') return;
   const cfg=DEFS[kind]; if(!cfg) return;
@@ -560,10 +604,12 @@ function hostTryPlaceDef(kind,x,z,yaw,fromId){
   else if(cells.some(i=>defAt[i])) reason='Already occupied';
   else if(cells.includes(idx(wc(g.x),wcz(g.z)))||Math.hypot(x-g.x,z-g.z)<1.1) reason="You're standing there";   // the same self-overlap rule updateGhost (game.js) enforces locally, mirrored here against the guest's own HOST-tracked position
   else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units';
-  else if(S.mana<cfg.mana) reason='Not enough mana';
-  else if(enemies.some(e=>!e.dead&&Math.hypot(e.x-x,e.z-z)<2.2)) reason='Enemy too close';
-  if(reason){ send('toast',reason,fromId); return; }
+  const realMana=S.mana; S.mana=guestMana.has(fromId)?guestMana.get(fromId):MAP_MANA;
+  if(!reason&&S.mana<cfg.mana) reason='Not enough mana';
+  else if(!reason&&enemies.some(e=>!e.dead&&Math.hypot(e.x-x,e.z-z)<2.2)) reason='Enemy too close';
+  if(reason){ S.mana=realMana; send('toast',reason,fromId); return; }
   const d=placeDefAt(kind,x,z,yaw); if(d) d.ownerId=fromId;   // stat() (game.js) reads this via Meta.defOwnerStat/Mult so the defense keeps ITS PLACER's buffs, not the host's own
+  guestMana.set(fromId,S.mana); S.mana=realMana;
 }
 onMessage('place',(data,fromId)=>hostTryPlaceDef(data.kind,data.x,data.z,data.yaw,fromId));
 
@@ -591,22 +637,101 @@ function hostDefAction(data,fromId){
   const pos={x:g.x,z:g.z};
   const origToast=toast; let said=null;
   toast=msg=>{ said=msg; };
+  // repair/upgradeDef/sell (game.js) read/write the shared S.mana binding directly -- temporarily pointing it at
+  // THIS guest's own pool for the duration of this one synchronous call (same trick hostTryPlaceDef above uses)
+  // reuses their exact real cost formulas and success/failure messaging with no duplication and no game.js changes
+  const realMana=S.mana; S.mana=guestMana.has(fromId)?guestMana.get(fromId):MAP_MANA;
   const manaBefore=S.mana;
   try{
     if(data.action==='repair') repair(pos);
     else if(data.action==='upgrade') upgradeDef(pos);
     else if(data.action==='sell') sell(pos);
   } finally { toast=origToast; }
+  guestMana.set(fromId,S.mana); S.mana=realMana;
   // repair()/sell() (game.js) only give world-space floatText feedback on success, never a toast() call -- nothing
   // a remote guest's own client ever renders. A mana change with nothing captured means it silently worked, so
   // synthesize the confirmation a local click's floatText would have shown; upgradeDef already toasts its own
   // success text, so 'said' is already set for that case and this branch is only reached by repair/sell
   if(said) send('toast',said,fromId);
-  else if(S.mana!==manaBefore) send('toast',data.action==='sell'?'Sold':'Repaired',fromId);
+  else if(guestMana.get(fromId)!==manaBefore) send('toast',data.action==='sell'?'Sold':'Repaired',fromId);
 }
 onMessage('defAction',(data,fromId)=>hostDefAction(data,fromId));
 onMessage('toast',msg=>{ if(role==='guest') toast(msg); });
 
-onMessage('__leave',fromId=>{ window.__party.remove(fromId); guestIn.delete(fromId); guestHero.delete(fromId); guestStats.delete(fromId); [...MOBPUP.keys()].forEach(mobPuppetRemove); [...DEFPUP.keys()].forEach(defPuppetRemove); });   // guestStats gone -> Meta.defOwnerStat/Mult return undefined for whatever this guest placed -> stat() falls back to the host's own numbers, automatically
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); guestInputTick(dt); hostBroadcastHeroes(dt); hostBroadcastWorld(dt); hostBroadcastEnemies(dt); hostBroadcastDefs(dt); mobPuppetsTick(dt); guestSendInput(dt); }; }
+// ---- phase 12: loot and mana orbs, read-only puppets on every guest's screen, with a real pickup round trip so a
+// guest can actually collect either -- not just see them. Both share the exact same root cause: kill(e) (game.js)
+// spawns BOTH into the host's own loot/orbs arrays, and updateLoot/updateOrbs (game.js) only ever check proximity
+// against the LOCAL `hero`, so a guest's own local (always-empty) arrays never grow and nothing a guest does
+// locally can reach them -- a real player caught this directly: "i joined him and never saw any loot drop."
+// Puppets alone would only be half the fix (mob/def puppets are correctly look-but-don't-touch, since nothing CAN
+// touch them); loot and orbs are meant to be collected, into something genuinely THIS PLAYER's own -- their bag
+// (already fully persistent, loadout-persist-test.mjs) for loot, their own mana pool (guestMana above) for orbs.
+// So a guest requesting a pickup gets it granted back to them specifically, applied with their own local logic,
+// the same "host validates and owns what's real, the requesting client computes/applies its own numbers" split
+// phase 8/9 already established for damage and projectiles, not a new pattern invented here. Loot turned out
+// simpler than first designed: Meta.onPickup(it,pos) (10-meta.js) is ALREADY the complete real pickup flow (bag
+// it, or auto-sell for GOLD if the bag is full) and always returns true for a valid item -- the equip-or-sell-for-
+// MANA fallback pickup() (game.js) itself falls through to is dead code in the real game, never reached, so
+// guestApplyLoot below just calls Meta.onPickup directly rather than reimplementing that unreachable branch.
+const LOOTPUP=new Map(), ORBPUP=new Map();   // id -> {kind,mesh,x,y,z,tx,ty,tz}
+let nextPickupId=1, syncTP=0;
+function pickupPuppetAdd(id,kind,fakeIt){
+  const mesh=kind==='loot'?lootMesh(fakeIt):orbMesh(); scene.add(mesh);
+  const p={kind,mesh,x:0,y:0,z:0,tx:0,ty:0,tz:0}; (kind==='loot'?LOOTPUP:ORBPUP).set(id,p); return p;
+}
+function pickupPuppetRemove(id){ let p=LOOTPUP.get(id); if(p){ scene.remove(p.mesh); LOOTPUP.delete(id); return; } p=ORBPUP.get(id); if(p){ scene.remove(p.mesh); ORBPUP.delete(id); } }
+window.__pickupsync={ loot:()=>[...LOOTPUP.keys()], orbs:()=>[...ORBPUP.keys()],
+  lootAt:id=>{ const p=LOOTPUP.get(id); return p?{x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2)}:null; },
+  orbAt:id=>{ const p=ORBPUP.get(id); return p?{x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2)}:null; } };   // purely a test hook, same reasoning as window.__mobsync/__combat above
+function pickupPuppetsTick(dt){
+  const k=1-Math.exp(-10*dt);
+  LOOTPUP.forEach(p=>{ p.x=lerp(p.x,p.tx,k); p.y=lerp(p.y,p.ty,k); p.z=lerp(p.z,p.tz,k); p.mesh.position.set(p.x,p.y,p.z);
+    if(p.mesh.userData.item) p.mesh.userData.item.rotation.y+=dt*2; if(p.mesh.userData.ring) p.mesh.userData.ring.scale.setScalar(1+Math.sin(S.t*4)*.08); });
+  ORBPUP.forEach(p=>{ p.x=lerp(p.x,p.tx,k); p.y=lerp(p.y,p.ty,k); p.z=lerp(p.z,p.tz,k); p.mesh.position.set(p.x,p.y+Math.sin(S.t*4)*.05,p.z);
+    if(p.mesh.userData.o) p.mesh.userData.o.rotation.y+=dt*3; });
+}
+function hostBroadcastPickups(dt){
+  if(role!=='host'||!conns.size) return;
+  syncTP+=dt; if(syncTP<1/10) return; syncTP=0;
+  const lootList=loot.map(l=>{ if(!l.__coopId) l.__coopId='p'+(nextPickupId++); return {id:l.__coopId,x:+l.x.toFixed(2),y:+l.y.toFixed(2),z:+l.z.toFixed(2),rarity:l.it.rarity,slot:l.it.slot}; });
+  const orbList=orbs.map(o=>{ if(!o.__coopId) o.__coopId='p'+(nextPickupId++); return {id:o.__coopId,x:+o.x.toFixed(2),y:+o.y.toFixed(2),z:+o.z.toFixed(2)}; });
+  send('pickups',{loot:lootList,orbs:orbList});
+}
+onMessage('pickups',data=>{
+  const ids=new Set();
+  data.loot.forEach(l=>{ ids.add(l.id); let p=LOOTPUP.get(l.id); if(!p){ p=pickupPuppetAdd(l.id,'loot',{rarity:l.rarity,slot:l.slot}); p.x=p.tx=l.x; p.y=p.ty=l.y; p.z=p.tz=l.z; } p.tx=l.x; p.ty=l.y; p.tz=l.z; });
+  data.orbs.forEach(o=>{ ids.add(o.id); let p=ORBPUP.get(o.id); if(!p){ p=pickupPuppetAdd(o.id,'orb'); p.x=p.tx=o.x; p.y=p.ty=o.y; p.z=p.tz=o.z; } p.tx=o.x; p.ty=o.y; p.tz=o.z; });
+  [...[...LOOTPUP.keys()],...[...ORBPUP.keys()]].forEach(id=>{ if(!ids.has(id)) pickupPuppetRemove(id); });   // a collected or despawned pickup just stops being in the list -- same roster-diff removal every puppet type here already uses
+});
+// a guest requests a pickup once, the instant they're close enough -- `requested` just stops it asking again every
+// tick while it waits on the host's reply; the puppet vanishing on the next broadcast (collected by anyone, or
+// simply not renewed) makes the id irrelevant either way, so this never needs to be cleared
+const requested=new Set();
+function guestPickupTick(dt){
+  if(role!=='guest'||hero.dead>0) return;
+  LOOTPUP.forEach((p,id)=>{ if(requested.has(id)) return; if(Math.hypot(hero.x-p.x,hero.z-p.z)<1.2&&Math.abs(hero.y-p.y)<1.6){ requested.add(id); send('pickupLoot',{id}); } });
+  ORBPUP.forEach((p,id)=>{ if(requested.has(id)) return; if(Math.hypot(hero.x-p.x,hero.z-p.z)<1.1&&Math.abs(hero.y-p.y)<1.6){ requested.add(id); send('pickupOrb',{id}); } });
+}
+function hostGuestPickupLoot(data,fromId){
+  if(role!=='host') return;
+  const i=loot.findIndex(l=>l.__coopId===data.id); if(i<0) return;   // already gone -- someone else got it, or it despawned; the puppet vanishes from the next broadcast regardless, no need to tell them
+  const l=loot[i]; scene.remove(l.mesh); loot.splice(i,1);
+  send('lootGrant',{it:l.it},fromId);
+}
+onMessage('pickupLoot',(data,fromId)=>hostGuestPickupLoot(data,fromId));
+function hostGuestPickupOrb(data,fromId){
+  if(role!=='host') return;
+  const i=orbs.findIndex(o=>o.__coopId===data.id); if(i<0) return;
+  const o=orbs[i]; scene.remove(o.mesh); orbs.splice(i,1);
+  const s=guestStats.get(fromId), v=Math.round(5*(1+(s?s.stat.mana:0)/100)*(s?s.mult.mana:1)*10)/10;   // same formula updateOrbs (game.js) uses for the real hero, now read off THIS guest's own reported mana stat
+  guestMana.set(fromId,Math.round(((guestMana.has(fromId)?guestMana.get(fromId):MAP_MANA)+v)*10)/10);
+  SFX.mana(); send('orbGrant',{v},fromId);
+}
+onMessage('pickupOrb',(data,fromId)=>hostGuestPickupOrb(data,fromId));
+function guestApplyLoot(it){ Meta.onPickup(it,{x:hero.x,y:hero.y,z:hero.z}); }   // the complete real pickup flow, scoped to THIS client's own Meta/bag/gold entirely for free
+onMessage('lootGrant',data=>{ if(role==='guest') guestApplyLoot(data.it); });
+onMessage('orbGrant',data=>{ if(role!=='guest') return; SFX.mana(); floatText(hero.x,hero.y+1,hero.z,'+'+data.v,'#5ee9ff'); });
+
+onMessage('__leave',fromId=>{ window.__party.remove(fromId); guestIn.delete(fromId); guestHero.delete(fromId); guestStats.delete(fromId); guestMana.delete(fromId); [...MOBPUP.keys()].forEach(mobPuppetRemove); [...DEFPUP.keys()].forEach(defPuppetRemove); });   // guestStats gone -> Meta.defOwnerStat/Mult return undefined for whatever this guest placed -> stat() falls back to the host's own numbers, automatically
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); guestInputTick(dt); hostBroadcastHeroes(dt); hostBroadcastWorld(dt); hostBroadcastEnemies(dt); hostBroadcastDefs(dt); hostBroadcastPickups(dt); mobPuppetsTick(dt); pickupPuppetsTick(dt); guestPickupTick(dt); guestSendInput(dt); }; }
 })();

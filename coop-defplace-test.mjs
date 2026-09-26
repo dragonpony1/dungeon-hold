@@ -51,15 +51,19 @@ check("host has registered the guest's simulated hero near its default spawn",
 // before any toast assertion, means it can never coincidentally overwrite one of THIS suite's own toast checks later
 await guestPage.waitForTimeout(4300);
 
-// --- placement: guest aims at a spot in front of its own spawn, does the real 2-stage confirmPlace, host applies it for real ---
-const before=await hostPage.evaluate(()=>({mana:window.__dd.S.mana,du:window.__dd.S.du,defs:window.__dd.defs.length}));
+// --- placement: guest aims at a spot in front of its own spawn, does the real 2-stage confirmPlace, host applies it
+// for real. Mana spent by a guest's own action now comes out of THEIR OWN pool (phase 12), not S.mana -- the swap
+// trick in hostTryPlaceDef only ever touches S.mana for the duration of that one synchronous call, restoring the
+// host's own real value immediately after, so guestMana (the test hook, same as coop-pickups-test.mjs) is the only
+// place this spend is actually visible from outside ---
+const before=await hostPage.evaluate(id=>({mana:window.__combat.guestMana(id),du:window.__dd.S.du,defs:window.__dd.defs.length}),guestId);
 await guestPage.evaluate(()=>{ const d=window.__dd; d.select('ball'); d.step(1/60,5); });
 const ghostBefore=await guestPage.evaluate(()=>window.__dd.ghost());
 await guestPage.evaluate(()=>{ window.__dd.confirmPlace(); window.__dd.step(1/60,2); });   // first click: anchor
 await guestPage.evaluate(()=>{ window.__dd.confirmPlace(); window.__dd.step(1/60,2); });   // second click: confirm -> relays 'place' to host
 await tickBoth(10,5);
-const after=await hostPage.evaluate(()=>({mana:window.__dd.S.mana,du:window.__dd.S.du,defs:window.__dd.defs.length,kind:window.__dd.defs[0]&&window.__dd.defs[0].kind}));
-check("guest's placement creates a REAL defense on the host, drawing real mana/DU",
+const after=await hostPage.evaluate(id=>({mana:window.__combat.guestMana(id),du:window.__dd.S.du,defs:window.__dd.defs.length,kind:window.__dd.defs[0]&&window.__dd.defs[0].kind}),guestId);
+check("guest's placement creates a REAL defense on the host, drawing real mana from the guest's OWN pool and real DU from the hall's shared cap",
   ghostBefore&&ghostBefore.ok&&after.defs===before.defs+1&&after.kind==='ball'&&after.mana===before.mana-80&&after.du===before.du+5,
   JSON.stringify({ghostBefore,before,after}));
 
@@ -101,47 +105,51 @@ check("guest's host-tracked position is now within repair/upgrade/sell range of 
 
 // --- repair: damage the real defense on the host, guest (near its own tracked spawn, right by the def) repairs it ---
 await hostPage.evaluate(()=>{ window.__dd.defs[0].hp=10; });
-const manaBeforeRepair=await hostPage.evaluate(()=>window.__dd.S.mana);
+const manaBeforeRepair=await hostPage.evaluate(id=>window.__combat.guestMana(id),guestId);
 await guestPage.evaluate(()=>{ window.__dd.repair(); });
 await tickBoth(6,5);
-const afterRepair=await hostPage.evaluate(()=>({hp:window.__dd.defs[0].hp,max:window.__dd.defs[0].max,mana:window.__dd.S.mana}));
+const afterRepair=await hostPage.evaluate(id=>({hp:window.__dd.defs[0].hp,max:window.__dd.defs[0].max,mana:window.__combat.guestMana(id)}),guestId);
 // a successful single-player repair only ever gives world-space floatText feedback, never a toast() call (only its
 // two REJECTION paths toast) -- so there's genuinely nothing new for hostDefAction's toast-relay to forward here;
 // the guest's only feedback is the real mana/DU HUD ticking down, a known first-cut gap matching the existing
 // "no hp bars on defense puppets" limitation
-check("guest's repair() heals the REAL defense on the host and spends real mana",
+check("guest's repair() heals the REAL defense on the host and spends real mana from the guest's own pool",
   afterRepair.hp===afterRepair.max&&afterRepair.mana<manaBeforeRepair,
   JSON.stringify({afterRepair,manaBeforeRepair}));
 
 // --- upgrade: guest upgrades the same real defense. (The toast-relay path for a success is already proven by the
 // earlier rejection check -- not re-asserted on the exact text here, since game.js's own unrelated new-player
 // hints can coincidentally fire a toast in the same window and overwrite it, same as any single-player session.) ---
-const beforeUpgrade=await hostPage.evaluate(()=>({lvl:window.__dd.defs[0].lvl,mana:window.__dd.S.mana}));
+const beforeUpgrade=await hostPage.evaluate(id=>({lvl:window.__dd.defs[0].lvl,mana:window.__combat.guestMana(id)}),guestId);
 await guestPage.evaluate(()=>{ window.__dd.upgrade(); });
 await tickBoth(6,5);
-const afterUpgrade=await hostPage.evaluate(()=>({lvl:window.__dd.defs[0].lvl,mana:window.__dd.S.mana}));
-check("guest's upgrade() levels up the REAL defense on the host and spends real mana",
+const afterUpgrade=await hostPage.evaluate(id=>({lvl:window.__dd.defs[0].lvl,mana:window.__combat.guestMana(id)}),guestId);
+check("guest's upgrade() levels up the REAL defense on the host and spends real mana from the guest's own pool",
   afterUpgrade.lvl===beforeUpgrade.lvl+1&&afterUpgrade.mana<beforeUpgrade.mana,
   JSON.stringify({beforeUpgrade,afterUpgrade}));
 
 // --- sell: guest sells the same real defense; it's gone from the host's real defs AND drops off the guest's own
 // synced puppet list (proving the removal is real, not just a local guess) ---
-const manaBeforeSell=await hostPage.evaluate(()=>window.__dd.S.mana);
+const manaBeforeSell=await hostPage.evaluate(id=>window.__combat.guestMana(id),guestId);
 await guestPage.evaluate(()=>{ window.__dd.sell(); });
 await tickBoth(10,5);
 const afterSell=await hostPage.evaluate(()=>window.__dd.defs.length);
 const guestPuppets=await guestPage.evaluate(()=>window.__defsync.list().length);
-check("guest's sell() removes the REAL defense from the host and its mana comes back",
-  afterSell===0&&guestPuppets===0,JSON.stringify({afterSell,guestPuppets,manaBeforeSell,manaAfter:await hostPage.evaluate(()=>window.__dd.S.mana)}));
+const manaAfterSell=await hostPage.evaluate(id=>window.__combat.guestMana(id),guestId);
+check("guest's sell() removes the REAL defense from the host and its mana comes back to the guest's own pool",
+  afterSell===0&&guestPuppets===0&&manaAfterSell>manaBeforeSell,JSON.stringify({afterSell,guestPuppets,manaBeforeSell,manaAfterSell}));
 
-// --- HUD: the guest sees the shared hall's real mana/DU, not their own disconnected local numbers ---
+// --- HUD: DU is still the hall's real shared cap, but mana is now this guest's OWN pool (phase 12), not the
+// host's -- hostTryPlaceDef/hostDefAction's own spends above already drew from the guest's own guestMana, not
+// S.mana, so the correct comparison is against THAT, read via the same test hook coop-pickups-test.mjs uses ---
 await tickBoth(4,5);
 const hudCheck=await Promise.all([
-  hostPage.evaluate(()=>({mana:window.__dd.S.mana,du:window.__dd.S.du})),
+  hostPage.evaluate(()=>({du:window.__dd.S.du})),
   guestPage.evaluate(()=>({mana:document.getElementById('mana').textContent,du:document.getElementById('du').textContent,hostDuCap:window.__world.host().duCap})),
+  hostPage.evaluate(id=>window.__combat.guestMana(id),guestId),
 ]);
-check("guest's own HUD mana/DU numbers match the host's real shared economy",
-  +hudCheck[1].mana===Math.floor(hudCheck[0].mana)&&hudCheck[1].du===(hudCheck[0].du+'/'+hudCheck[1].hostDuCap),
+check("guest's own HUD mana matches THEIR OWN pool, and DU still matches the hall's real shared cap",
+  +hudCheck[1].mana===Math.floor(hudCheck[2])&&hudCheck[1].du===(hudCheck[0].du+'/'+hudCheck[1].hostDuCap),
   JSON.stringify(hudCheck));
 
 // --- ownership: a defense a guest places carries THEIR OWN gear stats, not the host's -- "let me get my knight
