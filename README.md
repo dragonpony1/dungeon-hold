@@ -648,6 +648,19 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   by id and stay stable — only the views ask for `sortedBag()`, and the character sheet's inventory grid follows the
   same order. `bagsort-test.mjs` (19/19) bags eight scrambled pieces and checks every mode's order and headings, the
   cycle, the reload, the sheet's grid, and that equipping the top card equips exactly that piece.
+- The lock (`toggleLock` in `10-meta.js`; `20-tavern.js`; `68-paperdoll.js`; `59-hideout.js`): "a named mythic drops, it
+  looks cool, but I'm not going to equip it over my set bonus — I want it on display in my hideout." 🔒 Lock on any
+  bag card's detail panel (the tavern and the character sheet both). A locked piece is never scrapped at the portal
+  and never sold — not by Sell junk, not by the Sell button, which stays disabled until it's unlocked — and it leads
+  its group in the sorted bag so what's being kept is easy to spot. The flag lives on the item, so it rides along
+  worn, kept or saved. At the portal the prompt now splits the bag: "scrap the N unlocked pieces for the Cart, and
+  carry your M locked pieces through whole, as gear for the hideout's display"; the locked ones leave the bag as
+  whole item records appended to `localStorage` `dd_gear_carried` — the hideout's second contract, an array of items
+  (id, name, slot, rarity 0–4, lvl, tier, stats, value, score, `from:'dungeon-hold'`, `carriedAt`), read-modify-write,
+  never the same id twice — for the hideout to list in YOUR GEAR and put on a stand or the shared display (its side,
+  in progress). `gearlock-test.mjs` covers the lock from both views, the junk sale and the Sell button refusing a
+  locked piece, the sort order, the split prompt, the two contracts written correctly (counts for the unlocked, whole
+  records for the locked, a record the hideout side already held left alone), the all-locked case, and a reload.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Nine more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

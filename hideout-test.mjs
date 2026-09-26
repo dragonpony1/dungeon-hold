@@ -59,7 +59,7 @@ check("dd_gear_bag was ADDED to, not replaced: common 3+2=5, rare 1+1=2, epic 0+
 check("a field the hideout side owns survived the read-modify-write",gearBag.someday==='kept',JSON.stringify(gearBag));
 check("the pieces left the bag for good (carried, no duplicates)",await page.evaluate(()=>window.__meta.bag().length===0));
 check("...and that emptiness is already persisted in ddMeta",await page.evaluate(()=>JSON.parse(localStorage.getItem('ddMeta')).bag.length===0));
-check("lastCarry reports what went through",JSON.stringify(await page.evaluate(()=>window.__hideout.lastCarry()))==='{"n":4,"counts":{"common":2,"uncommon":0,"rare":1,"epic":1,"legendary":0}}',JSON.stringify(await page.evaluate(()=>window.__hideout.lastCarry())));
+check("lastCarry reports what went through (4 scrapped, none carried whole: nothing was locked)",JSON.stringify(await page.evaluate(()=>window.__hideout.lastCarry()))==='{"n":4,"counts":{"common":2,"uncommon":0,"rare":1,"epic":1,"legendary":0},"carried":[]}',JSON.stringify(await page.evaluate(()=>window.__hideout.lastCarry())));
 
 const frameSrc=await page.evaluate(()=>document.getElementById('hideoutFrame')&&document.getElementById('hideoutFrame').src);
 check("the overlay is an iframe on hideout/index.html?embed=1 (same origin)",!!frameSrc&&frameSrc===BASE+"/hideout/index.html?embed=1",frameSrc);
