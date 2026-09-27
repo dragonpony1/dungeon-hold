@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="29">
+<meta name="hideout-build" content="30">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -228,7 +228,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 29;
+const HIDEOUT_BUILD = 30;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -518,7 +518,7 @@ const MYTHIC_SETS = [
   { id:'angelic', tail:'of Radiance',   color:'#ffd878' },
   { id:'storm',   tail:'of the Storm',  color:'#78b4ff' },
   { id:'shadow',  tail:'of Shadow',     color:'#9ae070' },
-  { id:'ice',     tail:'of Frost',      color:'#8ad4ff' },
+  { id:'ice',     tail:'of Ice',        color:'#8ad4ff' },
   { id:'wind',    tail:'of the Wind',   color:'#9ee0e0' },
 ];
 // which picture a forged set piece uses, by forge category. Weapons are swords, magical staves and polearms (Matt:
@@ -1195,9 +1195,13 @@ function pieceFromForged(g) {
     icon: N.art || catIcon, color:'#ffcf3a', label: N.name, desc: N.name + ' (Named Mythic ' + word + ')', sub:'Named Mythic',
     tip: N.name + ' — Named Mythic ' + word + (stats ? ' · ' + stats : '') + ' · Power: ' + N.power + ' · “' + N.lore + '”', payload: g };
   const set = g.set && MYTHIC_SETS.find(s => s.id === g.set);
-  if (set) return { kind:'forged', key:'f:'+g.id, id:g.id, type:g.type, tier:'mythic', name:g.name,
-    icon: g.art ? SET_ART_DIR + set.id + '-' + g.art + '.jpg' : catIcon, color: set.color, label: g.name, desc: g.name, sub:'Mythic set piece',
-    tip: g.name + (stats ? ' · ' + stats : '') + ' · counts toward the ' + set.tail.replace(/^of (the )?/, '') + ' set', payload: g };
+  if (set) {
+    // the set's CURRENT name ending, so a piece forged before a set was renamed reads the same as a new one
+    const nm = String(g.name || MYTHIC_GEAR[g.type].name).replace(/ of .+$/, '') + ' ' + set.tail;
+    return { kind:'forged', key:'f:'+g.id, id:g.id, type:g.type, tier:'mythic', name:nm,
+      icon: g.art ? SET_ART_DIR + set.id + '-' + g.art + '.jpg' : catIcon, color: set.color, label: nm, desc: nm, sub:'Mythic set piece',
+      tip: nm + (stats ? ' · ' + stats : '') + ' · counts toward the ' + set.tail.replace(/^of (the )?/, '') + ' set', payload: g };
+  }
   return { kind:'forged', key:'f:'+g.id, id:g.id, type:g.type, tier:g.tier, name:g.name || null,
     icon: catIcon, color: g.tier === 'unique' ? '#ffcf3a' : '#cfa0ff',
     label: g.name || cat, desc: g.name ? g.name + ' (' + cat + ')' : cat, sub: null, payload: g };
