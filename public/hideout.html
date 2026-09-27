@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="26">
+<meta name="hideout-build" content="27">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -228,7 +228,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 26;
+const HIDEOUT_BUILD = 27;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -529,6 +529,7 @@ const SET_ART_PIECES = { weapon:['sword'], armor:['armor'], amulet:['amulet'], t
 // (the game's stat keys), a signature power the MAIN GAME gives them in the dungeon, and they count toward any set;
 // you can wear two at once. art: Matt's picture once he makes it (items/named/<id>.webp) — until then the category
 // art stands in.
+const NAMED_ART_DIR = ITEMS_DIR + 'named/'; // Matt's pictures, shrunk to 512px JPEG
 const NAMED_MYTHICS = {
   rootsplitter:       { type:'weapon',   name:'Rootsplitter',             art:null, stats:{ dmg:30, hp:90, spd:15 },
     power:'Every 4th swing sends roots along the ground that hold enemies in place for 2 seconds.',
@@ -536,7 +537,7 @@ const NAMED_MYTHICS = {
   last_lantern:       { type:'weapon',   name:'The Last Lantern',         art:null, stats:{ dmg:24, tow:30, tarea:15 },
     power:'Enemies near you glow and take 25% more damage from your defenses.',
     lore:'A halberd with a star caged at its tip. The dark leans away from it.' },
-  mossheart_aegis:    { type:'armor',    name:'Mossheart Aegis',          art:null, stats:{ hp:170, def:22, regen:4.5 },
+  mossheart_aegis:    { type:'armor',    name:'Mossheart Aegis',          art:NAMED_ART_DIR+'mossheart_aegis.jpg', stats:{ hp:170, def:22, regen:4.5 },
     power:'Stand still for 2 seconds and you and nearby defenses start healing.',
     lore:'Plate grown, not forged: bark and moss around a heartwood core that still beats.' },
   voidwoven_mantle:   { type:'armor',    name:'Voidwoven Mantle',         art:null, stats:{ def:24, move:18, mana:50 },
@@ -548,16 +549,16 @@ const NAMED_MYTHICS = {
   wardens_oath:       { type:'amulet',   name:'The Warden\'s Oath',       art:null, stats:{ tow:42, def:12, hp:80 },
     power:'The first enemy through each gate each wave is slowed and marked, and your defenses focus it.',
     lore:'A bronze sigil that grows warm when something is coming through the gate.' },
-  bramblewhisk:       { type:'familiar', name:'Bramblewhisk',             art:null, stats:{ fdmg:36, frate:45, move:10 },
+  bramblewhisk:       { type:'familiar', name:'Bramblewhisk',             art:NAMED_ART_DIR+'bramblewhisk.jpg', stats:{ fdmg:36, frate:45, move:10 },
     power:'Your pet\'s shots leave thorn patches that slow and prick enemies.',
     lore:'A fox-spirit of thorns with a glowing mushroom tail. It bites, then giggles.' },
-  old_lamplight:      { type:'familiar', name:'Old Lamplight',            art:null, stats:{ fdmg:30, frate:60, fproj:1 },
+  old_lamplight:      { type:'familiar', name:'Old Lamplight',            art:NAMED_ART_DIR+'old_lamplight.jpg', stats:{ fdmg:30, frate:60, fproj:1 },
     power:'+1 pet projectile, and your pet fires at whatever your defenses are hitting.',
     lore:'An owl whose body is an old lantern. It sees in the dark, and shoots at what it sees.' },
-  gloomcap_censer:    { type:'trinket',  name:'Gloomcap Censer',          art:null, stats:{ trate:20, tarea:18, regen:3 },
+  gloomcap_censer:    { type:'trinket',  name:'Gloomcap Censer',          art:NAMED_ART_DIR+'gloomcap_censer.jpg', stats:{ trate:20, tarea:18, regen:3 },
     power:'Defenses near you build 50% faster and fire 15% faster.',
     lore:'It swings a smoke of glowing spores. Defenses near it seem to wake up.' },
-  hourglass_hollow_sand:{ type:'trinket', name:'Hourglass of Hollow Sand', art:null, stats:{ spd:35, move:18, mana:40 },
+  hourglass_hollow_sand:{ type:'trinket', name:'Hourglass of Hollow Sand', art:NAMED_ART_DIR+'hourglass_hollow_sand.jpg', stats:{ spd:35, move:18, mana:40 },
     power:'Once per wave, when a gate is about to fall, enemies slow to a crawl for 4 seconds.',
     lore:'The sand falls upward. Nobody knows what it is counting down to.' },
 };
