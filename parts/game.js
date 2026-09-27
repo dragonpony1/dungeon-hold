@@ -10,8 +10,16 @@ let seed=91731; const rnd=()=>{seed=(seed*1664525+1013904223)>>>0; return seed/4
 const R=(a,b)=>a+rnd()*(b-a);
 const C=h=>new THREE.Color(h).convertSRGBToLinear();
 const PI=Math.PI, TAU=PI*2;
-const TOUCH=('ontouchstart' in window)&&matchMedia('(pointer:coarse)').matches;
+let TOUCH=('ontouchstart' in window)&&matchMedia('(pointer:coarse)').matches;   // let, not const (build 167): see setTouchMode below
 if(TOUCH) document.body.classList.add('touch');
+// build 167 (Matt's wife, on an iPad with a keyboard and a mouse: "it was stuck in touchscreen controls"): an iPad always loads as a touch
+// screen, and in touch mode every mouse click and move was thrown away -- no click to swing, no mouse look, and the tutorial said "tap ⚔".
+// Now the input actually in use decides: a mouse or trackpad moving or clicking (pointerType 'mouse') switches to mouse & keyboard
+// (click to swing, pointer-locked look, the keyboard wording); a finger on the screen switches back. Only on a device that started as
+// touch -- its on-screen buttons exist; a laptop with a touchscreen stays the mouse-first page it always was. Modules that word things
+// for touch read TOUCH as they draw, and listen for 'inputmode' when they cache it
+function setTouchMode(on){ if(TOUCH===on) return; TOUCH=on; document.body.classList.toggle('touch',on); if(on&&document.pointerLockElement&&document.exitPointerLock) document.exitPointerLock(); try{ dispatchEvent(new Event('inputmode')); }catch(e){} }
+if(TOUCH){ addEventListener('pointerdown',e=>{ if(e.pointerType==='mouse') setTouchMode(false); else if(e.pointerType==='touch') setTouchMode(true); },true); let lpx=null, lpy=null; addEventListener('pointermove',e=>{ if(e.pointerType!=='mouse') return; if(lpx!==null&&(Math.abs(e.clientX-lpx)+Math.abs(e.clientY-lpy)>2||e.movementX||e.movementY)) setTouchMode(false); lpx=e.clientX; lpy=e.clientY; },true); }   /* Safari reports no movementX on an unlocked pointer: the position's own change says the mouse moved */
 
 // ================= SOUND (off by default — M toggles) =================
 let soundOff=SILENT||(localStorage.getItem('ddSound')==='off');
@@ -216,6 +224,7 @@ function los(ax,az,bx,bz){ const d=Math.hypot(bx-ax,bz-az); const n=Math.ceil(d/
 
 // ================= RENDERER / SCENE =================
 const canvas=$('c'), ov=$('ov'), ovx=ov.getContext('2d');
+{ const rpl=canvas.requestPointerLock; if(rpl) canvas.requestPointerLock=function(){ try{ const r=rpl.apply(this,arguments); if(r&&r.catch) r.catch(()=>{}); return r; }catch(e){} }; }   // build 167: newer browsers return a promise that rejects when the page isn't focused (Safari: 'Pointer lock requires the window to have focus') -- a refused lock is fine (the next click asks again), an unhandled rejection is noise
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));
 renderer.outputEncoding=THREE.sRGBEncoding;
@@ -678,7 +687,7 @@ function loadLine(){ const L=LOADT; if(L.all!==null) return '⏱ ready '+fmtS(L.
 let HIDEOUT_SHOWN=false, RENDERS=0;   // 59-hideout.js raises HIDEOUT_SHOWN while its overlay covers the hall: the hall keeps simulating (a co-op host must) but stops drawing under it
 const HIDEOUT_BUILD=/*HIDEOUT*/0;   // the embedded hideout page's own build number (its <meta name="hideout-build">), stamped in by assemble.mjs when the hideout rides along; 0 in a page without it
 { const sa=$('standalone'); if(sa&&/github\.io$/i.test(location.hostname)) sa.style.display='none'; }
-{ const es=$('essentials'); if(es&&TOUCH) es.innerHTML='<kbd>joystick</kbd> move &nbsp;·&nbsp; <kbd>drag</kbd> look &nbsp;·&nbsp; <kbd>⚔</kbd> swing &nbsp;·&nbsp; <kbd>tap a hotbar slot</kbd> to place a defense &nbsp;·&nbsp; <kbd>📯</kbd> sounds the horn &nbsp;·&nbsp; the tutorial teaches the rest'; }   // the one line a new player needs; the rest is folded below the buttons   // the link to the standalone build shows everywhere but on that build
+{ const es=$('essentials'); if(es){ const deskHtml=es.innerHTML, touchHtml='<kbd>joystick</kbd> move &nbsp;·&nbsp; <kbd>drag</kbd> look &nbsp;·&nbsp; <kbd>⚔</kbd> swing &nbsp;·&nbsp; <kbd>tap a hotbar slot</kbd> to place a defense &nbsp;·&nbsp; <kbd>📯</kbd> sounds the horn &nbsp;·&nbsp; the tutorial teaches the rest'; const fit=()=>{ es.innerHTML=TOUCH?touchHtml:deskHtml; }; fit(); addEventListener('inputmode',fit); } }   // the one line a new player needs; the rest is folded below the buttons   // the link to the standalone build shows everywhere but on that build
 const WASM_OK=(()=>{ try{ new WebAssembly.Module(new Uint8Array([0,97,115,109,1,0,0,0])); return true; }catch(e){ return false; } })();   /* does this host let a page compile WebAssembly? (a Content-Security-Policy without 'wasm-unsafe-eval' refuses it) -- shown on the build line so a playtest can say; the hideout's models are decoded at build time either way (unmeshopt.mjs) */ window.__wasm=WASM_OK;
 let lastStatus='';
 function heroStatus(msg){ if(msg!==undefined) lastStatus=msg; const el=$('buildline'); const ll=loadLine(); if(el) el.textContent='build '+BUILD+(HIDEOUT_BUILD?' · hideout build '+HIDEOUT_BUILD:'')+(WASM_OK?'':' · no wasm')+(ll?' · '+ll:'')+' · '+lastStatus; }

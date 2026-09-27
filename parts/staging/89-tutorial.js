@@ -49,7 +49,7 @@ if(Q.get('tutorial')==='go'){ autoPlay(); try{ const q=new URLSearchParams(locat
 const HINT_WAS=recall('dd_setHint');   // the first-set-piece lesson is hidden in here (below); if it fires unseen, room one gets to teach it
 { const was=recall('ddHero'); if(heroPick!==KNIGHT) installHero(KNIGHT); store('ddHero',was); }   // the Knight's sword first (70-hero2.js), whatever card is picked -- installHero saves the pick, so the old one goes straight back
 hero.x=cw(MAP.start[0]); hero.z=cwz(MAP.start[1]); cam.pitch=.34;   // the knight starts in the hall with the door dead ahead and the crystal at his back (from the usual spot behind the crystal it hid the whole lane), and the camera a touch flatter so the far end of the hall shows below the instructions
-const K=!TOUCH;
+let K=!TOUCH; addEventListener('inputmode',()=>{ K=!TOUCH; });   // build 167: an iPad with a mouse and keyboard switches to their wording the moment the mouse moves (game.js setTouchMode)
 // ---- the title: START THE TUTORIAL, a quiet way past it, and nothing else to wonder about (the CSS below hides the rest)
 { const pb=$('playbtn'); if(pb){ pb.textContent='▶ START THE TUTORIAL'; const sk=document.createElement('button'); sk.id='tutskip'; sk.className='lbLink'; sk.textContent='skip the tutorial — straight into room one'; sk.addEventListener('click',e=>{ e.stopPropagation(); skip(); }); pb.insertAdjacentElement('afterend',sk); } }
 const css=document.createElement('style'); css.textContent=
