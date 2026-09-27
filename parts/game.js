@@ -156,12 +156,28 @@ const MAPS=[
    {cx:22,cz:24,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:24,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:22,cz:32,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:32,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:22,cz:40,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:40,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:22,cz:48,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:48,up:3.6,c:0xffb05a,i:1.1,d:12},
    {cx:24,cz:53,up:3.4,c:0xc040ff,i:.9,d:10},{cx:1,cz:25,up:3.4,c:0xc040ff,i:.9,d:10},{cx:48,cz:25,up:3.4,c:0xc040ff,i:.9,d:10},{cx:48,cz:8,up:3.4,c:0xc040ff,i:.9,d:10},
    {cx:34,cz:40,up:4.2,c:0xffb05a,i:1.3,d:13},{cx:32,cz:42,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:36,cz:46,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:34,cz:47,up:2.2,c:0xff7a1a,i:1.6,d:9,oz:.4}]}];
+// THE TUTORIAL HALL (build 166, Matt: "we need to reimagine the entire tutorial ... prior to room one there is a tutorial hall ...
+// its a tutorial room with one hall and in your face instruction"). A tiny map of its own, deliberately NOT in MAPS (the campaign's
+// count, its unlocks and NEXT MAP never see it): one straight hall from a door to the crystal, readable at a glance. It is built
+// instead of the chosen map when the page loads with ?tutorial -- the title's 🎓 TUTORIAL button, and a brand-new player's PLAY
+// (89-tutorial.js sends them there; a page nobody pressed PLAY on loads exactly as it always did). 89-tutorial.js runs it. MAPI
+// stays 0 in it (the hall is "before room one": map one's waves, loot and no level gate), so what is keyed to map one checks
+// TUTORIAL as well -- the Forest rails (93-gearsets.js) and the old guide card (96-trainer.js) stay out of it
+const TUTORIAL=!Q.get('coopjoin')&&Q.has('tutorial')&&Q.get('tutorial')!=='0';
+const TUT_MAP={id:'tutorial',name:'THE TUTORIAL HALL',sub:'one hall, one door, the crystal · two small waves',gw:11,gh:25,crystal:[5,17],waves:2,crystalHp:300,du:40,mana:60,wallH:11,fog:[30,90],style:{windows:true},noTavern:true,
+  build(f,g){ f(3,7,1,13,T.FLOOR); f(1,9,14,23,T.FLOOR); f(5,5,2,15,T.CARPET); f(4,6,16,18,T.DAIS); g(5,17,T.CRYSTAL); g(5,2,T.SPAWN);   // the hall, five wide: one lane (the runner) from the door in the north wall to the crystal's chamber
+    [[1,23],[9,14],[9,23],[1,14]].forEach(([x,z])=>g(x,z,T.PROP)); },   // barrels and crates in the chamber's corners
+  lanes:{N:{cx:5,cz:2,face:0,name:'the door'}},
+  hall:[1,9,1,23],pillars:[],barrels:[[1,23],[9,14]],crates:[[9,23],[1,14]],chandeliers:[[0,-18],[0,4]],beams:{zs:[-26,-14,-2,10],w:20},
+  start:[5,12],spot:[5,8],mark:[5,11],   // 89-tutorial.js: where the knight starts (in the hall, the door ahead and the crystal behind -- from the usual start the crystal hid the lane), the glowing spot the first step walks to, and the ballista's marker on the lane (its bolts fly straight up the runner to the door)
+  lights:[[0,3.2,0,0x4ae6ff,1.3,15],{cx:3,cz:5,up:4,c:0xff8a2a,i:1.4,d:13},{cx:7,cz:5,up:4,c:0xff8a2a,i:1.4,d:13},{cx:3,cz:11,up:4,c:0xff8a2a,i:1.4,d:13},{cx:7,cz:11,up:4,c:0xff8a2a,i:1.4,d:13},
+   {cx:1,cz:16,up:4,c:0xff8a2a,i:1.4,d:13},{cx:9,cz:16,up:4,c:0xff8a2a,i:1.4,d:13},{cx:1,cz:22,up:4,c:0xff8a2a,i:1.4,d:13},{cx:9,cz:22,up:4,c:0xff8a2a,i:1.4,d:13},{cx:5,cz:20,up:4.4,c:0xffb05a,i:1.2,d:13},{cx:5,cz:2,up:3.4,c:0xc040ff,i:.9,d:10}]};
 const MAPS_CLEARED=(()=>{ try{ return Math.max(0,Math.min(MAPS.length,parseInt(localStorage.getItem('ddMapsCleared'))||0)); }catch(e){ return 0; } })();
 // co-op lobby (99b-lobby.js): a guest following its host onto the host's map reloads with ?coopmap=N&coopjoin=<room code>.
 // Only that pair lifts this player's own unlock gate, and only for this one page load (the lobby strips both from the address
 // bar as soon as it has read them); ?coopmap without a room code, and ?map= for everyone, stay gated exactly as before.
-const MAPI=(()=>{ const cm=parseInt(Q.get('coopmap')); if(Q.get('coopjoin')&&cm>=0) return Math.min(cm,MAPS.length-1); let i=parseInt(Q.get('map')); if(!(i>=0)){ try{ i=parseInt(localStorage.getItem('ddMap'))||0; }catch(e){ i=0; } } return Math.max(0,Math.min(i,MAPS_CLEARED,MAPS.length-1)); })();   // a map past the last one cleared is locked
-const MAP=MAPS[MAPI]; MAP.wbase=MAPS.slice(0,MAPI).reduce((a,m)=>a+m.waves,0);
+const MAPI=TUTORIAL?0:(()=>{ const cm=parseInt(Q.get('coopmap')); if(Q.get('coopjoin')&&cm>=0) return Math.min(cm,MAPS.length-1); let i=parseInt(Q.get('map')); if(!(i>=0)){ try{ i=parseInt(localStorage.getItem('ddMap'))||0; }catch(e){ i=0; } } return Math.max(0,Math.min(i,MAPS_CLEARED,MAPS.length-1)); })();   // a map past the last one cleared is locked
+const MAP=TUTORIAL?TUT_MAP:MAPS[MAPI]; MAP.wbase=MAPS.slice(0,MAPI).reduce((a,m)=>a+m.waves,0);
 const CELL=2, GW=MAP.gw, GH=MAP.gh, OX=MAP.crystal[0]*CELL+CELL/2, OZ=MAP.crystal[1]*CELL+CELL/2, WALLH=MAP.wallH||7;   // the crystal stands at world (0,0)
 const T={WALL:0,FLOOR:1,CARPET:2,DAIS:3,PILLAR:4,SPAWN:5,CRYSTAL:6,PROP:7,WATER:8};   // WATER: a moat — walkers and the hero stop at the bank, flyers cross it
 const grid=new Uint8Array(GW*GH);
@@ -650,7 +666,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=165;
+const BUILD=166;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1134,9 +1150,9 @@ function updateWave(dt){ if(S.phase!=='wave') return; S.waveT+=dt; while(spawnQ.
 // a held hall, and no mob is left to hurt it -- whatever a direct call (a test's __dd.winMap() mid-wave) leaves walking goes quietly
 function winMap(){ if(S.held) return; S.held=true; S.heldAt=performance.now(); S.phase='build'; spawnQ=[]; for(const e of enemies) if(!e.dead){ e.through=true; e.dead=.001; }
   banner('HALL HELD','the horde broke on wave '+S.wave+'  ·  '+MAP.name+' is yours'); SFX.held(); setTimeout(()=>SFX.horn(),500); setMusic('build'); droneOff();
-  try{ localStorage.setItem('ddMapsCleared',String(Math.max(MAPS_CLEARED,MAPI+1))); }catch(e){}
-  Meta.onMapHeld(effWave(),{won:true,map:MAPI,mapName:MAP.name,hasNext:MAPI+1<MAPS.length});
-  setTimeout(()=>{ if(S.held&&S.phase==='build') toast('The hall is yours — walk it, collect, spend, visit the hideout. '+(TOUCH?'Tap ▶ MOVE ON':'G (or ▶ MOVE ON)')+' when you are ready'); },3600); }   // after the banner has had its moment
+  if(!TUTORIAL){ try{ localStorage.setItem('ddMapsCleared',String(Math.max(MAPS_CLEARED,MAPI+1))); }catch(e){}   /* build 166: the tutorial hall is not map one -- holding it unlocks nothing (no heroes, no map two) */
+    Meta.onMapHeld(effWave(),{won:true,map:MAPI,mapName:MAP.name,hasNext:MAPI+1<MAPS.length}); }   // nor pays a campaign win or sets a best wave: its waves pay as they are held, like any other
+  setTimeout(()=>{ if(S.held&&S.phase==='build'&&!TUTORIAL) toast('The hall is yours — walk it, collect, spend, visit the hideout. '+(TOUCH?'Tap ▶ MOVE ON':'G (or ▶ MOVE ON)')+' when you are ready'); },3600); }   // after the banner has had its moment
 // MOVE ON (build 160): the lap is over when the player says so -- the run ends as the held last wave used to end it: the phase 'won'
 // (update() stops the hall), the mouse freed, and Meta.onRunEnd's tally (it knows the gold went out at HALL HELD and pays nothing twice)
 function moveOn(){ if(!S.held||S.phase!=='build') return; S.phase='won'; cancelPlace(); setMusic('none'); droneOff();
@@ -1237,7 +1253,7 @@ canvas.addEventListener('touchend',touchEnd); canvas.addEventListener('touchcanc
 DEFKEYS.forEach((k,i)=>{ const cfg=DEFS[k]; const s=document.createElement('div'); s.className='slot'; s.id='slot-'+k; s.innerHTML='<div class="k">'+DEFKEY_LABELS[i]+'</div><div class="ic">'+cfg.ic+'</div><div class="n">'+cfg.name+'</div><div class=\"cst\">🌱 '+cfg.du+' · '+cfg.mana+' ◆</div>'; s.addEventListener('click',()=>select(k)); $('hotbar').appendChild(s); });
 if(TOUCH){ [['⚔',()=>swing()],['⤴',()=>jump()],['✔',()=>{ if(placing) confirmPlace(); }],['↻',()=>{ rotateGhost(PI/4); }],['🔧',()=>upgrade()],['🎒',()=>Meta.open()]].forEach(   /* by NAME at the tap, not the function as it stood here (build 159, Matt on his iPad: "the wrench doesn't work"): the modules load after this line and wrap swing/upgrade -- the portal, the tavern stations, the raven, a co-op guest's relayed swing and repair -- and the buttons were still holding the bare originals */([t,f])=>{ const b=document.createElement('div'); b.className='hb'; b.textContent=t; b.addEventListener('touchstart',e=>{ e.preventDefault(); f(); },{passive:false}); $('btns').appendChild(b); }); }
 $('wavebtn').addEventListener('click',()=>{ startWave(); if(!TOUCH&&S.phase!=='won'&&canvas.requestPointerLock) canvas.requestPointerLock(); });   // build 160: not after a MOVE ON -- the tally needs the mouse
-function play(){ if(S.phase!=='start') return; S.phase='build'; $('start').classList.add('hide'); SFX.enter(); setTimeout(()=>setMusic('build'),400); if(heroLoadError) setTimeout(()=>toast('Hero model failed to load ('+heroLoadError+') — using the old gnome'),600); if(!TOUCH&&canvas.requestPointerLock) canvas.requestPointerLock(); cam.x=hero.x; cam.y=hero.y+5; cam.z=hero.z+8; cam.d=cam.dist; toast('Build phase — pick a defense with the number keys, then G to start the wave'); }
+function play(){ if(S.phase!=='start') return; S.phase='build'; $('start').classList.add('hide'); SFX.enter(); setTimeout(()=>setMusic('build'),400); if(heroLoadError) setTimeout(()=>toast('Hero model failed to load ('+heroLoadError+') — using the old gnome'),600); if(!TOUCH&&canvas.requestPointerLock){ const r=canvas.requestPointerLock(); if(r&&r.catch) r.catch(()=>{}); }   /* build 166: a hall that starts by itself (89-tutorial.js: the tutorial, and room one after it) has no click to capture the mouse with -- the browser says no (a rejected promise in newer Chrome), and the first click in the hall captures it instead */ cam.x=hero.x; cam.y=hero.y+5; cam.z=hero.z+8; cam.d=cam.dist; if(!TUTORIAL) toast('Build phase — pick a defense with the number keys, then G to start the wave'); }   // build 166: the tutorial hall says one thing at a time (89-tutorial.js), and it isn't this
 $('playbtn').addEventListener('click',play); $('tavbtn').addEventListener('click',()=>Meta.open()); $('bagbtn').addEventListener('click',()=>Meta.open());
 
 // ================= MAIN LOOP =================
@@ -1260,6 +1276,6 @@ window.__dd={renders:()=>RENDERS,placeDefAt,upgradeDef,S,hero,cam,renderer,camer
   setHero:(x,z,yaw)=>{ hero.x=x; hero.z=z; if(yaw!==undefined) hero.yaw=yaw; }, setCam:(yaw,pitch,dist)=>{ cam.yaw=yaw; cam.pitch=pitch; cam.dist=dist; cam.d=dist; },
   status:()=>({phase:S.phase,held:S.held,wave:S.wave,mana:S.mana,du:S.du,crystal:S.crystal,heroHp:Math.round(hero.hp),enemies:enemies.filter(e=>!e.dead).length,defs:defs.length,projs:projs.length,orbs:orbs.length,queue:spawnQ.length,kills:S.kills,loot:loot.length,t:+S.t.toFixed(1)}),
   addMana:n=>{ S.mana+=n; }, mute:()=>setSound(false), reflow, flow:()=>flowDef, flowFly:()=>flowFly, worldInfo:()=>Object.assign({duCap:DU_CAP},world.userData),
-  map:()=>({index:MAPI,id:MAP.id,name:MAP.name,waves:MAP.waves,wbase:MAP.wbase,total:MAPS.length,cleared:MAPS_CLEARED,gw:GW,gh:GH,wallH:WALLH,windows:world.userData.windows|0,style:MAP.style||null}), maps:()=>MAPS.map(m=>({id:m.id,name:m.name,waves:m.waves})), effWave, winMap, lanes:()=>LANES, pathLen:(cx,cz)=>flowFree.dist[idx(cx,cz)], pathLenFly:(cx,cz)=>flowFly.dist[idx(cx,cz)], cellAt:(cx,cz)=>gat(cx,cz), cw, cwz, floorH, baseFloor, hgtAt:(cx,cz)=>hgt[idx(cx,cz)] };
+  map:()=>({index:MAPI,tutorial:TUTORIAL,id:MAP.id,name:MAP.name,waves:MAP.waves,wbase:MAP.wbase,total:MAPS.length,cleared:MAPS_CLEARED,gw:GW,gh:GH,wallH:WALLH,windows:world.userData.windows|0,style:MAP.style||null}), maps:()=>MAPS.map(m=>({id:m.id,name:m.name,waves:m.waves})), effWave, winMap, lanes:()=>LANES, pathLen:(cx,cz)=>flowFree.dist[idx(cx,cz)], pathLenFly:(cx,cz)=>flowFly.dist[idx(cx,cz)], cellAt:(cx,cz)=>gat(cx,cz), cw, cwz, floorH, baseFloor, hgtAt:(cx,cz)=>hgt[idx(cx,cz)] };
 })();
 

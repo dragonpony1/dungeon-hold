@@ -5,6 +5,7 @@
 // ends. For now E near it just opens the same character sheet Tab does — the I-menu tavern and the E-upgrade
 // prompt elsewhere are untouched. More of the raven's own interface (beyond the sheet) is still to come.
 (function(){
+if(TUTORIAL) return;   // build 166: no raven in the tutorial hall -- the tutorial is the knight's, and a hero switch is one more thing to wonder about (window.__raven stays unset; its readers check)
 const NEAR=3.6, PERCH_H=1.0;
 const RAVEN_CFG=MAP.raven||null;
 const RX=RAVEN_CFG?cw(RAVEN_CFG.cx):2.5, RZ=RAVEN_CFG?cwz(RAVEN_CFG.cz):2, RFACE=RAVEN_CFG?RAVEN_CFG.face:0;

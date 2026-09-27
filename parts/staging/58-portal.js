@@ -11,6 +11,7 @@
 // S.phase, or the host left, which drops the broadcast) read S.phase as always. Top level: 59-hideout.js and 97-mythics.js use it too
 function hallPhase(){ const n=window.__net; if(S.phase==='build'&&n&&n.role&&n.role()==='guest'){ const w=n.world&&n.world(); if(w&&typeof w.phase==='string') return w.phase; } return S.phase; }
 (function(){
+if(TUTORIAL) return;   // build 166: no hideout portal in the tutorial hall (window.__portal stays unset; 59-hideout.js reads it that way)
 const PORTAL_CFG=MAP.portal||null;
 const PX=PORTAL_CFG?cw(PORTAL_CFG.cx):-2.5, PZ=PORTAL_CFG?cwz(PORTAL_CFG.cz):2, PFACE=PORTAL_CFG?PORTAL_CFG.face:0;
 const baseY=floorH(PX,PZ);

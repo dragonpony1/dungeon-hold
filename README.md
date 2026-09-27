@@ -45,7 +45,7 @@ node familiar-test.mjs                  # the single-file fallback suite reads $
 Suites: feat, loot, glb, place, csp, mob, mobpath, meta, tavern, tavernroom, familiar, familiars2, cone, music, defglb,
 ballista, lootfeel, weapons, towers, paperdoll, casino, ogre, forge, fix-r1, fix-r2, heroes, void, sets, throne, campaign, maps,
 moat, aim, newmobs, trollboss, armory, totem, pause, pwa, share, hideout, loadorder, bagsort, gearlock, coop-rewards,
-voidset, halo-column, ballista-rig, forestset, trainer, menu, crystalalarm, coop-lifecycle, coop-freeze, victorylap, and the verify-* adversarial suites. Run them one at a
+voidset, halo-column, ballista-rig, forestset, trainer, menu, crystalalarm, coop-lifecycle, coop-freeze, victorylap, towerpick, tutorial, and the verify-* adversarial suites. Run them one at a
 time: ten in parallel time out on page loads (the page is 6.8 MB).
 
 ## Adding Meshy art
@@ -1045,6 +1045,38 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   throws at the shop). campaign-test,
   coop-rewards, coop-feedback and coop-loot hold the lap and then MOVE ON (the same checks, plus "no tally by itself" and
   "paid once").
+- Build 166: a tutorial hall before room one. Matt: "we need to reimagine the entire tutorial ... prior to room one there is
+  a tutorial hall. tutorial as a selection on the title screen gets rid of some buttons too. kill a goblin melee. next place
+  a ballista, here's how, now g, oh look loot was dropped. its a tutorial room with one hall and in your face instruction".
+  **The hall** is `TUT_MAP` in game.js, deliberately not in `MAPS` (the campaign's count, unlocks and NEXT MAP never see it):
+  11×25, one five-wide hall from a door in the north wall straight down a runner to the crystal's chamber, the knight
+  starting mid-hall facing the door. It is built instead of the chosen map when the page loads with `?tutorial`
+  (`TUTORIAL`); `MAPI` stays 0 in it (map one's wave strength, loot, no level gate), so what is keyed to map one also checks
+  `TUTORIAL`: the Forest guarantee, pity, locker and its horn gate (93-gearsets.js) and the old guide card (96-trainer.js)
+  stay out; `winMap` writes no `ddMapsCleared` and pays no campaign win. **Ways in** (`89-tutorial.js`): a 🎓 TUTORIAL
+  button beside MULTIPLAYER on every title; and a brand-new player's PLAY (no map held, `dd_tutorial` unset) reloads into
+  it with `?tutorial=go`, which starts by itself -- with a small "skip the tutorial — straight into room one" under PLAY.
+  Only a real player's PLAY is sent: never on a `?silent` page nor in a browser a test drives (`navigator.webdriver`), so a
+  page nobody chose the tutorial on is exactly as before (music-test presses PLAY on a fresh save). **In it**: seven steps,
+  one at a time, in a big panel high in the middle (30 px on a computer, 21 px on a phone), an arrow at the thing (the
+  glowing spot, the goblin, the Ballista's hotbar slot, the glowing marker on the lane, START WAVE, the loot, the 🎒/B
+  button, EQUIP, the bag's ✕, the orbs, the tower) and a glow on the button to press; each step watches what the game
+  did, ticks ✓ and moves on by itself after 1.3 s; wording is W A S D / click / 1 / G / B / E, or joystick / ⚔ / the slot /
+  ✔ / 📯 / 🎒 / 🔧 on touch. 1 walk to the spot · 2 a harmless goblin walks in, kill it with the sword · 3 build a
+  BALLISTA (the hall lends the 60 mana; aimed near its marker it snaps onto it, always facing the door) · 4 sound the horn:
+  three goblins · 5 LOOT: walk over the wave's reward, open the bag (it opens with the piece already picked), EQUIP ·
+  6 close the bag, grab the orbs, upgrade the ballista with E (the hall lends the rest of the 100) · 7 one last wave of
+  five → HALL HELD (build 160's lap) → MOVE ON (G / ▶ / Esc → MOVE ON) sets `dd_tutorial` 'done' and goes straight into
+  room one (`?map=0`, started by itself via sessionStorage `ddTutEnter`), with every `dd_trainer` step marked done so the
+  old guide has nothing left to teach. **Hidden in it**: the hero cards, THE HIDEOUT and MULTIPLAYER on its title (PLAY
+  reads START THE TUTORIAL, with its own skip); the raven and the hideout portal (57/58 return early, no hideout preload);
+  the knight's hedge and totem slots; the old guide card, the big lessons, the loot's quick-equip card (on a phone it sat
+  over 🎒) and the HUD's "place defenses, then G" line; H (hero swap), selling, and the horn outside its steps ("Not
+  yet"). The knight plays it whatever card is picked; the saved pick is untouched. A skip (two taps on the panel's corner,
+  or the link on either title) sets `dd_tutorial` 'skipped'. `play()` now swallows the refused pointer-lock promise of a
+  hall that starts by itself (the first click captures the mouse). `tutorial-test.mjs` (new, 58 checks, port 8807): the
+  whole thing by real keys/clicks/taps on a computer and a 390 px phone, both skips, a driven browser and a `?silent`
+  page untouched, the 🎓 button; screenshots in `tools/scratch-tutorial/`.
 - Build 152: MYTHIC gear. The hideout's forge (hideout builds 26-30) makes a tier one step above legendary, rarity 5,
   and the game wears it: `RNAME[5]` Mythic in its own pink, valid and fixable at 5, forge caps at 5, no level gate on
   anything the hideout forged. **Named mythics** (ten, a forge proc, Matt's stats, each with a signature power,

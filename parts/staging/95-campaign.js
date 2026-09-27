@@ -5,7 +5,8 @@
 const cleared=()=>{ try{ return Math.max(0,Math.min(MAPS.length,parseInt(localStorage.getItem('ddMapsCleared'))||0)); }catch(e){ return 0; } };
 function go(i){ i=Math.max(0,Math.min(i,MAPS.length-1,cleared())); try{ localStorage.setItem('ddMap',String(i)); }catch(e){} const q=new URLSearchParams(location.search); q.set('map',String(i)); location.href=location.pathname+'?'+q.toString(); }
 function next(){ if(MAPI+1<MAPS.length) go(MAPI+1); }
-function mapLine(){ const el=$('mapline'); if(!el) return; const c=cleared(); const m=MAP; el.innerHTML='<button id="mapprev" title="previous map"'+(MAPI>0?'':' disabled')+'>◀</button><span>MAP '+(MAPI+1)+' OF '+MAPS.length+' · '+m.name+(c>MAPI?' ✓':'')+'<small>'+m.sub+(MAPI+1<MAPS.length&&c<=MAPI?' · hold all '+m.waves+' waves to unlock map '+(MAPI+2):'')+'</small></span><button id="mapnext" title="next map"'+(MAPI+1<MAPS.length&&c>MAPI?'':' disabled')+'>▶</button>';
+function mapLine(){ const el=$('mapline'); if(!el) return; if(TUTORIAL){ el.innerHTML='<span>🎓 '+MAP.name+'<small>one hall, one door, a few goblins — about three minutes, then room one</small></span>'; return; }   // build 166: the tutorial hall is no map of the campaign's -- no ◀ ▶, no "map N of 5" (89-tutorial.js)
+  const c=cleared(); const m=MAP; el.innerHTML='<button id="mapprev" title="previous map"'+(MAPI>0?'':' disabled')+'>◀</button><span>MAP '+(MAPI+1)+' OF '+MAPS.length+' · '+m.name+(c>MAPI?' ✓':'')+'<small>'+m.sub+(MAPI+1<MAPS.length&&c<=MAPI?' · hold all '+m.waves+' waves to unlock map '+(MAPI+2):'')+'</small></span><button id="mapnext" title="next map"'+(MAPI+1<MAPS.length&&c>MAPI?'':' disabled')+'>▶</button>';
   $('mapprev').onclick=()=>go(MAPI-1); $('mapnext').onclick=()=>go(MAPI+1); }
 mapLine();
 // the hero pick, under the map line

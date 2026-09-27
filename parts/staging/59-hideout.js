@@ -73,7 +73,7 @@ function makeFrame(){ if(frame) return frame;
 const LITE_DEVICE=TOUCH||(navigator.deviceMemory&&navigator.deviceMemory<=4)||Q.has('litehideout');
 function hideoutLite(){ return LITE_DEVICE||!!(window.__net&&window.__net.role&&window.__net.role()); }   // and every co-op page (the crash was a desktop guest's): a hall full of puppets plus a kept hideout is two heavy scenes in one tab
 function teardown(){ if(shown||!frame) return; try{ frame.src='about:blank'; }catch(e){} if(wrap&&wrap.parentNode) wrap.parentNode.removeChild(wrap); frame=null; wrap=null; loaded=false; }
-function preload(){ if(frame||hideoutLite()||!HAS_ASSETS||HIDEOUT_NAV) return false; if(navigator.connection&&navigator.connection.saveData) return false; makeFrame(); return true; }   // the download and the room build happen in the background between waves, so the first trip is as quick as the second
+function preload(){ if(TUTORIAL||frame||hideoutLite()||!HAS_ASSETS||HIDEOUT_NAV) return false; if(navigator.connection&&navigator.connection.saveData) return false; makeFrame(); return true; }   // build 166: never in the tutorial hall -- it has no portal, and a first-timer's page shouldn't load a 33 MB room behind it   // the download and the room build happen in the background between waves, so the first trip is as quick as the second
 function openHideout(){ if(shown) return false;
   if(!HAS_ASSETS){ toast('The hideout only exists in the folder build (dist/hideout/)'); return false; }
   const fresh=!frame; makeFrame(); shown=true; HIDEOUT_SHOWN=true; wrap.inert=false; wrap.style.visibility='visible'; if(!fresh&&loaded) post('hideout:show');

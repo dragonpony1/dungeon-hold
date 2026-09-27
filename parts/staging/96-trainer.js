@@ -43,7 +43,7 @@ const STEPS=[
   {id:'locker', text:()=>'Your last Forest piece waits in the hideout\'s wall locker: between waves, walk up to the glowing portal and press E, open the locker, come back', done:()=>!(window.__forest&&window.__forest.lockerPending())},   // shows only while the locker holds it; ticks itself off otherwise
   {id:'more', text:()=>'Before the next horn, place a second defense — or stand by one and press E to make it Mark II', done:()=>{ if(isGuest()){ const ds=window.__defsync, l=defsSeen(); return l.length>=2||(!!ds&&l.some(id=>{ const d=ds.get(id); return !!d&&(d.lvl||1)>=2; })); } return defs.length>=2||defs.some(d=>(d.lvl||1)>=2); }},
 ];
-const training=()=>MAPI===0&&!st.off;   // map one is the training ground whoever plays it: the card stays until its steps are done or the ✕ (holding the map no longer hides it -- a returning player never saw it that way)
+const training=()=>MAPI===0&&!TUTORIAL&&!st.off;   // build 166: never in the tutorial hall (89-tutorial.js teaches there, in the middle of the screen; finishing it ticks the steps it taught here)   // map one is the training ground whoever plays it: the card stays until its steps are done or the ✕ (holding the map no longer hides it -- a returning player never saw it that way)
 const showing=()=>training()&&(S.phase==='build'||S.phase==='wave')&&!Meta.isOpen();
 function current(){ return STEPS.find(s=>!st.done[s.id])||null; }
 // ---- the card
