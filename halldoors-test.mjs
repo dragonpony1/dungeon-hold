@@ -3,7 +3,7 @@
 // Since the throne-room slim pass map two's doors are that same slim file (56-thronedecor.js, throneload-test.mjs), so the
 // 7.6 MB original is no longer shipped at all: check 2 now checks that instead of comparing against it.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs"; import path from "path"; import fs from "fs";
-const SP=path.dirname(new URL(import.meta.url).pathname); const DIST=process.env.DIST||SP+"/dist";
+const SP=path.dirname(decodeURIComponent(new URL(import.meta.url).pathname).replace(/^\/(?=[A-Za-z]:)/,"")); const DIST=process.env.DIST||SP+"/dist";
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const PORT=8935, BASE="http://127.0.0.1:"+PORT; const server=await serve(PORT,{dist:DIST});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});

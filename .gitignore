@@ -11,3 +11,5 @@ meshy/**/three.min.js
 meshy/**/GLTFLoader.js
 meshy/**/GLTFExporter.js
 node_modules
+tools/test-logs/
+tools/scratch*/

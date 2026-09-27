@@ -4,7 +4,7 @@
 // recomputed on load); on a later map the gate still holds for ordinary gear and a refusal explains itself on the
 // lesson card; the sheet's red Lv tag follows the same rule.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs"; import path from "path";
-const SP=path.dirname(new URL(import.meta.url).pathname); const DIST=process.env.DIST||SP+"/dist";
+const SP=path.dirname(decodeURIComponent(new URL(import.meta.url).pathname).replace(/^\/(?=[A-Za-z]:)/,"")); const DIST=process.env.DIST||SP+"/dist";
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const PORT=8933, BASE="http://127.0.0.1:"+PORT;
 const server=await serve(PORT,{dist:DIST});

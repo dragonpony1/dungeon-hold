@@ -19,7 +19,7 @@ import { chromium } from "playwright"; import { serve } from "./serve.mjs"; impo
 let PeerServer;
 try { ({ PeerServer } = await import("peer")); }
 catch(e) { console.log("SKIP lobby-test.mjs — the `peer` package isn't installed (npm i peer)."); process.exit(0); }
-const SP=path.dirname(new URL(import.meta.url).pathname); const DIST=process.env.DIST||SP+"/dist";
+const SP=path.dirname(decodeURIComponent(new URL(import.meta.url).pathname).replace(/^\/(?=[A-Za-z]:)/,"")); const DIST=process.env.DIST||SP+"/dist";
 const results=[]; const check=(n,ok,d)=>{ results.push(!!ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const T0=Date.now(); const stamp=l=>console.log("   ["+Math.round((Date.now()-T0)/1000)+" s] "+l);

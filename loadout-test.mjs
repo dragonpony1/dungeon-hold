@@ -4,7 +4,7 @@
 // slot (worn / in the bag / not found) and both bonuses lit as they apply; four loadout cards save what you wear and put it
 // back on from the bag or the armory, report pieces that are gone, persist across a reload, and show the set's picture.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs"; import path from "path"; import fs from "fs";
-const SP=path.dirname(new URL(import.meta.url).pathname); const DIST=process.env.DIST||SP+"/dist";
+const SP=path.dirname(decodeURIComponent(new URL(import.meta.url).pathname).replace(/^\/(?=[A-Za-z]:)/,"")); const DIST=process.env.DIST||SP+"/dist";
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const PORT=8934, BASE="http://127.0.0.1:"+PORT; const server=await serve(PORT,{dist:DIST});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});

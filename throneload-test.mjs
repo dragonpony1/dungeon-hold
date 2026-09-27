@@ -6,7 +6,7 @@
 // bytes that came down; the model bytes stay under a budget; two asks for a file still in flight share one download; and a
 // shared download that hangs is let go after 40 s, so a later ask still gets the file, as it always did before sharing.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs"; import path from "path";
-const SP=path.dirname(new URL(import.meta.url).pathname); const DIST=process.env.DIST||SP+"/dist";
+const SP=path.dirname(decodeURIComponent(new URL(import.meta.url).pathname).replace(/^\/(?=[A-Za-z]:)/,"")); const DIST=process.env.DIST||SP+"/dist";
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const PORT=8950, BASE="http://127.0.0.1:"+PORT; const server=await serve(PORT,{dist:DIST});
 const BUDGET_MB=52;   // model bytes (base64 as sent) for a cold map-two load: 109.1 MB before the slim pass, 51.3 with each model fetched once, 42.4 with the decor textures as JPEG; the margin covers a few new models, not a door coming back four times

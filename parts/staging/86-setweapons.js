@@ -11,8 +11,11 @@
 // Which one a hero holds: the hand decides the kind, as for every weapon here (80-weapons.js) — a Chaos item shows the
 // Chaos sword on the Knight, the Chaos staff on the Witch, the Chaos bow on the Troll — except that the Knight holds a
 // forged polearm as a polearm. A piece is known by the hideout's set id (it.setId, 97-mythics.js keeps it) or by its
-// name's ending ("Mythic Staff of Chaos"), and a polearm by it.art or its name. window.__setweapons.bench() lines all
-// twelve up in the hall for a look.
+// name's ending ("Mythic Staff of Chaos"), and a polearm by it.look or its name. window.__setweapons.bench() lines them
+// all up in the hall for a look. Build 158: the other six forge sets (Void, Earth, Radiance, Storm, Ice, Wind) each have
+// their own file, 86b-void.js … 86g-wind.js, built with this file's kit and registered through addSet (below); the
+// Storm set's key is 'tempest' because staff-storm / bow-storm are the forge's tier-4 staff and bow.
+// tools/weapon-shot.mjs takes pictures of any set's four, alone and in the heroes' hands.
 (function(){
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 const lit=h=>basic(h);   // unlit: glowing veins, eyes, crystals, lava
@@ -174,12 +177,16 @@ const FI_BOW={name:'Bow of Fire',tier:5,len:1.0,wood:FI.obs,dark:0x0e0a0a,band:F
     for(const u of [.42,.58]) h.at(M(G.cyl(.032,.032,.05,8),mat(FI.leather)),u); } };
 
 // ---------------------------------------------------------------- registration and the item -> weapon choice
-const SETS={chaos:{ids:['crimson','chaos'],tail:/ of chaos$/i}, necrotic:{ids:['shadow','necrotic'],tail:/ of shadow$/i}, fire:{ids:['lava','fire'],tail:/ of fire$/i}};
-window.__weapons.register('sword-chaos',chaosSword); window.__weapons.register('polearm-chaos',chaosPolearm);
-window.__weapons.register('sword-necrotic',necroticSword); window.__weapons.register('polearm-necrotic',necroticPolearm);
-window.__weapons.register('sword-fire',fireSword); window.__weapons.register('polearm-fire',firePolearm);
-window.__staff.addKind('chaos',CH_K,chaosStaff); window.__staff.addKind('necrotic',NE_K,necroticStaff); window.__staff.addKind('fire',FI_K,fireStaff);
-window.__bow.addKind('chaos',CH_BOW); window.__bow.addKind('necrotic',NE_BOW); window.__bow.addKind('fire',FI_BOW);
+// addSet(key,{ids,tail,sword,polearm,staff:[K,build],bow:K}): a set's four weapons under sword-<key>, polearm-<key>,
+// staff-<key>, bow-<key>. ids = the hideout's set ids that mean this set (it.setId), tail = its name ending. Build 158: the
+// other six forge sets live in their own files (86b-void.js … 86g-wind.js) and call this with the same kit (below).
+const SETS={};
+function addSet(key,d){ SETS[key]={ids:d.ids,tail:d.tail};
+  if(d.sword) window.__weapons.register('sword-'+key,d.sword); if(d.polearm) window.__weapons.register('polearm-'+key,d.polearm);
+  if(d.staff) window.__staff.addKind(key,d.staff[0],d.staff[1]); if(d.bow) window.__bow.addKind(key,d.bow); }
+addSet('chaos',{ids:['crimson','chaos'],tail:/ of chaos$/i,sword:chaosSword,polearm:chaosPolearm,staff:[CH_K,chaosStaff],bow:CH_BOW});
+addSet('necrotic',{ids:['shadow','necrotic'],tail:/ of shadow$/i,sword:necroticSword,polearm:necroticPolearm,staff:[NE_K,necroticStaff],bow:NE_BOW});
+addSet('fire',{ids:['lava','fire'],tail:/ of fire$/i,sword:fireSword,polearm:firePolearm,staff:[FI_K,fireStaff],bow:FI_BOW});
 function setOf(it){ if(!it) return null; const id=String(it.setId||'').toLowerCase(); for(const k in SETS) if(SETS[k].ids.includes(id)) return k; const n=String(it.name||''); for(const k in SETS) if(SETS[k].tail.test(n)) return k; return null; }
 function setModel(it,mount){ const k=setOf(it); if(!k) return null; if(mount==='staff') return 'staff-'+k; if(mount==='bow') return 'bow-'+k;
   return (it.look==='polearm'||/\bpolearm\b/i.test(it.name||'')?'polearm-':'sword-')+k; }   // the Knight: a polearm item stays a polearm, anything else is the set's sword (it.look = the weapon's kind; it.art is the game's picture override)
@@ -189,9 +196,12 @@ const PULSES=new WeakMap(); let T=0;
 function pulse(root){ let list=PULSES.get(root); if(!list){ list=[]; root.traverse(o=>{ if(o.name==='glowPulse') list.push(o); }); PULSES.set(root,list); } list.forEach((s,i)=>{ s.material.opacity=.38+.2*Math.sin(T*3.3+i*1.7); }); }
 const BENCH=[];
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); T+=dt; const wo=window.__weapons.mounted(); if(wo&&wo.userData.setw) pulse(wo); BENCH.forEach(pulse); }; }
-// a look at all twelve: stood in a row on the floor, facing yaw, `gap` apart
-function bench(x,z,yaw,gap){ clearBench(); gap=gap||1.1; const names=[]; for(const k of ['chaos','necrotic','fire']) for(const w of ['sword','staff','polearm','bow']) names.push(w+'-'+k);
+// a look at them all (or just `only`, a set key or list of keys): stood in a row on the floor, facing yaw, `gap` apart
+function bench(x,z,yaw,gap,only){ clearBench(); gap=gap||1.1; const names=[]; const keys=only?[].concat(only):Object.keys(SETS); for(const k of keys) for(const w of ['sword','staff','polearm','bow']) names.push(w+'-'+k);
   const fx=Math.cos(yaw||0), fz=-Math.sin(yaw||0); names.forEach((n,i)=>{ window.__weapons.model(n,obj=>{ const s=/^sword/.test(n)?1.7:1.5; obj.scale.setScalar(s); const off=(i-(names.length-1)/2)*gap; const px=x+fx*off, pz=z+fz*off; obj.position.set(px,baseFloor(px,pz)+(/^bow/.test(n)?.05:.08)*s,pz); obj.rotation.y=(yaw||0)+(/^bow/.test(n)?PI/2:0); outline(obj); scene.add(obj); BENCH.push(obj); }); }); return names; }   // a bow turned side-on, so its curve shows
 function clearBench(){ BENCH.forEach(o=>scene.remove(o)); BENCH.length=0; }
-window.__setweapons={sets:()=>Object.keys(SETS),setOf,setModel,bench,clear:clearBench,benched:()=>BENCH.length};
+// the kit the other sets' files build with (the same helpers and frames as the three above)
+const kit={V,lit,shapeOf,slab,tube,helix,spike,toward,noOL,pulseGlow,faceCracks,crescent,OUTER,INNER,EDGE_IN,finish,SWORD_BOX,POLE_BOX,DIAG,
+  g:{mat,basic,glow,M,G,PI,TAU,outline}};   // g: the game's own helpers, for tools/weapon-shot.mjs to hand a set file tried from outside the build
+window.__setweapons={sets:()=>Object.keys(SETS),setOf,setModel,bench,clear:clearBench,benched:()=>BENCH.length,addSet,kit};
 })();

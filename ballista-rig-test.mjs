@@ -5,7 +5,7 @@
 // turns to a goblin off to one side, the assembly tilts at a drake, the bolt still flies, and the model faces +Z (its
 // winch post behind the pivot, its bolt tip ahead).
 import { chromium } from "playwright"; import { serve } from "./serve.mjs"; import path from "path";
-const SP=path.dirname(new URL(import.meta.url).pathname); const DIST=process.env.DIST||SP+"/dist";
+const SP=path.dirname(decodeURIComponent(new URL(import.meta.url).pathname).replace(/^\/(?=[A-Za-z]:)/,"")); const DIST=process.env.DIST||SP+"/dist";
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const PORT=8908, BASE="http://127.0.0.1:"+PORT;
 const server=await serve(PORT,{dist:DIST});

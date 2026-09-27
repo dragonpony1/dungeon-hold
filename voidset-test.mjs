@@ -43,12 +43,12 @@ const dmgOf=(p,i)=>p.evaluate(i=>{ const d=window.__dd, def=d.defs[i]; const cfg
 
   // the sword on the knight
   await page.evaluate(()=>window.__heroes.select('knight'));
-  await page.waitForFunction(()=>{ for(let i=0;i<3;i++) window.__dd.step(1/60,1); const s=window.__weapons.state(); return s.mounted&&/^void\|/.test(s.key); },null,{timeout:90000}).catch(()=>{});
+  await page.waitForFunction(()=>{ for(let i=0;i<3;i++) window.__dd.step(1/60,1); const s=window.__weapons.state(); return s.mounted&&/^sword-void\|/.test(s.key); },null,{timeout:90000}).catch(()=>{});
   const ws=await page.evaluate(()=>window.__weapons.state());
-  check("the knight holds the Void's own blade: mounted, key void|…, flagged as the set's",ws.mounted&&/^void\|/.test(ws.key)&&ws.void===true&&ws.loaded.includes('void'),JSON.stringify({key:ws.key,void:ws.void,mounted:ws.mounted}));
+  check("the knight holds the Void's own blade: mounted, key sword-void|… (the set blade from 86b-void.js since build 158), flagged as the set's",ws.mounted&&/^sword-void\|/.test(ws.key)&&ws.void===true&&ws.loaded.includes('sword-void'),JSON.stringify({key:ws.key,void:ws.void,mounted:ws.mounted}));
   const model=await page.evaluate(()=>new Promise(res=>window.__weapons.model('void',r=>{ let meshes=0, lit=0; r.traverse(o=>{ if(o.isMesh){ meshes++; if(o.material&&o.material.isMeshBasicMaterial) lit++; } }); res({name:r.name,proc:!!r.userData.proc,meshes,lit,sprites:r.children.filter(c=>c.isSprite).length,box:[+r.userData.box.min.y.toFixed(2),+r.userData.box.max.y.toFixed(2)],gripF:r.userData.gripF}); })));
   check("it's built in code: a dozen-plus parts, lit runes and fuller, two glow sprites, +Y blade axis, grip near the pommel",model.proc&&model.name==='sword-void'&&model.meshes>=14&&model.lit>=7&&model.sprites===2&&model.box[0]<0&&model.box[1]>1.3&&model.gripF===.14,JSON.stringify(model));
-  check("swordFor(a Void weapon) picks it, not the holy stand-in",await page.evaluate(()=>{ const it=window.__dd.gear().weapon; return window.__weapons.state().key.split('|')[0]==='void'&&/of the Void$/.test(it.name); }));
+  check("swordFor(a Void weapon) picks it, not the holy stand-in",await page.evaluate(()=>{ const it=window.__dd.gear().weapon; return window.__weapons.state().key.split('|')[0]==='sword-void'&&/of the Void$/.test(it.name); }));
 
   // the five-piece power: this wearer's Dazzling Halos lash what they dazzle (75% of a Storm Halo's blow); a Storm Halo is untouched; gone at three pieces
   const dz=await placeNear(page,'dazzle'); await page.evaluate(()=>{ window.__dd.setHero(window.__dd.hero.x+14,window.__dd.hero.z); window.__dd.step(1/60,1); }); const zp=await placeNear(page,'zap');

@@ -1,7 +1,7 @@
 // ===== THE CRYSTAL on the training ground has twice the life (300, map one only), and any hit on it raises the UNDER ATTACK
 // strip for 2.5 s and rings a low bell at most once every 3 s (55-crystal.js). The music has a visible switch on the HUD.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs"; import path from "path";
-const SP=path.dirname(new URL(import.meta.url).pathname); const DIST=process.env.DIST||SP+"/dist";
+const SP=path.dirname(decodeURIComponent(new URL(import.meta.url).pathname).replace(/^\/(?=[A-Za-z]:)/,"")); const DIST=process.env.DIST||SP+"/dist";
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const PORT=8912, BASE="http://127.0.0.1:"+PORT;
 const server=await serve(PORT,{dist:DIST});
