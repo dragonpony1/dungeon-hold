@@ -103,11 +103,17 @@
 // for every kill, whoever landed it -- because a guest's bolts and arrows are simulated on the host with no clean way
 // to attribute a killing blow, and towers are shared anyway. What stays host-only, deliberately: Meta.onRunEnd's own
 // bookkeeping (best wave, shop tier, campaign progress) -- that's the host's save telling the host's story.
+// ===== PHASE 14: a lobby before the hall (99b-lobby.js, its own module): HOST A GAME and JOIN A FRIEND now both land
+// in it, with a loading light per player and the host's map synced -- this file only hands over to it (openHost/
+// openGuest in the title-screen block below) and gained two small hooks for it: onLeave (a listener for a connection
+// closing, alongside the single __leave handler) and uiJoin (the real join flow, started by code for a rejoin).
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
 const handlers={};          // message type -> fn(data, fromPeerId)
 function onMessage(type,fn){ handlers[type]=fn; }
+const leaveHooks=[];        // extra listeners for a connection closing, after the one __leave handler below (99b-lobby.js drops a row, or hears that the host left); each guarded so one can't break the rest
+function onLeave(fn){ leaveHooks.push(fn); }
 function send(type,data,toId){
   const msg=JSON.stringify({type,data});
   if(toId){ const c=conns.get(toId); if(c&&c.open) c.send(msg); return; }
@@ -115,38 +121,62 @@ function send(type,data,toId){
 }
 function wire(conn){
   if(conn.__wired) return; conn.__wired=true;   // PeerJS's own 'open' event can fire more than once for the same DataConnection (seen intermittently in testing, most likely an ICE/negotiation retry) -- unguarded, a second wire() call stacked a second 'data' listener on the same conn, so every message after that point (including a one-shot action like 'swing'/'place'/'defAction') was handled twice
-  conn.on('data',raw=>{ try{ const {type,data}=JSON.parse(raw); const h=handlers[type]; if(h) h(data,conn.peer); }catch(e){ console.warn('net parse',e); } });
-  conn.on('close',()=>{ conns.delete(conn.peer); const h=handlers.__leave; if(h) h(conn.peer); });
+  conn.on('data',raw=>{ if(conns.get(conn.peer)!==conn&&conn.open) conns.set(conn.peer,conn);   // the connection a peer is actually talking on is the one to answer on (two of a joiner's attempts can both open -- see join())
+    try{ const {type,data}=JSON.parse(raw); const h=handlers[type]; if(h) h(data,conn.peer); }catch(e){ console.warn('net parse',e); } });
+  conn.on('close',()=>{ if(conns.get(conn.peer)!==conn) return;   // a superseded connection to the same peer (a join's earlier attempt, see join()) closing must not unregister the live one
+    conns.delete(conn.peer); const h=handlers.__leave; if(h) h(conn.peer); leaveHooks.forEach(f=>{ try{ f(conn.peer); }catch(e){ console.warn('net leave hook',e); } }); });
 }
 // peerOpts: PeerJS's own constructor options, passed straight through — omitted, it uses the public cloud broker
 // (0.peerjs.com); a test harness can point it at a local signaling server instead ({host,port,path}) without this
 // module knowing or caring which one it's talking to.
+// Staying on the broker (phase 14): the signaling server drops a peer whose tab goes quiet for a minute or so -- a phone busy
+// decoding the throne room's models right after a lobby move, or a backgrounded tab -- and PeerJS then nulls peer.id and never
+// comes back by itself. A host that fell off could take no more joiners on its code, and "me" (the heroes roster, the per-player
+// mana, the lobby's own row) went missing. So selfId keeps the id from 'open', keepOnBroker reconnects with the same id (backing
+// off), and join() connects to the host only on its FIRST 'open' -- PeerJS fires 'open' again after every reconnect. And an offer
+// or answer lost while either side was off the broker leaves a connection pending forever (PeerJS never re-sends it): join()
+// drops an attempt that is really stuck (see check() below) and makes a fresh one on the same Peer, backing off -- the join UI's
+// own timeout message shows meanwhile, and a late success still lets them in.
+let selfId=null;
+function keepOnBroker(p){ let n=0; p.on('open',()=>{ n=0; }); p.on('disconnected',()=>{ setTimeout(()=>{ try{ if(p===peer&&!p.destroyed&&p.disconnected) p.reconnect(); }catch(e){} },Math.min(30000,1500*Math.pow(2,n++))); }); }
 function host(roomCode,cb,peerOpts){
-  role='host'; peer=new Peer(roomCode||undefined,peerOpts);
-  peer.on('open',id=>{ cb&&cb(null,id); });
-  peer.on('connection',conn=>{ conn.on('open',()=>{ conns.set(conn.peer,conn); wire(conn); const h=handlers.__join; if(h) h(conn.peer); }); });
-  peer.on('error',e=>{ cb&&cb(e); });
+  role='host'; const p=peer=new Peer(roomCode||undefined,peerOpts); keepOnBroker(p);
+  p.on('open',id=>{ selfId=id; cb&&cb(null,id); });
+  p.on('connection',conn=>{ conn.on('open',()=>{ conns.set(conn.peer,conn); wire(conn); const h=handlers.__join; if(h) h(conn.peer); }); });
+  p.on('error',e=>{ cb&&cb(e); });
 }
+const JOIN_RETRY_MS=+Q.get('joinretry')||12000;   // first retry of a stuck attempt (test-only override, the same idiom as ?jointimeout); then twice as long each time, up to a minute
 function join(roomCode,cb,peerOpts){
-  role='guest'; peer=new Peer(undefined,peerOpts);
-  peer.on('open',myId=>{
-    const conn=peer.connect(roomCode,{reliable:true});
-    conn.on('open',()=>{ conns.set(conn.peer,conn); wire(conn); cb&&cb(null,myId); });
+  role='guest'; const p=peer=new Peer(undefined,peerOpts); keepOnBroker(p); let asked=false, done=false, tries=0;
+  const attempt=()=>{ if(done||p!==peer||p.destroyed) return;
+    if(p.disconnected){ setTimeout(attempt,3000); return; }   // off the broker for the moment (keepOnBroker is bringing it back): connect() would only refuse
+    const conn=p.connect(roomCode,{reliable:true}), t0=Date.now(); let timer=0; if(!conn){ setTimeout(attempt,3000); return; }
+    // only an attempt that is really stuck is dropped: no ICE under way at all (the offer or the answer never arrived) or ICE failed.
+    // One still negotiating ('checking') gets up to two minutes -- on a busy page (a big map decoding) every step just comes late,
+    // and cutting it off to start over would only start over late again
+    const check=()=>{ if(done||conn.open||p!==peer||p.destroyed) return; const pc=conn.peerConnection, st=pc&&pc.iceConnectionState;
+      if(st&&st!=='new'&&st!=='failed'&&st!=='closed'&&Date.now()-t0<120000){ timer=setTimeout(check,5000); return; }
+      if(tries>=20) return;   // about twenty minutes of trying, then it stops by itself: a wrong code never lands
+      try{ conn.close(); }catch(e){} tries++; attempt(); };
+    timer=setTimeout(check,Math.min(60000,JOIN_RETRY_MS*Math.pow(2,tries)));
+    conn.on('open',()=>{ if(done){ if(conns.get(conn.peer)!==conn) try{ conn.close(); }catch(e){} return; } done=true; clearTimeout(timer); conns.set(conn.peer,conn); wire(conn); cb&&cb(null,selfId); });   // done: 'open' can fire twice for one connection, and only one attempt may ever win -- a second attempt that opens too is closed
     conn.on('error',e=>{ cb&&cb(e); });
-  });
-  peer.on('error',e=>{ cb&&cb(e); });
+  };
+  p.on('open',myId=>{ selfId=myId; if(asked) return; asked=true; attempt(); });
+  p.on('error',e=>{ cb&&cb(e); });
 }
-function leave(){ conns.forEach(c=>c.close()); conns.clear(); if(peer) peer.destroy(); peer=null; role=null; }
-window.__net={ host, join, leave, send, onMessage, role:()=>role, peers:()=>[...conns.keys()],
+function leave(){ conns.forEach(c=>c.close()); conns.clear(); if(peer) peer.destroy(); peer=null; role=null; selfId=null; }
+window.__net={ host, join, leave, send, onMessage, onLeave, role:()=>role, peers:()=>[...conns.keys()],
   hostId:()=>role==='guest'?[...conns.keys()][0]||null:null,   // a guest only ever has the one connection — a convenience name for it, same id __party keys its puppet under
-  myId:()=>peer&&peer.id };
+  myId:()=>selfId||(peer&&peer.id)||null };
 
 // title-screen host/join UI: co-op was previously a window.__net-only API, no in-game way for an ordinary player
 // to actually use it -- these two buttons and their small panels (parts/head.html's #start screen) are that
 // entry point. Wired here rather than game.js, same "co-op UI lives in this module" reasoning as everything else.
-// A host gets shown their room code with a copy-to-clipboard tap and a manual "enter the hall" step, so the code
-// stays on screen until they've actually shared it; a guest just types the code they were given and connects
-// straight in. The code itself is a short, spoken/typed-friendly one this module generates and hands to Peer()
+// A host gets shown their room code with a copy-to-clipboard tap, and since phase 14 a LOBBY (99b-lobby.js) under
+// it instead of a bare "enter the hall" button: everyone who joins waits there, each with a loading light, until the
+// host's START; a guest types the code they were given and lands in that same lobby rather than straight in the
+// hall. The code itself is a short, spoken/typed-friendly one this module generates and hands to Peer()
 // as the room's own id (shortRoomCode below) -- PeerJS's own default auto-generated id is a full UUID, fine for a
 // machine but a real mouthful to read out or thumb-type on a phone, which real testing turned up fast. A 5-char
 // code from a 32-symbol alphabet (no 0/O/1/I/L, easy to tell apart read aloud) is plenty for a handful of friends
@@ -170,14 +200,17 @@ function shortRoomCode(){ const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s=''; f
     coopRow.classList.add('hide'); hostPanel.classList.remove('hide'); hostMsg.textContent='Opening the gate…';
     let tries=0;
     const tryHost=()=>{
+      let opened=false;
       window.__net.host(shortRoomCode(),(err,id)=>{
+        if(opened) return;   // the same Peer can report a later error (its signaling socket dropping, say) -- that must not tear down a lobby that is already open; the data channels to anyone in it don't need the broker any more
         if(err){
           if(err.type==='unavailable-id'&&tries<4){ tries++; tryHost(); return; }   // a real collision on the room code itself -- quietly try a fresh one rather than surface a confusing error for something this recoverable
           hostMsg.textContent="Couldn't open a game — try again?"; hostPanel.classList.add('hide'); coopRow.classList.remove('hide'); return;
         }
-        hostMsg.innerHTML='Share this code with your friend:<br><span class="netCode" id="hostCode">'+id+'</span><br><button class="big" id="hostEnterBtn">▶ ENTER THE HALL</button>';
+        opened=true;
+        hostMsg.innerHTML='Share this code with your friends:<br><span class="netCode" id="hostCode">'+id+'</span>';
         $('hostCode').addEventListener('click',()=>{ const c=$('hostCode'); try{ navigator.clipboard.writeText(id); c.textContent='copied!'; setTimeout(()=>{ c.textContent=id; },900); }catch(e){} });
-        $('hostEnterBtn').addEventListener('click',play);
+        window.__lobby.openHost(id);   // the lobby (99b-lobby.js) takes it from here: the roster, the loading lights, START
       },TEST_PEER_OPTS);
     };
     tryHost();
@@ -202,14 +235,16 @@ function shortRoomCode(){ const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s=''; f
       joinMsg.classList.add('err');
     },JOIN_TIMEOUT);
     window.__net.join(code,err=>{
-      if(settled){ if(!err) play(); return; }   // a late success after the timeout already showed -- still let them in rather than strand a connection that did eventually land
+      if(settled){ if(!err) window.__lobby.openGuest(code); return; }   // a late success after the timeout already showed -- still let them in (to the lobby) rather than strand a connection that did eventually land
       settled=true; clearTimeout(timer); joinGoBtn.disabled=false;
       if(err){ joinMsg.textContent="Couldn't connect — check the code and try again."; joinMsg.classList.add('err'); return; }
-      play();
+      window.__lobby.openGuest(code);   // phase 14: into the host's lobby, not straight into the hall -- the host's START (or, after it, this page's own room finishing its load) is what enters
     },TEST_PEER_OPTS);
   }
   joinGoBtn.addEventListener('click',doJoin);
   joinCode.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter'){ e.preventDefault(); doJoin(); } });
+  // the same join, started by code rather than a click: 99b-lobby.js rejoins the room this way after reloading onto the host's map
+  window.__net.uiJoin=code=>{ coopRow.classList.add('hide'); joinPanel.classList.remove('hide'); joinCode.value=String(code||''); doJoin(); };
 }
 
 // ---- phase 3/4: every hero in the hall, broadcast a few times a second and rendered as a puppet on every OTHER
@@ -398,12 +433,12 @@ function hostBroadcastHeroes(dt){
   if(role!=='host'||!conns.size) return;
   syncT+=dt; if(syncT<1/15) return; syncT=0;   // 15Hz: plenty for a puppet that already eases toward its target (98-party.js) rather than snapping to it
   const h=window.__dd.hero;
-  const list=[{id:peer.id,x:+h.x.toFixed(3),z:+h.z.toFixed(3),yaw:+h.yaw.toFixed(3),pick:window.__heroes.pick()}];
+  const list=[{id:selfId,x:+h.x.toFixed(3),z:+h.z.toFixed(3),yaw:+h.yaw.toFixed(3),pick:window.__heroes.pick()}];
   guestHero.forEach((g,id)=>{ const inp=guestIn.get(id); list.push({id,x:+g.x.toFixed(3),z:+g.z.toFixed(3),yaw:+g.yaw.toFixed(3),pick:(inp&&inp.pick)||'witch'}); });
   send('heroes',{list});
 }
 onMessage('heroes',data=>{
-  const mine=peer&&peer.id;
+  const mine=selfId;
   const ids=new Set();
   data.list.forEach(h=>{ ids.add(h.id); if(h.id===mine) return;   // that's me -- I already render my own local hero directly, not as a puppet of myself
     if(!window.__party.list().includes(h.id)) window.__party.add(h.id,HERO_GLB[h.pick]||'witch.glb',heroLabel(h.pick));
@@ -446,7 +481,7 @@ function hostBroadcastWorld(dt){
   // is per-player now; du/duCap below stay hall-wide on purpose, a structural cap on the hall itself, not a
   // personal resource). mana:S.mana stays too, unchanged meaning (the HOST's own pool) -- nothing else reads it
   // differently than before, so no existing caller (tests included) needed to change.
-  const manas={}; manas[peer.id]=S.mana; guestMana.forEach((v,id)=>{ manas[id]=v; });
+  const manas={}; manas[selfId]=S.mana; guestMana.forEach((v,id)=>{ manas[id]=v; });
   send('world',{crystal:S.crystal,crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,waveTotal:MAP.waves,mapName:MAP.name,mana:S.mana,manas,du:S.du,duCap:DU_CAP});
 }
 // a guest's own local S.phase never actually moves through 'deathcut'/'dead'/'won' -- only the HOST's real crystal

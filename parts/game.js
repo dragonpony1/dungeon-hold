@@ -157,7 +157,10 @@ const MAPS=[
    {cx:24,cz:53,up:3.4,c:0xc040ff,i:.9,d:10},{cx:1,cz:25,up:3.4,c:0xc040ff,i:.9,d:10},{cx:48,cz:25,up:3.4,c:0xc040ff,i:.9,d:10},{cx:48,cz:8,up:3.4,c:0xc040ff,i:.9,d:10},
    {cx:34,cz:40,up:4.2,c:0xffb05a,i:1.3,d:13},{cx:32,cz:42,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:36,cz:46,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:34,cz:47,up:2.2,c:0xff7a1a,i:1.6,d:9,oz:.4}]}];
 const MAPS_CLEARED=(()=>{ try{ return Math.max(0,Math.min(MAPS.length,parseInt(localStorage.getItem('ddMapsCleared'))||0)); }catch(e){ return 0; } })();
-const MAPI=(()=>{ let i=parseInt(Q.get('map')); if(!(i>=0)){ try{ i=parseInt(localStorage.getItem('ddMap'))||0; }catch(e){ i=0; } } return Math.max(0,Math.min(i,MAPS_CLEARED,MAPS.length-1)); })();   // a map past the last one cleared is locked
+// co-op lobby (99b-lobby.js): a guest following its host onto the host's map reloads with ?coopmap=N&coopjoin=<room code>.
+// Only that pair lifts this player's own unlock gate, and only for this one page load (the lobby strips both from the address
+// bar as soon as it has read them); ?coopmap without a room code, and ?map= for everyone, stay gated exactly as before.
+const MAPI=(()=>{ const cm=parseInt(Q.get('coopmap')); if(Q.get('coopjoin')&&cm>=0) return Math.min(cm,MAPS.length-1); let i=parseInt(Q.get('map')); if(!(i>=0)){ try{ i=parseInt(localStorage.getItem('ddMap'))||0; }catch(e){ i=0; } } return Math.max(0,Math.min(i,MAPS_CLEARED,MAPS.length-1)); })();   // a map past the last one cleared is locked
 const MAP=MAPS[MAPI]; MAP.wbase=MAPS.slice(0,MAPI).reduce((a,m)=>a+m.waves,0);
 const CELL=2, GW=MAP.gw, GH=MAP.gh, OX=MAP.crystal[0]*CELL+CELL/2, OZ=MAP.crystal[1]*CELL+CELL/2, WALLH=MAP.wallH||7;   // the crystal stands at world (0,0)
 const T={WALL:0,FLOOR:1,CARPET:2,DAIS:3,PILLAR:4,SPAWN:5,CRYSTAL:6,PROP:7,WATER:8};   // WATER: a moat — walkers and the hero stop at the bank, flyers cross it
