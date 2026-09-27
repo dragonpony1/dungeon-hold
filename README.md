@@ -1045,6 +1045,23 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   throws at the shop). campaign-test,
   coop-rewards, coop-feedback and coop-loot hold the lap and then MOVE ON (the same checks, plus "no tally by itself" and
   "paid once").
+- Build 167: THE OTHER EIGHT SETS are sets now, "at a conservative rate" (`93b-sets8.js`, new): of Chaos (crimson),
+  of the Earth (rock), of Fire (lava), of Radiance (angelic), of the Storm (storm), of Shadow (shadow), of Ice (ice),
+  of the Wind (wind), on the same frame as the Void and the Forest (`Meta.packs.add`): Rare-or-better rolls, from
+  wave 4, 1.2% a set climbing to 3% (the Void's rule stays the ceiling), value x2, a three-piece bonus and a five-piece
+  power each, Matt's card art (`assets/item-<key>-{sword,armor,charm,amulet}.jpg`, the sword picture for a staff or a
+  bow too) and set picture (`assets/set-<key>.jpg`, the sheet), the set's armor stand for the hideout locker and the
+  armory, a chime on the drop. Build 157's mythic set pieces carry these same endings, so a Mythic Staff of Chaos counts
+  toward the Chaos bonus like any other piece; the weapons stay 86-setweapons.js's code-built ones. The powers: CHAOS
+  one hit in five strikes twice; BULWARK defenses within 8 of you take half damage; EMBER hits burn 3 s at a quarter of
+  the blow a second; HALO every hit heals you 15% of it and mends the defenses beside you; CHAIN every third hit arcs
+  half the blow to two enemies near it; BACKSTAB a hit from behind is half again; FROSTBITE hits chill 1.5 s (speed
+  x0.6); GALE swings reach 40% further and throw enemies back (a guest's five-piece power runs through 93-gearsets.js's
+  guestSwing like the Void's). One set at a time: a set roll landing on one of the eight the player has not started,
+  while another is started (worn or bagged), goes to the started one 60% of the time, so a set completes before the
+  next begins. The sheet's sets band holds ten: owned sets keep their full cards, the ones not found yet are a row of
+  small tiles (a tap opens one to read its bonuses). `sets8-test.mjs` (new): registration, the rate, the pictures
+  served, the bias, every power; `loadout` and `sets` updated for ten; the test server serves jpg/webp as images.
 - Build 166: a tutorial hall before room one. Matt: "we need to reimagine the entire tutorial ... prior to room one there is
   a tutorial hall. tutorial as a selection on the title screen gets rid of some buttons too. kill a goblin melee. next place
   a ballista, here's how, now g, oh look loot was dropped. its a tutorial room with one hall and in your face instruction".

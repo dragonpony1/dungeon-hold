@@ -1,6 +1,6 @@
 // test helper: serve a single html file (FILE) or a dist folder (DIST, index.html + assets/) on a port
 import http from "http"; import fs from "fs"; import path from "path";
-const TYPES={".html":"text/html; charset=utf-8",".js":"text/javascript",".glb":"model/gltf-binary",".mp3":"audio/mpeg",".png":"image/png",".json":"application/json",".webmanifest":"application/manifest+json"};
+const TYPES={".html":"text/html; charset=utf-8",".js":"text/javascript",".glb":"model/gltf-binary",".mp3":"audio/mpeg",".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".webp":"image/webp",".json":"application/json",".webmanifest":"application/manifest+json"};
 export async function serve(port,opts){ opts=opts||{}; const dist=opts.dist||process.env.DIST; const file=opts.file||process.env.FILE||(process.env.SP+"/dungeon.html");
   const csp=opts.csp||process.env.CSP; const server=http.createServer((req,res)=>{ let p=decodeURIComponent(new URL(req.url,"http://x").pathname); if(p==="/") p="/index.html";
     if(csp) res.setHeader("Content-Security-Policy",typeof csp==="string"&&csp!=="1"?csp:"default-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src 'self'; connect-src 'self'; media-src 'self'");

@@ -61,6 +61,12 @@ const css=`#hud .bars{width:300px}#hud .bar{height:20px}#hud .bar b{font-size:13
 #doll .dl-sets .sr{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;padding:9px 11px;border:1px solid var(--line);border-left:4px solid var(--sc,#a5602a);border-radius:3px;background:#0b0a0d}
 #doll .dl-sets .sr.zero{grid-template-columns:auto 1fr;padding:6px 10px;opacity:.85}#doll .sr.zero .sp{width:44px;height:55px;font-size:24px}#doll .sr.zero .sp img{filter:grayscale(.85) brightness(.5)}#doll .sr.zero .sn{font-size:1em}#doll .sr.zero .sn small{color:#6f6459;font-size:.75em;letter-spacing:1px;margin-left:6px}#doll .sz{font-size:.8em;color:#7d7286;line-height:1.35;margin-top:2px}#doll .sz .k{color:var(--gold2)}
 #doll .dl-sets .sr.on{background:linear-gradient(90deg,color-mix(in srgb,var(--sc) 14%,#0b0a0d),#0b0a0d 60%)}
+#doll .dl-zero{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(48px,1fr));gap:6px}   /* build 167: ten sets -- the ones not found yet are small tiles in a row (nine fit the middle column at 1600 wide), a tap opens one to read its bonuses */
+#doll .dl-zero .sr.zero{display:flex;flex-direction:column;gap:3px;padding:3px 2px 4px;border-left-width:3px;cursor:pointer;text-align:center;align-items:center;opacity:.9;min-width:0}
+#doll .dl-zero .sr.zero .sp{width:100%;height:34px;font-size:15px;border-radius:2px}#doll .dl-zero .sr.zero .sp img{object-fit:cover}
+#doll .dl-zero .sr.zero .sn{font-size:.58em;line-height:1.15;word-break:normal}#doll .dl-zero .sr.zero .sn b{font-weight:600}#doll .dl-zero .sr.zero .sn .sk,#doll .dl-zero .sr.zero .sn small{display:none}
+#doll .dl-zero .sr.zero .sz{display:none}
+#doll .dl-zero .sr.zero.open{grid-column:1/-1;flex-direction:row;text-align:left;align-items:flex-start;gap:10px;padding:6px 10px}#doll .dl-zero .sr.zero.open .sp{width:44px;height:55px;flex:none}#doll .dl-zero .sr.zero.open .sn{font-size:.95em}#doll .dl-zero .sr.zero.open .sn .sk{display:inline}#doll .dl-zero .sr.zero.open .sn small{display:inline;margin-left:6px}#doll .dl-zero .sr.zero.open .sz{display:block}
 #doll .sp{position:relative;width:100px;height:125px;border:1px solid var(--line);border-radius:3px;background:radial-gradient(ellipse at 50% 62%,#2a1c22,#0b0a0d 72%);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:46px}
 #doll .sp img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}#doll .sp.dim img{filter:grayscale(.85) brightness(.5)}
 #doll .sn{font-size:1.2em;color:var(--cream);letter-spacing:1px}#doll .sn b{color:var(--sc);font-weight:normal}
@@ -105,8 +111,8 @@ function medal(k,l,v,big){ return '<div class="dl-stat'+(big?' big':'')+'" style
 // see my sets and their bonuses a little better". Every registered set gets a card across the full width: a picture of its
 // armor (the set's own dressed stand, rendered by probes/setpictures.mjs), the count, a pip per slot saying whether that
 // piece is worn, in the bag (or armory) unworn, or not found yet, and both bonuses with the ones you have lit.
-const SET_PICS=['forest','void'];   // parts/assets/set-<k>.png exists for these
-function setPic(P){ const k=P&&P.unlock&&String(P.unlock.id||'').replace(/^stand-/,''); return k&&SET_PICS.includes(k)&&(typeof HAS_ASSETS==='undefined'||HAS_ASSETS)?'assets/set-'+k+'.png':null; }
+const SET_PICS={forest:'png',void:'png',crimson:'jpg',rock:'jpg',lava:'jpg',angelic:'jpg',storm:'jpg',shadow:'jpg',ice:'jpg',wind:'jpg'};   // parts/assets/set-<k>.<ext> (the eight from Matt's set art, build 167)
+function setPic(P){ const k=P&&P.unlock&&String(P.unlock.id||'').replace(/^stand-/,''); return k&&SET_PICS[k]&&(typeof HAS_ASSETS==='undefined'||HAS_ASSETS)?'assets/set-'+k+'.'+SET_PICS[k]:null; }
 // "I am wanting to see the sets so I can see the buff, that's the main reason for changing loadouts": point at a loadout card and
 // the band shows what THAT loadout would give -- its pieces as the pips, its bonuses lit -- instead of what you wear now
 function setsPanel(){ if(!Meta.sets) return ''; const so=Meta.sets.setOf, bag=Meta.bag(), arm=Meta.armory?Meta.armory():[];
@@ -115,12 +121,13 @@ function setsPanel(){ if(!Meta.sets) return ''; const so=Meta.sets.setOf, bag=Me
   const owned=n=>SLOTS.filter(s=>(on(s)&&so(on(s))===n)||(gear[s]&&so(gear[s])===n)||bag.some(x=>x.slot===s&&so(x)===n)||arm.some(x=>x.slot===s&&so(x)===n)).length;
   const names=Object.keys(Meta.sets.SETS).sort((x,y)=>((c[y]|0)-(c[x]|0))||(owned(y)-owned(x)));   /* the set you wear most first, then the one you hold most pieces of */
   const cards=names.map(n=>{ const S=Meta.sets.SETS[n], P=Meta.packs&&Meta.packs.get(n), css=(P&&P.css)||'#a5602a', k=c[n]|0, act=a.find(x=>x.name===n);
-    if(!owned(n)){ const pz=setPic(P); return '<div class="sr zero" style="--sc:'+css+'"><div class="sp">'+S.ic+(pz?'<img src="'+pz+'" alt="" onerror="this.remove()">':'')+'</div><div><div class="sn">'+S.ic+' <b>'+n+' '+k+'/5</b> <small>not found yet</small></div><div class="sz"><span class="k">3</span> '+S.text[0]+' · <span class="k">5</span> '+S.text[1]+'</div></div></div>'; }   /* a set with no piece yet: one compact row, so the one you are collecting keeps the room */
+    if(!owned(n)){ const pz=setPic(P); return '<div class="sr zero'+(D.setOpen===n?' open':'')+'" data-act="setinfo" data-set="'+n.replace(/"/g,'')+'" style="--sc:'+css+'" title="3 pieces: '+S.text[0].replace(/"/g,'')+' · all 5: '+S.text[1].replace(/"/g,'')+'"><div class="sp">'+S.ic+(pz?'<img src="'+pz+'" alt="" onerror="this.remove()">':'')+'</div><div><div class="sn">'+S.ic+' <b>'+n+' <span class="sk">'+k+'/5</span></b> <small>not found yet</small></div><div class="sz"><span class="k">3</span> '+S.text[0]+' · <span class="k">5</span> '+S.text[1]+'</div></div></div>'; }   /* a set with no piece yet: a small tile in the row below the cards (ten sets since build 167); a tap opens it to read the bonuses */
     const pips=SLOTS.map(s=>{ const w=!!(on(s)&&so(on(s))===n), b=!w&&!pv&&(bag.some(x=>x.slot===s&&so(x)===n)||arm.some(x=>x.slot===s&&so(x)===n)); const lab=w?(pv?'in it':'worn'):b?'in bag':SNAME[s]; return '<span class="'+(w?'worn':b?'bag':'')+'" title="'+SNAME[s]+(w?(pv?' — in this loadout':' — worn'):b?' — you have it, not worn':pv?' — not in this loadout':' — not found yet')+'"><i>'+SICON[s]+'</i>'+lab+'</span>'; }).join('');
     const pic=setPic(P);
     return '<div class="sr'+(act?' on':'')+'" style="--sc:'+css+'"><div class="sp'+(k?'':' dim')+'">'+S.ic+(pic?'<img src="'+pic+'" alt="" onerror="this.remove()">':'')+'</div><div><div class="sn">'+S.ic+' <b>'+n+' '+k+'/5</b></div><div class="spips">'+pips+'</div>'+
-      '<div class="sb'+(k>=3?' lit':'')+'"><span class="k">3 PIECES</span>'+S.text[0]+'</div><div class="sb'+(k>=5?' lit':'')+'"><span class="k">ALL 5</span>'+S.text[1]+'</div></div></div>'; }).join('');
-  return '<div class="dl-pane dl-setband'+(pv?' prev':'')+'"><div class="pl">'+(pv?'loadout '+(D.ldPrev+1)+' would give':'sets · 3 pieces for the small bonus, all 5 for the big one')+'</div><div class="dl-sets">'+cards+'</div></div>'; }
+      '<div class="sb'+(k>=3?' lit':'')+'"><span class="k">3 PIECES</span>'+S.text[0]+'</div><div class="sb'+(k>=5?' lit':'')+'"><span class="k">ALL 5</span>'+S.text[1]+'</div></div></div>'; });
+  const full=cards.filter(h=>!/^<div class="sr zero/.test(h)).join(''), zeros=cards.filter(h=>/^<div class="sr zero/.test(h)); const cardsHtml=full+(zeros.length?'<div class="dl-zero">'+zeros.join('')+'</div>':'');
+  return '<div class="dl-pane dl-setband'+(pv?' prev':'')+'"><div class="pl">'+(pv?'loadout '+(D.ldPrev+1)+' would give':'sets · 3 pieces for the small bonus, all 5 for the big one')+'</div><div class="dl-sets">'+cardsHtml+'</div></div>'; }
 // ---- LOADOUTS (build 141): "give me 4 loadout buttons ... maybe a picture of the armor set". Four slots under the hero; SAVE keeps
 // what you wear now (the five item ids), WEAR puts it all back on from the bag or the armory. A piece sold or carried to the
 // hideout since is reported, a piece above your level is refused as usual. localStorage 'dd_loadouts' (the wipe clears dd* keys).
@@ -172,6 +179,7 @@ let el=null;
 function ensure(){ if(el) return; el=document.createElement('div'); el.id='doll'; el.className='screen hide'; document.body.appendChild(el); D.cv=document.createElement('canvas');
   el.addEventListener('click',e=>{ const a=e.target.closest('[data-act]'); if(!a){ if(e.target===el) close(); return; } const act=a.dataset.act, ds=a.dataset;
     if(act==='close') close(); else if(act==='tavern'){ close(); Meta.open(); if(typeof Tavern!=='undefined'&&Tavern.tab) Tavern.tab('shop'); }
+    else if(act==='setinfo'){ D.setOpen=D.setOpen===ds.set?null:ds.set; render(); }
     else if(act==='bag'){ const s=ds.slot, cand=Meta.bag().filter(b=>b.slot===s); if(cand.length){ D.sel={id:cand[0].id,from:'bag'}; render(); const inv=el.querySelector('.inv'); if(inv&&inv.scrollIntoView) inv.scrollIntoView({block:'nearest',behavior:'smooth'}); } else { toast('Nothing for that slot in the inventory — the tavern sells some'); close(); Meta.open(); if(typeof Tavern!=='undefined'&&Tavern.tab) Tavern.tab('shop'); } }
     else if(act==='pick'){ D.sel=D.sel&&D.sel.from==='bag'&&D.sel.id===ds.id?null:{id:ds.id,from:'bag'}; render(); }
     else if(act==='pickarm'){ D.sel=D.sel&&D.sel.from==='arm'&&D.sel.id===ds.id?null:{id:ds.id,from:'arm'}; render(); }
