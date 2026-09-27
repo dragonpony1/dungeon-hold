@@ -186,7 +186,19 @@ const handlers={};          // message type -> fn(data, fromPeerId)
 // until the game has a relay of its own (a TURN account in Matt's name -- noted for him, not added here). Like build 152's,
 // this list replaces PeerJS's own default, which names peerjs.com's public relays (untested, and a third party too: also
 // left for Matt to decide). A caller's own config wins.
-function iceOpts(o){ o=Object.assign({},o||{}); if(!o.config) o.config={iceServers:[{urls:'stun:stun.l.google.com:19302'}]}; return o; }
+// Build 159: the game's own relay. Matt's Cloudflare account runs a TURN relay (Cloudflare Realtime) behind a small Worker,
+// rootgate-turn.52bulls.workers.dev (its own folder, clude project\rootgate-turn), which hands out relay passes that expire in
+// a few hours -- the long-term key stays in the Worker. The page asks for a pass as it loads and again whenever one is getting
+// old, in the background: HOST and JOIN never wait for it. With a pass, iceOpts adds Cloudflare's STUN and TURN servers to
+// Google's STUN; without one (the Worker not set up yet, offline, a slow answer) the list is exactly what it was. Only on the
+// real site (https): the test suites' pages on 127.0.0.1 never reach out.
+const RELAY_URL='https://rootgate-turn.52bulls.workers.dev/ice'; let relayIce=null, relayAt=0, relayAsking=false;
+function fetchRelay(){ if(relayAsking||location.protocol!=='https:'||typeof fetch!=='function') return; if(relayIce&&Date.now()-relayAt<3*3600e3) return;   // a pass lasts 4 h; a fresh one after 3
+  relayAsking=true; let ctl=null; try{ ctl=new AbortController(); }catch(e){} const t=setTimeout(()=>{ try{ ctl&&ctl.abort(); }catch(e){} },5000);
+  fetch(RELAY_URL,{cache:'no-store',signal:ctl?ctl.signal:undefined}).then(r=>r.ok?r.json():null).then(d=>{ const s=d&&Array.isArray(d.iceServers)?d.iceServers.filter(x=>x&&x.urls&&typeof x==='object'):[]; if(s.length){ relayIce=s; relayAt=Date.now(); } })
+    .catch(()=>{}).then(()=>{ clearTimeout(t); relayAsking=false; }); }
+fetchRelay();
+function iceOpts(o){ o=Object.assign({},o||{}); if(!o.config) o.config={iceServers:[{urls:'stun:stun.l.google.com:19302'}].concat(relayIce||[])}; fetchRelay(); return o; }
 function onMessage(type,fn){ handlers[type]=fn; }
 const leaveHooks=[];        // extra listeners for a connection closing, after the one __leave handler below (99b-lobby.js drops a row, or hears that the host left); each guarded so one can't break the rest
 function onLeave(fn){ leaveHooks.push(fn); }

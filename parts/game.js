@@ -647,7 +647,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=158;
+const BUILD=159;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1192,7 +1192,7 @@ canvas.addEventListener('touchmove',e=>{ for(const t of e.changedTouches){ if(t.
 const touchEnd=e=>{ for(const t of e.changedTouches){ if(t.identifier===joy.id){ joy.id=null; joy.x=joy.y=0; $('joy').firstElementChild.style.transform=''; } if(t.identifier===lookId) lookId=null; } };
 canvas.addEventListener('touchend',touchEnd); canvas.addEventListener('touchcancel',touchEnd);
 DEFKEYS.forEach((k,i)=>{ const cfg=DEFS[k]; const s=document.createElement('div'); s.className='slot'; s.id='slot-'+k; s.innerHTML='<div class="k">'+DEFKEY_LABELS[i]+'</div><div class="ic">'+cfg.ic+'</div><div class="n">'+cfg.name+'</div><div class=\"cst\">🌱 '+cfg.du+' · '+cfg.mana+' ◆</div>'; s.addEventListener('click',()=>select(k)); $('hotbar').appendChild(s); });
-if(TOUCH){ [['⚔',swing],['⤴',jump],['✔',()=>{ if(placing) confirmPlace(); }],['↻',()=>{ rotateGhost(PI/4); }],['🔧',upgrade],['🎒',()=>Meta.open()]].forEach(([t,f])=>{ const b=document.createElement('div'); b.className='hb'; b.textContent=t; b.addEventListener('touchstart',e=>{ e.preventDefault(); f(); },{passive:false}); $('btns').appendChild(b); }); }
+if(TOUCH){ [['⚔',()=>swing()],['⤴',()=>jump()],['✔',()=>{ if(placing) confirmPlace(); }],['↻',()=>{ rotateGhost(PI/4); }],['🔧',()=>upgrade()],['🎒',()=>Meta.open()]].forEach(   /* by NAME at the tap, not the function as it stood here (build 159, Matt on his iPad: "the wrench doesn't work"): the modules load after this line and wrap swing/upgrade -- the portal, the tavern stations, the raven, a co-op guest's relayed swing and repair -- and the buttons were still holding the bare originals */([t,f])=>{ const b=document.createElement('div'); b.className='hb'; b.textContent=t; b.addEventListener('touchstart',e=>{ e.preventDefault(); f(); },{passive:false}); $('btns').appendChild(b); }); }
 $('wavebtn').addEventListener('click',()=>{ startWave(); if(!TOUCH&&canvas.requestPointerLock) canvas.requestPointerLock(); });
 function play(){ if(S.phase!=='start') return; S.phase='build'; $('start').classList.add('hide'); SFX.enter(); setTimeout(()=>setMusic('build'),400); if(heroLoadError) setTimeout(()=>toast('Hero model failed to load ('+heroLoadError+') — using the old gnome'),600); if(!TOUCH&&canvas.requestPointerLock) canvas.requestPointerLock(); cam.x=hero.x; cam.y=hero.y+5; cam.z=hero.z+8; cam.d=cam.dist; toast('Build phase — pick a defense with the number keys, then G to start the wave'); }
 $('playbtn').addEventListener('click',play); $('tavbtn').addEventListener('click',()=>Meta.open()); $('bagbtn').addEventListener('click',()=>Meta.open());
