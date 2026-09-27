@@ -8,7 +8,8 @@
 // the game's load tiers stop waiting after 40 s and a loaded machine can take longer than that just to get a page up), a hero change
 // and a hostile name/hero show up in the roster as plain text, a raw peer sending malformed lobby messages breaks nothing, a guest
 // leaving updates the roster, START puts all three into the hall on the same map, a late joiner waits while its room loads and then
-// goes straight in, and the host leaving sends a waiting guest back to its own title screen.
+// goes straight in, and the host leaving sends a waiting guest back to its own title screen (and, since build 159, gives the guest
+// already in the hall its THE HOST LEFT end screen).
 // Every page is phone-width (400 CSS px), so the panel's fit is checked too. To keep software GL from starving the run, pages render
 // at half pixel density (deviceScaleFactor 0.5 -- layout unchanged) and their frame loop is throttled by an init script to one frame
 // every few seconds, slower still for a page just idling in the hall (measured here: one idle title page costs the software-GL process
@@ -156,11 +157,16 @@ await B.page.goto(BASE+"&lobbyhold=1&coopmap=1&coopjoin="+code,{timeout:480000})
 const bWait2=await until(B.page,()=>{ const s=window.__lobby&&window.__lobby.state(); return s&&s.phase==='waiting'?s:null; },null,600000,'B waiting again');
 stamp("B waiting; closing the host");
 await H.ctx.close();
-const bGone=await until(B.page,()=>{ const s=window.__lobby&&window.__lobby.state(); return s&&s.phase==='off'&&window.__dd.map().index===0&&/host left/i.test(document.getElementById('coopMsg').textContent)?{s,note:document.getElementById('coopMsg').textContent,role:window.__net.role(),row:!document.getElementById('coopRow').classList.contains('hide')}:null; },null,600000,'B sees host left');
+// 120 s, not the runner's whole 600 s: a guest that never notices must print 'gave up' and let the checks below run (build 159 --
+// before its heartbeat, a closed host tab was never noticed at all, and this wait was the "hang" the runner killed)
+const bGone=await until(B.page,()=>{ const s=window.__lobby&&window.__lobby.state(); return s&&s.phase==='off'&&window.__dd.map().index===0&&/host left/i.test(document.getElementById('coopMsg').textContent)?{s,note:document.getElementById('coopMsg').textContent,role:window.__net.role(),row:!document.getElementById('coopRow').classList.contains('hide')}:null; },null,120000,'B sees host left');
 const bLog=await msgs(B.page).catch(()=>[]);
 check("when the host leaves, a waiting guest sees 'the host left' and gets the normal title screen back (its own map, no connection)",!!bWait2&&!!bGone&&bGone.role===null&&bGone.row,JSON.stringify({bGone,log:bLog.slice(-4)}));
-const aStill=await A.page.evaluate(()=>({phase:window.__dd.S.phase,lobby:window.__lobby.state().phase}));
-check("a guest already in the hall is left alone by the lobby when the host goes (no title screen pulled over its game)",aStill.phase==='build'&&aStill.lobby==='in',JSON.stringify(aStill));
+// build 159: a guest already in the hall used to be "left alone" -- in a dead hall, horn refused, nothing said. It gets its own end
+// screen now (99-network.js guestHostLeft), and still no title screen pulled over its game by the lobby
+const aEnd=await until(A.page,()=>!document.getElementById('dead').classList.contains('hide')?{phase:window.__dd.S.phase,lobby:window.__lobby.state().phase,h1:document.getElementById('deadh1').textContent,role:window.__net.role(),titleHidden:document.getElementById('start').classList.contains('hide')}:null,null,120000,'A sees the host left');
+check("a guest already in the hall gets the end screen when the host goes -- THE HOST LEFT, no connection -- and the lobby pulls no title screen over its game",
+  !!aEnd&&aEnd.h1==='THE HOST LEFT'&&aEnd.role===null&&aEnd.phase==='dead'&&aEnd.lobby==='in'&&aEnd.titleHidden,JSON.stringify(aEnd));
 
 const pwned=await Promise.all([A,B].map(x=>x.page.evaluate(()=>!!window.__pwned).catch(()=>'?')));
 check("no page ran any injected handler",pwned.every(v=>v===false),JSON.stringify(pwned));

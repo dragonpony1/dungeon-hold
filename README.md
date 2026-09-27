@@ -45,7 +45,7 @@ node familiar-test.mjs                  # the single-file fallback suite reads $
 Suites: feat, loot, glb, place, csp, mob, mobpath, meta, tavern, tavernroom, familiar, familiars2, cone, music, defglb,
 ballista, lootfeel, weapons, towers, paperdoll, casino, ogre, forge, fix-r1, fix-r2, heroes, void, sets, throne, campaign, maps,
 moat, aim, newmobs, trollboss, armory, totem, pause, pwa, share, hideout, loadorder, bagsort, gearlock, coop-rewards,
-voidset, halo-column, ballista-rig, forestset, trainer, menu, crystalalarm, and the verify-* adversarial suites. Run them one at a
+voidset, halo-column, ballista-rig, forestset, trainer, menu, crystalalarm, coop-lifecycle, and the verify-* adversarial suites. Run them one at a
 time: ten in parallel time out on page loads (the page is 6.8 MB).
 
 ## Adding Meshy art
@@ -278,7 +278,8 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   switching idle/walk/run itself; the local hero has no idea puppets exist. Phase 2 (`99-network.js`): the actual
   transport — PeerJS (vendored in `head.html`, MIT, sets `window.Peer`) opens a real WebRTC data channel between two
   browsers via its free public signaling broker (`0.peerjs.com`), no server of our own to run. One player hosts —
-  their peer id is the room code — up to three more join by connecting to it; `window.__net.host/join/send/
+  their peer id is the room code — up to three more join by connecting to it (enforced since build 159: a fifth is told the hall
+  is full); `window.__net.host/join/send/
   onMessage/leave` is the whole surface. `network-test.mjs` proves a real handshake and message round-trip end to
   end, against a throwaway local signaling server (`npm i peer`, the official PeerJS server package — same client
   code path and protocol as the public broker, just no public network needed to test it; skips cleanly if that
@@ -913,6 +914,19 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   attempt (offer or answer lost) is retried with backoff instead of hanging forever, which is the likeliest cause of
   "he can't connect to me but I can connect to him". lobby-test.mjs drives three real browsers through all of it on a
   local signaling server. Built by a workflow agent and taken over to ship; its adversarial review follows.
+- Build 159: co-op notices when someone is gone. PeerJS only closes a connection when ICE says 'failed', and Chrome never
+  does for a tab that dies (closed, crashed, a phone's browser killed, wifi gone): the host kept a dead guest's frozen gnome
+  in the hall for good (mobs kept going for it), and a guest whose host had gone stood in a dead hall, horn refused, nothing
+  said. 99-network.js now runs a heartbeat: every page says 'alive' once a second on a timer, and a peer is dropped -- by
+  the same path a clean leave takes -- when its link is dead, or when it has been silent 6 s and its link has stopped
+  answering too (about 8 s after a tab dies). Silence over a live link never drops anyone (a busy page, a locked phone), and
+  a page that says it went to the background gets a minute. Leaving on purpose (RETURN TO TITLE, NEXT MAP, REPLAY, TRY
+  AGAIN, closing the tab) says 'bye' from pagehide first. A guest in the hall whose host is gone gets THE HOST LEFT on the
+  end screen, with ↩ BACK TO THE TITLE; one in the lobby gets "the host left". Also: pressing JOIN (or Enter) twice can no
+  longer open two connections from one tab; four players at most ("That game is full"); HOST's error shows (it was hidden
+  as it was written) and JOIN says whether it was the matchmaking server, no such game, or two networks that can't reach
+  each other; a duplicated tab takes its own lobby seat; a host alone no longer piles up mob deaths for the first joiner;
+  the dead Open Relay TURN entries are gone. `coop-lifecycle-test.mjs` (new); lobby-test no longer hangs.
 - Build 152: MYTHIC gear. The hideout's forge (hideout builds 26-30) makes a tier one step above legendary, rarity 5,
   and the game wears it: `RNAME[5]` Mythic in its own pink, valid and fixable at 5, forge caps at 5, no level gate on
   anything the hideout forged. **Named mythics** (ten, a forge proc, Matt's stats, each with a signature power,
@@ -934,6 +948,8 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   **"Why can't Jacob join me"**: PeerJS's default is one STUN server and no relay, so two players both behind a strict
   NAT never find a direct path and the join dies with "Couldn't connect" (ping has nothing to do with it); a TURN relay
   (the Open Relay Project's public one) is offered alongside STUN now, so the connection falls back to a relayed path.
+  (Build 159: that relay turned out dead -- its server refuses the shared credentials -- and is gone; only Google's STUN
+  is left, so a strict-NAT pair still can't connect until the game has a TURN account of its own, in Matt's name.)
 - Build 151: one MULTIPLAYER button. "One big takeaway from that testing session was that the title screen is too
   busy: one button that says multiplayer, then into a new screen that says host or join with the rows of who's joined."
   The title keeps a single 🤝 MULTIPLAYER button; HOST A GAME / JOIN A FRIEND, the code field and CONNECT, and the lobby
@@ -945,6 +961,7 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   shows one button and the screen shows both and the hero row).
   Known: the lobby suite's late-joiner check (a guest that followed the host to map two, the game started, then the
   host leaves) still does not see "host left" within its wait; it predates this build and is next on the co-op list.
+  (Fixed in build 159: the host's closed tab was never noticed at all -- see the build 159 entry.)
   **Your loot is your own** ("that would have fixed a big problem of getting the first green set"): gear was one physical
   item on the host's floor that any player could grab, so three players split one stream and the host lost pieces.
   Every drop the host's hall makes (a mob's, the held wave's) is now rolled once PER player: the host's own lands on its

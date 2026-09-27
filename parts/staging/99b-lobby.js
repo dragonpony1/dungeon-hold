@@ -29,7 +29,17 @@ let HOLD=Q.has('lobbyhold');   // test-only: this page reports itself still load
 const soonMs=()=>HOLD?null:LOADT.soon;
 const gated=MAPI>MAPS_CLEARED;   // this page is past this player's own unlock gate -- only possible when it followed a host here (game.js's coopmap)
 const store=(k,v)=>{ try{ if(v==null) sessionStorage.removeItem(k); else sessionStorage.setItem(k,v); }catch(e){} }, recall=k=>{ try{ return sessionStorage.getItem(k); }catch(e){ return null; } };
-const SEAT=(()=>{ let s=recall('ddLobbySeat'); if(!/^[a-z0-9]{8}$/.test(s||'')){ s=(Math.random().toString(36).slice(2)+'00000000').slice(0,8); store('ddLobbySeat',s); } return s; })();   // this tab's seat: it survives the reload onto the host's map, so the host knows the row that comes back is the one that left
+const newSeat=()=>(Math.random().toString(36).slice(2)+'00000000').slice(0,8);
+let SEAT=(()=>{ let s=recall('ddLobbySeat'); if(!/^[a-z0-9]{8}$/.test(s||'')){ s=newSeat(); store('ddLobbySeat',s); } return s; })();   // this tab's seat: it survives the reload onto the host's map, so the host knows the row that comes back is the one that left
+// build 159 (LC10): Chrome's "Duplicate tab" copies sessionStorage, seat and all, so two live tabs could share one seat -- and the
+// host keeps one row per seat, so the two kept evicting each other's row and START counted one player short. A newly loaded tab
+// asks the game's other tabs in this browser whether its seat is taken; a live tab already sitting in it answers, and the newcomer
+// takes a fresh one. A tab reloading onto the host's map keeps its seat: the page it replaces is gone and can't answer
+try{ const bc=new BroadcastChannel('ddLobbySeat'), me=newSeat(); let settled=false; setTimeout(()=>{ settled=true; },3000);
+  bc.onmessage=e=>{ const d=e.data||{}; if(d.from===me) return;
+    if(d.ask===SEAT&&settled) bc.postMessage({taken:SEAT,from:me});
+    else if(d.taken===SEAT&&!settled){ SEAT=newSeat(); store('ddLobbySeat',SEAT); } };
+  bc.postMessage({ask:SEAT,from:me}); }catch(e){}
 // phase: 'off' no lobby · 'lobby' waiting in it · 'moving' reloading onto the host's map · 'waiting' the game started, in as soon as this room is loaded · 'in' in the hall
 const L={phase:'off',role:null,code:'',openedAt:0,joinedAt:0,started:false,hostMap:-1,hostMapName:'',hostBuild:-1,roster:[],gotState:0,sentJ:'',sentAt:0,bcastAt:0,bcastJ:'',movedFrom:null,rowsHTML:'',err:''};
 const R=new Map();   // host only: the roster, peer id -> row (insertion order is join order; the host's own row is always listed first)
@@ -56,10 +66,10 @@ function hostBroadcast(force){ if(L.role!=='host') return; const m=stateMsg(), j
 N.onMessage('lobbyMe',(d,from)=>{ if(L.role!=='host'||typeof from!=='string') return;
   const had=R.get(from); if(!had&&R.size>=MAXROWS) return;
   const e=clean(d,from,false); e.joinedAt=had?had.joinedAt:Date.now();
-  if(e.seat) [...R.keys()].forEach(k=>{ const g=R.get(k); if(k!==from&&!g.host&&g.seat===e.seat) R.delete(k); });   // the same tab back from its reload onto this map (or a stale row of it): one row per seat
+  if(e.seat) [...R.keys()].forEach(k=>{ const g=R.get(k); if(k!==from&&!g.host&&g.seat===e.seat&&!N.peers().includes(k)) R.delete(k); });   // the same tab back from its reload onto this map (or a stale row of it): one row per seat -- but never a row whose player is still connected (build 159: two live tabs sharing a seat, see SEAT above, kept evicting each other)
   R.set(from,e); N.send('lobby',stateMsg(),from); hostBroadcast(!had); if(!had) render(); });
 function dropGuest(id){ if(L.role!=='host') return; const e=R.get(id); if(!e||e.host) return; R.delete(id);
-  if(e.moving&&e.seat) R.set('seat:'+e.seat,Object.assign({},e,{id:'seat:'+e.seat,ghost:true,until:Date.now()+GHOST_MS}));   // it left to reload onto this map: hold its row (amber, START shut) until it rejoins, or GHOST_MS passes
+  if(e.moving&&e.seat&&![...R.values()].some(g=>!g.ghost&&g.seat===e.seat)) R.set('seat:'+e.seat,Object.assign({},e,{id:'seat:'+e.seat,ghost:true,until:Date.now()+GHOST_MS}));   // it left to reload onto this map: hold its row (amber, START shut) until it rejoins, or GHOST_MS passes -- unless it has already rejoined (a link the heartbeat only now gave up on, build 159)
   hostBroadcast(true); render(); }
 function start(force){ if(L.role!=='host'||L.started) return false; const rows=rosterList(); if(!force&&!(rows.length&&rows.every(isReady))) return false;
   L.started=true; L.phase='in'; N.send('lobbyStart',{map:MAPI}); hostSelf(); hostBroadcast(true); render(); if(S.phase==='start') play(); return true; }
@@ -95,11 +105,14 @@ function exit(why){ const wasGated=gated&&L.role==='guest';
   $('start').classList.remove('inLobby'); show(el.panel,false); show($('hostPanel'),false); show($('joinPanel'),false); show($('coopRow'),true); el.roster.innerHTML='';
   if(wasGated){ store('ddLobbyNote',(why?why+' ':'')+'Back on your own map.'); note((why?why+' ':'')+'Back to your own map…'); setTimeout(goHome,700); return; }   // this page only had the host's map to follow the host: without one, back to this player's own
   note(why||''); }
-function hostGone(){ if(L.role!=='guest'||!(L.phase==='lobby'||L.phase==='waiting')) return; exit('The host left — the lobby closed.'); }
-N.onLeave(id=>{ if(L.role==='host') dropGuest(id); else if(id===L.code) hostGone(); });
-N.onMessage('lobbyBye',(d,from)=>{ if(L.role==='host') dropGuest(from); else if(from===L.code) hostGone(); });
+// why the host's connection ended (99-network.js gone()): 'bye' or 'closed' is the host leaving, 'lost' the heartbeat giving up on a
+// silent host (they left, or either side's connection dropped -- this page can't tell which), 'full' the hall turning us away (build 159)
+const GONE={lost:'The host left or lost their connection — the lobby closed.',full:'That game is full — four players is the most a hall takes.'};
+function hostGone(why){ if(why==='left'||L.role!=='guest'||!(L.phase==='lobby'||L.phase==='waiting')) return; exit(GONE[why]||'The host left — the lobby closed.'); }
+N.onLeave((id,why)=>{ if(L.role==='host') dropGuest(id); else if(id===L.code) hostGone(why); });
+N.onMessage('lobbyBye',(d,from)=>{ if(L.role==='host') dropGuest(from); else if(from===L.code) hostGone('bye'); });
 function leave(){ if(L.phase==='off') return; try{ N.send('lobbyBye',{}); }catch(e){} exit(''); }
-addEventListener('pagehide',()=>{ if(L.role&&(L.phase==='lobby'||L.phase==='waiting')) try{ N.send('lobbyBye',{}); }catch(e){} });   // a closed or reloaded tab says goodbye itself; a MOVING one doesn't, so the host holds its row
+addEventListener('pagehide',()=>{ if(L.role&&(L.phase==='lobby'||L.phase==='waiting')) try{ N.send('lobbyBye',{}); }catch(e){} });   // a closed or reloaded tab says goodbye itself; a MOVING one doesn't (since build 159 the network's own 'bye' goes from every tab, moving ones too -- the host still holds a moving row, since dropGuest goes by the row's own moving flag)
 el.leave.addEventListener('click',leave);
 el.start.addEventListener('click',()=>start(false));
 el.force.addEventListener('click',()=>start(true));

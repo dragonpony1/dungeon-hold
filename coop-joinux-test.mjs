@@ -65,13 +65,13 @@ async function openPage(qs){
   const calls=await page.evaluate(()=>new Promise(res=>{
     let n=0;
     window.__net.host=(code,cb)=>{ n++; cb({type:'unavailable-id',message:'ID taken'}); };
-    document.getElementById('hostbtn').click();
-    const iv=setInterval(()=>{ const el=document.getElementById('hostMsg'); if(el&&/try again/i.test(el.textContent)){ clearInterval(iv); res(n); } },50);
+    window.__mp.open(); document.getElementById('hostbtn').click();
+    const iv=setInterval(()=>{ const el=document.getElementById('coopMsg'); if(el&&/try again/i.test(el.textContent)){ clearInterval(iv); res(n); } },50);   // build 159: #coopMsg, beside the buttons -- #hostMsg sits in the host panel, which is hidden in the same breath
     setTimeout(()=>{ clearInterval(iv); res(n); },5000);
   }));
   check("gives up after a bounded number of collisions rather than retrying forever",calls>=1&&calls<=6,"calls="+calls);
-  const coopRowShown=await page.evaluate(()=>!document.getElementById('coopRow').classList.contains('hide'));
-  check("falls back to the HOST/JOIN buttons so they can try again",coopRowShown);
+  const fallback=await page.evaluate(()=>{ let n=document.getElementById('coopMsg'), shown=true; const text=n.textContent; while(n){ if(n.classList&&n.classList.contains('hide')) shown=false; n=n.parentElement; } return {row:!document.getElementById('coopRow').classList.contains('hide'),text,shown}; });
+  check("falls back to the HOST/JOIN buttons so they can try again, with the error shown where it can be seen",fallback.row&&fallback.shown&&/try again/i.test(fallback.text),JSON.stringify(fallback));
   await ctx.close();
 }
 
