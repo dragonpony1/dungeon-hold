@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="35">
+<meta name="hideout-build" content="36">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -228,7 +228,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 35;
+const HIDEOUT_BUILD = 36;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -480,9 +480,11 @@ function writeCarried(list) { localStorage.setItem(CARRIED_KEY, JSON.stringify(l
 // panel appends a record here and takes it out of the hideout; the GAME moves each record into the hero's bag when
 // the hideout closes and removes it. Record = the game's item shape {id, name, slot, rarity, lvl, stats, tier, set?,
 // named?} + from:'hideout', sentAt, and hideout:{kind, rec} (the slot item as it was, so it can come back unchanged).
-// Until the game's half exists RETURN_TO_HALL stays false and the drop spot is hidden — anything sent would just wait.
+// The game's half landed in game build 152 (97-mythics.js: every record goes into the bag at load, when the hideout
+// closes and when a title-screen visit ends), so RETURN_TO_HALL is on since hideout build 36. (It only reaches the
+// game where both share storage — the copy embedded in the game; the standalone Worker page is its own origin.)
 // Waiting records show on the wall locker's "Going back to the hall" shelf, where a click brings one back.
-const RETURN_KEY = 'dd_gear_return', RETURN_TO_HALL = false;
+const RETURN_KEY = 'dd_gear_return', RETURN_TO_HALL = true;
 function loadReturn() { try { const a = JSON.parse(localStorage.getItem(RETURN_KEY)); return Array.isArray(a) ? a : []; } catch(e) { return []; } }
 function writeReturn(list) { localStorage.setItem(RETURN_KEY, JSON.stringify(list)); }
 // the game's slots drawn with the mythic category art — its "charm" is our trinket
