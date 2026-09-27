@@ -1,0 +1,51 @@
+// ===== A WEAPON STANDS ON THE FLOOR (build 169). Matt, 2026-09-27: "lets hit go on have the drop, i am envisioning a tall
+// standing weapon with glow and particulate." A dropped weapon that has its own model -- any of the nine sets' (86-setweapons.js,
+// 86b-g: a 7% mythic drop from 87-mythicdrops.js, a set pack's piece from 93-gearsets.js / 93b-sets8.js) or a named one (86h-named.js)
+// -- no longer lies there as a picture card: THAT weapon stands on the floor, tip up, a hand above the ground, slowly turning,
+// in a soft column of its set's colour (gold for a named one) with motes drifting up round it. The model is the one this page's
+// hero would hold for it (swordFor / staffFor / bowFor by the hand, as 80-weapons.js mounts it), so the floor shows what you'll
+// get in hand. Armor, amulets, trinkets and familiars keep their card. Pickup is untouched: the loot entry, its radius, the hook
+// and co-op's own-loot rolls are game.js's and 99-network.js's as ever -- the stand is its own group in the scene that follows
+// the loot's mesh and goes (geometry freed) the frame that mesh leaves the scene, however it left. Per drop: the model, two
+// glow sprites and one Points cloud of MOTES (one draw call, one shared material).
+(function(){
+const MOTES=14, RISE=2.0, LIFE=2.6, LIFT=.18, SPIN=.8;   // motes per drop; how high they drift and how long it takes; the gap under the weapon; its turn (radians a second)
+const GOLD=0xffc84a;
+const STANDS=[]; let PM=null;
+function pmat(){ if(!PM) PM=new THREE.PointsMaterial({map:GLOWT,size:.3,vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true}); return PM; }   // shared by every drop: each mote's colour (and fade) is its vertex colour
+// the model this page's hero would hold for the item, or null for anything without its own (a plain sword, a Forest piece)
+function modelFor(it){ if(!it||it.slot!=='weapon') return null; const named=window.__named&&window.__named.id(it), set=window.__setweapons&&window.__setweapons.setOf(it); if(!named&&!set) return null;
+  const W=window.__weapons, hm=W.mount&&W.mount(); return hm&&hm.staff&&window.__staff?window.__staff.staffFor(it):hm&&hm.bow&&window.__bow?window.__bow.bowFor(it):W.swordFor(it); }
+function colours(it){ const named=window.__named&&window.__named.id(it); if(named) return [GOLD,named==='rootsplitter'?0x7aff3a:0xfff2c0];   // named: a gold column; Rootsplitter's motes half green
+  const k=window.__setweapons.setOf(it), K=k&&window.__staff&&window.__staff.info(k); const c=K&&K.glow!=null?K.glow:RCOL[Math.max(0,Math.min(5,it.rarity|0))]; return [c,K&&K.gem!=null?K.gem:0xffffff]; }
+function heightFor(name){ return /^bow-/.test(name)?1.4:/^(polearm-|staff-|named-last)/.test(name)?1.75:1.4; }   // world units, foot to tip (the Knight is 1.7): a sword or a bow a bit under his height, a polearm or staff just over it -- the pictures from the game's camera read small any shorter
+function stand(l,it){ const name=modelFor(it); if(!name) return null; let obj=null; window.__weapons.model(name,o=>{ obj=o; }); if(!obj) return null;   // (code-built models come back at once)
+  const b=obj.userData.box, y0=b?b.min.y:0, H=b?b.max.y-b.min.y:1, s=heightFor(name)/H; obj.scale.setScalar(s); obj.position.y=LIFT-y0*s; outline(obj);
+  const [col,col2]=colours(it); const root=new THREE.Group(); root.name='weaponStand'; const spin=new THREE.Group(); spin.add(obj); root.add(spin);
+  const halo=glow(col,1.9,.3); halo.position.y=LIFT+heightFor(name)*.55; root.add(halo);   // the soft halo about it
+  const foot=glow(col,1.3,.45); foot.position.y=.12; root.add(foot);
+  const pos=new Float32Array(MOTES*3), cols=new Float32Array(MOTES*3), m=[]; const c1=C(col), c2=C(col2), m1=c1.clone().lerp(new THREE.Color(1,1,1),.3), m2=c2.clone().lerp(new THREE.Color(1,1,1),.3);   // motes a shade brighter than the column, so they read against it
+  for(let i=0;i<MOTES;i++) m.push({ph:i/MOTES*LIFE+rnd()*.2,a:rnd()*TAU,r:.2+rnd()*.25,c:i%3===2?m2:m1});
+  const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3)); geo.setAttribute('color',new THREE.BufferAttribute(cols,3));
+  const pts=new THREE.Points(geo,pmat()); pts.frustumCulled=false; pts.userData.noOL=true; root.add(pts);
+  // the loot's own look steps aside: the placeholder shape and any card picture hidden, its beam, ring and glow in the set's colour
+  const art=l.mesh.userData.artSprite; if(art){ l.mesh.remove(art); if(art.material.map) art.material.map.dispose(); art.material.dispose(); delete l.mesh.userData.artSprite; }
+  l.mesh.userData.item.visible=false; l.mesh.children.forEach(c=>{ if(c===l.mesh.userData.item) return; if(c.material&&c.material.color){ c.material.color.copy(c1); if(c.isSprite){ c.material.opacity=.35; c.scale.set(1.8,1.8,1); } else if(c!==l.mesh.userData.ring) c.material.opacity=.14; } });
+  root.position.copy(l.mesh.position); scene.add(root);
+  const S={l,root,spin,obj,halo,foot,pts,m,name,t:rnd()*6,staff:/^staff-/.test(name),bow:/^bow-/.test(name),pulses:[]}; obj.traverse(o=>{ if(o.name==='glowPulse') S.pulses.push(o); });
+  l.mesh.userData.stand=S; STANDS.push(S); tickOne(S,0); return S; }
+function tickOne(S,dt){ const l=S.l; S.t+=dt; S.root.position.copy(l.mesh.position); S.root.visible=l.mesh.visible; l.mesh.userData.item.visible=false;   // (a set's card that fails to load turns the placeholder back on: 93-gearsets.js)
+  S.spin.rotation.y+=dt*SPIN; S.spin.position.y=Math.sin(S.t*1.6)*.035;
+  S.halo.material.opacity=.26+.08*Math.sin(S.t*2.1); S.pulses.forEach((p,i)=>{ p.material.opacity=.38+.2*Math.sin(S.t*3.3+i*1.7); });
+  if(S.staff&&window.__staff.animate) window.__staff.animate(S.obj,dt); else if(S.bow&&window.__bow.animate) window.__bow.animate(S.obj,dt);   // a staff's crystal turns and its motes orbit, a bow's too
+  const P=S.pts.geometry.attributes.position.array, Cc=S.pts.geometry.attributes.color.array;
+  for(let i=0;i<S.m.length;i++){ const o=S.m[i], f=((S.t+o.ph)%LIFE)/LIFE, a=o.a+f*1.4, r=o.r*(1-f*.45), k=Math.sin(PI*f);
+    P[i*3]=Math.cos(a)*r; P[i*3+1]=.1+f*RISE; P[i*3+2]=Math.sin(a)*r; Cc[i*3]=o.c.r*k; Cc[i*3+1]=o.c.g*k; Cc[i*3+2]=o.c.b*k; }   // rising, curling in, fading in and out (additive: dark is gone)
+  S.pts.geometry.attributes.position.needsUpdate=true; S.pts.geometry.attributes.color.needsUpdate=true; }
+function drop(S){ scene.remove(S.root); S.pts.geometry.dispose(); S.halo.material.dispose(); S.foot.material.dispose(); if(S.l.mesh.userData.stand===S) delete S.l.mesh.userData.stand; }
+function tick(dt){ for(let i=STANDS.length-1;i>=0;i--){ const S=STANDS[i]; if(!S.l.mesh.parent){ drop(S); STANDS.splice(i,1); continue; } tickOne(S,dt); } }   // picked up, grabbed in co-op, or swept away: gone with it
+{ const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); if(l&&l.mesh&&it&&it.slot==='weapon'){ try{ stand(l,it); }catch(e){ console.warn('weapon stand',e); } } return l; }; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); tick(dt); }; }
+window.__weaponStand={count:()=>STANDS.length,modelFor,
+  list:()=>STANDS.map(S=>({name:S.name,x:+S.root.position.x.toFixed(2),y:+S.root.position.y.toFixed(2),z:+S.root.position.z.toFixed(2),spin:+S.spin.rotation.y.toFixed(3),motes:S.m.length,inScene:!!S.root.parent,height:+(heightFor(S.name)).toFixed(2),card:!!S.l.mesh.userData.artSprite,placeholder:S.l.mesh.userData.item.visible}))};
+})();

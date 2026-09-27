@@ -1045,6 +1045,21 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   throws at the shop). campaign-test,
   coop-rewards, coop-feedback and coop-loot hold the lap and then MOVE ON (the same checks, plus "no tally by itself" and
   "paid once").
+- Build 169: THE NAMED WEAPONS in code, and WEAPONS STAND ON THE FLOOR. Matt: "lets have you do the two named weapons. lets
+  hit go on have the drop, i am envisioning a tall standing weapon with glow and particulate. then when its equipped it
+  shows in your hand." `86h-named.js` (new) builds Rootsplitter (`named-rootsplitter`: a bark-and-vine axe with a green
+  crystal crescent for a blade, sword frame a touch long) and The Last Lantern (`named-last_lantern`: a gold-caged lantern
+  halberd with a silver crescent and spear point, polearm frame) with the set weapons' kit, after Matt's
+  `items/named/*.jpg`. `window.__weapons.setModel` now asks `namedModel` first: a named weapon on the Knight's sword mount
+  shows its own model; the Witch and Fighter hold `staff-battle` and the Troll `bow-war` for one (a staff hero casts, a
+  bow hero draws). `93c-weaponstand.js` (new): a dropped weapon with its own model (the nine sets' -- mythic drops and set
+  packs alike -- and the two named) stands on the floor as that model, the one this page's hero would hold (swordFor /
+  staffFor / bowFor), 1.4-1.75 tall, a hand above the floor, turning, in a soft column of the set's colour (gold for named)
+  with a cloud of motes drifting up (one `THREE.Points` per drop, one shared material). The card picture and the
+  placeholder shape step aside; armor, amulets, trinkets and familiars keep their card. The stand is its own group that
+  follows the loot's mesh and goes (geometry freed) the frame the mesh leaves the scene, so pickup, the hook and co-op's
+  own-loot rolls are untouched. `82-staff.js` gained `__staff.animate` so a standing staff's crystal turns.
+  `named-drop-test.mjs` (new, 9 checks; ports 8811/9711).
 - Build 167: THE OTHER EIGHT SETS are sets now, "at a conservative rate" (`93b-sets8.js`, new): of Chaos (crimson),
   of the Earth (rock), of Fire (lava), of Radiance (angelic), of the Storm (storm), of Shadow (shadow), of Ice (ice),
   of the Wind (wind), on the same frame as the Void and the Forest (`Meta.packs.add`): Rare-or-better rolls, from
