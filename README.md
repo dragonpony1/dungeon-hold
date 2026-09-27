@@ -45,7 +45,7 @@ node familiar-test.mjs                  # the single-file fallback suite reads $
 Suites: feat, loot, glb, place, csp, mob, mobpath, meta, tavern, tavernroom, familiar, familiars2, cone, music, defglb,
 ballista, lootfeel, weapons, towers, paperdoll, casino, ogre, forge, fix-r1, fix-r2, heroes, void, sets, throne, campaign, maps,
 moat, aim, newmobs, trollboss, armory, totem, pause, pwa, share, hideout, loadorder, bagsort, gearlock, coop-rewards,
-voidset, halo-column, ballista-rig, forestset, trainer, menu, crystalalarm, coop-lifecycle, and the verify-* adversarial suites. Run them one at a
+voidset, halo-column, ballista-rig, forestset, trainer, menu, crystalalarm, coop-lifecycle, coop-freeze, and the verify-* adversarial suites. Run them one at a
 time: ten in parallel time out on page loads (the page is 6.8 MB).
 
 ## Adding Meshy art
@@ -199,7 +199,8 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
 
 - `97-pause.js`: Escape in the hall (or the mouse leaving pointer lock) opens PAUSED — RESUME, or RETURN TO TITLE SCREEN
   (a reload; gold, gear, skills and map progress are saved as they happen, the run is forfeited). Escape while placing
-  still cancels the placement; the tavern and the sheet keep their own Escape. `window.__freeze=true` stops the live
+  still cancels the placement; the tavern and the sheet keep their own Escape. In co-op the hall runs on under it (and
+  under the bag and the sheet) and the card says so (build 159). `window.__freeze=true` stops the live
   loop's update so a test can step the hall itself and still see it drawn.
 
 - The crystal stands on its own carved base, level with the floor: no raised dais (the DAIS cells remain an inlaid floor
@@ -927,6 +928,17 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   as it was written) and JOIN says whether it was the matchmaking server, no such game, or two networks that can't reach
   each other; a duplicated tab takes its own lobby seat; a host alone no longer piles up mob deaths for the first joiner;
   the dead Open Relay TURN entries are gone. `coop-lifecycle-test.mjs` (new); lobby-test no longer hangs.
+- Build 159 (2/7): the hall doesn't pause in co-op. The simulation, and every co-op broadcast with it, only ran while no menu
+  was open, so the host opening the pause (which an alt-tab opens by itself), the bag, the sheet, the forge or a tavern
+  station froze every guest's game with no word, and a hidden host tab (another tab in front, the window minimised or
+  covered) froze it too. Now, while a page hosts a hall with anyone in it (`Meta.sharedHall()`, read by the one guard in
+  game.js's update), the hall runs on under the host's menus and the host's gnome stands still (held keys cleared, no camera
+  pan from a stale mouse spot); when the host's frames stop, a tiny blob Worker (a plain timer where a page policy refuses
+  one) runs the hall in real time in frame-sized steps, keeping `lastT` in step. Hosting alone and single player pause as
+  before. The pause card says the hall doesn't stop (host and guest), a guest reads "The host's game is in the background",
+  and a co-op run that ends under the pause or the sheet puts them away for the death cut. `COOP_HALL_RUNS` in 99-network.js
+  is the switch back to "the host's menus pause everyone" (then guests read "The host paused the game", from a flag on the
+  heartbeat). `coop-freeze-test.mjs` (new).
 - Build 152: MYTHIC gear. The hideout's forge (hideout builds 26-30) makes a tier one step above legendary, rarity 5,
   and the game wears it: `RNAME[5]` Mythic in its own pink, valid and fixable at 5, forge caps at 5, no level gate on
   anything the hideout forged. **Named mythics** (ten, a forge proc, Matt's stats, each with a signature power,

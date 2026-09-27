@@ -585,6 +585,7 @@ const Meta={
   onPickup:it=>false,   // return true when the module took the item (into the bag); false = old behaviour (auto equip / sell)
   onKill:e=>{}, onWaveHeld:w=>{}, onRunEnd:w=>false, onDefFx:(d,fx)=>{},   // a defense's one-shot effect (the cage's implosion) for a module to relay (99-network.js sends it to the guests)   // onRunEnd: true when the module shows its own run-summary/tavern screen
   update:dt=>{}, hud:()=>{}, open:()=>{}, isOpen:()=>false,
+  sharedHall:()=>false,   // co-op (build 159): true while this page hosts a hall with guests in it -- then the hall runs on under this page's menus (update() below), since it is theirs too (99-network.js)
   heroes:()=>[],   // co-op: other players' heroes an enemy should also be able to notice, each {x,y,z,isDead:()=>bool,hurt:dmg=>void} — empty outside a hosted session (99-network.js)
   defOwnerStat:(id,k)=>undefined, defOwnerMult:(id,k)=>undefined };   // co-op: a connected guest's own heroStat/heroMult value for a defense they placed — undefined (not 0/1) means "no such live guest", so stat()'s oStat/oMult fall back to the local hero's own numbers (99-network.js)
 let spawnQ=[], placing=null, ghost=null, ghostRot=0, ghostCell=null, ghostPos=[0,0], ghostOk=false, ghostReason='', ghostYaw=0;
@@ -1199,7 +1200,7 @@ $('playbtn').addEventListener('click',play); $('tavbtn').addEventListener('click
 // ================= MAIN LOOP =================
 function update(dt){ if(S.phase==='start'){ updateFx(dt); updateCamera(dt); return; }
   if(S.phase==='deathcut'){ updateFx(dt); updateDeathCut(dt); updateHUD(); return; }
-  if(S.phase!=='dead'&&S.phase!=='won'&&!Meta.isOpen()){ /* the tavern pauses the hall: nothing walks, swings or fires behind the overlay */ if(!TOUCH&&!locked&&S.phase!=='start'){ if(edgeX<.1) cam.yaw+=1.6*dt; else if(edgeX>.9) cam.yaw-=1.6*dt; } if(K.tl) cam.yaw+=2.2*dt; if(K.tr) cam.yaw-=2.2*dt;
+  if(S.phase!=='dead'&&S.phase!=='won'&&(!Meta.isOpen()||Meta.sharedHall())){ /* the tavern pauses the hall: nothing walks, swings or fires behind the overlay -- except a co-op host's with guests in it (build 159): their hall runs on, and the host's gnome just stands (99-network.js clears its keys) */ if(!Meta.isOpen()){ if(!TOUCH&&!locked&&S.phase!=='start'){ if(edgeX<.1) cam.yaw+=1.6*dt; else if(edgeX>.9) cam.yaw-=1.6*dt; } if(K.tl) cam.yaw+=2.2*dt; if(K.tr) cam.yaw-=2.2*dt; }   /* no camera pan from under a menu: the mouse's last spot (edgeX) is stale there */
     heroUpdate(dt); updateDefs(dt); updateEnemies(dt); updateProj(dt); updateOrbs(dt); updateLoot(dt); updateWave(dt); updateGhost(); updateHoverSector(); Meta.update(dt); }
   updateFx(dt); updateCamera(dt); updateHUD(); Meta.hud(); }
 let lastT=performance.now();

@@ -123,6 +123,14 @@
 // Also: one Peer per page (a second JOIN or HOST shuts the first attempt, which could otherwise open a second live
 // connection from one tab -- double gold, a puppet of yourself), four players at most ('full'), and the host and join
 // errors say what actually happened (the matchmaking server, no such game, or two networks that can't reach each other).
+// ===== BUILD 159 (2/7): THE HALL DOESN'T PAUSE IN CO-OP. The whole simulation -- and every broadcast here, which all ride
+// Meta.update -- only ran while no menu was open, so the host opening the bag, the sheet, a tavern station, the forge or the
+// pause menu (which opens by itself when the mouse leaves pointer lock: an alt-tab to Discord) froze the hall for everyone, mobs
+// stopped mid-stride and nothing said; a hidden host tab (another tab in front, the window minimised or covered) froze it too,
+// since the only thing driving the hall was the frame loop and a browser stops that for a hidden page. Now, while a page hosts a
+// hall with anyone in it, the hall runs on under the host's menus (Meta.sharedHall, read by that one guard in game.js's update)
+// with the host's gnome standing still, and when the host's frames stop a tiny Worker keeps it going (the keeper, below). The
+// pause card says so, a guest is told when the host's game is in the background, and single player pauses exactly as before.
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -239,21 +247,76 @@ let hbAt=Date.now();
 function hbFresh(now){ conns.forEach(c=>{ c.__heard=now; }); hbAt=now; }
 function heartbeat(){ const now=Date.now(), gap=now-hbAt; hbAt=now; if(!conns.size) return;
   if(gap>5*HB_MS) hbFresh(now);
-  send('alive',{h:document.hidden?1:0});
+  send('alive',aliveMsg());
   [...conns.values()].forEach(c=>{ const pc=c.peerConnection, st=pc?pc.connectionState:'closed', ice=pc?pc.iceConnectionState:'closed';
     if(st==='failed'||st==='closed'||ice==='failed'||ice==='closed'){ drop(c,'lost'); return; }
     if(!c.__alive||ice==='connected'||ice==='completed') return;
     if(now-(c.__heard||now)>=(c.__hidden?HB_HIDDEN_MS:HB_QUIET_MS)) drop(c,'lost'); });
 }
 setInterval(heartbeat,HB_MS);
-onMessage('alive',(d,from)=>{ const c=conns.get(from); if(c){ c.__alive=true; c.__hidden=!!(d&&d.h); } });
-document.addEventListener('visibilitychange',()=>{ if(!conns.size) return; if(!document.hidden) hbFresh(Date.now()); send('alive',{h:document.hidden?1:0}); });   // say so the moment we go to the background (a phone freezes the page right after), and give everyone a fresh window on the way back
+onMessage('alive',(d,from)=>{ const c=conns.get(from); if(c){ c.__alive=true; c.__hidden=!!(d&&d.h); c.__paused=!!(d&&d.p); } });   // p: build 159 (2/7), see hallHeld below
+document.addEventListener('visibilitychange',()=>{ if(!conns.size) return; if(!document.hidden) hbFresh(Date.now()); send('alive',aliveMsg()); });   // say so the moment we go to the background (a phone freezes the page right after), and give everyone a fresh window on the way back
 // goodbye on the way out: every deliberate leave in the hall unloads the page (RETURN TO TITLE, TRY AGAIN, REPLAY THIS MAP and NEXT
 // MAP reload or navigate; so do the hideout and closing the tab), so pagehide covers them all, on phones too. Not beforeunload:
 // phones skip it, and it also fires for a leave the player then cancels
 addEventListener('pagehide',()=>{ if(role&&conns.size) try{ send('bye',{}); }catch(e){} });
 onMessage('bye',(d,from)=>{ const c=conns.get(from); if(c) drop(c,'bye'); });
 onMessage('full',(d,from)=>{ if(role!=='guest') return; const c=conns.get(from); if(c) drop(c,'full'); });   // the host already has three guests (host() above): the lobby says so on the title screen
+
+// ---- build 159 (2/7): the hall doesn't pause in co-op. "The tavern pauses the hall" (game.js update()) was right for one player
+// and wrong for four: the host's bag, sheet, forge, tavern stations and pause menu -- and an alt-tab, which opens the pause --
+// froze every guest's game with no word, and guests stopped even seeing each other move. While this page hosts a hall with anyone
+// in it, the hall runs on under its menus; hosting alone (nobody to keep it going for) and single player pause as they always did.
+// The host's gnome stands still meanwhile: its held keys are cleared every step a menu is up (the pause and the sheet clear them
+// on opening, the tavern never did, and a thumb left on the touch joystick would keep steering). COOP_HALL_RUNS is the switch --
+// false puts back "the host's menus pause everyone", and the hidden-tab keeper below goes with it.
+const COOP_HALL_RUNS=true;
+Meta.sharedHall=()=>COOP_HALL_RUNS&&role==='host'&&conns.size>0;
+window.__net.hallRuns=()=>(role==='guest'&&conns.size>0)||Meta.sharedHall();   // is the hall this page plays in running on regardless of its menus? (97-pause.js's card says so) -- a guest's own menus never held the host's hall, switch or no switch
+// with the switch off the host's menus hold everyone's hall again, and then the guests are told so rather than left guessing: the
+// heartbeat's 'alive' says p:1 while this host's hall is held under a menu (never while the switch is on), and a guest's HUD reads it
+function hallHeld(){ return role==='host'&&!Meta.sharedHall()&&Meta.isOpen()&&(S.phase==='build'||S.phase==='wave'); }
+function aliveMsg(){ return {h:document.hidden?1:0,p:hallHeld()?1:0}; }
+let runPh=null;
+{ const prevUpdate=update; update=function(dt){
+    if(Meta.sharedHall()&&Meta.isOpen()){ for(const k in K) K[k]=0; if(TOUCH){ joy.x=0; joy.y=0; } }
+    prevUpdate(dt);
+    // a co-op run can end under a menu now (the host's crystal falls while it is in the pause or on the sheet; a guest hears the
+    // run ended while in its own): the pause and the sheet step aside for the death cut and the end screen, as a single player
+    // never needed (their run can't end under a menu). The tavern needs nothing: it hands itself over to the run summary (20-tavern.js)
+    const ph=S.phase; if(ph!==runPh){ if(role&&(runPh==='build'||runPh==='wave')&&!(ph==='build'||ph==='wave')){ if(window.__pause&&window.__pause.isOpen()) window.__pause.close(false); if(window.__doll&&window.__doll.isOpen()) window.__doll.close(); } runPh=ph; } }; }
+// ...and not when the host's tab is in the background either. A browser stops the frame loop (requestAnimationFrame) for a hidden
+// page -- another tab in front, the window minimised, or (Chrome on Windows) another window covering it -- and that loop was all
+// that ever drove the hall, so every guest's game froze until the host came back. So while this page hosts guests and its frames
+// have stopped, the keeper runs the hall: a tiny Worker ticks 20 times a second (a worker's timer isn't held to a hidden page's
+// once a second) and each tick moves the hall on by the real time that passed, in steps no longer than a frame's (.05 s) and a
+// second at most (a PC waking from sleep doesn't fast-forward the horde). It moves game.js's lastT along with it, so the first
+// frame back doesn't run the same moment twice. Where no Worker can be made (a strict page policy) a plain timer does it, once a
+// second while hidden, catching up in the same steps. It takes over only when the frames have really stopped -- the tab hidden, or
+// no frame for a second: a frame loop that is only slow (a weak laptop, the co-op suites' four frames a second) keeps its own pace,
+// as it always has. A phone that switches apps suspends the whole page, keeper and all; nothing can keep that hall going, and the
+// heartbeat's minute for a backgrounded peer covers it.
+const KEEP_STEP=.05, KEEP_MAX=1, KEEP_STALL_MS=1000;
+let frameAt=performance.now(), keeper=null, keeperURL=null, keeperSteps=0;
+{ const prevFrame=frame; frame=function(now){ frameAt=performance.now(); if(now<lastT) lastT=now;   // a frame stamped before the keeper's last step: nothing to catch up (never a negative dt)
+    if(keeper&&!document.hidden) keeperStop(); return prevFrame(now); }; }
+function keeperTick(){ if(keeper) keeper.heard=performance.now();
+  if(!Meta.sharedHall()||window.__freeze){ keeperStop(); return; }   // nobody left to keep it going for; or a test is stepping the hall itself
+  const now=performance.now(); if(!document.hidden&&now-frameAt<KEEP_STALL_MS) return;   // the frames are running: they drive the hall
+  let left=Math.min(KEEP_MAX,Math.max(0,(now-lastT)/1000)); lastT=now;
+  while(left>1e-4){ const dt=Math.min(KEEP_STEP,left); left-=dt; update(dt); keeperSteps++; } }
+function keeperTimer(){ const id=setInterval(keeperTick,KEEP_STEP*1000); keeper={kind:'timer',heard:performance.now(),stop:()=>clearInterval(id)}; }
+function keeperStart(){ if(keeper) return;
+  try{ keeperURL=keeperURL||URL.createObjectURL(new Blob(['setInterval(function(){ postMessage(0); },'+(KEEP_STEP*1000)+');'],{type:'text/javascript'}));
+    const w=new Worker(keeperURL); w.onmessage=keeperTick; w.onerror=()=>{ if(keeper&&keeper.w===w){ keeperStop(); keeperTimer(); } };   // a policy that refuses it only once the script is asked for
+    keeper={kind:'worker',w,heard:performance.now(),stop:()=>w.terminate()}; }
+  catch(e){ keeperTimer(); } }   // refused on the spot (Chrome under a strict Content-Security-Policy)
+function keeperStop(){ if(!keeper) return; const k=keeper; keeper=null; try{ k.stop(); }catch(e){} }
+function keeperCheck(){ if(!Meta.sharedHall()||window.__freeze){ keeperStop(); return; }
+  if(keeper&&keeper.kind==='worker'&&performance.now()-keeper.heard>3000){ keeperStop(); keeperTimer(); return; }   // a worker that never says a word: the timer instead
+  if(!keeper&&(document.hidden||performance.now()-frameAt>=KEEP_STALL_MS)) keeperStart(); }
+setInterval(keeperCheck,500); document.addEventListener('visibilitychange',keeperCheck);   // the timer runs once a second in a hidden tab: the event starts the keeper at once
+window.__net.keeper=()=>({on:!!keeper,kind:keeper?keeper.kind:null,steps:keeperSteps});   // a test hook
 
 // title-screen host/join UI: co-op was previously a window.__net-only API, no in-game way for an ordinary player
 // to actually use it -- these two buttons and their small panels (parts/head.html's #start screen) are that
@@ -657,6 +720,7 @@ onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded){ if(data.phase==='
     else if(w.phase==='build'){ $('wavet').textContent=w.wave?'HALL HELD — BUILD PHASE':'BUILD PHASE'; $('phaset').textContent='Only the host can start the next wave'; }
     else if(w.phase==='won'){ $('wavet').textContent='HALL HELD — '+w.mapName+' CLEARED'; $('phaset').textContent=''; }
     else if(w.phase==='dead'){ $('wavet').textContent='THE CRYSTAL FELL'; $('phaset').textContent=''; }
+    { const hc=[...conns.values()][0]; if(hc&&(w.phase==='build'||w.phase==='wave')){ if(hc.__hidden) $('phaset').textContent="The host's game is in the background"; else if(hc.__paused) $('phaset').textContent='The host paused the game'; } }   // build 159 (2/7): the heartbeat's own flags (the host says so the moment its tab hides) -- why no horn is coming. The hall itself runs on (the keeper), except on a phone host, which the browser stops outright; 'paused' only ever shows with COOP_HALL_RUNS off
     // this guest's OWN mana pool (phase 12 -- no longer the shared hall number), keyed out of w.manas by this
     // client's own peer id; the hall's real roots/DU cap stay shared, a structural cap on the hall, not personal
     const myMana=(w.manas&&window.__net.myId()in w.manas)?w.manas[window.__net.myId()]:0;
