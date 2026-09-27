@@ -1121,7 +1121,7 @@ function updateWave(dt){ if(S.phase!=='wave') return; S.waveT+=dt; while(spawnQ.
 // so closing the tab mid-lap loses nothing. The tally (NEXT MAP / TAVERN / REPLAY) waits for MOVE ON (moveOn, below): the horn
 // button reads ▶ MOVE ON on the lap, and it or G ends the run the way the last wave used to. Nothing else can: hurtCrystal ignores
 // a held hall, and no mob is left to hurt it -- whatever a direct call (a test's __dd.winMap() mid-wave) leaves walking goes quietly
-function winMap(){ if(S.held) return; S.held=true; S.phase='build'; spawnQ=[]; for(const e of enemies) if(!e.dead){ e.through=true; e.dead=.001; }
+function winMap(){ if(S.held) return; S.held=true; S.heldAt=performance.now(); S.phase='build'; spawnQ=[]; for(const e of enemies) if(!e.dead){ e.through=true; e.dead=.001; }
   banner('HALL HELD','the horde broke on wave '+S.wave+'  ·  '+MAP.name+' is yours'); SFX.held(); setTimeout(()=>SFX.horn(),500); setMusic('build'); droneOff();
   try{ localStorage.setItem('ddMapsCleared',String(Math.max(MAPS_CLEARED,MAPI+1))); }catch(e){}
   Meta.onMapHeld(effWave(),{won:true,map:MAPI,mapName:MAP.name,hasNext:MAPI+1<MAPS.length});
@@ -1192,7 +1192,7 @@ addEventListener('keydown',e=>{ const c=e.code; if(Meta.isOpen()) return; if(c==
   if(c==='KeyW'||c==='ArrowUp') K.w=1; if(c==='KeyS'||c==='ArrowDown') K.s=1; if(c==='KeyA') K.a=1; if(c==='KeyD') K.d=1; if(c==='ShiftLeft'||c==='ShiftRight') K.shift=1; if(c==='ArrowLeft') K.tl=1; if(c==='ArrowRight') K.tr=1;
   if(c==='Space'){ jump(); e.preventDefault(); }
   if(c==='Digit1') select('harpoon'); if(c==='Digit2') select('acorn'); if(c==='Digit3') select('ball'); if(c==='Digit4') select('slice'); if(c==='Digit5') select('spike'); if(c==='Digit6') select('totem'); if(c==='Digit7') select('frost'); if(c==='Digit8') select('snare'); if(c==='Digit9') select('zap'); if(c==='Digit0') select('venom'); if(c==='Minus') select('ember'); if(c==='Equal') select('dazzle');
-  if(c==='KeyR'){ rotateGhost(PI/12); } if(c==='Escape') cancelPlace(); if(c==='KeyG') startWave(); if(c==='KeyE') upgrade(); if(c==='KeyX') sell(); if(c==='KeyM') setSound(soundOff); if(c==='KeyN') toggleMusic(); if(c==='KeyF'||c==='KeyQ') swing(); if(c==='KeyH'){ if(window.__raven&&window.__raven.near()) window.__heroes.next(); else toggleHero(); } });
+  if(c==='KeyR'){ rotateGhost(PI/12); } if(c==='Escape') cancelPlace(); if(c==='KeyG'&&!(S.held&&performance.now()-(S.heldAt||0)<2000)) startWave(); /* a G already on its way as the last mob falls doesn't skip the lap (build 160) */ if(c==='KeyE') upgrade(); if(c==='KeyX') sell(); if(c==='KeyM') setSound(soundOff); if(c==='KeyN') toggleMusic(); if(c==='KeyF'||c==='KeyQ') swing(); if(c==='KeyH'){ if(window.__raven&&window.__raven.near()) window.__heroes.next(); else toggleHero(); } });
 addEventListener('keyup',e=>{ const c=e.code; if(c==='KeyW'||c==='ArrowUp') K.w=0; if(c==='KeyS'||c==='ArrowDown') K.s=0; if(c==='KeyA') K.a=0; if(c==='KeyD') K.d=0; if(c==='ShiftLeft'||c==='ShiftRight') K.shift=0; if(c==='ArrowLeft') K.tl=0; if(c==='ArrowRight') K.tr=0; });
 addEventListener('blur',()=>{ for(const k in K) K[k]=0; });
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
