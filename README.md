@@ -939,6 +939,19 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   and a co-op run that ends under the pause or the sheet puts them away for the death cut. `COOP_HALL_RUNS` in 99-network.js
   is the switch back to "the host's menus pause everyone" (then guests read "The host paused the game", from a flag on the
   heartbeat). `coop-freeze-test.mjs` (new).
+- Build 159 (3/7): a guest's loot and mana are worth what the host's are. A guest's own copy of every drop was rolled at its OWN
+  wave, and a guest's wave never moves (only the host counts waves), so every guest roll was a wave-zero roll: level 1 all run
+  on map one (the map's first level later), never an epic or a legendary, no Void or random Forest pieces, mythics at a quarter
+  of the host's damage, a level-1 named mythic. The host's drop and held-wave messages now carry the hall's wave and the guest
+  rolls at it (`atHallWave` in 99-network.js borrows S.wave for that one call, as the shop's stock roll does); each player still
+  rolls their own dice (their own 7% mythic and 5% named mythic, their own Forest pity). The HALL HELD payout rides the run-end
+  message as the host's own number, so the Throne Room pays a guest 500 like the host (it paid 325). Matt's call on selling: a
+  guest sells only the defenses it built ("That's a teammate's defense"), the host sells any, and repair and upgrade stay open to
+  everyone. No repair, upgrade or sell goes through after the hall fell or held. A guest who drops and rejoins gets its own
+  mana pool back, and its defenses (their gear, and the right to sell them): the guest's input names its lobby seat
+  (`__lobby.seat()`, one per tab, kept across a reload) and the host keeps a departed guest's pool under it for the rest of
+  the run (a new tab still starts at the hall's baseline). The wave-zero phantom goblin is removed quietly instead of through
+  kill(), which paid a fresh guest (and "reset guide" in solo) 2 xp, an orb and a loot roll. `coop-loot-test.mjs` (new).
 - Build 152: MYTHIC gear. The hideout's forge (hideout builds 26-30) makes a tier one step above legendary, rarity 5,
   and the game wears it: `RNAME[5]` Mythic in its own pink, valid and fixable at 5, forge caps at 5, no level gate on
   anything the hideout forged. **Named mythics** (ten, a forge proc, Matt's stats, each with a signature power,

@@ -9,8 +9,10 @@
 //    hero holds (the Knight a sword or now and then a polearm, the Witch and Fighter a staff, the Troll a bow — so it shows
 //    as that set's weapon, 86-setweapons.js), its stats re-rolled at rarity 5 on the item's own level (rollStat).
 //  • each wave held has NAMED_DROP to drop one of the ten named mythics (97-mythics.js's table, favouring one you don't
-//    have) by the crystal with the wave's reward. Host-side only in co-op for now (it isn't a rollItem roll, so the
-//    lootDrop relay doesn't carry it).
+//    have) by the crystal with the wave's reward. In co-op every player rolls their own 5% (build 159, 3/7, which corrected
+//    "host-side only" here): it isn't a rollItem roll, so the lootDrop relay doesn't carry it, but 99-network.js's waveHeld
+//    relay runs this same Meta.onWaveHeld on a guest's page -- now at the hall's wave (atHallWave), so a guest's named mythic
+//    comes out at the host's level, not level 1. Each player's own drop, on their own floor.
 // A mythic scrapped on the way to the hideout counts as legendary scrap (59-hideout.js clamps rarity to 4), so it still
 // feeds the sludge cycle. Rates are two numbers here — tune freely; __mythicDrops.rates() / .set() for tests.
 (function(){

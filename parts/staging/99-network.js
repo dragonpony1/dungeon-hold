@@ -131,6 +131,15 @@
 // hall with anyone in it, the hall runs on under the host's menus (Meta.sharedHall, read by that one guard in game.js's update)
 // with the host's gnome standing still, and when the host's frames stop a tiny Worker keeps it going (the keeper, below). The
 // pause card says so, a guest is told when the host's game is in the background, and single player pauses exactly as before.
+// ===== BUILD 159 (3/7): A GUEST'S LOOT AND MANA ARE WORTH WHAT THE HOST'S ARE. A guest's own copy of every drop was rolled at ITS
+// OWN wave -- and a guest's S.wave never moves (only the host's startWave counts waves), so every guest roll was a wave-zero roll:
+// level 1 all run on map one (the map's first level on later ones), never an epic or a legendary, no Void or random Forest
+// pieces, mythics at a quarter of the host's damage. Now the host's drop and held-wave messages carry the hall's wave and a
+// guest rolls with its S.wave borrowed for that one synchronous call (atHallWave) -- the same trick 10-meta.js's shop stock
+// uses. The HALL HELD payout now rides the run-end message as the host's own number (25 x the CAMPAIGN wave on a later map,
+// not the map's). A guest sells only what it built (the host sells anything; repair and upgrade stay open to everyone), no
+// defense action goes through after the hall fell or held, and a guest who drops and rejoins gets its own mana pool back,
+// and its defenses, keyed by its lobby seat (seatJoin/seatLeave) -- no free refill, no savings lost.
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -430,6 +439,23 @@ const GUEST_MAX_HP=100, GUEST_REACH=2.4, GUEST_DMG=8;   // hero's own unequipped
 // header comment (top of file) for why this replaced a single shared S.mana for defense costs.
 const guestMana=new Map();   // id -> number
 const MAP_MANA=MAP.mana||260;   // the exact fallback S's own init (game.js: const S={mana:MAP.mana||260,...}) already uses -- some maps (the default 'hall' among them) never set their own MAP.mana at all
+// build 159 (3/7): a pool outlives its connection. Pools are keyed by peer id and every join makes a new one, so a guest who dropped
+// and came back was seeded MAP_MANA again: a free refill for one who had spent down (leave, rejoin, 260), the savings gone for one
+// who had banked 900, and their defenses lost their gear (d.ownerId named the dead id). A guest's input now names its lobby seat
+// (99b-lobby.js SEAT: one per tab, kept across the reload onto the host's map and a RETURN TO TITLE; the host never shows it to
+// anyone, so one guest can't name another's). When a guest leaves, the host puts its pool aside under that seat for the rest of
+// the run and hands it back -- with its defenses -- when the seat registers again. A tab with no seat, or a new one, starts at
+// MAP_MANA as anyone joining does. If the same tab is back on a new id before its old link was given up on (a phone's tab killed
+// and reopened inside the heartbeat's minute), the old pool joins whatever the new one has done since, and its defenses move over.
+const seatOf=new Map();     // host: peer id -> {seat, seed}: that guest's seat and the pool it was registered with
+const seatKept=new Map();   // host: seat -> the pool a departed guest left behind
+function seatJoin(id,inp){ const seat=inp&&typeof inp.seat==='string'&&/^[a-z0-9]{8}$/.test(inp.seat)?inp.seat:null; let pool=MAP_MANA;
+  if(seat&&seatKept.has(seat)){ pool=seatKept.get(seat); seatKept.delete(seat); defs.forEach(d=>{ if(d.ownerSeat===seat) d.ownerId=id; }); }
+  if(seat) seatOf.set(id,{seat,seed:pool}); return pool; }
+function seatLeave(id){ const s=seatOf.get(id); seatOf.delete(id); if(!s||!guestMana.has(id)) return; const pool=guestMana.get(id);
+  const heir=[...seatOf.entries()].find(([k,v])=>v.seat===s.seat&&guestMana.has(k));
+  if(heir){ const [k,v]=heir; guestMana.set(k,Math.round((guestMana.get(k)-v.seed+pool)*10)/10); v.seed=0; defs.forEach(d=>{ if(d.ownerId===id) d.ownerId=k; }); }   // its free MAP_MANA start is replaced by the old pool (seed 0: nothing in it is free any more)
+  else seatKept.set(s.seat,pool); }
 // the wave-held bonus (updateWave, game.js) only ever credits S.mana -- and, same as gold/xp (10-meta.js's own
 // onWaveHeld, a separate, still-host-only gap not fixed here), only the HOST ever sees it, since a guest's own
 // local S.phase never reaches 'wave' at all (startWave() is blocked for them below). Meta.onWaveHeld(effWave())
@@ -439,7 +465,16 @@ const MAP_MANA=MAP.mana||260;   // the exact fallback S's own init (game.js: con
 { const origOnWaveHeld=Meta.onWaveHeld;
   Meta.onWaveHeld=w=>{ origOnWaveHeld(w);
     if(role==='host'){ const bonus=50+10*w; guestMana.forEach((v,id)=>guestMana.set(id,Math.round((v+bonus)*10)/10)); send('waveHeld',{w}); } }; }   // phase 13: the gold/xp half goes to every guest too
-onMessage('waveHeld',d=>{ if(role==='guest'&&d&&Number.isFinite(+d.w)) Meta.onWaveHeld(+d.w); });
+// build 159 (3/7): a guest's S.wave never moves (startWave is the host's alone, below), so anything a guest rolls reads effWave()
+// = MAP.wbase: a wave-zero roll, whatever wave the hall is on. What the host's hall hands a guest to roll -- a drop (lootDrop),
+// the held wave's thanks (waveHeld: the Forest pieces, the named mythic's 5%) -- runs here with S.wave borrowed from the hall for
+// that one synchronous call, then put back, the same swap 10-meta.js's rollStockItem makes for the shop; nothing that watches
+// S.wave each frame (97-mythics.js) can ever see it. ew is the host's effWave() at that moment (the campaign wave, so a guest
+// whose own map base differed would still land on the host's number); an older host that sends none falls back to the wave its
+// world broadcast last said
+function atHallWave(ew,fn){ const w0=S.wave; S.wave=typeof ew==='number'&&Number.isFinite(ew)?ew-MAP.wbase:(hostWorld&&Number.isFinite(hostWorld.wave)?hostWorld.wave:w0);
+  try{ return fn(); } finally{ S.wave=w0; } }
+onMessage('waveHeld',d=>{ if(role==='guest'&&d&&Number.isFinite(+d.w)) atHallWave(+d.w,()=>Meta.onWaveHeld(+d.w)); });   // d.w is already the host's effWave() (updateWave passes it)
 // phase 13: party xp -- every kill's xp to every guest, as the host's own onKill fires
 { const origOnKill=Meta.onKill; Meta.onKill=e=>{ origOnKill(e); if(role==='host'&&e) send('killXp',{kind:e.kind}); }; }
 onMessage('killXp',d=>{ if(role==='guest'&&d) Meta.onKill({kind:d.kind}); });
@@ -447,7 +482,7 @@ function guestInputTick(dt){
   if(role!=='host') return;
   guestIn.forEach((inp,id)=>{
     let g=guestHero.get(id);
-    if(!g){ const ox=guestHero.size*1.5; g={x:ox,y:0,z:6,yaw:0,hp:GUEST_MAX_HP,max:GUEST_MAX_HP,hurtT:0,dead:0,spawnX:ox,holdT:.8}; guestHero.set(id,g); guestMana.set(id,MAP_MANA); send('hp',{hp:g.hp,max:g.max,dead:0,x:g.x,y:g.y,z:g.z},id); }   /* build 147: the guest's own position leads now (below), so on registration their local hero is put at this spawn (the 'hp' handler applies x/z) and the host holds its copy there for a moment rather than chasing the spot their page loaded them at, on top of the host */
+    if(!g){ const ox=guestHero.size*1.5; g={x:ox,y:0,z:6,yaw:0,hp:GUEST_MAX_HP,max:GUEST_MAX_HP,hurtT:0,dead:0,spawnX:ox,holdT:.8}; guestHero.set(id,g); guestMana.set(id,seatJoin(id,inp)); send('hp',{hp:g.hp,max:g.max,dead:0,x:g.x,y:g.y,z:g.z},id); }   /* build 147: the guest's own position leads now (below), so on registration their local hero is put at this spawn (the 'hp' handler applies x/z) and the host holds its copy there for a moment rather than chasing the spot their page loaded them at, on top of the host */
     const s=guestStats.get(id);
     // gear-scaled max hp, delta-preserving on increase -- the same pattern applyGear() (game.js) uses for the real hero
     const newMax=Math.round((GUEST_MAX_HP+(s?s.stat.hp:0))*(s?s.mult.hp:1));
@@ -498,7 +533,8 @@ function hurtGuestHero(id,dmg){
 // local hero's own enemies array stays empty (a guest can't start a wave), so hurtHero() never fires through real
 // local gameplay -- targeted (toId) rather than broadcast, since nobody else needs to know a guest's own raw hp
 window.__combat={ guestHero:id=>{ const g=guestHero.get(id); return g?{x:+g.x.toFixed(2),z:+g.z.toFixed(2),hp:g.hp,max:g.max,dead:g.dead}:null; },
-  guestMana:id=>guestMana.has(id)?guestMana.get(id):null };   // guestHero/guestMana are this module's own private state (not re-exposed anywhere else, deliberately -- other modules reach them only through Meta.heroes()/hostTryPlaceDef etc.); this object is purely a test hook
+  guestMana:id=>guestMana.has(id)?guestMana.get(id):null,
+  seatOf:id=>{ const s=seatOf.get(id); return s?s.seat:null; }, seatKept:seat=>seatKept.has(seat)?seatKept.get(seat):null };   // guestHero/guestMana are this module's own private state (not re-exposed anywhere else, deliberately -- other modules reach them only through Meta.heroes()/hostTryPlaceDef etc.); this object is purely a test hook
 // co-op combat, part 1: enemies can now notice and damage a guest's hero, not just the host's own -- Meta.heroes()
 // (game.js) is the hook updateEnemies/landHit read every tick; each entry closes over a live guestHero record, so
 // isDead()/hurt() always reflect the CURRENT state at the moment an attack actually lands, not a stale snapshot
@@ -643,6 +679,7 @@ function guestSendInput(dt){
     stat:{tow:heroStat('tow'),trate:heroStat('trate'),tarea:heroStat('tarea'),move:heroStat('move'),def:heroStat('def'),hp:heroStat('hp'),regen:heroStat('regen'),mana:heroStat('mana')},
     mult:{tow:heroMult('tow'),tcd:heroMult('tcd'),aoe:heroMult('aoe'),move:heroMult('move'),hp:heroMult('hp'),mana:heroMult('mana')},
     kind:Meta.defKindMap?Meta.defKindMap():{},   // a full set's per-defense-kind power (94-voidset.js), for the halos this guest places
+    seat:window.__lobby&&window.__lobby.seat?window.__lobby.seat():undefined,   // build 159 (3/7): this tab's lobby seat, so the host can keep this player's mana and defenses for them across a drop (seatJoin)
     look:lookOf()});   // build 150: what this guest wears, for its puppet on every other screen
 }
 
@@ -685,7 +722,7 @@ function guestShowRunEnd(w){
   if(document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play');
   if(w.phase==='won'){ SFX.held(); $('deadh1').textContent='HALL HELD'; $('deadh2').textContent=w.mapName+' is cleared'; }
   else { sting(); $('deadh1').textContent='SHATTERED'; $('deadh2').textContent='THE HALL FELL ON WAVE '+w.wave; }
-  const pay=w.wave>0?25*w.wave+(w.phase==='won'?150:0):0; if(pay){ Meta.addGold(pay,'run'); Meta.save(); }   // phase 13: the run's payout, same formula as the host's onRunEnd
+  const pay=typeof w.pay==='number'&&Number.isFinite(w.pay)?Math.max(0,Math.round(w.pay)):w.wave>0?25*w.wave+(w.phase==='won'?150:0):0; if(pay){ Meta.addGold(pay,'run'); Meta.save(); }   // phase 13: the run's payout -- since build 159 (3/7) the host's own number (runPay), so a later map pays the guest what it pays the host; the old map-wave formula only for an older host that sends none
   $('deadp').textContent=(pay?'+'+pay+' ● gold for the run. ':'')+'Your own gear, gold and skills stay with you. Go again.';
   $('nextmapbtn').style.display='none'; $('dead').classList.remove('hide');
 }
@@ -702,10 +739,15 @@ window.__gsfx=()=>Object.assign({},GSFX);
 function guestWorldSfx(w){ if(GSFX.phase&&GSFX.phase!==w.phase){ if(w.phase==='wave'){ SFX.horn(); GSFX.horn++; } else if(w.phase==='build'&&GSFX.phase==='wave'){ SFX.held(); GSFX.held++; } } GSFX.phase=w.phase;
   if(GSFX.crystalHp!==null&&w.crystal<GSFX.crystalHp-.01){ SFX.crystal(); if(SFX.alarm) SFX.alarm(); GSFX.crystal++; } GSFX.crystalHp=w.crystal; }
 onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded){ if(data.phase==='won'){ try{ const cur=parseInt(localStorage.getItem('ddMapsCleared'))||0; localStorage.setItem('ddMapsCleared',String(Math.max(cur,MAPI+1))); }catch(e){} }   /* build 150: a hall held with the host counts for the guest too (winMap records it on the host only) -- the next room and the other heroes open for them as well */ guestShowRunEnd(data); } });
+// build 159 (3/7): what the host's own Meta.onRunEnd pays (10-meta.js: 25 a wave, +150 for a map held), worked out from the very wave
+// the host pays itself on -- the map's own count when the crystal falls (finishDeath), the CAMPAIGN wave when the map is held
+// (winMap's effWave()). A guest used to work it out from the map's count both times, so holding the Throne Room paid the host 500
+// and the guest 325, and the gap grew every map
+function runPay(w,won){ w=w|0; return w>0?25*w+(won?150:0):0; }
 { const origFinishDeath=finishDeath;
-  finishDeath=function(){ origFinishDeath(); if(role==='host') send('runEnd',{phase:'dead',wave:S.wave}); }; }
+  finishDeath=function(){ origFinishDeath(); if(role==='host') send('runEnd',{phase:'dead',wave:S.wave,pay:runPay(S.wave,false)}); }; }
 { const origWinMap=winMap;
-  winMap=function(){ origWinMap(); if(role==='host') send('runEnd',{phase:'won',wave:S.wave,mapName:MAP.name}); }; }
+  winMap=function(){ origWinMap(); if(role==='host') send('runEnd',{phase:'won',wave:S.wave,mapName:MAP.name,pay:runPay(effWave(),true)}); }; }
 
 // starting a wave is the host's call alone -- a guest is visiting the host's hall, not running a second one next to
 // it. startWave is a plain top-level function (game.js), so this reassigns the same binding every call site already
@@ -873,7 +915,7 @@ function hostTryPlaceDef(kind,x,z,yaw,fromId){
   if(!reason&&S.mana<cfg.mana) reason='Not enough mana';
   else if(!reason&&enemies.some(e=>!e.dead&&Math.hypot(e.x-x,e.z-z)<2.2)) reason='Enemy too close';
   if(reason){ S.mana=realMana; send('toast',reason,fromId); return; }
-  const d=placeDefAt(kind,x,z,yaw); if(d) d.ownerId=fromId;   // stat() (game.js) reads this via Meta.defOwnerStat/Mult so the defense keeps ITS PLACER's buffs, not the host's own
+  const d=placeDefAt(kind,x,z,yaw); if(d){ d.ownerId=fromId; const st=seatOf.get(fromId); if(st) d.ownerSeat=st.seat; }   // stat() (game.js) reads this via Meta.defOwnerStat/Mult so the defense keeps ITS PLACER's buffs, not the host's own; the seat (build 159, 3/7) is how it finds its placer again after a rejoin (seatJoin)
   guestMana.set(fromId,S.mana); S.mana=realMana;
 }
 onMessage('place',(data,fromId)=>hostTryPlaceDef(data.kind,data.x,data.z,data.yaw,fromId));
@@ -899,7 +941,12 @@ function hostDefAction(data,fromId){
   if(role!=='host') return;
   const g=guestHero.get(fromId); if(!g) return;
   if(g.dead>0){ send('toast',"You're down — wait to respawn",fromId); return; }
+  if(S.phase==='start'||S.phase==='dead'||S.phase==='won'||S.phase==='deathcut'){ send('toast','Not right now',fromId); return; }   // build 159 (3/7): the same end-of-run gate hostTryPlaceDef has always had -- a repair, upgrade or sell after the hall fell or held used to go through
   const pos={x:g.x,z:g.z};
+  // build 159 (3/7), Matt's call: a guest sells only the defenses it built -- sell() takes whichever is nearest, so pressing X by a
+  // friend's tower took it down and put 70% of what THEY paid in your own pool. The host may sell any (its hall), and repairing or
+  // upgrading anyone's stays open to everyone: helping is fine
+  if(data.action==='sell'){ const d=nearestDef(3.4,pos); if(d&&d.ownerId!==fromId){ send('toast',"That's a teammate's defense — you can only sell the ones you built",fromId); return; } }
   const origToast=toast; let said=null;
   toast=msg=>{ said=msg; };
   // repair/upgradeDef/sell (game.js) read/write the shared S.mana binding directly -- temporarily pointing it at
@@ -963,8 +1010,11 @@ function pickupPuppetsTick(dt){
 // its own page, where it alone can walk over it. Loot is never shown to anyone else; mana orbs stay shared.
 let LASTROLL=null;
 { const prev=rollItem; rollItem=function(minR,slot,lvl){ const it=prev(minR,slot,lvl); LASTROLL={it,args:[minR,slot,lvl]}; return it; }; }
-{ const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); if(role==='host'&&conns.size&&LASTROLL&&LASTROLL.it===it){ const a=LASTROLL.args; send('lootDrop',{minR:a[0]|0,slot:a[1]||null,lvl:Number.isFinite(+a[2])?+a[2]:null,x:+(+x).toFixed(2),z:+(+z).toFixed(2),gentle:!!gentle}); } return l; }; }   // only an item that came straight from rollItem is relayed: the Forest guarantee's set pieces (already personal, 93-gearsets.js) and take-backs are not
-onMessage('lootDrop',d=>{ if(role!=='guest'||!d) return; const it=rollItem(Math.max(0,Math.min(4,d.minR|0)),d.slot||undefined,d.lvl||undefined); dropLoot(it,+d.x||0,+d.z||0,!!d.gentle); });
+{ const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); if(role==='host'&&conns.size&&LASTROLL&&LASTROLL.it===it){ const a=LASTROLL.args; send('lootDrop',{minR:a[0]|0,slot:a[1]||null,lvl:Number.isFinite(+a[2])?+a[2]:null,ew:effWave(),x:+(+x).toFixed(2),z:+(+z).toFixed(2),gentle:!!gentle}); } return l; }; }   // only an item that came straight from rollItem is relayed: the Forest guarantee's set pieces (already personal, 93-gearsets.js) and take-backs are not. ew (build 159, 3/7): the hall's wave, which the guest rolls at
+// the guest's roll runs at the hall's wave (atHallWave, above): the level, the rarity odds (epic from wave 3, legendary from 6), the
+// Void and Forest chances (93-gearsets.js) and a mythic's stats (87-mythicdrops.js rolls them on the item's own level) all come out
+// as the host's own roll would -- only the dice are this guest's, and its own rules (Forest pity, its own 7% mythic)
+onMessage('lootDrop',d=>{ if(role!=='guest'||!d) return; atHallWave(d.ew,()=>{ const it=rollItem(Math.max(0,Math.min(4,d.minR|0)),d.slot||undefined,d.lvl||undefined); dropLoot(it,+d.x||0,+d.z||0,!!d.gentle); }); });
 function hostBroadcastPickups(dt){
   if(role!=='host'||!conns.size) return;
   syncTP+=dt; if(syncTP<1/10) return; syncTP=0;
@@ -1032,6 +1082,7 @@ function guestHostLeft(why){
 }
 window.__hostLeft=()=>hostLeftSaid;   // a test hook
 onMessage('__leave',(fromId,why)=>{ if(role==='guest') guestHostLeft(why);
+  if(role==='host') seatLeave(fromId);   // build 159 (3/7): this guest's pool is put aside under its seat (or handed to the same tab already back), before it goes below
   window.__party.remove(fromId); guestIn.delete(fromId); guestHero.delete(fromId); guestStats.delete(fromId); guestMana.delete(fromId); [...MOBPUP.keys()].forEach(mobPuppetRemove); [...DEFPUP.keys()].forEach(defPuppetRemove); });   // guestStats gone -> Meta.defOwnerStat/Mult return undefined for whatever this guest placed -> stat() falls back to the host's own numbers, automatically
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); guestInputTick(dt); hostBroadcastHeroes(dt); hostBroadcastWorld(dt); hostBroadcastEnemies(dt); hostBroadcastDefs(dt); hostBroadcastPickups(dt); mobPuppetsTick(dt); defPuppetsTick(dt); pickupPuppetsTick(dt); guestPickupTick(dt); guestSendInput(dt); }; }
 })();
