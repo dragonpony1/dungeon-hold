@@ -100,7 +100,10 @@ await guestPage.evaluate(()=>{ window.__meta.reset(); });
 const guestBagBefore=await guestPage.evaluate(()=>window.__meta.bag().length);
 const hostBagBefore=await hostPage.evaluate(()=>window.__meta.bag().length);
 const gPos2=await hostPage.evaluate(id=>window.__combat.guestHero(id),guestId);
-const dropped=await hostPage.evaluate(pos=>{ const d=window.__dd; const it=d.rollItem(1,'armor',3); const l=d.dropLoot(it,pos.x,pos.z-6,true); return {slot:it.slot,x:l.x,z:l.z,hostLoot:d.loot.length}; },gPos2);
+// dropped 4 BEHIND the guest (+z, the open floor back toward the start), not 6 in front: the guest stands wherever the orb above
+// landed, a few steps from the crystal at the origin on the start's side, so a drop at z-6 could land on its far side -- and walkGuestTo walks a straight
+// line, which pinned the guest against the crystal (heroSolid) 5.8 short of its item on about one run in three (build 159, 6/7)
+const dropped=await hostPage.evaluate(pos=>{ const d=window.__dd; const it=d.rollItem(1,'armor',3); const l=d.dropLoot(it,pos.x,pos.z+4,true); return {slot:it.slot,x:l.x,z:l.z,hostLoot:d.loot.length}; },gPos2);
 await tickBoth(4,5);
 const guestOwn=await guestPage.waitForFunction(()=>window.__dd.loot.length>=1,null,{timeout:15000,polling:100}).then(()=>true).catch(()=>false);
 const guestDrop=await guestPage.evaluate(()=>{ const l=window.__dd.loot[0]; return {n:window.__dd.loot.length,slot:l&&l.it.slot,rarity:l&&l.it.rarity,puppets:window.__pickupsync.loot().length}; });

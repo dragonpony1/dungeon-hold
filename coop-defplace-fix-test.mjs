@@ -28,6 +28,14 @@ const hostPage=await hostCtx.newPage(), aPage=await aCtx.newPage(), bPage=await 
 const errors=[]; for(const p of [hostPage,aPage,bPage]) p.on("pageerror",e=>errors.push(String(e)));
 
 for(const p of [hostPage,aPage,bPage]){ await p.goto("http://127.0.0.1:8885/?silent&nogate",{timeout:90000}); await p.waitForFunction(()=>window.__dd&&window.__net&&window.__combat,null,{timeout:60000}); }
+// build 159 (6/7): the ball is the witch's piece -- a fresh player has been the Knight since build 134 and a Knight can't build a
+// trebuchet (70-hero2.js refuses the pick with a toast), so the repair check below found no defense and the suite died on it.
+// coop-defplace-test.mjs got the same line in build 148
+await aPage.evaluate(()=>window.__heroes.select('witch'));
+// and every page runs only when this suite steps it: unfrozen, game.js's own frame loop kept simulating between the steps, so on a
+// slow run guest A's 4 s death countdown ran out on the wall clock and 'Back on your feet!' landed over the 'You're down' toast
+// the dead-guest checks read (they failed on the slower runs of the build-159 sweep)
+for(const p of [hostPage,aPage,bPage]) await p.evaluate(()=>{ window.__freeze=true; });
 for(const p of [hostPage,aPage]) await p.evaluate(()=>{ window.__dd.start(); window.__dd.step(1/60,30); });
 // guest B deliberately never calls start() -- stays in S.phase 'start' forever, so update(dt) never reaches
 // Meta.update and guestSendInput never fires, exactly the "host never sees an 'input' from this id" state fix (1) targets
@@ -105,6 +113,10 @@ await aPage.evaluate(()=>{ window.__dd.setCam(0,.42,8); const d=window.__dd; d.s
 await tickBoth(aPage,10,5);
 const placedForRepair=await hostPage.evaluate(()=>window.__dd.defs[0]);
 check("a fresh defense exists to repair-test against",!!placedForRepair,JSON.stringify(placedForRepair&&{x:placedForRepair.x,z:placedForRepair.z}));
+if(!placedForRepair){   // a missing defense is a FAIL for the checks that need it, not a crash that hides everything after it
+  check("guest A walked back within repair range after respawning",false,"no defense to walk to");
+  check("a successful repair() now relays a confirmation toast to the guest (previously silent)",false,"no defense to repair");
+} else {
 await hostPage.evaluate(()=>{ window.__dd.defs[0].hp=10; });
 // repair() only reaches the real defense from within 3.4 units of the guest's HOST-TRACKED position (walking
 // there via camera aim alone, as the placement above did, isn't enough -- same gap this session hit once before)
@@ -125,7 +137,8 @@ await tickBoth(aPage,10,5);
 const repairSuccessToast=await aPage.evaluate(()=>document.getElementById('toast').textContent);
 const repairedHp=await hostPage.evaluate(()=>window.__dd.defs[0]&&window.__dd.defs[0].hp);
 check("a successful repair() now relays a confirmation toast to the guest (previously silent)",
-  repairedHp===90&&repairSuccessToast.length>0,JSON.stringify({repairedHp,repairSuccessToast}));
+  repairedHp===90&&/Repaired/.test(repairSuccessToast),JSON.stringify({repairedHp,repairSuccessToast}));   // build 159 (6/7): the relayed word itself (hostDefAction), not just "some toast" -- any stray toast used to pass this
+}
 
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
 check("no page errors",realErrors.length===0,realErrors.slice(0,5).join(" | "));

@@ -67,8 +67,9 @@ check("host registers distinct spawn points for both guests, neither on the host
 // --- fix 2: two swing-triggering inputs in one synchronous task (the same-frame race the review found) must only
 // land ONE hit's worth of damage, not two -- checked FIRST, on guest B, before either guest has ever died, so the
 // host-side guestHitCone's own `g.dead>0` guard can't be the reason nothing lands
-// the default hero (70-hero2.js) is the witch -- RANGED -- and phase 9 made a ranged guest's shot a real travelling
-// bolt, not an instant hit; switching B to the knight first keeps this melee-focused test's own short wait valid,
+// the default hero (70-hero2.js) was the witch -- RANGED -- when this was written (the Knight since build 134), and phase 9
+// made a ranged guest's shot a real travelling bolt, not an instant hit; picking the knight for B explicitly keeps this
+// melee-focused test's own short wait valid whatever the default is,
 // and its expected damage now reads heroDmg() live (phase 8 made this gear-scaled, not the flat GUEST_DMG=8 this
 // test originally hardcoded, back when a guest's damage had no gear-scaling of its own yet). installHero() sets
 // hero.reach synchronously but fetches the new hero's GLB asynchronously, and weaponsUpdate() (80-weapons.js) --

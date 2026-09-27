@@ -58,7 +58,15 @@ async function until(p,fn,arg,ms=6000){ try{ await p.waitForFunction(fn,arg,{tim
   const after=await wallet(guestPage), hostAfter=await wallet(hostPage);
   check("the guest gets the held wave's gold: 10+5*1 = 15",held&&after.gold===before.gold+15,JSON.stringify({before,after}));
   check("...and its xp: 20+10*1 = 30 for the wave, plus 2 per goblin of the wave (party xp), matching the host's own gain exactly",after.xp-before.xp===hostAfter.xp-hostBefore.xp&&after.xp-before.xp>=30+2*outcome.kills,JSON.stringify({guestGain:after.xp-before.xp,hostGain:hostAfter.xp-hostBefore.xp,kills:outcome.kills}));
-  check("the guest's level moved with its xp, like the host's",after.level===hostAfter.level||after.level>=1,JSON.stringify({guest:after.level,host:hostAfter.level}));
+  // build 159 (6/7): this used to read `after.level===hostAfter.level||after.level>=1` -- every level is at least 1, so it could
+  // never fail, and at 84 xp neither side had levelled anyway (100 to reach level 2). One more ogre carries both past 100: the
+  // guest's level and its xp into the new level must come out exactly as the host's (both started from nothing, and party xp is
+  // the same xp for every kill)
+  await hostPage.evaluate(()=>{ const e=window.__dd.spawn('ogre','N'); window.__dd.kill(e); });
+  const levelled=await until(guestPage,()=>window.__meta.level()>=2,null,6000);
+  const gL=await wallet(guestPage), hL=await wallet(hostPage);
+  check("the guest's level moved with its xp, like the host's: both past level 1, same level, same xp into it",
+    levelled&&h0.xp===g0.xp&&h0.level===g0.level&&gL.level>=2&&gL.level===hL.level&&gL.xp===hL.xp,JSON.stringify({h0,g0,guest:gL,host:hL}));
 
   // the run ends in defeat on wave 1: the payout reaches the guest's own dead screen
   const g2=await wallet(guestPage);

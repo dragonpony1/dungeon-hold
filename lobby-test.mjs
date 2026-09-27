@@ -87,8 +87,11 @@ const bLoad=await until(B.page,()=>{ const s=window.__lobby&&window.__lobby.stat
 check("a guest whose room is still loading shows AMBER 'loading N s' in the host's roster, after it too was moved onto map two",
   !!bIn&&/loading \d+ s/.test(bIn.r[2].status)&&!!bLoad&&bLoad.map===1&&bLoad.s.ready===false&&bLoad.s.held&&bLoad.s.movedFrom===0,JSON.stringify({row:bIn&&bIn.r[2],b:bLoad}));
 check("START stays shut while any light is amber, and says so: 'START · 2/3 ready'",!!bIn&&bIn.s.startDisabled&&/START · 2\/3 ready/.test(bIn.s.startLabel),JSON.stringify(bIn&&bIn.s));
-const force=await H.page.evaluate(()=>!document.getElementById('lobbyForce').classList.contains('hide'));
-check("once the wait has passed (?lobbywait=20000 here, 45 s in play) the host is offered 'start without waiting' while someone is still amber",force,String(force));
+// waited for, not read once (build 159, 6/7): the offer comes WAIT_MS after the lobby opened (99b-lobby.js), and this line used to be
+// reached only after that on software GL; with the pages on the graphics card B can be in the roster ~11 s after HOST A GAME, and the
+// read came back false with the game doing exactly what it should. Still amber while it's offered, or it proves nothing
+const force=await until(H.page,()=>{ const r=window.__lobby.roster(); return !document.getElementById('lobbyForce').classList.contains('hide')&&r[2]&&r[2].light==='amber'?{light:r[2].light,status:r[2].status}:null; },null,60000,'start without waiting offered');
+check("once the wait has passed (?lobbywait=20000 here, 45 s in play) the host is offered 'start without waiting' while someone is still amber",!!force,JSON.stringify(force));
 const aSees3=await until(A.page,()=>{ const r=window.__lobby.roster(); return r.length===3?r:null; },null,120000,'A sees 3');
 check("a guest sees the same roster, live: three rows, its own marked",!!aSees3&&aSees3.filter(x=>x.me).length===1&&aSees3[1].me,JSON.stringify(aSees3));
 const fit=await B.page.evaluate(()=>{ const p=document.getElementById('lobbyPanel').getBoundingClientRect(); const over=[...document.querySelectorAll('#lobbyPanel *')].filter(e=>{ const r=e.getBoundingClientRect(); return r.width&&(r.left<-1||r.right>innerWidth+1); }).map(e=>e.id||e.className); return {left:Math.round(p.left),right:Math.round(p.right),vw:innerWidth,start:document.getElementById('start').scrollWidth,over}; });

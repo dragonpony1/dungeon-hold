@@ -982,6 +982,24 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   were just hit). The Tear of the Rootgate counts the host's waves on a guest (it worked once a session). The hideout portal
   follows the host's phase on a guest (`hallPhase()`, 58-portal.js): gone for the host's waves, and the horn calls a guest back out
   of the hideout. `coop-features-test.mjs` (new).
+- Build 159 (6/7): less on the host's upload in the big waves, and the co-op suites brought up to date. The mob list went to every
+  guest as ~90 bytes of JSON per mob, 12 times a second (~170 KB/s of the host's upload per guest with 161 alive at the
+  campaign's last wave). It now goes as rows with each kind named once (`'mobs'`, `packMobs`/`unpackMobs` in 99-network.js: the
+  very same numbers, rounded as before, about a third of the size) to a guest that says it reads it (`mz` on its input); an older
+  build's guest still gets the old `'enemies'` list, and this build still reads that one, so mixed builds keep seeing each other's
+  mobs. And a link that can't keep up (64 KB still waiting in the browser's buffer, or anything in PeerJS's own) skips the five
+  snapshots -- heroes, world, mobs, defenses, pickups -- until it drains (`sendSnap`), instead of queueing seconds of them in front
+  of every hit and toast; the mob deaths in a skipped list wait for that link's next one. Measured on the last wave (20
+  defenses, 142 alive after 40 s): the mob list is 55 KB/s per guest at that point instead of 155, 29 instead of 80 averaged over
+  the 40 s. `coop-tests-test.mjs` (new, 19 checks; the build before fails 9).
+  The suites, each measuring what the game does now: a fresh player is the Knight (build 134), so the witch sections pick her and
+  wait for her staff (herostats, projectile) and the trebuchet guest picks her before placing (defplace-fix, which crashed on it);
+  the trebuchet's damage is read off `DEFS.ball.dmg` (build 150 made it 7); herostats times the guest's OWN walk (its position is
+  the truth since build 148) and checks the host's copy ends where it stopped; the pierce check wants the same damage on both
+  targets (one arrow, not a cone and a tap); defplace-fix freezes its pages so the death countdown can't run out between steps;
+  mobsync turns the training guide off (its goblin is a real, shared mob); pickups drops the guest's item on open floor behind
+  it, not across the crystal; lobby waits for "start without waiting" instead of reading it once; rewards' level check could
+  never fail (`||after.level>=1`) and now needs both players past level 1 with the same level and xp.
 - Build 152: MYTHIC gear. The hideout's forge (hideout builds 26-30) makes a tier one step above legendary, rarity 5,
   and the game wears it: `RNAME[5]` Mythic in its own pink, valid and fixable at 5, forge caps at 5, no level gate on
   anything the hideout forged. **Named mythics** (ten, a forge proc, Matt's stats, each with a signature power,

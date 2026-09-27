@@ -161,6 +161,10 @@
 // On the guest's own page: its Tear of the Rootgate counts the host's waves, a finished Forest set no longer silences its pet
 // (93-gearsets.js), and the hideout portal follows the host's phase -- gone for the host's waves, and the horn calls a guest back
 // out of the hideout (58-portal.js hallPhase).
+// ===== BUILD 159 (6/7): LESS ON THE HOST'S UPLOAD IN THE BIG WAVES. The mob list goes packed ('mobs', packMobs/unpackMobs: the same
+// numbers at a third of the size) to every guest that says it reads it, the old 'enemies' list to any that doesn't (an older build);
+// and a link that can't keep up skips the snapshots until it drains (sendSnap/snapBusy) instead of queueing seconds of them in
+// front of every hit and toast -- the mob deaths in a skipped list wait for that link's next one.
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -182,6 +186,16 @@ function send(type,data,toId){
   if(toId){ const c=conns.get(toId); if(c&&c.open) c.send(msg); return; }
   conns.forEach(c=>{ if(c.open) c.send(msg); });
 }
+// build 159 (6/7): backpressure for the host's snapshots. The channel is reliable and ordered, and nothing ever looked at how much a
+// link still had to send: a guest whose link couldn't keep up (a host on a phone hotspot sending a big late wave to three friends,
+// or over a relay) just queued more and more -- the browser's buffer, then PeerJS's own -- and every later message waited behind
+// it, a hit or a toast seconds late and getting later all wave. The five snapshots (heroes, world, mobs, defs, pickups) each
+// replace the last, so a link with more than SNAP_BUF still waiting skips them until it drains; the next one that goes carries the
+// whole state anyway. One-shot messages (hp, toast, lootDrop, alive...) always go. A healthy link drains between two snapshots and
+// never gets near it; 64 KB is a second or two of mob lists on a link that is already behind
+const SNAP_BUF=64*1024;
+function snapBusy(c){ const dc=c.dataChannel; const busy=!!(dc&&dc.bufferedAmount>SNAP_BUF)||(c.bufferSize|0)>0; if(busy) c.__skipped=(c.__skipped|0)+1; return busy; }   // bufferSize: PeerJS's own queue, used once the browser's is full
+function sendSnap(type,data){ let msg=null; conns.forEach(c=>{ if(!c.open||snapBusy(c)) return; if(msg===null) msg=JSON.stringify({type,data}); c.send(msg); }); }
 function wire(conn){
   if(conn.__wired) return; conn.__wired=true;   // PeerJS's own 'open' event can fire more than once for the same DataConnection (seen intermittently in testing, most likely an ICE/negotiation retry) -- unguarded, a second wire() call stacked a second 'data' listener on the same conn, so every message after that point (including a one-shot action like 'swing'/'place'/'defAction') was handled twice
   conn.__heard=Date.now();   // build 159: when this peer last said anything at all (the heartbeat below reads it)
@@ -259,7 +273,7 @@ function leave(){ leaving=true;
 window.__net={ host, join, leave, send, onMessage, onLeave, role:()=>role, peers:()=>[...conns.keys()], world:()=>hostWorld,
   hostId:()=>role==='guest'?[...conns.keys()][0]||null:null,   // a guest only ever has the one connection — a convenience name for it, same id __party keys its puppet under
   myId:()=>selfId||(peer&&peer.id)||null,
-  links:()=>[...conns.values()].map(c=>{ const pc=c.peerConnection; return {id:c.peer,alive:!!c.__alive,hidden:!!c.__hidden,quiet:Date.now()-(c.__heard||0),ice:pc?pc.iceConnectionState:null,link:pc?pc.connectionState:null}; }) };   // build 159: a test hook -- what the heartbeat below knows about each connection
+  links:()=>[...conns.values()].map(c=>{ const pc=c.peerConnection; return {id:c.peer,alive:!!c.__alive,hidden:!!c.__hidden,quiet:Date.now()-(c.__heard||0),ice:pc?pc.iceConnectionState:null,link:pc?pc.connectionState:null,skipped:c.__skipped|0,held:c.__died?c.__died.length:0}; }) };   // build 159: a test hook -- what the heartbeat below knows about each connection (and, 6/7, how many snapshots a busy link skipped and how many mob deaths wait for it)
 
 // ---- build 159: the heartbeat. Every page, host or guest, says 'alive' once a second to everyone it is connected to, on a timer --
 // never the frame loop, which stops under the host's menus and in a hidden tab and would read as "gone". Anything received counts
@@ -743,7 +757,7 @@ function hostBroadcastHeroes(dt){
   const h=window.__dd.hero;
   const list=[{id:selfId,x:+h.x.toFixed(3),z:+h.z.toFixed(3),yaw:+h.yaw.toFixed(3),pick:window.__heroes.pick(),look:lookOf()}];
   guestHero.forEach((g,id)=>{ const inp=guestIn.get(id); list.push({id,x:+g.x.toFixed(3),z:+g.z.toFixed(3),yaw:+g.yaw.toFixed(3),pick:(inp&&inp.pick)||'witch',look:(inp&&inp.look)||null}); });   // a guest's look rides its input (build 150); relayed here so every guest sees every other
-  send('heroes',{list});
+  sendSnap('heroes',{list});
 }
 onMessage('heroes',data=>{
   const mine=selfId;
@@ -774,7 +788,8 @@ function guestSendInput(dt){
     kind:Meta.defKindMap?Meta.defKindMap():{},   // a full set's per-defense-kind power (94-voidset.js), for the halos this guest places
     seat:window.__lobby&&window.__lobby.seat?window.__lobby.seat():undefined,   // build 159 (3/7): this tab's lobby seat, so the host can keep this player's mana and defenses for them across a drop (seatJoin)
     myth:window.__mythic&&window.__mythic.worn?window.__mythic.worn():[], five:Meta.sets&&Meta.sets.active?Meta.sets.active().filter(a=>a.tier>=5).map(a=>a.name):[], idle:(!hero.moving&&hero.swingT<0&&hero.dead<=0)?1:0,   // build 159 (5/7): what the host needs to run this guest's named mythics and five-piece powers (the 'input' handler), and Mossheart's "stand still"
-    look:lookOf()});   // build 150: what this guest wears, for its puppet on every other screen
+    look:lookOf(),   // build 150: what this guest wears, for its puppet on every other screen
+    mz:MOBS_V});   // build 159 (6/7): "I read the packed mob list" -- the host sends 'mobs' instead of 'enemies' from then on (hostBroadcastEnemies)
 }
 
 // ---- phase 5: the host's real crystal/wave state, so a guest is helping defend ONE hall rather than tracking a
@@ -793,7 +808,7 @@ function hostBroadcastWorld(dt){
   // personal resource). mana:S.mana stays too, unchanged meaning (the HOST's own pool) -- nothing else reads it
   // differently than before, so no existing caller (tests included) needed to change.
   const manas={}; manas[selfId]=S.mana; guestMana.forEach((v,id)=>{ manas[id]=v; });
-  send('world',{crystal:S.crystal,crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,waveTotal:MAP.waves,mapName:MAP.name,mana:S.mana,manas,du:S.du,duCap:DU_CAP});
+  sendSnap('world',{crystal:S.crystal,crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,waveTotal:MAP.waves,mapName:MAP.name,mana:S.mana,manas,du:S.du,duCap:DU_CAP});
 }
 // a guest's own local S.phase never actually moves through 'deathcut'/'dead'/'won' -- only the HOST's real crystal
 // hitting 0, or its real last wave breaking, does that (hurtCrystal/winMap, game.js), and neither one so much as
@@ -890,7 +905,8 @@ onMessage('famHit',(data,fromId)=>{ if(role!=='host'||!data) return; const e=ene
   if(e.dead) return; const sl=+data.slow, bu=+data.burn;
   if(sl>0) e.slowT=Math.max(e.slowT||0,Math.min(5,sl));
   if(bu>0){ e.burnT=Math.min(5,bu); e.burnDmg=Math.max(0,Math.min(50,+data.burnDmg||0)); e.burnTick=e.burnTick||0; } });
-window.__mobsync={ foes:mobProxies, list:()=>[...MOBPUP.keys()], get:id=>{ const p=MOBPUP.get(id); if(!p) return null; return {id,kind:p.kind,x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2),yaw:+p.yaw.toFixed(2),walking:p.walking,hp:p.hp}; }, hitFeedback:()=>mobHitFeedback };
+window.__mobsync={ foes:mobProxies, list:()=>[...MOBPUP.keys()], get:id=>{ const p=MOBPUP.get(id); if(!p) return null; return {id,kind:p.kind,x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2),yaw:+p.yaw.toFixed(2),walking:p.walking,hp:p.hp}; }, hitFeedback:()=>mobHitFeedback,
+  unpack:d=>unpackMobs(d) };   // build 159 (6/7), a test hook: a packed 'mobs' message back into the old list (coop-tests-test.mjs)
 function mobPuppetsTick(dt){
   MOBPUP.forEach(p=>{ const k=1-Math.exp(-10*dt); const m=p.mdl; if(p.squash>0) p.squash=Math.max(0,p.squash-dt*7);   // hurt()'s own fade (game.js updateEnemies)
     p.x=lerp(p.x,p.tx,k); p.y=lerp(p.y,p.ty,k); p.z=lerp(p.z,p.tz,k); p.yaw=angLerp(p.yaw,p.tyaw,k);
@@ -903,14 +919,33 @@ function mobPuppetsTick(dt){
 let nextEnemyId=1, syncTE=0;
 const diedQ=[];   // build 147: mobs killed on the host since its last enemies list -- filled the moment kill() runs, not by scanning `enemies` at broadcast time (a mob killed and removed between two slow frames was never reported, and the guest never heard it die)
 { const prevKill=kill; kill=function(e){ const was=e&&e.dead; const r=prevKill.apply(this,arguments); if(role==='host'&&e&&!was&&e.dead){ if(!e.__coopId) e.__coopId='e'+(nextEnemyId++); diedQ.push({id:e.__coopId,kind:e.kind}); } return r; }; }
+// ---- build 159 (6/7): the mob list at a third of the size. At the campaign's last wave (161 alive) the list was ~14 KB, 12 times a
+// second, to EVERY guest -- ~170 KB/s of the host's upload per guest at that peak, and most of it the same key names and the same
+// kind names 161 times over. 'mobs' carries the very same numbers, rounded exactly as before, as rows -- [id, kind, x, y, z, yaw,
+// walking, hp] -- with each kind named once per message (k) and an id 'e123' sent as 123: about 5 KB for those 161. A guest unpacks it
+// into the old list (unpackMobs), so everything after that is untouched. A guest says it reads it (mz on its input); to one that
+// hasn't said so yet, or never will (an older build -- mixed builds may play together, the lobby only marks them), the host still
+// sends the old 'enemies' list, and this build still reads that one too: any two builds keep seeing each other's mobs.
+const MOBS_V=1, DIED_KEEP=100;
+function packMobs(live){ const k=[], ki=new Map();
+  return {k,l:live.map(e=>{ let n=ki.get(e.kind); if(n===undefined){ n=k.length; k.push(e.kind); ki.set(e.kind,n); } const m=/^e([1-9]\d{0,14})$/.exec(e.__coopId);
+    return [m?+m[1]:e.__coopId,n,+e.x.toFixed(2),+e.y.toFixed(2),+e.z.toFixed(2),+e.yaw.toFixed(2),e.walking?1:0,+e.hp.toFixed(1)]; })}; }   // an id that isn't 'e<n>' (a test names its own) goes as the string itself
+function unpackMobs(d){ const k=Array.isArray(d&&d.k)?d.k:[];
+  return (Array.isArray(d&&d.l)?d.l:[]).filter(Array.isArray).map(r=>({id:typeof r[0]==='number'?'e'+r[0]:String(r[0]),kind:k[r[1]],x:+r[2]||0,y:+r[3]||0,z:+r[4]||0,yaw:+r[5]||0,walking:!!r[6],hp:+r[7]||0})); }
 function hostBroadcastEnemies(dt){
   if(role==='host'&&!conns.size) diedQ.length=0;   // build 159 (P6): hosting alone (a START with nobody in yet, or everyone gone) there's no one to tell -- the queue used to grow all run and land on the first joiner in one lump
   if(role!=='host'||!conns.size) return;
   syncTE+=dt; if(syncTE<1/12) return; syncTE=0;
-  const list=enemies.filter(e=>!e.dead).map(e=>{ if(!e.__coopId) e.__coopId='e'+(nextEnemyId++);
-    return {id:e.__coopId,kind:e.kind,x:+e.x.toFixed(2),y:+e.y.toFixed(2),z:+e.z.toFixed(2),yaw:+e.yaw.toFixed(2),walking:!!e.walking,hp:+e.hp.toFixed(1)}; });   // y matters for flyers (drake etc, spawned at e.fly's altitude) -- without it they'd render as if grounded; hp is new (see below)
+  const live=enemies.filter(e=>!e.dead); live.forEach(e=>{ if(!e.__coopId) e.__coopId='e'+(nextEnemyId++); });
   const died=diedQ.splice(0);   // build 147: every mob killed since the last list (queued by the kill wrapper below at the moment it happens, so a slow frame can never miss one), for the guest's death sound; one that leaves the list without dying reached the crystal
-  send('enemies',{list,died});
+  let rows=null, list=null;   // each made once, and only if some guest takes it
+  conns.forEach((c,id)=>{ if(!c.open) return;
+    if(snapBusy(c)){ if(died.length) c.__died=(c.__died||[]).concat(died).slice(-DIED_KEEP); return; }   // a busy link skips this list (sendSnap above) -- but the deaths in it are news, not state: they wait for its next one
+    const dd=c.__died?c.__died.concat(died):died; c.__died=null;
+    const g=guestIn.get(id);
+    if(g&&g.mz===MOBS_V){ if(!rows) rows=packMobs(live); c.send(JSON.stringify({type:'mobs',data:{k:rows.k,l:rows.l,died:dd}})); }
+    else { if(!list) list=live.map(e=>({id:e.__coopId,kind:e.kind,x:+e.x.toFixed(2),y:+e.y.toFixed(2),z:+e.z.toFixed(2),yaw:+e.yaw.toFixed(2),walking:!!e.walking,hp:+e.hp.toFixed(1)}));   // y matters for flyers (drake etc, spawned at e.fly's altitude) -- without it they'd render as if grounded; hp is new (see below)
+      c.send(JSON.stringify({type:'enemies',data:{list,died:dd}})); } });
 }
 // hp above is new: real hits (guestHitCone, hostGuestShot's bolts/arrows) already land on the host's REAL enemies --
 // the damage was never fake -- but nothing ever told a GUEST's screen that anything happened. hurt() (game.js)
@@ -919,16 +954,18 @@ function hostBroadcastEnemies(dt){
 // "basically cosmetic" -- their swing landed, for real, but they had zero way to see or hear that it did. Comparing
 // each puppet's previously-known hp against what just arrived reconstructs "something hit this" without any new
 // message type or per-swing attribution back to a specific guest -- same floatText/SFX.hit every local hit already uses.
-onMessage('enemies',data=>{
+onMessage('enemies',data=>applyMobs(data.list,data.died));   // the old list: an older host, or this build's host before this guest's first input
+onMessage('mobs',data=>applyMobs(unpackMobs(data),data&&data.died));   // build 159 (6/7): the same list, packed (packMobs above)
+function applyMobs(list,died){
   const ids=new Set();
-  data.list.forEach(e=>{ ids.add(e.id);
+  list.forEach(e=>{ ids.add(e.id);
     let p=MOBPUP.get(e.id);
     if(!p){ p=mobPuppetAdd(e.id,e.kind); p.x=p.tx=e.x; p.y=p.ty=e.y; p.z=p.tz=e.z; p.yaw=p.tyaw=e.yaw; p.hp=e.hp; p.kind=e.kind; }   // snap on first sight, no popping in from the origin, and no false "hit" flash for however damaged it already was
     else if(e.hp<p.hp-.05){ floatText(p.x,p.y+1.5,p.z,String(Math.round((p.hp-e.hp)*10)/10),'#ffd060'); SFX.hit(); mobHitFeedback++; p.squash=1; }   // squash: see mobProxies
     p.tx=e.x; p.ty=e.y; p.tz=e.z; p.tyaw=e.yaw; p.walking=e.walking; p.hp=e.hp; });
-  (data.died||[]).forEach(d=>{ const now=performance.now(); if(now-GSFX.dieT>80){ GSFX.dieT=now; if((d.kind==='ogre'||d.kind==='trollboss')&&SFX.bigDie) SFX.bigDie(); else SFX.die(); } GSFX.die++; });   // build 147: the death sound for each mob the host says died since its last list (throttled to one every 80 ms so a splash kill is a thud, not a drumroll)
+  (Array.isArray(died)?died:[]).forEach(d=>{ const now=performance.now(); if(now-GSFX.dieT>80){ GSFX.dieT=now; if((d.kind==='ogre'||d.kind==='trollboss')&&SFX.bigDie) SFX.bigDie(); else SFX.die(); } GSFX.die++; });   // build 147: the death sound for each mob the host says died since its last list (throttled to one every 80 ms so a splash kill is a thud, not a drumroll)
   [...MOBPUP.keys()].forEach(id=>{ if(!ids.has(id)) mobPuppetRemove(id); });   // a dead or despawned enemy just stops being in the list -- same roster-diff removal 99-network.js already uses for heroes
-});
+}
 
 // ---- phase 5, defenses slice: the host's real defenses, read-only on every guest's screen — the last piece of
 // world-sync. makeDef(kind,ghost,lvl) is fully monkey-patched by 50-defmodels.js into the same kind of synchronous,
@@ -962,7 +999,7 @@ function hostBroadcastDefs(dt){
   syncTD+=dt; if(syncTD<.5) return; syncTD=0;   // static once placed -- 2Hz is plenty to catch a new one, an upgrade, or one destroyed
   const list=defs.map(d=>{ if(!d.__coopId) d.__coopId='d'+(nextDefId++);
     return {id:d.__coopId,kind:d.kind,lvl:d.lvl||1,x:+d.x.toFixed(2),y:+d.base.toFixed(2),z:+d.z.toFixed(2),rot:+d.rot.toFixed(2)}; });
-  send('defs',{list});
+  sendSnap('defs',{list});
 }
 onMessage('defs',data=>{
   const ids=new Set();
@@ -1120,7 +1157,7 @@ function hostBroadcastPickups(dt){
   syncTP+=dt; if(syncTP<1/10) return; syncTP=0;
   const lootList=[];   // build 151: the host's loot is its own -- never a puppet on a guest's screen (orbs still are)
   const orbList=orbs.map(o=>{ if(!o.__coopId) o.__coopId='p'+(nextPickupId++); return {id:o.__coopId,x:+o.x.toFixed(2),y:+o.y.toFixed(2),z:+o.z.toFixed(2)}; });
-  send('pickups',{loot:lootList,orbs:orbList});
+  sendSnap('pickups',{loot:lootList,orbs:orbList});
 }
 onMessage('pickups',data=>{
   const ids=new Set();

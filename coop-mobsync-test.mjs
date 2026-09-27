@@ -18,6 +18,11 @@ const peerOpts={ host:"127.0.0.1", port:sigPort, path:"/peerjs" };
 const server=await serve(8879);
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const hostCtx=await browser.newContext(), guestCtx=await browser.newContext();
+// build 159 (6/7): map one's training guide (96-trainer.js, build 137) walks a lone wave-zero goblin down the lane on the host -- a
+// real, shared mob since build 150 -- so this suite's "exactly one goblin" was really two, and its kill of enemies[0] took the
+// guide's goblin, not its own. The guide is switched off here (its own ✕, saved the same way) so the one mob is the suite's;
+// coop-guide-test.mjs covers the guide in co-op
+for(const ctx of [hostCtx,guestCtx]) await ctx.addInitScript(()=>{ try{ localStorage.setItem('dd_trainer',JSON.stringify({done:{},off:true})); }catch(e){} });
 const hostPage=await hostCtx.newPage(), guestPage=await guestCtx.newPage();
 const errors=[]; for(const p of [hostPage,guestPage]) p.on("pageerror",e=>errors.push(String(e)));
 

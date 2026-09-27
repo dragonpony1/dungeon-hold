@@ -67,20 +67,20 @@ await guestPage.waitForTimeout(4300);   // let 65-tavernroom.js's one-shot new-p
 // endpoints against a true delta of ~0.1-0.25 units) was comparably sized to the signal itself. A 20-tick window
 // (~1/3s, ~2.5-5 units true distance) is short enough to stay clear of geometry from a fresh, already-open
 // position, and long enough that the same +/-0.02 rounding noise is a rounding error, not the measurement.
+// Build 159 (6/7): measured on the guest's OWN hero. Since build 148 the guest's own position is the truth -- its page walks it with
+// its own keys and gear (game.js heroUpdate) and the host's copy only chases the spot the guest reports (guestInputTick). Timing that
+// copy measured the chase, not the walk: it read 13.35 u/s at baseline and a ratio of 1.12 before batch 4 of this build tied the
+// chase to the guest's own top speed. So the walk is timed where it happens (the guest page alone, 3 ticks to get going, then 20
+// ticks), and the copy is checked separately: once the key is up and the host has caught up, it must stand where the guest stopped
 async function measureSpeed(key){
-  const ref=await hostPage.evaluate(id=>window.__combat.guestHero(id),guestId);
+  const loc=()=>guestPage.evaluate(()=>({x:window.__dd.hero.x,z:window.__dd.hero.z}));
   await guestPage.evaluate(k=>window.__dd.setKeys({[k]:1}),key);
-  let start=null;
-  for(let tries=0;tries<10&&!start;tries++){
-    await tickBoth(1,5);
-    const cur=await hostPage.evaluate(id=>window.__combat.guestHero(id),guestId);
-    if(Math.hypot(cur.x-ref.x,cur.z-ref.z)>.02) start=cur;
-  }
-  await tickBoth(4,5);   // 20 ticks
-  const end=await hostPage.evaluate(id=>window.__combat.guestHero(id),guestId);
+  await guestPage.evaluate(()=>window.__dd.step(1/60,3));
+  const start=await loc(); await guestPage.evaluate(()=>window.__dd.step(1/60,20)); const end=await loc();   // 20 ticks, 1/3 s
   await guestPage.evaluate(k=>window.__dd.setKeys({[k]:0}),key);
-  await tickBoth(2,5);
-  return {moving:!!start,speed:start?Math.hypot(end.x-start.x,end.z-start.z)*3:null,start,end};   // units/sec: distance over 20 ticks (1/3s) * 3
+  await tickBoth(8,5);   // the key is up: the host hears where the guest stopped and its copy catches up
+  const copy=await hostPage.evaluate(id=>window.__combat.guestHero(id),guestId), own=await loc();
+  return {moving:Math.hypot(end.x-start.x,end.z-start.z)>.5,speed:+(Math.hypot(end.x-start.x,end.z-start.z)*3).toFixed(3),start,end,copyGap:+Math.hypot(copy.x-own.x,copy.z-own.z).toFixed(3)};   // units/sec: distance over 20 ticks (1/3s) * 3
 }
 
 const spd0=await measureSpeed('w');
@@ -93,9 +93,17 @@ await tickBoth(6,5);   // let the buffed stat/mult reach the host's guestStats
 const spd1=await measureSpeed('s');   // opposite direction from the baseline sample, so the two tiny samples don't compound toward the same spot
 check("a +100 move stat exactly doubles the guest's own simulated walk speed",
   spd1.moving&&near(spd1.speed/spd0.speed,2,.03),JSON.stringify({spd0:spd0.speed,spd1:spd1.speed,ratio:spd1.speed/spd0.speed}));
+check("...and the host's copy ends each walk where the guest's own hero stopped (the doubled walk too)",
+  spd0.copyGap<.1&&spd1.copyGap<.1,JSON.stringify({gap0:spd0.copyGap,gap1:spd1.copyGap}));
 
 // ---- D: a swing's damage and reach ride the message itself, read off the guest's own heroDmg()/hero.reach ----
 await guestPage.evaluate(()=>{ window.__dd.gear().weapon={stats:{dmg:50}}; });   // a real, gear-scaled damage number to prove the relay isn't the flat GUEST_DMG=8 baseline
+// build 159 (6/7): a fresh player is the Knight since build 134 (70-hero2.js), not the witch this section was written for -- its
+// "witch hits a target 10 away" was a 2.4-reach sword swing into thin air (delta 0). Pick her, and wait for her staff to be in hand
+// (the reach is set at once, the staff mounts once her model is in), then read HER damage: each hero swings from its own base
+await guestPage.evaluate(()=>window.__heroes.select('witch'));
+for(let i=0;i<120;i++){ if(await guestPage.evaluate(()=>window.__aim.kind())==='staff') break; await tickBoth(1,1); await new Promise(r=>setTimeout(r,15)); }
+check("the guest is the witch now, staff in hand (reach 18)",await guestPage.evaluate(()=>window.__aim.kind()==='staff'&&window.__dd.hero.reach===18),JSON.stringify(await guestPage.evaluate(()=>({kind:window.__aim.kind(),reach:window.__dd.hero.reach,pick:window.__heroes.pick()}))));
 const expectedDmg=await guestPage.evaluate(()=>Math.round(window.__dd.heroDmg()*10)/10);
 check("guest's own heroDmg() reflects the +50 dmg weapon (sanity: not the flat 8 baseline)",expectedDmg>20,"heroDmg="+expectedDmg);
 
@@ -112,7 +120,7 @@ await hostPage.evaluate(pos=>{ const e=window.__dd.spawn('goblin','N'); e.x=pos.
 const shotMul=await guestPage.evaluate(()=>window.__aim.shot().mul);
 const expectedWitchDmg=Math.round(expectedDmg*shotMul*10)/10;
 const farHpBefore=await hostPage.evaluate(()=>window.__dd.enemies.find(e=>e.__coopId==='farTarget').hp);
-await guestPage.evaluate(()=>window.__dd.swing());   // default hero is the witch (ranged, reach 18) -- 70-hero2.js's own default pick
+await guestPage.evaluate(()=>window.__dd.swing());   // the witch picked above (ranged, reach 18)
 await tickBoth(20,5);   // 100 ticks (~1.7s): comfortably covers fire-delay + travel time, and safely exceeds the bolt's own ~0.7s max lifespan either way (hit or expire), so nothing is left in flight to contaminate the knight section below
 const farHpAfterWitch=await hostPage.evaluate(()=>{ const e=window.__dd.enemies.find(e=>e.__coopId==='farTarget'); return e?e.hp:null; });
 check("a ranged hero (witch, reach 18) hits a target 10 units away, for their own real gear-scaled damage (a real travelling bolt, not an instant cone)",
@@ -120,6 +128,7 @@ check("a ranged hero (witch, reach 18) hits a target 10 units away, for their ow
   JSON.stringify({farHpBefore,farHpAfterWitch,expectedWitchDmg,shotMul,delta:farHpAfterWitch!==null?farHpBefore-farHpAfterWitch:null}));
 
 await guestPage.evaluate(()=>window.__heroes.select('knight'));   // installHero() sets hero.reach synchronously (game.js GLB load is async, reach isn't)
+for(let i=0;i<120;i++){ if(!(await guestPage.evaluate(()=>window.__aim.kind()))) break; await tickBoth(1,1); await new Promise(r=>setTimeout(r,15)); }   // and the staff is put away (kind() null: a sword), so the swing below is really the knight's
 const knightReach=await guestPage.evaluate(()=>window.__dd.hero.reach);
 check("switching to the knight sets a real melee reach, not the flat GUEST_REACH=2.4 fallback by coincidence",knightReach===2.4,"reach="+knightReach);
 const farHpBeforeKnight=await hostPage.evaluate(()=>window.__dd.enemies.find(e=>e.__coopId==='farTarget').hp);

@@ -165,11 +165,16 @@ await guestPage.evaluate(()=>{ window.__dd.confirmPlace(); window.__dd.step(1/60
 await guestPage.evaluate(()=>{ window.__dd.confirmPlace(); window.__dd.step(1/60,2); });
 await tickBoth(10,5);
 const owned=await hostPage.evaluate(()=>{ const d=window.__dd.defs[0]; return d&&{ownerId:d.ownerId,dmg:window.__dd.stat(d,'dmg')}; });
-check("the guest's own +50% tow charm shows up as +50% damage on the defense THEY placed (6 -> 9, the exact formula)",
-  owned&&owned.dmg===9,JSON.stringify({ghost2,owned,guestId}));
+// build 159 (6/7): the trebuchet's base damage is read off the game, not written here -- build 150 raised it 6 -> 7 on purpose and
+// these three checks sat red from then on, hiding any real slip in guest-owned stats. The formula is still exact: stat() (game.js)
+// rounds base*(1+tow/100) to one decimal, 7 -> 10.5 with the guest's +50
+const ballBase=await hostPage.evaluate(()=>window.__dd.DEFS.ball.dmg);
+const ownedWant=Math.round(ballBase*1.5*10)/10;
+check("the guest's own +50% tow charm shows up as +50% damage on the defense THEY placed ("+ballBase+" -> "+ownedWant+", the exact formula)",
+  owned&&owned.dmg===ownedWant&&owned.ownerId===guestId,JSON.stringify({ghost2,owned,guestId,ballBase}));
 const hostBaselineDmg=await hostPage.evaluate(()=>{ const d=window.__dd.defs[0]; if(!d) return null; const save=d.ownerId; d.ownerId=null; const v=window.__dd.stat(d,'dmg'); d.ownerId=save; return v; });
 check("the same defense would only deal the host's own (unbuffed) damage if it had no live owner",
-  hostBaselineDmg===6,JSON.stringify({hostBaselineDmg}));
+  hostBaselineDmg===ballBase,JSON.stringify({hostBaselineDmg,ballBase}));
 
 // --- disconnect: once the placing guest leaves, the defense falls back to the host's own stats -- "as long as
 // they are in the game" ---
@@ -177,7 +182,7 @@ await guestPage.evaluate(()=>window.__net.leave());
 await tickBoth(6,5);
 const afterLeave=await hostPage.evaluate(()=>{ const d=window.__dd.defs[0]; return d&&window.__dd.stat(d,'dmg'); });
 check("once the guest disconnects, their placed defense reverts to the host's own stats automatically",
-  afterLeave===6,JSON.stringify({afterLeave}));
+  afterLeave===ballBase,JSON.stringify({afterLeave,ballBase}));
 
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
 check("no page errors",realErrors.length===0,realErrors.slice(0,5).join(" | "));

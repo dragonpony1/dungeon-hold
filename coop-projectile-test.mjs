@@ -49,10 +49,15 @@ const lane=await hostPage.evaluate(id=>window.__combat.guestHero(id),guestId);
 check("the guest's copy follows it onto the aisle (0,6)",lane&&Math.abs(lane.x)<.05&&Math.abs(lane.z-6)<.05,JSON.stringify(lane));
 await guestPage.waitForTimeout(4300);   // let 65-tavernroom.js's one-shot new-player toast burn off before it can land during a tick window this suite is timing
 
-// ---- A: single-target stop -- the one property a cone (phase 8) structurally could not have. Default hero is the
-// witch (staff/bolt); a tap shot (calling swing() directly, bypassing the real mouse/touch hold, never reaches
+// ---- A: single-target stop -- the one property a cone (phase 8) structurally could not have. The witch (staff/bolt),
+// picked here and her staff in hand before the shot, as C waits for the bow (build 159, 6/7: a fresh player has been the
+// Knight since build 134, 70-hero2.js, and a knight's 2.4-reach swing at targets 5 and 10 away hit nothing, so A and B
+// failed on "hp unchanged"); a tap shot (calling swing() directly, bypassing the real mouse/touch hold, never reaches
 // FULL_MUL/pierce -- same as coop-herostats-test.mjs's own tap shots) should hit ONLY the nearer of two enemies
 // standing in a dead-straight line, never both, unlike the old cone which hit everyone in its arc at once.
+await guestPage.evaluate(()=>window.__heroes.select('witch'));
+for(let i=0;i<120;i++){ if(await guestPage.evaluate(()=>window.__aim.kind())==='staff') break; await tickBoth(1,1); await new Promise(r=>setTimeout(r,15)); }
+check("the guest is the witch, staff in hand",await guestPage.evaluate(()=>window.__heroes.pick()==='witch'&&window.__aim.kind()==='staff'),await guestPage.evaluate(()=>JSON.stringify({pick:window.__heroes.pick(),kind:window.__aim.kind()})));
 await hostPage.evaluate(gx=>{
   const a=window.__dd.spawn('goblin','N'); a.x=gx; a.z=11; a.y=0; a.hp=9999; a.max=9999; a.dmg=0; a.atk=999; a.__coopId='near';
   const b=window.__dd.spawn('goblin','N'); b.x=gx; b.z=16; b.y=0; b.hp=9999; b.max=9999; b.dmg=0; b.atk=999; b.__coopId='far';
@@ -103,8 +108,11 @@ await guestPage.evaluate(()=>window.__aim.release());
 await tickBoth(25,5);   // 125 ticks: release -> the paused clip resumes -> hitCone()'s real fire -> arrow travels to and through both targets
 const afterC=await hostPage.evaluate(()=>({near:window.__dd.enemies.find(e=>e.__coopId==='pnear').hp,far:window.__dd.enemies.find(e=>e.__coopId==='pfar').hp}));
 check("a full-draw arrow pierces the near enemy...",afterC.near<beforeC.near,JSON.stringify({before:beforeC,after:afterC}));
-check("...and keeps going to hit the far one too (pierce:2 on a full draw -- the one thing a tap shot, or the old cone, never had)",
-  afterC.far<beforeC.far,JSON.stringify({before:beforeC,after:afterC}));
+// the SAME arrow on both (build 159, 6/7): equal damage, the one full-draw hit each. "the far one lost something" alone was passed by
+// a long sword cone plus a tap arrow (near 16.5 down, far 10.3) before the bow was waited for -- a cone and an arrow can't come out equal
+const dN=beforeC.near-afterC.near, dF=beforeC.far-afterC.far;
+check("...and keeps going to hit the far one too, for the same full-draw damage -- one arrow through both (pierce:2 on a full draw -- the one thing a tap shot, or the old cone, never had)",
+  afterC.far<beforeC.far&&Math.abs(dN-dF)<=.15,JSON.stringify({before:beforeC,after:afterC,near:+dN.toFixed(2),far:+dF.toFixed(2)}));
 await hostPage.evaluate(()=>{ ['pnear','pfar'].forEach(id=>{ const i=window.__dd.enemies.findIndex(e=>e.__coopId===id); if(i>=0) window.__dd.enemies.splice(i,1); }); });
 
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));

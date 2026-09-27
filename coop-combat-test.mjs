@@ -63,9 +63,9 @@ await hostPage.evaluate(()=>{ const i=window.__dd.enemies.findIndex(e=>e.__coopI
 for(let i=0;i<300;i++){ const g=await hostPage.evaluate((id)=>window.__combat.guestHero(id),guestId); if(g&&g.dead<=0) break; await hostPage.evaluate(()=>window.__dd.step(1/60,1)); await new Promise(r=>setTimeout(r,16)); }
 
 // --- direction 2: the guest's own swing lands on a real enemy ---
-// the default hero (70-hero2.js) is the witch -- RANGED -- and phase 9 made a ranged guest's shot a real travelling
-// bolt with its own fire-delay+flight time, not an instant hit; switching to the knight first keeps this test's
-// original intent (a melee swing, landing basically immediately) valid rather than needing a much longer wait.
+// the default hero (70-hero2.js) was the witch -- RANGED -- when this was written (the Knight since build 134), and phase 9
+// made a ranged guest's shot a real travelling bolt with its own fire-delay+flight time, not an instant hit; picking the
+// knight explicitly keeps this test's intent (a melee swing, landing basically immediately) whatever the default is.
 // installHero() (70-hero2.js) sets hero.reach synchronously but fetches the new hero's GLB asynchronously, and
 // weaponsUpdate() (80-weapons.js) -- the thing that actually drops the old weapon and mounts the new one -- only
 // runs on a real tick, not synchronously with select(); swinging before that settles can still fire as the OLD
