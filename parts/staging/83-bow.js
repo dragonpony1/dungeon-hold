@@ -74,16 +74,17 @@ function gripWorld(g){ return (g.getObjectByName('bowGrip')||g).getWorldPosition
 // and slid so its grip (the stave's belly, ahead of the string) stays in the fist.
 const _pq=new THREE.Quaternion(), _q=new THREE.Quaternion(), _e=new THREE.Euler(), _g=new THREE.Vector3();
 const GRIPS=new WeakMap();   // each mounted bow's grip node (its belly, where the fist closes on the stave — not the string line)
-// build 154 (Matt: "at idle the bow is being held by the string i think, but when he shoots it looks right"): at rest the
-// bow faced forward like a real archer's, so from the camera behind him the string was the nearest part and lay across
-// his fist. Now at rest it's turned side-on, its belly pointing out from his leg (the side his bow hand is on), so from
-// behind you see its curve with the fist on the grip; the draw (heroYawOff easing to ATTACK_TURN) turns it back to the
-// aim. The side is re-read only when the hand is clearly to one side, so an arm swinging past his middle can't flip it.
-const SIDES=new WeakMap(), _hp=new THREE.Vector3();
+// builds 155-156 (Matt: "at idle the bow is being held by the string", then "perfect would be held where it is now but
+// string down, toward the ground or feet — holding like a briefcase, by the hard part not the string"): at rest the bow
+// lies level at his side like a briefcase — limbs pointing fore and aft along his facing (the stave's +Y), belly up (+Z),
+// so the fist is on the grip on top and the string hangs beneath toward his feet. The shot's turn (heroYawOff easing to
+// ATTACK_TURN) swings it up to the aim, belly toward the target, as before.
+const _qa=new THREE.Quaternion(), _m=new THREE.Matrix4(), _bx=new THREE.Vector3(), _by=new THREE.Vector3(), _bz=new THREE.Vector3(0,1,0);
 function holdBow(wo){ const sd=wo.userData.sword; if(!sd||!wo.parent) return; const fx=Math.sin(hero.yaw), fz=Math.cos(hero.yaw);
-  wo.parent.getWorldPosition(_hp); const lat=(_hp.x-hero.x)*(-fz)+(_hp.z-hero.z)*fx; let side=SIDES.get(wo)||1; if(Math.abs(lat)>.12){ side=lat>0?1:-1; SIDES.set(wo,side); }   // which side of him the bow hand is on (+1 his right)
-  const aim=Math.min(1,Math.abs(heroYawOff)/(PI/2)), rest=side>0?-PI/2:PI/2;   // 0 at rest, 1 once the shot's turn is done
-  wo.parent.getWorldQuaternion(_pq); _q.setFromEuler(_e.set(0,hero.yaw+rest*(1-aim),0)); wo.quaternion.copy(_pq.invert()).multiply(_q);
+  const aim=Math.min(1,Math.abs(heroYawOff)/(PI/2));   // 0 at rest, 1 once the shot's turn is done
+  _bx.set(-fz,0,fx); _by.set(fx,0,fz); _q.setFromRotationMatrix(_m.makeBasis(_bx,_by,_bz));   // at rest: stave along his facing, belly up, string down
+  _qa.setFromEuler(_e.set(0,hero.yaw,0)); _q.slerp(_qa,aim);                                    // drawing: upright, belly toward the aim
+  wo.parent.getWorldQuaternion(_pq); wo.quaternion.copy(_pq.invert()).multiply(_q);
   let gp=GRIPS.get(wo); if(gp===undefined){ gp=wo.getObjectByName('bowGrip')||null; GRIPS.set(wo,gp); } if(gp) _g.copy(gp.position).multiplyScalar(sd.scale); else _g.set(0,sd.gripY*sd.scale,0); _g.applyQuaternion(wo.quaternion); wo.position.copy(_g).negate(); }
 const PLANTED=[];
 function plantBow(kind,x,z,yaw,scale){ const g=makeBow(kind); const s=scale||1.5; g.scale.setScalar(s); g.position.set(x,baseFloor(x,z)+.05*s,z); g.rotation.y=yaw||0; outline(g); scene.add(g); PLANTED.push(g); return g; }
