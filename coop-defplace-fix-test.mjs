@@ -135,9 +135,9 @@ await aPage.evaluate(()=>{ document.getElementById('toast').textContent=''; }); 
 await aPage.evaluate(()=>{ window.__dd.repair(); });
 await tickBoth(aPage,10,5);
 const repairSuccessToast=await aPage.evaluate(()=>document.getElementById('toast').textContent);
-const repairedHp=await hostPage.evaluate(()=>window.__dd.defs[0]&&window.__dd.defs[0].hp);
+const repairedHp=await hostPage.evaluate(()=>window.__dd.defs[0]&&window.__dd.defs[0].hp), fullHp=await hostPage.evaluate(()=>window.__dd.defs[0]&&window.__dd.defs[0].max);   // (build 161: full health is the tower's own max, 120 since the +30% -- was a literal 90)
 check("a successful repair() now relays a confirmation toast to the guest (previously silent)",
-  repairedHp===90&&/Repaired/.test(repairSuccessToast),JSON.stringify({repairedHp,repairSuccessToast}));   // build 159 (6/7): the relayed word itself (hostDefAction), not just "some toast" -- any stray toast used to pass this
+  repairedHp===fullHp&&fullHp>0&&/Repaired/.test(repairSuccessToast),JSON.stringify({repairedHp,fullHp,repairSuccessToast}));   // build 159 (6/7): the relayed word itself (hostDefAction), not just "some toast" -- any stray toast used to pass this
 }
 
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
