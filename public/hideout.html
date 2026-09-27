@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="24">
+<meta name="hideout-build" content="25">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -224,7 +224,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 24;
+const HIDEOUT_BUILD = 25;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -235,14 +235,17 @@ const STARTER_ITEMS = ['vending_machine', 'sludge_cauldron', 'ore_forge', 'porta
 // of the wall locker, so it has to be there waiting. All four stand on the back wall (the one you face coming in),
 // fronts to the room: the wall locker dead ahead, the cauldron and forge either side of it, the Trade-O-Matic in
 // the far-left corner (the far-right panel has the wall's own shelves). The spots were measured against the wall
-// model so nothing sinks into its beams, base stones or lanterns; w/d are each piece's footprint. No y — a piece
-// without one sits on the floor. The portal stays in the hotbar (the game has its own way back to the hall).
+// model so nothing sinks into its posts, base stones or lanterns; w/d are each piece's footprint. The forge (1.5x
+// since build 25) fills its panel between the wall lantern at x≈2.4 and those shelves at x≈11.6, backed up to the
+// posts. No y — a piece without one sits on the floor. The portal stays in the hotbar (the game has its own way back).
 const STARTER_LAYOUT = [
   { gid: 'wall_locker',     x: 0,      z: -13.12, ry: 0, w: 1.77, d: 1.15 },
   { gid: 'sludge_cauldron', x: -7.61,  z: -12.6,  ry: 0, w: 3.81, d: 2.09 },
-  { gid: 'ore_forge',       x: 7.61,   z: -12.76, ry: 0, w: 4.94, d: 1.76 },
+  { gid: 'ore_forge',       x: 7.61,   z: -12.25, ry: 0, w: 7.42, d: 2.64 },
   { gid: 'vending_machine', x: -15.22, z: -12.05, ry: 0, w: 3.61, d: 3.06 },
 ];
+const OLD_STARTER_FORGE = { x: 7.61, z: -12.76 }; // where builds 22-24 stood the smaller forge
+const FORGE_GROWTH = 0.44; // how much further the 1.5x forge reaches, front and back, from its centre
 const starterRecord = (spot) => ({ pid: uid(), gid: spot.gid, x: spot.x, z: spot.z, ry: spot.ry });
 // Furniture you own lives in slots: a 9-slot hotbar (keys 1-9, what you place from) and a bag you drag between.
 // Each placed chest has its own slots. A slot holds one catalog id or null.
@@ -277,6 +280,20 @@ function loadSave(){
         const i = s.bag.indexOf(null);
         if (i >= 0) s.bag[i] = gid; else s.bag.push(gid);
       });
+      // once per save (build 25): the forge grew to 1.5x. Every forge ALREADY placed steps forward (the way it faces)
+      // by what it grew, so one standing with its back to a wall still does instead of sinking into it; one still on
+      // the old starter spot goes exactly onto the new one. Runs before the starter step below, which puts a
+      // never-placed forge straight onto the new spot. Guarded on its own — see the note on the next step.
+      if (!s.forgeBig) {
+        try {
+          const newSpot = STARTER_LAYOUT.find(t => t.gid === 'ore_forge');
+          s.placed.filter(p => p.gid === 'ore_forge').forEach(p => {
+            if (Math.abs(p.x - OLD_STARTER_FORGE.x) < 0.01 && Math.abs(p.z - OLD_STARTER_FORGE.z) < 0.01 && !p.ry) { p.x = newSpot.x; p.z = newSpot.z; return; }
+            p.x += FORGE_GROWTH * Math.sin(p.ry || 0); p.z += FORGE_GROWTH * Math.cos(p.ry || 0);
+          });
+          s.forgeBig = 1;
+        } catch (e) { console.error('forge resize step skipped', e); }
+      }
       // once per save: a machine a returning player never set down goes to its starter spot, so an old save opens
       // like a new one. Anything already placed stays where it is, a spot with something standing in it is skipped,
       // and a machine packed away in a chest stays there. Guarded on its own — this function's outer catch starts
@@ -303,7 +320,7 @@ function loadSave(){
       return s;
     }
   } catch(e){}
-  return { sludge: 99999, legendarySludge: 20, commonSludge: 0, uncommonSludge: 0, gear: [], starterLayout: 1,
+  return { sludge: 99999, legendarySludge: 20, commonSludge: 0, uncommonSludge: 0, gear: [], starterLayout: 1, forgeBig: 1,
     hotbar: padSlots(STARTER_ITEMS.filter(gid => !STARTER_LAYOUT.some(spot => spot.gid === gid)), HOTBAR_SIZE),
     bag: padSlots([], BAG_SIZE), placed: STARTER_LAYOUT.map(starterRecord) };
 }
@@ -743,7 +760,7 @@ function box(w,h,d,color) {
 const PROPS_DIR = '/assets/hideout/props/';
 const PROP_PRIORITY = { portal: 0, vending_machine: 1, ore_forge: 1, sludge_cauldron: 1 }; // the things you walk up to first
 
-const SCALE_MAP = { vending_machine: (EYE_HEIGHT/1.90)*3.5*0.75, sludge_cauldron: 2.0, ore_forge: 2.6, portal: 2.0, wall_locker: 1.5, painting_triumph: 1.0, painting_hug: 1.0, painting_tease: 1.0, painting_company: 1.0, painting_rootgate: 1.0,
+const SCALE_MAP = { vending_machine: (EYE_HEIGHT/1.90)*3.5*0.75, sludge_cauldron: 2.0, ore_forge: 3.9, portal: 2.0, wall_locker: 1.5, painting_triumph: 1.0, painting_hug: 1.0, painting_tease: 1.0, painting_company: 1.0, painting_rootgate: 1.0,
   small_table: 1.5 }; // raw 2.0 x 0.72 x 0.9 -> 3 wide, top at waist height
 STAND_SETS.forEach(s => { SCALE_MAP['stand_' + s] = 1.35; }); // raw models are 2 units tall -> 2.7, a touch taller than the player // portal scale kept modest on purpose — easy to bump up once Matt sees it in place
 const DEFAULT_PLACE_SCALE = 1.7; // every Meshy prop is normalized so its longest axis is ~1.9 raw units regardless of what it is, so scale 1.0 reads as toy-sized next to the player
@@ -772,12 +789,18 @@ function spawnPlacedItem(gid, pos, ry, pid) {
       entry.light = takeLight(0xcc88ff, 2.2, 14, pos.x, pos.y+3, pos.z);
     }
     if (gid === 'ore_forge') {
-      const hit = new THREE.Mesh(new THREE.BoxGeometry(4.2,3.2,4.2), new THREE.MeshBasicMaterial({visible:false}));
-      hit.position.set(pos.x, pos.y+1.6, pos.z);
+      // the forge is long and shallow (and 1.5x since build 25), so its use box, pick-up box and the part you
+      // bump into all come from the model's real footprint — one square radius either let you walk into its ends or
+      // kept you too far back to reach it
+      const b = new THREE.Box3().setFromObject(obj), sz = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(sz.x + 0.3, sz.y + 0.3, sz.z + 0.3), new THREE.MeshBasicMaterial({visible:false}));
+      hit.position.copy(c);
       scene.add(hit);
       entry.useHit = hit;
       interactables.push({ mesh: hit, prompt: 'E: Use the Forge', onUse: openForge });
-      entry.light = takeLight(0xff8833, 2.2, 14, pos.x, pos.y+2.5, pos.z);
+      if (entry.pickHit) { entry.pickHit.geometry.dispose(); entry.pickHit.geometry = new THREE.BoxGeometry(sz.x, sz.y, sz.z); entry.pickHit.position.copy(c); }
+      if (entry.collider) Object.assign(entry.collider, { minX: b.min.x + 0.15, maxX: b.max.x - 0.15, minZ: b.min.z + 0.15, maxZ: b.max.z - 0.15 });
+      entry.light = takeLight(0xff8833, 2.6, 16, c.x, pos.y + sz.y * 0.85, c.z);
     }
     if (gid === 'sludge_cauldron') {
       const hit = new THREE.Mesh(new THREE.BoxGeometry(4.0,3.4,4.0), new THREE.MeshBasicMaterial({visible:false}));
