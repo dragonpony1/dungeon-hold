@@ -47,7 +47,7 @@ await aPage.evaluate(()=>window.__dd.setCam(0,.42,8));
 await tickBoth(aPage,6,5);
 const aId=aJoin.id, bId=bJoin.id;
 const aReg=await hostPage.evaluate(id=>window.__combat.guestHero(id),aId);
-check("guest A registers at its default spawn",aReg&&aReg.x===0&&aReg.z===6,JSON.stringify(aReg));
+check("guest A registers at its own spawn spot beside the host's start (1.5,6)",aReg&&aReg.x===1.5&&aReg.z===6,JSON.stringify(aReg));   // build 159 (4/7): no longer on the host's own (0,6)
 
 // --- fix 1: a 'place' from a sender the host has never received 'input' from must be REJECTED, not silently unbounded ---
 const beforeUnregistered=await hostPage.evaluate(()=>window.__dd.defs.length);
@@ -59,7 +59,7 @@ check("a 'place' from an unregistered sender (no guestHero entry yet) is rejecte
 
 // --- fix 2: a placement overlapping the placer's own host-tracked position must be rejected ('You're standing there') ---
 const beforeSelf=await hostPage.evaluate(()=>window.__dd.defs.length);
-await aPage.evaluate(id=>window.__net.send('place',{kind:'ball',x:0,z:6,yaw:0}),aId);
+await aPage.evaluate(at=>window.__net.send('place',{kind:'ball',x:at.x,z:at.z,yaw:0}),aReg);   // right where A stands
 await tickBoth(aPage,6,5);
 const afterSelf=await hostPage.evaluate(()=>window.__dd.defs.length);
 const selfToast=await aPage.evaluate(()=>document.getElementById('toast').textContent);
@@ -77,7 +77,7 @@ check("no placement is accepted once the host's run has ended (S.phase)",
   afterPhase===beforePhase,JSON.stringify({beforePhase,afterPhase}));
 
 // --- fix 4: a dead guest can't place OR repair/upgrade/sell, and now gets a toast either way instead of silence ---
-await hostPage.evaluate(()=>{ const e=window.__dd.spawn('goblin','N'); e.x=0; e.z=6.3; e.y=0; e.dmg=200; e.atk=0; e.__coopId='killer'; });
+await hostPage.evaluate(ax=>{ const e=window.__dd.spawn('goblin','N'); e.x=ax; e.z=6.3; e.y=0; e.dmg=200; e.atk=0; e.__coopId='killer'; },aReg.x);
 const aDead=await (async()=>{ for(let b=0;b<40;b++){ for(let i=0;i<5;i++) await hostPage.evaluate(()=>window.__dd.step(1/60,1)); await new Promise(r=>setTimeout(r,20)); const g=await hostPage.evaluate(id=>window.__combat.guestHero(id),aId); if(g&&g.dead>0) return g; } return null; })();
 check("guest A is confirmed dead on the host",!!aDead,JSON.stringify(aDead));
 await hostPage.evaluate(()=>{ const i=window.__dd.enemies.findIndex(e=>e.__coopId==='killer'); if(i>=0) window.__dd.enemies.splice(i,1); });

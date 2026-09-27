@@ -44,8 +44,8 @@ await tickBoth(6,5);   // let the guest's first 'input' reach the host and regis
 
 const guestId=guestJoin.id;
 const spawnState=await hostPage.evaluate(id=>window.__combat.guestHero(id),guestId);
-check("host has registered the guest's simulated hero near its default spawn",
-  spawnState&&spawnState.x===0&&spawnState.z===6,JSON.stringify(spawnState));
+check("host has registered the guest's simulated hero at its own spawn spot beside the host's start (1.5,6)",   // build 159 (4/7): no longer on the host's own (0,6)
+  spawnState&&spawnState.x===1.5&&spawnState.z===6,JSON.stringify(spawnState));
 
 // 65-tavernroom.js fires a one-shot new-player hint toast on the guest's own page after 4.2s of REAL wall-clock
 // time (a genuine setTimeout, not tied to sim ticks) the first time S.phase is 'build' -- letting it fire here,

@@ -40,15 +40,18 @@ await aPage.evaluate(()=>{ window.__dd.setCam(0,.42,8); window.__dd.setKeys({w:1
 for(let i=0;i<20;i++){ await aPage.evaluate(()=>window.__dd.step(1/60,1)); await new Promise(r=>setTimeout(r,16)); }   // real yields so the throttled input send actually fires and the data channel gets a turn
 for(let i=0;i<60;i++){ await hostPage.evaluate(()=>window.__dd.step(1/60,1)); await new Promise(r=>setTimeout(r,16)); }   // host receives input, simulates guest A's hero, broadcasts the roster
 
+// A is the only guest the host has heard from yet, so it starts on the first guest's spot, (1.5,6) -- beside the host's own start
+// since build 159 (4/7), not on it -- and walks straight up +Z from there
+const A_X=1.5;
 const hostSeesA=await hostPage.evaluate((id)=>window.__party.get(id),aJoin.id);
 check("host simulates guest A's hero moving forward from its own input (no round trip needed for the host's own screen)",
-  hostSeesA&&hostSeesA.ready&&hostSeesA.z>6.5&&Math.abs(hostSeesA.x)<1,JSON.stringify(hostSeesA));
+  hostSeesA&&hostSeesA.ready&&hostSeesA.z>6.5&&Math.abs(hostSeesA.x-A_X)<1,JSON.stringify(hostSeesA));
 
 for(let i=0;i<60;i++){ await bPage.evaluate(()=>window.__dd.step(1/60,1)); await new Promise(r=>setTimeout(r,16)); }   // guest B receives the SAME roster over its own (separate) connection to the host
 
 const bSeesA=await bPage.evaluate((id)=>window.__party.get(id),aJoin.id);
 check("guest B — not directly connected to guest A at all — also sees guest A's puppet move, via the host's relay",
-  bSeesA&&bSeesA.ready&&bSeesA.z>6.5&&Math.abs(bSeesA.x)<1,JSON.stringify(bSeesA));
+  bSeesA&&bSeesA.ready&&bSeesA.z>6.5&&Math.abs(bSeesA.x-A_X)<1,JSON.stringify(bSeesA));
 
 const bSeesHost=await bPage.evaluate((id)=>{ const p=window.__party.get(id); return p&&p.ready; },hostOpen.id);
 check("guest B also sees the host's own hero in the same roster",bSeesHost===true,String(bSeesHost));

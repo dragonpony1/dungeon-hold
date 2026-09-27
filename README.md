@@ -952,6 +952,21 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   (`__lobby.seat()`, one per tab, kept across a reload) and the host keeps a departed guest's pool under it for the rest of
   the run (a new tab still starts at the hall's baseline). The wave-zero phantom goblin is removed quietly instead of through
   kill(), which paid a fresh guest (and "reset guide" in solo) 2 xp, an orb and a loot roll. `coop-loot-test.mjs` (new).
+- Build 159 (4/7): where a guest really is. Guests stand BESIDE the host's start (0,6), not on it: the first on its right
+  (1.5,6), the second on its left, a third further out (`GUEST_SPAWN_X` in 99-network.js; open floor on all five maps). The
+  spot the host sent a joining guest used to be dropped (the 'hp' handler only read a position coming back from a fall), so
+  everyone began inside everyone else; the host now marks those messages `snap` and the guest stands there on joining and on
+  getting back up, and a guest's own respawn countdown (game.js puts a hero back at (0,6)) moves it to its own spot too. A guest
+  joining in health gear no longer gets a fake hit (red flash, hurt sound, the bar down by its gear bonus): the host's copy starts
+  at the geared max. The host's copy of a guest (what mobs aim at, where its shots start) now keeps up with a fast guest (the
+  catch-up is that guest's own top speed and a third, not a flat 16 a second), follows a Tear of the Rootgate jump to a gate (a
+  far spot that holds for .3 s on floor a hero can stand on), and a shot carries its shooter's spot as a swing always did. A
+  click between switching to a ranged hero and its staff or bow appearing no longer goes out as a sword swing with the bow's
+  24 reach (the host also clamps any swing to 4), and 84-aim.js forgets the last full draw on a sword swing, so that click
+  looses a tap, not a stale piercing arrow. Every puppet (98-party.js) keeps up with its player (it moved at a flat 6 a second,
+  slower than a walk; now 8x the gap, a jump of 12+ shown where it lands), and a Troll teammate's bow is held the build 155/156
+  way on every screen (`__bow.holdFor`). `coop-herosync-test.mjs` (new); the suites that expected a guest at (0,6) now read
+  its own spot.
 - Build 152: MYTHIC gear. The hideout's forge (hideout builds 26-30) makes a tier one step above legendary, rarity 5,
   and the game wears it: `RNAME[5]` Mythic in its own pink, valid and fixable at 5, forge caps at 5, no level gate on
   anything the hideout forged. **Named mythics** (ten, a forge proc, Matt's stats, each with a signature power,

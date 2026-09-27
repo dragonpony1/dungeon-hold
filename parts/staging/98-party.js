@@ -49,7 +49,8 @@ function dress(p){ const lk=p.look; const fams=(window.__familiar&&window.__fami
   if(lk.f&&window.__familiar&&window.__familiar.build){ try{ const g=window.__familiar.build({name:lk.f.n||'Wisp',rarity:lk.f.r|0,slot:'familiar'}); scene.add(g); p.fam=g; p.famT=0; }catch(e){ console.warn('party familiar',e); } }
   if(lk.s&&window.__setglow&&Meta.packs){ const pk=Meta.packs.get(lk.s); if(pk&&pk.col){ try{ p.glow=window.__setglow.dress(p.root,pk.col,p.scale||1); }catch(e){ console.warn('party glow',e); } } } }
 function dressTick(p,dt){ if(p.fam){ p.famT+=dt; const a=p.yaw+2.3; p.fam.position.set(p.x+Math.sin(a)*.85,p.y+1.45+Math.sin(p.famT*2.3)*.09,p.z+Math.cos(a)*.85); p.fam.rotation.y=p.yaw; const ud=p.fam.userData; if(ud&&ud.wings) ud.wings.forEach(w=>{ w.rotation.z=(w.userData.side||1)*Math.sin(p.famT*14)*.45; }); }
-  if(p.glow&&window.__setglow) window.__setglow.pulse(p.glow,S.t); }
+  if(p.glow&&window.__setglow) window.__setglow.pulse(p.glow,S.t);
+  if(p.wobj&&p.wobj.parent&&/^bow-/.test(p.wobj.name)&&window.__bow&&window.__bow.holdFor){ window.__bow.holdFor(p.wobj,p.yaw,0); window.__bow.animate(p.wobj,dt); } }   // build 159 (4/7): a Troll teammate carries his bow like a briefcase on our screen too (builds 155-156), the way his own screen shows it -- the mount alone stood it upright -- and its motes orbit instead of sitting in a heap at the lower tip
 // what the network layer (or, today, a test script) calls each time it hears where a party member is: puppets ease
 // toward the latest target rather than snapping to it, since real updates will arrive far slower than the render
 // framerate and a snap would read as teleporting
@@ -59,7 +60,12 @@ function updateParty(dt){
   PARTY.forEach(p=>{ if(!p.ready) return;
     const dx=p.targetX-p.x, dz=p.targetZ-p.z, d=Math.hypot(dx,dz);
     p.moving=d>.05;
-    if(p.moving){ const sp=Math.min(d,6*dt); p.x+=dx/d*sp; p.z+=dz/d*sp; }
+    // build 159 (4/7): a flat 6 a second was slower than any player -- a walk is 7.5, a sprint 11, a geared sprint 20 and more -- so
+    // every teammate on the move fell further behind on everyone else's screen (a sprinting host was nearly 5 behind after one
+    // second) and only caught up once they stopped. Now it closes the gap at 8 times its length a second (never under the old 6): a
+    // walker is shown about 1 behind, a sprinter 1.4. A jump too big for any stride -- a Tear of the Rootgate to a gate, a fall and
+    // back up at the spawn -- is shown where it lands, not walked across the hall
+    if(p.moving){ if(d>12){ p.x=p.targetX; p.z=p.targetZ; } else { const sp=Math.min(d,Math.max(6,8*d)*dt); p.x+=dx/d*sp; p.z+=dz/d*sp; } }
     let dy=p.targetYaw-p.yaw; dy=((dy+PI)%(2*PI)+2*PI)%(2*PI)-PI; const maxTurn=TURN*dt; p.yaw+=Math.max(-maxTurn,Math.min(maxTurn,dy));
     const st=p.moving?(p.actions.run?'run':'walk'):'idle';
     if(p.actions[st]) playPuppet(p,st,{fade:.15}); else if(p.actions.idle) playPuppet(p,'idle',{fade:.15});

@@ -40,17 +40,23 @@ await hostPage.evaluate(()=>window.__dd.setHero(0,-25,0));
 await guestPage.evaluate(()=>window.__dd.setCam(0,.42,8));   // cam.yaw=0 -> aim points straight down +Z from wherever the guest's host-tracked position is
 await tickBoth(6,5);
 const spawnState=await hostPage.evaluate(id=>window.__combat.guestHero(id),guestId);
-check("guest registers at its default spawn",spawnState&&spawnState.x===0&&spawnState.z===6,JSON.stringify(spawnState));
+check("guest registers at its own spawn spot beside the host's start (1.5,6)",spawnState&&spawnState.x===1.5&&spawnState.z===6,JSON.stringify(spawnState));   // build 159 (4/7): no longer on the host's own (0,6)
+// the shots below fly up the hall's open aisle, x=0 (the line x=1.5 meets a wall and a prop at z=13-16), so the guest steps back
+// onto it first and the host's copy follows
+await guestPage.evaluate(()=>window.__dd.setHero(0,6,0));
+await tickBoth(10,5);
+const lane=await hostPage.evaluate(id=>window.__combat.guestHero(id),guestId);
+check("the guest's copy follows it onto the aisle (0,6)",lane&&Math.abs(lane.x)<.05&&Math.abs(lane.z-6)<.05,JSON.stringify(lane));
 await guestPage.waitForTimeout(4300);   // let 65-tavernroom.js's one-shot new-player toast burn off before it can land during a tick window this suite is timing
 
 // ---- A: single-target stop -- the one property a cone (phase 8) structurally could not have. Default hero is the
 // witch (staff/bolt); a tap shot (calling swing() directly, bypassing the real mouse/touch hold, never reaches
 // FULL_MUL/pierce -- same as coop-herostats-test.mjs's own tap shots) should hit ONLY the nearer of two enemies
 // standing in a dead-straight line, never both, unlike the old cone which hit everyone in its arc at once.
-await hostPage.evaluate(()=>{
-  const a=window.__dd.spawn('goblin','N'); a.x=0; a.z=11; a.y=0; a.hp=9999; a.max=9999; a.dmg=0; a.atk=999; a.__coopId='near';
-  const b=window.__dd.spawn('goblin','N'); b.x=0; b.z=16; b.y=0; b.hp=9999; b.max=9999; b.dmg=0; b.atk=999; b.__coopId='far';
-});
+await hostPage.evaluate(gx=>{
+  const a=window.__dd.spawn('goblin','N'); a.x=gx; a.z=11; a.y=0; a.hp=9999; a.max=9999; a.dmg=0; a.atk=999; a.__coopId='near';
+  const b=window.__dd.spawn('goblin','N'); b.x=gx; b.z=16; b.y=0; b.hp=9999; b.max=9999; b.dmg=0; b.atk=999; b.__coopId='far';
+},lane.x);
 const beforeA=await hostPage.evaluate(()=>({near:window.__dd.enemies.find(e=>e.__coopId==='near').hp,far:window.__dd.enemies.find(e=>e.__coopId==='far').hp}));
 await guestPage.evaluate(()=>window.__dd.swing());
 await tickBoth(20,5);   // 100 ticks: comfortably covers fire-delay + travel to the near target, and the bolt's own life besides
@@ -62,7 +68,7 @@ await hostPage.evaluate(()=>{ ['near','far'].forEach(id=>{ const i=window.__dd.e
 
 // ---- B: travel time -- damage should NOT land within a couple of ticks of the swing (it's still in flight),
 // confirming this is a genuine travelling shot and not an instant hit merely relabelled ----
-await hostPage.evaluate(pos=>{ const e=window.__dd.spawn('goblin','N'); e.x=pos.x; e.z=pos.z+9; e.y=0; e.hp=9999; e.max=9999; e.dmg=0; e.atk=999; e.__coopId='travel'; },spawnState);
+await hostPage.evaluate(pos=>{ const e=window.__dd.spawn('goblin','N'); e.x=pos.x; e.z=pos.z+9; e.y=0; e.hp=9999; e.max=9999; e.dmg=0; e.atk=999; e.__coopId='travel'; },lane);
 const beforeB=await hostPage.evaluate(()=>window.__dd.enemies.find(e=>e.__coopId==='travel').hp);
 await guestPage.evaluate(()=>window.__dd.swing());
 await tickBoth(1,3);   // ~3 ticks: barely enough for the fire-delay alone, nowhere near enough to also cross 9 units
@@ -80,10 +86,14 @@ await hostPage.evaluate(()=>{ const i=window.__dd.enemies.findIndex(e=>e.__coopI
 await guestPage.evaluate(()=>window.__heroes.select('troll'));
 const trollReach=await guestPage.evaluate(()=>window.__dd.hero.reach);
 check("switching to the troll archer sets a real long reach (24)",trollReach===24,"reach="+trollReach);
-await hostPage.evaluate(()=>{
-  const a=window.__dd.spawn('goblin','N'); a.x=0; a.z=11; a.y=0; a.hp=9999; a.max=9999; a.dmg=0; a.atk=999; a.__coopId='pnear';
-  const b=window.__dd.spawn('goblin','N'); b.x=0; b.z=16; b.y=0; b.hp=9999; b.max=9999; b.dmg=0; b.atk=999; b.__coopId='pfar';
-});
+// the bow has to be in hand before the draw (installHero sets the reach at once; the bow mounts once the troll's model has loaded).
+// Pressing in that gap used to go out as a sword swing 24 long plus a stale full-power arrow, and that bogus cone is what made the
+// pierce checks below pass; build 159 (4/7) closed the gap, so wait for the bow here, the way coop-combat-fix-test.mjs waits for the sword
+for(let i=0;i<120;i++){ if(await guestPage.evaluate(()=>window.__aim.kind())==='bow') break; await tickBoth(1,1); await new Promise(r=>setTimeout(r,15)); }
+await hostPage.evaluate(gx=>{
+  const a=window.__dd.spawn('goblin','N'); a.x=gx; a.z=11; a.y=0; a.hp=9999; a.max=9999; a.dmg=0; a.atk=999; a.__coopId='pnear';
+  const b=window.__dd.spawn('goblin','N'); b.x=gx; b.z=16; b.y=0; b.hp=9999; b.max=9999; b.dmg=0; b.atk=999; b.__coopId='pfar';
+},lane.x);
 const beforeC=await hostPage.evaluate(()=>({near:window.__dd.enemies.find(e=>e.__coopId==='pnear').hp,far:window.__dd.enemies.find(e=>e.__coopId==='pfar').hp}));
 await guestPage.evaluate(()=>window.__aim.press());
 await tickBoth(10,5);   // 50 ticks (~0.83s): past fullT() (~0.5s with no spd stat/mult) so the charge is genuinely full, not just close

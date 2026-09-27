@@ -50,7 +50,11 @@ await guestPage.evaluate(()=>window.__dd.setCam(0,.42,8));
 await tickBoth(6,5);   // let the guest's first 'input' (with stat/mult) reach the host and register guestHero at its default spawn
 
 const spawnState=await hostPage.evaluate(id=>window.__combat.guestHero(id),guestId);
-check("guest registers at its default spawn with the flat baseline hp",spawnState&&spawnState.x===0&&spawnState.z===6&&spawnState.hp===100&&spawnState.max===100,JSON.stringify(spawnState));
+check("guest registers at its own spawn spot beside the host's start (1.5,6) with the flat baseline hp",spawnState&&spawnState.x===1.5&&spawnState.z===6&&spawnState.hp===100&&spawnState.max===100,JSON.stringify(spawnState));
+// build 159 (4/7): that spot is no longer on the hall's open aisle (x=0; the line x=1.5 meets a wall and a prop at z=13-16), and the
+// walks and shots below go up the aisle, so the guest steps back onto it first and the host's copy follows
+await guestPage.evaluate(()=>window.__dd.setHero(0,6,0));
+await tickBoth(10,5);
 
 await guestPage.waitForTimeout(4300);   // let 65-tavernroom.js's one-shot new-player toast burn off before any toast-adjacent state matters later
 

@@ -40,17 +40,16 @@ for(let i=0;i<20;i++){ await hostPage.evaluate(()=>window.__dd.step(1/60,1)); aw
 
 const guestId=guestJoin.id;
 const spawnState=await hostPage.evaluate((id)=>window.__combat.guestHero(id),guestId);
-check("host has registered the guest's simulated hero at its default spawn, full HP",
-  spawnState&&spawnState.x===0&&spawnState.z===6&&spawnState.hp===100&&spawnState.dead===0,JSON.stringify(spawnState));
+check("host has registered the guest's simulated hero at its own spawn point beside the host's start (1.5,6), full HP",   // build 159 (4/7): a guest's spot is beside the host's start (0,6), no longer on it
+  spawnState&&spawnState.x===1.5&&spawnState.z===6&&spawnState.hp===100&&spawnState.dead===0,JSON.stringify(spawnState));
 
 // --- direction 1: an enemy notices and hurts the guest's hero ---
-// the host's OWN hero also spawns at (0,6) by default -- the exact same point the guest's simulated hero starts
-// at, since guestHero's spawn deliberately mirrors it -- so nearestHero()'s tie-break (checked first, wins ties)
-// would otherwise make this ambiguous. Moving the host's own hero well away removes that ambiguity entirely.
+// the host's OWN hero also spawns at (0,6) by default -- 1.5 from the guest's own spot since build 159 (4/7), the very
+// same point before it -- so nearestHero() could still pick the host for a goblin placed between them. Moving the host's own hero well away removes that ambiguity entirely.
 await hostPage.evaluate(()=>window.__dd.setHero(0,-25,0));   // (0,-25) rather than a wild guess: earlier this session a goblin spawn ('N' lane) landed around z=-30 without incident, so this is confirmed inside the map, not just probably so
 // a real goblin, placed right on top of the guest's spawn point so the melee-proximity check in updateEnemies is
 // unambiguous
-const spawned=await hostPage.evaluate(()=>{ const e=window.__dd.spawn('goblin','N'); e.x=0; e.z=6.3; e.y=0; return {kind:e.kind,x:e.x,z:e.z}; });
+const spawned=await hostPage.evaluate(gx=>{ const e=window.__dd.spawn('goblin','N'); e.x=gx; e.z=6.3; e.y=0; e.__coopId='biter'; return {kind:e.kind,x:e.x,z:e.z}; },spawnState.x);
 for(let i=0;i<180;i++){ await hostPage.evaluate(()=>window.__dd.step(1/60,1)); await new Promise(r=>setTimeout(r,16)); }   // generous headroom past any goblin's own attack cooldown for at least one real hit to land (landHit fires ~.2s into a swing)
 const afterAttack=await hostPage.evaluate((id)=>window.__combat.guestHero(id),guestId);
 check("the guest's simulated hero takes real damage from an enemy that isn't the host's own",
@@ -60,7 +59,7 @@ check("the guest's simulated hero takes real damage from an enemy that isn't the
 // does nothing (guestHitCone's own g.dead>0 guard, 99-network.js), which read exactly like a broken swing relay
 // rather than what it actually was: stale test hygiene contaminating the next section. Removing it here, then
 // waiting out any respawn already in progress, keeps direction 2 honestly isolated from direction 1's own combat.
-await hostPage.evaluate(()=>{ const i=window.__dd.enemies.findIndex(e=>e.x===0&&e.z===6.3); if(i>=0) window.__dd.enemies.splice(i,1); });
+await hostPage.evaluate(()=>{ const i=window.__dd.enemies.findIndex(e=>e.__coopId==='biter'); if(i>=0) window.__dd.enemies.splice(i,1); });
 for(let i=0;i<300;i++){ const g=await hostPage.evaluate((id)=>window.__combat.guestHero(id),guestId); if(g&&g.dead<=0) break; await hostPage.evaluate(()=>window.__dd.step(1/60,1)); await new Promise(r=>setTimeout(r,16)); }
 
 // --- direction 2: the guest's own swing lands on a real enemy ---
@@ -75,13 +74,13 @@ for(let i=0;i<300;i++){ const g=await hostPage.evaluate((id)=>window.__combat.gu
 // number of ticks -- the actual settle time depends on real GLB-fetch timing, not just frame count.
 await guestPage.evaluate(()=>window.__heroes.select('knight'));
 for(let i=0;i<30;i++){ const k=await guestPage.evaluate(()=>window.__aim&&window.__aim.kind()); if(!k) break; await guestPage.evaluate(()=>window.__dd.step(1/60,1)); }
-// a second goblin, placed where the guest's swing (facing +Z, standing at 0,6) will land: hitCone-style checks use
+// a second goblin, placed where the guest's swing (facing +Z, standing on its own spot) will land: hitCone-style checks use
 // a forward-facing dot product, so directly in front at melee range is the one unambiguous spot
-const spawned2=await hostPage.evaluate(()=>{ const e=window.__dd.spawn('goblin','S'); e.x=0; e.z=7.5; e.y=0; e.atk=999; return {kind:e.kind,x:e.x,z:e.z,hp:e.hp}; });   // atk pinned high so it never gets a chance to melee back mid-test and confound the read
+const spawned2=await hostPage.evaluate(gx=>{ const e=window.__dd.spawn('goblin','S'); e.x=gx; e.z=7.5; e.y=0; e.atk=999; e.__coopId='target'; return {kind:e.kind,x:e.x,z:e.z,hp:e.hp}; },spawnState.x);   // atk pinned high so it never gets a chance to melee back mid-test and confound the read
 await guestPage.evaluate(()=>window.__dd.swing());
 for(let i=0;i<20;i++){ await guestPage.evaluate(()=>window.__dd.step(1/60,1)); await new Promise(r=>setTimeout(r,16)); }   // real yields so the 'swing' message actually reaches the host over the data channel
 for(let i=0;i<10;i++){ await hostPage.evaluate(()=>window.__dd.step(1/60,1)); await new Promise(r=>setTimeout(r,16)); }
-const afterSwing=await hostPage.evaluate(()=>{ const e=window.__dd.enemies[1]; return e?{hp:e.hp}:{hp:null,gone:true}; });
+const afterSwing=await hostPage.evaluate(()=>{ const e=window.__dd.enemies.find(e=>e.__coopId==='target'&&!e.dead); return e?{hp:e.hp}:{hp:null,gone:true}; });
 check("the guest's own swing damages a real enemy on the host (or kills it outright)",
   afterSwing.gone===true||afterSwing.hp<spawned2.hp,JSON.stringify({spawned2,afterSwing}));
 

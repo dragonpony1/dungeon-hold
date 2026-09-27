@@ -140,6 +140,17 @@
 // not the map's). A guest sells only what it built (the host sells anything; repair and upgrade stay open to everyone), no
 // defense action goes through after the hall fell or held, and a guest who drops and rejoins gets its own mana pool back,
 // and its defenses, keyed by its lobby seat (seatJoin/seatLeave) -- no free refill, no savings lost.
+// ===== BUILD 159 (4/7): WHERE A GUEST REALLY IS. The spawn spot the host handed a joining guest was dropped on the floor (the 'hp'
+// handler only read a position when the guest was coming back from the dead), and the first guest's spot was the host's own
+// anyway, so every co-op game began with everyone standing inside everyone else, and a guest whose own countdown won the race
+// back from a fall came up on the host's start too. Now each guest has a spot beside the host's (GUEST_SPAWN_X) that the host
+// marks as one to stand on (snap), both on joining and on getting back up, and a guest's own countdown puts it there as well. A
+// guest who joins wearing health gear is registered at its geared max (it used to get a fake hit on joining: the red flash, the
+// hurt sound and a bar down by its whole gear bonus). The host's copy of a guest (what mobs aim at, where its shots start) keeps up
+// with a fast guest, follows a Tear of the Rootgate jump to a gate instead of freezing where it stood, and a shot says where its
+// shooter stands, as a swing always did. A click in the moment between switching to a ranged hero and the bow or staff appearing
+// no longer sends a sword swing with the bow's 24 reach. And every puppet keeps up with its player (98-party.js), a Troll's bow
+// held the build 155/156 way on every screen.
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -434,6 +445,18 @@ function heroLabel(pick){ const h=window.__heroes.list().find(h=>h.id===pick); r
 const guestIn=new Map();     // id -> latest {w,s,a,d,shift,yaw,pick}
 const guestHero=new Map();   // id -> {x,y,z,yaw,hp,max,hurtT,dead} the host moves each tick from guestIn, same collision rules as the real hero
 const GUEST_MAX_HP=100, GUEST_REACH=2.4, GUEST_DMG=8;   // hero's own unequipped defaults/fallbacks (game.js: hero={hp:100,max:100,reach:2.4}, heroDmg()'s own base is 8) -- GUEST_MAX_HP now doubles as applyGear()'s own "100" base for the gear-scaled max below; REACH/DMG only matter if a 'swing' somehow arrives without them
+// build 159 (4/7): the longest a melee swing reaches. Only the knight swings (2.4); the witch, the fighter and the archer shoot (18-24),
+// and since phase 9 a shot never comes through the swing path -- except in the moment after switching to one of them, before the
+// staff or bow has appeared (installHero sets the reach at once, the weapon mounts once the model loads), when a click used to go out
+// as a sword swing 24 long that hit everything ahead through walls. The guest no longer sends one then, and the host never trusts a
+// swing longer than this
+const GUEST_MELEE_MAX=4;
+// build 159 (4/7): where each guest stands -- beside the host's own start (game.js: the hero starts and gets back up at (0,6)), never on
+// it: the first guest on its right, the second on its left, a third further out. A spot a guest still holds is skipped, so someone
+// joining after someone left never lands on a player who stayed. Open floor on all five maps (every spot within 4.5 of the start is)
+const GUEST_SPAWN_X=[1.5,-1.5,3,-3], GUEST_SPAWN_Z=6;
+function guestSpawnX(){ const used=new Set([...guestHero.values()].map(g=>g.spawnX)); const x=GUEST_SPAWN_X.find(x=>!used.has(x)); return x!==undefined?x:GUEST_SPAWN_X[guestHero.size%GUEST_SPAWN_X.length]; }
+function guestMaxHp(s){ return Math.round((GUEST_MAX_HP+(s?s.stat.hp:0))*(s?s.mult.hp:1)); }   // applyGear()'s own formula (game.js), from the stats that guest reports
 // each guest gets their OWN mana pool, seeded at the same MAP.mana baseline the hall itself started with -- not a
 // share of the host's own S.mana, which stays exactly what it always was, the HOST's own pool. See the phase-12
 // header comment (top of file) for why this replaced a single shared S.mana for defense costs.
@@ -482,16 +505,18 @@ function guestInputTick(dt){
   if(role!=='host') return;
   guestIn.forEach((inp,id)=>{
     let g=guestHero.get(id);
-    if(!g){ const ox=guestHero.size*1.5; g={x:ox,y:0,z:6,yaw:0,hp:GUEST_MAX_HP,max:GUEST_MAX_HP,hurtT:0,dead:0,spawnX:ox,holdT:.8}; guestHero.set(id,g); guestMana.set(id,seatJoin(id,inp)); send('hp',{hp:g.hp,max:g.max,dead:0,x:g.x,y:g.y,z:g.z},id); }   /* build 147: the guest's own position leads now (below), so on registration their local hero is put at this spawn (the 'hp' handler applies x/z) and the host holds its copy there for a moment rather than chasing the spot their page loaded them at, on top of the host */
     const s=guestStats.get(id);
+    if(!g){ const ox=guestSpawnX(), m0=guestMaxHp(s); g={x:ox,y:floorAt(ox,GUEST_SPAWN_Z,0),z:GUEST_SPAWN_Z,yaw:0,hp:m0,max:m0,hurtT:0,dead:0,spawnX:ox,holdT:.8}; guestHero.set(id,g); guestMana.set(id,seatJoin(id,inp)); send('hp',{hp:g.hp,max:g.max,dead:0,x:g.x,y:g.y,z:g.z,snap:1},id); }   /* build 147: the guest's own position leads now (below), so on registration their local hero is put at this spawn and the host holds its copy there for a moment rather than chasing the spot their page loaded them at, on top of the host. Build 159 (4/7): snap is what makes the 'hp' handler actually put them there (it never did), and the copy starts at the guest's geared max -- a flat 100 read as a hit on a guest wearing +50 hp */
     // gear-scaled max hp, delta-preserving on increase -- the same pattern applyGear() (game.js) uses for the real hero
-    const newMax=Math.round((GUEST_MAX_HP+(s?s.stat.hp:0))*(s?s.mult.hp:1));
+    const newMax=guestMaxHp(s);
     if(newMax!==g.max){ if(newMax>g.max) g.hp+=newMax-g.max; g.max=newMax; g.hp=Math.min(g.hp,g.max); }
     // same 4s-then-respawn rule heroUpdate uses for the real hero; no movement while down. Respawns back at this
     // guest's own spawnX (not a recomputed guestHero.size*1.5, which drifts as players join/leave) so two guests
     // who go down around the same time don't stack on the identical point -- and sends the guest their own fresh
-    // hp/position so their own client (see 'hp' below) snaps back in step rather than drifting from what they wandered to locally
-    if(g.dead>0){ g.dead-=dt; if(g.dead<=0){ g.dead=0; g.hp=g.max; g.x=g.spawnX; g.z=6; g.y=0; send('hp',{hp:g.hp,max:g.max,dead:g.dead,x:g.x,y:g.y,z:g.z},id); } }
+    // hp/position so their own client (see 'hp' below) snaps back in step rather than drifting from what they wandered to locally.
+    // Build 159 (4/7): snap, so the guest stands there even when its own countdown got it up first (heroUpdate puts a hero back at
+    // the host's start); and the copy holds the spot a moment, as on joining, while the guest's reports from where it fell drain out
+    if(g.dead>0){ g.dead-=dt; if(g.dead<=0){ g.dead=0; g.hp=g.max; g.x=g.spawnX; g.z=GUEST_SPAWN_Z; g.y=floorAt(g.x,g.z,0); g.holdT=.5; g.stuckT=0; g.farT=0; send('hp',{hp:g.hp,max:g.max,dead:g.dead,x:g.x,y:g.y,z:g.z,snap:1},id); } }
     else{
       g.hurtT-=dt; if(g.hurtT<0&&g.hp<g.max) g.hp=Math.min(g.max,g.hp+(1.5+(s?s.stat.regen:0))*dt);   // passive regen, same base rate and gear scaling as heroUpdate's (game.js)
       // build 147 ("having to calibrate in game to get avatars to sync"): the host used to re-simulate every guest from
@@ -502,8 +527,18 @@ function guestInputTick(dt){
       // late packet is caught up in a fraction of a second but nobody can teleport, and a jump of more than 30
       // units in one packet is ignored (a map mismatch, or nonsense). An older guest that sends no position still
       // gets the keys path below.
+      // Build 159 (4/7): the cap is no longer a flat 16 -- a guest with +50% move sprints past it (11 a second at base, times its move
+      // stat and multiplier), and the copy fell further behind every step, mobs swinging at the empty spot it lagged at. It is now that
+      // guest's own top speed with a third again to catch up in. And a far jump is no longer ignored for good: the Tear of the Rootgate
+      // (97-mythics.js) puts its wearer at a gate 30+ away, and the copy used to stay where they had stood -- mobs at the gate ignored
+      // them, mobs at the old spot kept hurting them, their shots started there. A far spot that holds for .3 s (several reports
+      // agreeing, not one stray packet) on floor a hero can stand on is where the copy goes
       if(g.holdT>0) g.holdT-=dt;
-      else if(typeof inp.x==='number'&&typeof inp.z==='number'){ const dx=inp.x-g.x, dz=inp.z-g.z, d=Math.hypot(dx,dz); if(d>0&&d<30){ const k=Math.min(1,16*dt/d); moveCircle(g,dx*k,dz*k,.42,true); if(d>1.4){ g.stuckT=(g.stuckT||0)+dt; if(g.stuckT>.8){ g.x=inp.x; g.z=inp.z; g.stuckT=0; } } else g.stuckT=0; }   /* build 150 ("guests not doing any damage"): a copy that cannot walk to where its guest really stands (a hedge or a wall between, the guest on a ledge) snaps there after .8 s -- the guest's swings and the mobs' aim use the copy, so a copy stuck behind a defense fought nothing */ if(typeof inp.hyaw==='number') g.yaw=inp.hyaw; g.y=floorAt(g.x,g.z,g.y); }
+      else if(typeof inp.x==='number'&&typeof inp.z==='number'){ const dx=inp.x-g.x, dz=inp.z-g.z, d=Math.hypot(dx,dz);
+        if(d>0&&d<30){ g.farT=0; const vmax=Math.max(16,11*(1+(s?s.stat.move:0)/100)*(s?s.mult.move:1)*4/3), k=Math.min(1,vmax*dt/d); moveCircle(g,dx*k,dz*k,.42,true); if(d>1.4){ g.stuckT=(g.stuckT||0)+dt; if(g.stuckT>.8){ g.x=inp.x; g.z=inp.z; g.stuckT=0; } } else g.stuckT=0; }   /* build 150 ("guests not doing any damage"): a copy that cannot walk to where its guest really stands (a hedge or a wall between, the guest on a ledge) snaps there after .8 s -- the guest's swings and the mobs' aim use the copy, so a copy stuck behind a defense fought nothing */
+        else if(d>=30){ g.farT=(g.farT||0)+dt; if(g.farT>=.3&&!heroSolid(gat(wc(inp.x),wcz(inp.z)))){ g.x=inp.x; g.z=inp.z; g.y=floorAt(g.x,g.z,0); g.stuckT=0; g.farT=0; } }
+        else g.farT=0;
+        if(typeof inp.hyaw==='number') g.yaw=inp.hyaw; g.y=floorAt(g.x,g.z,g.y); }
       else {
       let mx=0,mz=0; if(inp.w) mz+=1; if(inp.s) mz-=1; if(inp.d) mx+=1; if(inp.a) mx-=1;
       const len=Math.hypot(mx,mz);
@@ -548,14 +583,22 @@ Meta.heroes=()=>[...guestHero.entries()].map(([id,g])=>({x:g.x,y:g.y,z:g.z,isDea
 // regardless of role) in parallel with the host's own guestHero.dead countdown -- both start from the same value
 // at nearly the same real time, so the two respawns land within a network round-trip of each other; harmless, and
 // this message is what corrects it either way once it arrives.
+// Build 159 (4/7): snap marks the two messages that place this hero -- joining (the spot the host gave us) and getting back up (the
+// same spot). They put us there whatever our own state (our own respawn countdown may have got us up first, at the host's start),
+// the spot is remembered for that countdown (the heroUpdate wrap below), and neither is ever read as a hit
+let mySpawn=null;
 onMessage('hp',data=>{
   if(role!=='guest') return;
-  const wasDead=hero.dead>0;
+  const wasDead=hero.dead>0, at=typeof data.x==='number'&&typeof data.z==='number';
+  if(data.snap&&at&&!(data.dead>0)) mySpawn={x:data.x,z:data.z};
   if(data.dead>0&&!wasDead){ hero.hp=0; hero.dead=data.dead; hero.hurtT=3; flashDmg(); SFX.hurt(); toast('You fell! Back in 4 seconds…'); H.g.visible=false; heroShadow.visible=false; }
   else if(data.dead<=0&&wasDead){ hero.dead=0; hero.hp=data.max; hero.max=data.max; hero.x=data.x; hero.z=data.z; hero.y=data.y; hero.vy=0; H.g.visible=!useGLB; heroShadow.visible=true; if(GLBH){ GLBH.wrap.visible=useGLB; playHero('idle',{restart:true}); } toast('Back on your feet!'); }
+  else if(data.snap){ if(at){ hero.x=data.x; hero.z=data.z; if(typeof data.y==='number') hero.y=data.y; hero.vy=0; } hero.hp=Math.min(data.hp,hero.max); }
   else if(data.dead<=0&&data.hp<hero.hp){ hero.hp=data.hp; hero.hurtT=3; flashDmg(); SFX.hurt(); }
   else hero.hp=data.hp;
 });
+// our own countdown back from a fall (heroUpdate, game.js) puts a hero at the host's start, (0,6); a guest belongs at its own spot
+{ const prevHeroUpdate=heroUpdate; heroUpdate=function(dt){ const was=hero.dead>0; prevHeroUpdate(dt); if(role==='guest'&&mySpawn&&was&&hero.dead<=0){ hero.x=mySpawn.x; hero.z=mySpawn.z; } }; }
 // co-op combat, part 2: a guest's own swing, relayed to the host -- swing() is a plain top-level function (game.js),
 // so this reassigns the same binding the swing key, click handler and window.__dd.swing all already look up by
 // name (the same monkey-patch trick startWave uses in the phase-5 section above), rather than editing game.js.
@@ -573,14 +616,14 @@ onMessage('hp',data=>{
 // carved out of this path entirely below (phase 9) -- swing() fires at PRESS time, before any charge/aim-adjustment
 // has happened, which is right for melee (swing lands almost immediately) but wrong for a held shot.
 { const origSwing=swing;
-  swing=function(){ const before=hero.swingT; origSwing(); if(role==='guest'&&before<0&&hero.swingT===0&&!(window.__aim&&window.__aim.kind())) send('swing',{yaw:+hero.yaw.toFixed(3),x:+hero.x.toFixed(2),z:+hero.z.toFixed(2),dmg:Math.round(heroDmg()*10)/10,reach:+(hero.reach||GUEST_REACH).toFixed(2)}); }; }   // build 150 ("guests' defenses do damage but not the sword"): the swing carries the guest's OWN facing and spot -- hitCone() swings from hero.yaw (the way the hero faces, the walk's direction when moving), not the camera's yaw the relay used to send, and from where the guest really stands, not where the host's copy got to
+  swing=function(){ const before=hero.swingT; origSwing(); if(role==='guest'&&before<0&&hero.swingT===0&&!(window.__aim&&window.__aim.kind())&&(hero.reach||GUEST_REACH)<=GUEST_MELEE_MAX) send('swing',{yaw:+hero.yaw.toFixed(3),x:+hero.x.toFixed(2),z:+hero.z.toFixed(2),dmg:Math.round(heroDmg()*10)/10,reach:+(hero.reach||GUEST_REACH).toFixed(2)}); }; }   // build 159 (4/7): a reach past any sword's is a ranged hero whose staff or bow hasn't appeared yet (just switched) -- no swing then; its shot goes as a shot once the weapon is in hand. Build 150 ("guests' defenses do damage but not the sword"): the swing carries the guest's OWN facing and spot -- hitCone() swings from hero.yaw (the way the hero faces, the walk's direction when moving), not the camera's yaw the relay used to send, and from where the guest really stands, not where the host's copy got to
 // the melee cone: still not a faithful port of anything, just a straightforward "who's in front of me" check, same
 // as the real local hitCone() (game.js) a melee hero uses -- ranged guests no longer come through here (phase 9,
 // below, gives them a real bolt/arrow instead), so GUEST_REACH/GUEST_DMG's own fallbacks now only ever matter for
 // a 'swing' that somehow arrives with no dmg/reach at all.
 function guestHitCone(id,yaw,dmg,reach,at){
   const g=guestHero.get(id); if(!g||g.dead>0) return;
-  const r=reach||GUEST_REACH, d=dmg||GUEST_DMG; const gx=(at&&typeof at.x==='number')?at.x:g.x, gz=(at&&typeof at.z==='number')?at.z:g.z;   // the guest's reported spot when it sends one (build 150); the host's copy otherwise
+  const r=Math.min(reach||GUEST_REACH,GUEST_MELEE_MAX), d=dmg||GUEST_DMG; const gx=(at&&typeof at.x==='number')?at.x:g.x, gz=(at&&typeof at.z==='number')?at.z:g.z;   // the guest's reported spot when it sends one (build 150); the host's copy otherwise. Build 159 (4/7): never a sword longer than a sword (GUEST_MELEE_MAX) -- an older guest still sends the bow's 24 in the moment after a switch
   if(Math.hypot(gx-g.x,gz-g.z)<30){ g.x=gx; g.z=gz; }   // and the copy is put there too: a swing is the surest word on where the guest is
   const fx=Math.sin(yaw), fz=Math.cos(yaw); let n=0;
   for(const e of enemies){ if(e.dead) continue; const dx=e.x-gx, dz=e.z-gz, dd=Math.hypot(dx,dz);
@@ -617,7 +660,8 @@ function guestHitCone(id,yaw,dmg,reach,at){
             dir:{x:+d3.fx.toFixed(3),y:+d3.fy.toFixed(3),z:+d3.fz.toFixed(3)},
             spd:+spd.toFixed(2), life:+((range+1)/spd).toFixed(3),
             size:+(isStaff?1+.7*sh.c:1+.4*sh.c).toFixed(2),
-            splash:isStaff&&sh.full?1.9:0, pierce:!isStaff&&sh.full?2:0});
+            splash:isStaff&&sh.full?1.9:0, pierce:!isStaff&&sh.full?2:0,
+            x:+hero.x.toFixed(2), y:+hero.y.toFixed(2), z:+hero.z.toFixed(2)});   // build 159 (4/7): where the shooter really stands, as a swing says (hostGuestShot)
         }
       }
     }
@@ -626,7 +670,12 @@ function guestHitCone(id,yaw,dmg,reach,at){
 }
 function hostGuestShot(data,fromId){
   const g=guestHero.get(fromId); if(!g||g.dead>0) return;
-  const from=new THREE.Vector3(g.x,g.y+(data.wtype==='bolt'?1.3:1.1),g.z);   // an approximate hand/head height -- the host has no bone-accurate rig for a guest's puppet to read the real one from, same "good enough to read as real" tradeoff the mob/def puppets already make
+  // build 159 (4/7): the shot starts where the guest says it stands (a sprinting witch's bolts used to leave from the copy, steps
+  // behind her), and the copy is put there too -- the same rule guestHitCone keeps for a swing. Its own height as well, so a shot
+  // loosed mid-jump leaves from the air; an older guest that sends no spot fires from the copy as before
+  if(typeof data.x==='number'&&typeof data.z==='number'&&Math.hypot(data.x-g.x,data.z-g.z)<30){ g.x=data.x; g.z=data.z; g.y=floorAt(g.x,g.z,g.y); }
+  const y0=typeof data.y==='number'&&Math.abs(data.y-g.y)<4?data.y:g.y;
+  const from=new THREE.Vector3(g.x,y0+(data.wtype==='bolt'?1.3:1.1),g.z);   // an approximate hand/head height -- the host has no bone-accurate rig for a guest's puppet to read the real one from, same "good enough to read as real" tradeoff the mob/def puppets already make
   const dir=new THREE.Vector3(data.dir.x,data.dir.y,data.dir.z);
   const opts={dmg:data.dmg,life:data.life,size:data.size,splash:data.splash,pierce:data.pierce};
   if(data.wtype==='bolt') window.__staff.fireBolt(data.kind,from,dir,data.spd,opts);

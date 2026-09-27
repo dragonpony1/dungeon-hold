@@ -80,10 +80,12 @@ const GRIPS=new WeakMap();   // each mounted bow's grip node (its belly, where t
 // so the fist is on the grip on top and the string hangs beneath toward his feet. The shot's turn (heroYawOff easing to
 // ATTACK_TURN) swings it up to the aim, belly toward the target, as before.
 const _qa=new THREE.Quaternion(), _m=new THREE.Matrix4(), _bx=new THREE.Vector3(), _by=new THREE.Vector3(), _bz=new THREE.Vector3(0,1,0);
-function holdBow(wo){ const sd=wo.userData.sword; if(!sd||!wo.parent) return; const fx=Math.sin(hero.yaw), fz=Math.cos(hero.yaw);
-  const aim=Math.min(1,Math.abs(heroYawOff)/(PI/2));   // 0 at rest, 1 once the shot's turn is done
+// build 159 (4/7): holdBowFor(bow, the holder's facing, 0 at rest..1 drawn) -- any rig's bow, not just ours: a Troll teammate's puppet
+// (98-party.js) held its bow in the old upright pose on everyone else's screen, since only the local hero's bow was ever turned
+function holdBow(wo){ holdBowFor(wo,hero.yaw,Math.min(1,Math.abs(heroYawOff)/(PI/2))); }   // aim: 0 at rest, 1 once the shot's turn is done
+function holdBowFor(wo,yaw,aim){ const sd=wo.userData.sword; if(!sd||!wo.parent) return; const fx=Math.sin(yaw), fz=Math.cos(yaw);
   _bx.set(-fz,0,fx); _by.set(fx,0,fz); _q.setFromRotationMatrix(_m.makeBasis(_bx,_by,_bz));   // at rest: stave along his facing, belly up, string down
-  _qa.setFromEuler(_e.set(0,hero.yaw,0)); _q.slerp(_qa,aim);                                    // drawing: upright, belly toward the aim
+  _qa.setFromEuler(_e.set(0,yaw,0)); _q.slerp(_qa,aim);                                         // drawing: upright, belly toward the aim
   wo.parent.getWorldQuaternion(_pq); wo.quaternion.copy(_pq.invert()).multiply(_q);
   let gp=GRIPS.get(wo); if(gp===undefined){ gp=wo.getObjectByName('bowGrip')||null; GRIPS.set(wo,gp); } if(gp) _g.copy(gp.position).multiplyScalar(sd.scale); else _g.set(0,sd.gripY*sd.scale,0); _g.applyQuaternion(wo.quaternion); wo.position.copy(_g).negate(); }
 const PLANTED=[];
@@ -100,5 +102,6 @@ window.__bow={kinds:()=>Object.keys(BOW_KINDS),info:k=>Object.assign({kind:k},BO
   addKind:(k,K)=>{ BOW_KINDS[k]=K; window.__weapons.register('bow-'+k,()=>makeBow(k)); },   // build 154: a gear set's bow (86-setweapons.js) — K as above, plus K.deco for its own fittings; its arrows take K.glow
   fire:(g,dx,dy,dz)=>fireArrow(g.userData.kind,gripWorld(g),new THREE.Vector3(dx,dy||0,dz),ARROW_V),
   fireFromHand:(dx,dy,dz)=>{ const wo=window.__weapons.mounted(); if(!(wo&&/^bow-/.test(wo.name))) return null; return fireArrow(wo.userData.kind,gripWorld(wo),new THREE.Vector3(dx,dy||0,dz),ARROW_V); },draw:()=>+DRAW.toFixed(2),turn:()=>+heroYawOff.toFixed(2),
+  holdFor:(wo,yaw,aim)=>holdBowFor(wo,yaw,aim||0), animate:(wo,dt)=>animFor(wo)(dt),   // build 159 (4/7): a puppet's bow (98-party.js) -- held the way ours is, its motes and shards moving
   fireArrow,ARROW_V};   // raw (kind,fromVec3,dirVec3,speed,opts) and the base speed constant -- no live bow model needed, unlike fire()/fireFromHand() above; 99-network.js spawns a guest's shot straight from their host-tracked position this way
 })();

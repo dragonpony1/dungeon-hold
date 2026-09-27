@@ -31,7 +31,7 @@ function pick(yaw){ const el=aimElev(), ce=Math.cos(el); const fx=Math.sin(yaw)*
 // what the shot being loosed carries (read by the bow and staff shots)
 function shot(){ const c=LAST_C; return {c,mul:TAP_MUL+(FULL_MUL-TAP_MUL)*c,full:c>=.999}; }
 // ---- press: a ranged hero's swing starts a draw that holds until the button comes up ----
-{ const prev=swing; swing=function(){ const k=rangedKind(); if(!k) return prev(); if(hero.swingT>=0) return; prev(); if(hero.swingT!==0) return;   // not allowed now (dead, between runs)
+{ const prev=swing; swing=function(){ const k=rangedKind(); if(!k){ LAST_C=0; return prev(); }   /* build 159 (4/7): no bow in hand yet (just switched to the archer: the model is still loading) -- if the bow is there by the time the swing lands, it looses a tap, not the last full draw's charge left over */ if(hero.swingT>=0) return; prev(); if(hero.swingT!==0) return;   // not allowed now (dead, between runs)
     hero.yaw=aimYaw(); LAST_C=0; const src=mouseDown?'mouse':ATK_TOUCH?'touch':API_HOLD?'api':''; if(!src) return;   // a swing with nothing held (a test's tap) looses at once, uncharged
     HOLD.on=true; HOLD.t=0; HOLD.src=src; HOLD.kind=k; HOLD.paused=null; HOLD.fullRung=false; }; }
 // while held the shot never lands: the swing waits just short of its release point

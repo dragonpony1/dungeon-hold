@@ -59,8 +59,10 @@ const aId=aJoin.id, bId=bJoin.id;
 // register both guestHero entries on the host (guestSendInput fires on the guest's own tick, guestInputTick reacts on the host's)
 await tickUntil(aPage,()=>true,4,5); await tickUntil(bPage,()=>true,4,5);
 const reg=await (async()=>{ for(let b=0;b<30;b++){ for(let i=0;i<5;i++) await hostPage.evaluate(()=>window.__dd.step(1/60,1)); await new Promise(r=>setTimeout(r,20)); const v=await hostPage.evaluate(({aId,bId})=>{ const a=window.__combat.guestHero(aId), b=window.__combat.guestHero(bId); return (a&&b)?{a,b}:null; },{aId,bId}); if(v) return v; } return null; })();
-check("host registers distinct spawn points for both guests (fix 3, part 1: creation-time spread)",
-  !!reg&&reg.a.x!==reg.b.x,JSON.stringify(reg));
+// build 159 (4/7): the spread now puts every guest BESIDE the host's own start (0,6), never on it -- the first guest's spot used
+// to be (0,6) itself, the host's own
+check("host registers distinct spawn points for both guests, neither on the host's own start (fix 3, part 1: creation-time spread)",
+  !!reg&&reg.a.x!==reg.b.x&&reg.a.x!==0&&reg.b.x!==0&&reg.a.z===6&&reg.b.z===6,JSON.stringify(reg));
 
 // --- fix 2: two swing-triggering inputs in one synchronous task (the same-frame race the review found) must only
 // land ONE hit's worth of damage, not two -- checked FIRST, on guest B, before either guest has ever died, so the
@@ -76,7 +78,7 @@ check("host registers distinct spawn points for both guests (fix 3, part 1: crea
 await bPage.evaluate(()=>window.__heroes.select('knight'));
 for(let i=0;i<30;i++){ const k=await bPage.evaluate(()=>window.__aim&&window.__aim.kind()); if(!k) break; await bPage.evaluate(()=>window.__dd.step(1/60,1)); }
 const expectedSwingDmg=await bPage.evaluate(()=>Math.round(window.__dd.heroDmg()*10)/10);
-const spawnedC=await hostPage.evaluate(()=>{ const e=window.__dd.spawn('goblin','E'); e.x=0; e.z=7.5; e.y=0; e.hp=100; e.max=100; e.atk=999; e.__coopId='dblswing'; return {hp:e.hp}; });
+const spawnedC=await hostPage.evaluate(bx=>{ const e=window.__dd.spawn('goblin','E'); e.x=bx; e.z=7.5; e.y=0; e.hp=100; e.max=100; e.atk=999; e.__coopId='dblswing'; return {hp:e.hp}; },reg.b.x);   // straight ahead of B's own spot (build 159 (4/7): no longer x=0)
 const swingRes=await bPage.evaluate(()=>{ const before=window.__dd.hero.swingT; window.__dd.swing(); const mid=window.__dd.hero.swingT; window.__dd.swing(); const after=window.__dd.hero.swingT; return {before,mid,after}; });
 check("swing() only registers as 'new' on the call that actually transitions swingT (not a same-frame rejected duplicate)",
   swingRes.before<0&&swingRes.mid===0&&swingRes.after===0,JSON.stringify(swingRes));
@@ -90,8 +92,8 @@ await hostPage.evaluate(()=>{ const i=window.__dd.enemies.findIndex(e=>e.__coopI
 // --- fix 1: a lethal hit on guest A's host-simulated hero must show up on guest A's OWN local hero (hp/dead), then
 // A's local position must snap back in step with the host's respawn rather than staying wherever A wandered ---
 const beforeA=await aPage.evaluate(()=>({hp:window.__dd.hero.hp,max:window.__dd.hero.max,dead:window.__dd.hero.dead,x:window.__dd.hero.x,z:window.__dd.hero.z}));
-check("guest A's own local hero starts full HP, alive, at default spawn",
-  beforeA.hp===100&&beforeA.max===100&&beforeA.dead===0&&beforeA.x===0&&beforeA.z===6,JSON.stringify(beforeA));
+check("guest A's own local hero starts full HP, alive, standing on the spawn point the host gave it (build 159 (4/7): it used to stay on the host's start)",
+  beforeA.hp===100&&beforeA.max===100&&beforeA.dead===0&&beforeA.x===reg.a.x&&beforeA.z===6,JSON.stringify(beforeA));
 
 await hostPage.evaluate(({ax})=>{ const e=window.__dd.spawn('goblin','N'); e.x=ax; e.z=6.3; e.y=0; e.dmg=200; e.atk=0; e.__coopId='killerA'; },{ax:reg.a.x});
 // poll the HOST's own record (not the guest's) so we remove the killer the instant one hit lands, before it can wait
