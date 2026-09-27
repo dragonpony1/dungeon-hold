@@ -92,7 +92,9 @@ function passThrough(){ go(true); }
 { const ph=Meta.hud; Meta.hud=()=>{ ph(); if(canUse()&&!shown){   /* !shown, not !wrap: since build 140 the frame is kept (and preloaded), so the wrapper exists between visits and the prompt vanished once it did */ const el=$('prompt'); const want=HAS_ASSETS?'E  step through the portal (the hideout)':'E  the portal (hideout: folder build only)'; if(el.textContent!==want) el.textContent=want; } }; }
 // the title screen: a visit outside a run, next to the TAVERN button
 { const tav=$('tavbtn'); if(tav){ const b=document.createElement('button'); b.id='hideoutbtn'; b.className='big alt'; b.textContent='🔮 THE HIDEOUT'; b.addEventListener('click',e=>{ e.stopPropagation(); if(S.phase==='start') passThrough(); }); tav.insertAdjacentElement('afterend',b); } }
-// pulled back out the moment a visit's phase ends for any reason (the horn, the crystal falling, the last wave held).
+// pulled back out the moment a visit's phase ends for any reason (the horn, the crystal falling, the run ending -- since build 160
+// a held map's last wave no longer does: the victory lap stays in 'build', so the hideout is there and back on the lap, and a
+// guest visiting it is pulled out by its host's ▶ MOVE ON instead).
 // Polled rather than hooked into Meta.update, since update() itself stops running on the dead/won screens. A co-op guest goes by
 // the host's phase (hallPhase, 58-portal.js; build 159 5/7) -- its own never left 'build', so the host's horn never called it back
 setInterval(()=>{ const ph=hallPhase(); if(shown&&ph!=='build'&&ph!=='start') closeHideout(ph==='wave'?'The horn sounds — back to the hall!':null);

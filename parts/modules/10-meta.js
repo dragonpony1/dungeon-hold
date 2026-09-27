@@ -17,7 +17,7 @@ function freshMeta(){ const skills={}; SKILLS.forEach(s=>skills[s.id]=0); return
 function validItem(it){ return !!(it&&typeof it==='object'&&it.stats&&typeof it.stats==='object'&&SLOTS.includes(it.slot)&&Number.isFinite(+it.rarity)&&it.rarity>=0&&it.rarity<=5&&it.name); }
 function fixItem(it){ it.rarity=clamp(Math.round(+it.rarity)||0,0,5); if(!it.id) it.id=Math.floor(LR()*1e9).toString(36); if(!it.lvl) it.lvl=1; if(!it.tier) it.tier=tierOf(it.lvl); for(const k in it.stats){ const v=+it.stats[k]; if(Number.isFinite(v)) it.stats[k]=v; else delete it.stats[k]; } if(!Number.isFinite(it.value)) it.value=10; if(!Number.isFinite(it.score)){ let sc=0; for(const k in it.stats) sc+=(it.stats[k]||0)*(STATW[k]||1); it.score=Math.round(sc*10)/10; } return it; }
 function fixGear(){ let ch=false; for(const s of SLOTS){ const it=gear[s]; if(!it) continue; if(validItem(it)){ const had=it.id&&typeof it.score==='number'; fixItem(it); if(!had) ch=true; } else { gear[s]=null; ch=true; } } if(ch) saveGear(); }   // saves from before rollItem gave items id/score
-let st=freshMeta(), metaVer=0, run={xp:0,gold:0,spent:0,payout:0,levels:0,drops:0,items:[],ended:false,newBest:false,started:false};
+let st=freshMeta(), metaVer=0, run={xp:0,gold:0,spent:0,payout:0,levels:0,drops:0,items:[],ended:false,settled:false,newBest:false,started:false};   // settled (build 160): the payout and best wave are in (settleRun) -- at a map's HALL HELD, before the run ends
 const GOLD_MAX=1e12, num=(v,lo,hi,d)=>{ v=Math.floor(+v); return Number.isFinite(v)?clamp(v,lo,hi):d; };   // storage can hold "1e999": every number is finite and clamped or falls back
 function loadMeta(){ const f=freshMeta(); try{ const m=JSON.parse(localStorage.getItem('ddMeta'));
     if(m&&typeof m==='object'){ f.gold=num(m.gold,0,GOLD_MAX,0); f.level=num(m.level,1,999,1); f.xp=num(m.xp,0,xpToNext(f.level)-1,0); f.best=num(m.best,0,9999,0); f.runs=num(m.runs,0,1e9,0);
@@ -85,8 +85,17 @@ function onKill(e){ addXP(XP[e&&e.kind]||2); }
 function onWaveHeld(w){ const g=10+5*w, x=20+10*w; addGold(g,'wave'); floatText(hero.x,hero.y+2.2,hero.z,'+'+g+' ● gold  +'+x+' xp',GOLD_CSS); addXP(x); }
 // goldGained = everything earned this run (wave pay, sells, the end payout); goldSpent = buys/restock/respec; payout = the 25*w paid when the crystal fell; newBest = strictly beat the old best
 function summary(){ return {wave:S.wave,kills:S.kills,xpGained:run.xp,goldGained:run.gold,goldSpent:run.spent,goldNet:run.gold-run.spent,payout:run.payout,levelsGained:run.levels,drops:run.drops,items:run.items.slice(),best:st.best,newBest:run.newBest,gold:st.gold,level:st.level}; }
-function onRunEnd(w,o){ if(run.ended) return true; run.ended=true; w=w|0; const tierUp=stockTierFor(Math.max(st.best,w))>st.stockTier; run.newBest=w>st.best; if(w>st.best) st.best=w; if(w>0){ run.payout=25*w+(o&&o.won?150:0); addGold(run.payout,'run'); }   // a map held pays 150 on top
-  if(tierUp){ st.stockTier=stockTierFor(st.best); rollStock(); } saveMeta(); const data=summary(); if(o) Object.assign(data,o); let shown=false;
+// the run's books: the best wave and the payout, once a run. Build 160: a map held settles them the moment its horde breaks
+// (onMapHeld, from game.js's winMap) -- the hall then stays open for a victory lap, and closing the tab mid-lap must lose nothing --
+// while the tally waits for MOVE ON (onRunEnd), which finds them settled and pays nothing twice. A fallen crystal settles and
+// shows at once, as ever. The shop's tier-up waits for the run's end either way: the wares the player eyed stay on the table
+// through the lap ("tier N+1 wares arrive after this run" stays true), and a tab closed mid-lap gets the new tier on its next
+// load anyway (the boot below derives the tier from the best wave, already saved)
+function settleRun(w,o){ if(run.settled) return; run.settled=true; w=w|0; run.newBest=w>st.best; if(w>st.best) st.best=w; if(w>0){ run.payout=25*w+(o&&o.won?150:0); addGold(run.payout,'run'); }   // a map held pays 150 on top
+  saveMeta(); }
+function onMapHeld(w,o){ if(run.ended||run.settled) return; settleRun(w,Object.assign({},o,{won:true})); if(run.payout) floatText(hero.x,hero.y+3.2,hero.z,'+'+fmtG(run.payout)+' ● gold — the hall is yours',GOLD_CSS); }
+function onRunEnd(w,o){ if(run.ended) return true; run.ended=true; const early=run.settled; settleRun(w,o); w=w|0;
+  if(stockTierFor(st.best)>st.stockTier){ st.stockTier=stockTierFor(st.best); rollStock(); } saveMeta(); const data=summary(); if(o) Object.assign(data,o); data.paidEarly=early; let shown=false;   // paidEarly: the payout went out at HALL HELD and has been on the HUD all lap -- TO THE TAVERN doesn't count it up again (20-tavern.js)
   if(typeof Tavern!=='undefined'&&Tavern&&Tavern.summary){ try{ Tavern.summary(data); shown=true; }catch(e){ console.error(e); } }
   if(!shown) toast('The crystal fell on wave '+w+' — +'+(25*w)+' gold'); return shown; }
 // the reroll happens when a run actually starts (first in-play frame), never on a page load: TRY AGAIN / a refresh is not a free Restock
@@ -101,10 +110,10 @@ function ensureMetaHud(){ if(!$('gold')){ const res=document.querySelector('.res
 function metaHud(){ const g=fmtG(st.gold), el=$('gold'); if(el&&mhud.gold!==g){ mhud.gold=g; el.textContent=g; }
   const p=points(), x='Lv '+st.level+' · '+fmtG(st.xp)+' / '+fmtG(xpToNext(st.level))+' xp'+(p?' · ✦ '+p+' skill pt'+(p===1?'':'s')+' for the trainer':''), xl=$('xpline'); if(xl&&mhud.xp!==x){ mhud.xp=x; xl.textContent=x; } }
 // ---- test / debug helpers ----
-function metaReset(){ try{ localStorage.removeItem('ddMeta'); }catch(e){} st=freshMeta(); run={xp:0,gold:0,spent:0,payout:0,levels:0,drops:0,items:[],ended:false,newBest:false,started:run.started}; resetGear(); st.stockTier=1; rollStock(); saveMeta(); }
+function metaReset(){ try{ localStorage.removeItem('ddMeta'); }catch(e){} st=freshMeta(); run={xp:0,gold:0,spent:0,payout:0,levels:0,drops:0,items:[],ended:false,settled:false,newBest:false,started:run.started}; resetGear(); st.stockTier=1; rollStock(); saveMeta(); }
 { const prevU=Meta.update; Meta.update=dt=>{ prevU(dt); metaUpdate(dt); }; }
 Object.assign(Meta,{
-  mult:skillMult, onPickup, onKill, onWaveHeld, onRunEnd, open:metaOpen, hud:metaHud,
+  mult:skillMult, onPickup, onKill, onWaveHeld, onRunEnd, onMapHeld, open:metaOpen, hud:metaHud,
   BAG_CAP, XP, SKILLS, SKILL_MAX, xpToNext, fmtG, isJunk, bagKey,
   gold:()=>st.gold, addGold, level:()=>st.level, xp:()=>st.xp, points, spentPoints, canRespec, respecCost, respec, spend,
   skill:id=>st.skills[id]||0, skills:()=>Object.assign({},st.skills), skillValue:id=>{ const s=SKILLS.find(s=>s.id===id); return s?s.fmt(s.per*st.skills[id]):''; },

@@ -162,13 +162,15 @@ check("the second pair connects",b1.err===null&&b2.err===null,JSON.stringify({b1
 for(const p of [h2,g2]) await p.evaluate(()=>window.__dd.setHero(500,500,0));
 await tick([h2,g2],4,5);
 const gold0=await g2.evaluate(()=>window.__meta.gold());
-const won=await h2.evaluate(()=>{ const d=window.__dd; d.S.wave=d.map().waves-1; d.S.phase='build'; d.startWave(); let g=0; while(d.S.phase==='wave'&&g++<900){ d.step(1/60,5); for(const e of d.enemies) if(!e.dead) d.kill(e); } return {phase:d.S.phase,eff:d.effWave()}; });
+const won=await h2.evaluate(()=>{ const d=window.__dd; d.S.wave=d.map().waves-1; d.S.phase='build'; d.startWave(); let g=0; while(d.S.phase==='wave'&&g++<900){ d.step(1/60,5); for(const e of d.enemies) if(!e.dead) d.kill(e); } return {phase:d.S.phase,held:d.S.held,eff:d.effWave()}; });
 const want=25*won.eff+150;
+// build 160: the map is paid at HALL HELD, the host's and the guests' alike, and the run ends at the host's ▶ MOVE ON (the victory lap between)
+const paidHeld=await tickUntil([h2,g2],g2,x=>window.__meta.gold()>=x,gold0+want,60);
+const hostPay=await h2.evaluate(()=>window.__meta.summary().payout), goldHeld=await g2.evaluate(()=>window.__meta.gold());
+await h2.evaluate(()=>window.__dd.moveOn());
 let seen=false; for(let i=0;i<60&&!seen;i++){ await tick([h2,g2],1,2); seen=await g2.evaluate(()=>window.__dd.S.phase==='won'); }
-await h2.waitForTimeout(3000);   // winMap's own 2.4 s before the host's Meta.onRunEnd pays the host
-const hostPay=await h2.evaluate(()=>window.__meta.summary().payout);
 const deadp=await g2.evaluate(()=>document.getElementById('deadp').textContent), gold1=await g2.evaluate(()=>window.__meta.gold());
-check("holding the Throne Room pays the guest what it pays the host: 25 x the campaign wave + 150 = "+want+" (it paid 25 x the map's wave)",won.phase==='won'&&seen&&hostPay===want&&new RegExp('\\+'+want+' ● gold for the run').test(deadp)&&gold1-gold0>=want,JSON.stringify({won,hostPay,deadp,gain:gold1-gold0}));
+check("holding the Throne Room pays the guest what it pays the host: 25 x the campaign wave + 150 = "+want+" (it paid 25 x the map's wave)",won.phase==='build'&&won.held&&paidHeld&&seen&&hostPay===want&&new RegExp('\\+'+want+' ● gold for the run').test(deadp)&&gold1-gold0>=want&&gold1===goldHeld,JSON.stringify({won,hostPay,deadp,gain:gold1-gold0,atHeld:goldHeld-gold0}));
 
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
 check("no page errors",realErrors.length===0,realErrors.slice(0,5).join(" | "));

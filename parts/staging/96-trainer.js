@@ -30,7 +30,7 @@ const netRole=()=>(window.__net&&window.__net.role)?window.__net.role():null; co
 const hostWorld=()=>(window.__net&&window.__net.world)?window.__net.world():null; const defsSeen=()=>window.__defsync?window.__defsync.list():[];
 const W0={spawned:false,gone:false,lent:false,kills:0,through:0,g:null,respawnT:0};
 function trainingGoblin(){ return enemies.find(e=>e.training&&!e.dead)||null; }
-function waveZero(){ if(isGuest()) return; if(W0.g||S.phase!=='build') return; if(W0.respawnT>0) return; try{ const e=spawnEnemy('goblin','N'); e.training=true; e.dmg=0; e.spd=e.spd*.8; W0.g=e; W0.spawned=true; }catch(err){ W0.gone=true; } }
+function waveZero(){ if(isGuest()) return; if(W0.g||S.phase!=='build'||S.held) return;   /* build 160: a held hall's victory lap has no waves, wave zero included */ if(W0.respawnT>0) return; try{ const e=spawnEnemy('goblin','N'); e.training=true; e.dmg=0; e.spd=e.spd*.8; W0.g=e; W0.spawned=true; }catch(err){ W0.gone=true; } }
 function lendMana(){ if(isGuest()) return; const k=heroPick.unlocks[0]; const need=k&&DEFS[k]?DEFS[k].mana:0; if(!W0.lent&&need&&S.mana<need){ W0.lent=true; S.mana=need; } }   // the hall lends the mana for the first defense, once
 const firstDef=()=>{ const k=heroPick.unlocks[0]; return {kind:k,key:String(heroPick.unlocks.indexOf(k)+1),name:DEFS[k]?DEFS[k].name:'defense'}; };
 const STEPS=[

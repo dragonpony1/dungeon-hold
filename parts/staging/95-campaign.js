@@ -31,7 +31,7 @@ function freshReload(){ location.reload(); }
 function wipeSaves(){ try{ Object.keys(localStorage).filter(k=>/^dd/.test(k)).forEach(k=>localStorage.removeItem(k)); }catch(e){} }
 window.__fresh={reload:freshReload,wipe:wipeSaves};
 testLine(); maintLine();
-// the end screen for a held map
+// the end screen for a held map -- worded at HALL HELD, seen after MOVE ON (build 160: the victory lap in between keeps it hidden)
 const winProc=winMap; winMap=function(){ winProc(); $('deadh1').textContent='HALL HELD'; $('deadh2').textContent=MAP.name+' CLEARED · ALL '+MAP.waves+' WAVES HELD'; $('deadp').textContent=MAPI+1<MAPS.length?'The horde broke. Your gear, gold and skills come with you to the next map.':'That was the last map for now — the horde will be back with more halls.'; $('nextmapbtn').style.display=MAPI+1<MAPS.length?'':'none'; $('againbtn').textContent='↻ REPLAY THIS MAP'; };
 $('nextmapbtn').addEventListener('click',next);
 window.__campaign={index:MAPI,cleared,next,go,maps:()=>MAPS.map(m=>({id:m.id,name:m.name,waves:m.waves})),line:()=>$('mapline').textContent,test:()=>({autoMana:TEST.autoMana,line:$('testline').textContent}),unlockAll:()=>{ try{ localStorage.setItem('ddMapsCleared',String(MAPS.length)); }catch(e){} mapLine(); testLine(); }};

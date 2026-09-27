@@ -112,8 +112,13 @@ async function tickBoth(hostPage,guestPage,batches=6,size=5){
   const totalWaves=await hostPage.evaluate(()=>window.__dd.map().waves);
   const hostPhase=await hostPage.evaluate(w=>{ const d=window.__dd; d.S.wave=w-1; d.S.phase='build'; d.startWave();
     let guard=0; while(d.S.phase==='wave'&&guard++<600){ d.step(1/60,5); for(const e of d.enemies) if(!e.dead) d.kill(e); }
-    return d.S.phase; },totalWaves);
-  check("the last wave clearing for real calls the genuine winMap() -- host's own phase becomes 'won'",hostPhase==='won',hostPhase);
+    return {phase:d.S.phase,held:d.S.held}; },totalWaves);
+  check("the last wave clearing for real calls the genuine winMap() -- the host's hall is held (build 160: its victory lap, phase back to 'build' until it moves on)",hostPhase.phase==='build'&&hostPhase.held,JSON.stringify(hostPhase));
+  // build 160: the run now ends at the host's MOVE ON, not at the last kill -- until then the guest stays in the hall with the host
+  for(let i=0;i<60&&!(await guestPage.evaluate(()=>!!(window.__net.world()&&window.__net.world().held)));i++){ await hostPage.evaluate(()=>window.__dd.step(1/60,1)); await guestPage.evaluate(()=>window.__dd.step(1/60,1)); await new Promise(r=>setTimeout(r,20)); }   // the same backlog as below: poll, never a guessed wait
+  const guestLap=await guestPage.evaluate(()=>({phase:window.__dd.S.phase,dead:!document.getElementById('dead').classList.contains('hide'),held:!!(window.__net.world()&&window.__net.world().held)}));
+  check("...and the guest stays in the hall on the host's lap (no end screen yet; it knows the hall is held)",guestLap.phase==='build'&&!guestLap.dead&&guestLap.held,JSON.stringify(guestLap));
+  await hostPage.evaluate(()=>window.__dd.moveOn());   // the host's ▶ MOVE ON: the genuine run end, the same one the G key and the button reach
 
   // the whole wave-clear above ran inside ONE synchronous evaluate() call, unlike every other tick loop in this
   // suite -- zero yields back to the browser's own event loop between steps, so every message the host queued
@@ -128,7 +133,7 @@ async function tickBoth(hostPage,guestPage,batches=6,size=5){
     await new Promise(r=>setTimeout(r,20));
     guestPhase=await guestPage.evaluate(()=>window.__dd.S.phase);
   }
-  check("the guest's own S.phase moves to 'won' too",guestPhase==='won',guestPhase);
+  check("the guest's own S.phase moves to 'won' too, when the host moves on",guestPhase==='won',guestPhase);
   const guestTitle=await guestPage.evaluate(()=>document.getElementById('deadh1').textContent);
   check("titled HALL HELD for a guest's win, not SHATTERED",guestTitle==='HALL HELD',guestTitle);
   await close();

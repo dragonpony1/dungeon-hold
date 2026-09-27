@@ -42,7 +42,8 @@ Modules extend it with `Object.assign(Meta,{...})`. Where game.js calls each hoo
 | `Meta.onPickup(it,l)` | `pickup(l)` when the hero walks over loot `l` (`l.it` is the item) | return true if bagged; game removes the floor loot either way |
 | `Meta.onKill(e)` | `kill(e)` after orbs + loot drop | `e.kind` ∈ goblin/archer/orc/ogre |
 | `Meta.onWaveHeld(w)` | end of `updateWave` when the wave is cleared (phase → 'build') | |
-| `Meta.onRunEnd(w)` | `hurtCrystal` when the crystal falls (`S.phase==='dead'`, pointer lock released) | return true to suppress the old `#dead` screen |
+| `Meta.onRunEnd(w)` | `hurtCrystal` when the crystal falls (`S.phase==='dead'`, pointer lock released); since build 160 also `moveOn()`, the player's ▶ MOVE ON after a map is held (`S.phase==='won'`) | return true to suppress the old `#dead` screen |
+| `Meta.onMapHeld(w,o)` | build 160: `winMap()` the moment a map's last wave is held — the victory lap starts (`S.held`, phase back to 'build') | 10-meta.js pays the run here (and records the best wave); `onRunEnd` at MOVE ON then pays nothing twice |
 | `Meta.update(dt)` | end of the in-play branch of `update(dt)` (not during 'start'/'dead') | familiar lives here |
 | `Meta.hud()` | end of `update(dt)` every frame (all phases except 'start') | keep cheap: diff before touching the DOM |
 | `Meta.open()` | key `I`/`B`, the 🎒 HUD button (`#bagbtn`), the start screen's `#tavbtn`, the touch 🎒 button | open the tavern overlay |
@@ -120,6 +121,6 @@ charms, amulets, familiars → put run experience into skill categories."
 
 ### Campaign and height (game.js)
 - `MAPS[]`, `MAPI`, `MAP`, `MAPS_CLEARED`; `effWave()` = MAP.wbase + S.wave drives spawn strength, loot level, pay and shop tiers; `S.wave` is the map's own count (banner "WAVE n OF 7").
-- Phases: 'start' · 'build' · 'wave' · 'won' (last wave held: `winMap()` → `Meta.onRunEnd(effWave(), {won:true, map, mapName, hasNext})`, payout 25·wave + 150, `ddMapsCleared` saved) · 'dead'.
+- Phases: 'start' · 'build' · 'wave' · 'won' · 'dead'. Last wave held (build 160, the victory lap): `winMap()` sets `S.held`, puts the phase back to 'build' (walk, collect, build, shop, the portal — no more waves), saves `ddMapsCleared` and pays the run at once (`Meta.onMapHeld`, 25·wave + 150); the horn button reads ▶ MOVE ON, and it or G (`startWave()` → `moveOn()`) sets 'won' and calls `Meta.onRunEnd(effWave(), {won:true, map, mapName, hasNext})` for the tally.
 - `Tavern.summary(data)` renders HALL HELD with a NEXT MAP button when `data.won && data.hasNext`; `window.__campaign.next()/go(i)` reload with `?map=`.
 - Height: `hgt`, `rampA/rampL/rampH` per cell; `floorH(x,z)`, `baseFloor(x,z)` (+.5 on the dais); `solidAt` refuses a step taller than .62; `bfs` refuses neighbours more than .8 apart; stairs cannot hold defenses.

@@ -572,7 +572,7 @@ const MOBS={goblin:{hp:10,spd:3.4,dmg:3,cd:1.0,mana:1,detour:3}, orc:{hp:45,spd:
   trollboss:{hp:340,spd:1.9,dmg:14,cd:2.6,mana:14,ranged:11,splash:2.2,detour:2,healAmt:14,healR:6.5,healCd:3.2}};   // the lavender troll: a healer mini-boss — a slow lob that splashes, and a heal-pulse that mends nearby mobs (kill this one first)
 const DU_CAP=MAP.du||40, SENS=0.0042;   // roots: a bigger map gives more to build with
 const CRYSTAL_MAX=MAP.crystalHp||150;   // the crystal's life: half again what it was, so a leak costs a wave, not the run; a map may set its own (the training ground doubles it)
-const S={mana:MAP.mana||260,du:0,crystal:CRYSTAL_MAX,wave:0,phase:'start',t:0,waveT:0,kills:0};
+const S={mana:MAP.mana||260,du:0,crystal:CRYSTAL_MAX,wave:0,phase:'start',t:0,waveT:0,kills:0,held:false};   // held (build 160): the last wave is held and the hall is on its victory lap -- phase 'build', no more waves, MOVE ON ends the run (winMap/moveOn)
 function effWave(w){ return MAP.wbase+(w===undefined?S.wave:w); }   // map 2 wave 1 is the eighth wave of the campaign: mobs, loot and pay scale with this
 const hero={x:0,y:0,z:6,vy:0,yaw:PI,hp:100,max:100,swingT:-1,hitDone:false,dead:0,ph:0,moving:false,hurtT:0,grounded:true,reach:2.4};   // reach: how far the swing lands (a whip reaches further than a sword)
 const H=makeHero(); scene.add(H.g); const heroShadow=blob(.5); scene.add(heroShadow);
@@ -583,7 +583,7 @@ let gear={weapon:null,armor:null,charm:null,amulet:null,familiar:null};
 const Meta={
   mult:k=>0,            // multiplicative bonus from skills for a key: 'dmg','hp','spd','move','tow','tcd','aoe','mana' (0.25 = +25%)
   onPickup:it=>false,   // return true when the module took the item (into the bag); false = old behaviour (auto equip / sell)
-  onKill:e=>{}, onWaveHeld:w=>{}, onRunEnd:w=>false, onDefFx:(d,fx)=>{},   // a defense's one-shot effect (the cage's implosion) for a module to relay (99-network.js sends it to the guests)   // onRunEnd: true when the module shows its own run-summary/tavern screen
+  onKill:e=>{}, onWaveHeld:w=>{}, onRunEnd:w=>false, onMapHeld:(w,o)=>{}, onDefFx:(d,fx)=>{},   // onMapHeld (build 160): the map's last wave held -- the module pays the run then and there, and onRunEnd (at MOVE ON) shows the tally without paying twice   // a defense's one-shot effect (the cage's implosion) for a module to relay (99-network.js sends it to the guests)   // onRunEnd: true when the module shows its own run-summary/tavern screen
   update:dt=>{}, hud:()=>{}, open:()=>{}, isOpen:()=>false,
   sharedHall:()=>false,   // co-op (build 159): true while this page hosts a hall with guests in it -- then the hall runs on under this page's menus (update() below), since it is theirs too (99-network.js)
   heroes:()=>[],   // co-op: other players' heroes an enemy should also be able to notice, each {x,y,z,isDead:()=>bool,hurt:dmg=>void} — empty outside a hosted session (99-network.js)
@@ -636,7 +636,7 @@ function swing(){ if(hero.swingT>=0||hero.dead>0||S.phase==='start'||S.phase==='
   if(useGLB&&GLBH&&GLBH.actions.attack) playHero('attack',{restart:true,fade:.05,speed:GLBH.map.attack.duration/swingDur()}); }
 function hitCone(){ const fx=Math.sin(hero.yaw), fz=Math.cos(hero.yaw); let n=0; for(const e of enemies){ if(e.dead) continue; const dx=e.x-hero.x, dz=e.z-hero.z, d=Math.hypot(dx,dz); if(d<(hero.reach||2.4)+e.r&&(dx*fx+dz*fz)/Math.max(d,.01)>.4){ hurt(e,heroDmg(),fx*1.4,fz*1.4); n++; } } if(n) SFX.hit(); }
 function hurtHero(dmg){ if(hero.dead>0) return; dmg=Math.max(1,Math.round(dmg*(1-Math.min(75,heroStat('def'))/100))); hero.hp-=dmg; hero.hurtT=3; flashDmg(); SFX.hurt(); if(hero.hp<=0){ hero.hp=0; hero.dead=4; toast('You fell! Back in 4 seconds…'); H.g.visible=false; heroShadow.visible=false; } }
-function hurtCrystal(dmg,killer){ if(S.phase==='dead'||S.phase==='won'||S.phase==='deathcut') return; S.crystal-=dmg; flashDmg(); SFX.crystal(); crystalShake=.4; if(S.crystal<=0){ S.crystal=0; startDeathCut(killer); } }
+function hurtCrystal(dmg,killer){ if(S.phase==='dead'||S.phase==='won'||S.phase==='deathcut'||S.held) return;   /* build 160: nothing ends a victory lap but MOVE ON -- a crystal that has held its map can't fall on the lap */ S.crystal-=dmg; flashDmg(); SFX.crystal(); crystalShake=.4; if(S.crystal<=0){ S.crystal=0; startDeathCut(killer); } }
 function finishDeath(){ S.phase='dead'; droneOff(); setMusic('none'); sting(); if(document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play'); if(!Meta.onRunEnd(S.wave)){ $('deadwave').textContent=S.wave; $('dead').classList.remove('hide'); } deathCut=null; }
 function startDeathCut(killer){ const k=(killer&&!killer.dead)?killer:null; deathCut={t:0,dur:2,killer:k,eye:null,eye2:null,look:null}; if(k&&k.mdl&&k.mdl.glb&&k.mdl.actions&&k.mdl.actions.attack){ k.swing=0; mobPlay(k.mdl,'attack',{restart:true,fade:0,speed:.5}); } S.phase='deathcut'; }
 function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c.killer; if(k&&!k.dead&&k.mdl&&k.mdl.actions) mobAnim(k,dt);   /* only a rigged (GLB) killer has clips to drive; a mob still on its procedural body while its model is on the way (loading tiers, build 123) used to throw here and stall the death cut */
@@ -647,7 +647,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=159;
+const BUILD=160;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1106,15 +1106,31 @@ function waveComp(w){ const all=Object.keys(LANES); const mw=w-MAP.wbase; const 
   const parts=['Goblins ×'+n]; if(orcs) parts.push('Orcs ×'+orcs); if(arch) parts.push('Bandits ×'+arch); if(drakes) parts.push('Drakes ×'+drakes); if(trolls) parts.push('Troll Archers ×'+trolls); if(ogres) parts.push(ogres>1?'TWO OGRES':'AN OGRE'); if(boss) parts.push('A TROLL BOSS');
   const gates=lanes.map(l=>LANES[l].name||l).join(' + ')+' gate'+(lanes.length>1?'s':'');
   return {q,desc:parts.join(' · ')+'  —  '+gates}; }
-function startWave(){ if(S.phase!=='build') return; S.wave++; S.phase='wave'; S.waveT=0; const c=waveComp(effWave()); spawnQ=c.q; banner('WAVE '+S.wave+' OF '+MAP.waves,c.desc); SFX.horn(); setMusic('wave'); cancelPlace(); }
+function startWave(){ if(S.held){ moveOn(); return; }   /* build 160: on the victory lap the horn is MOVE ON -- the G key, the 📯 button (it reads ▶ MOVE ON then) and anything else that sounds it; by name, so 99-network.js's wrap of moveOn runs */
+  if(S.phase!=='build') return; S.wave++; S.phase='wave'; S.waveT=0; const c=waveComp(effWave()); spawnQ=c.q; banner('WAVE '+S.wave+' OF '+MAP.waves,c.desc); SFX.horn(); setMusic('wave'); cancelPlace(); }
 function updateWave(dt){ if(S.phase!=='wave') return; S.waveT+=dt; while(spawnQ.length&&spawnQ[0].t<=S.waveT){ const s=spawnQ.shift(); spawnEnemy(s.kind,s.lane); }
   if(!spawnQ.length&&!enemies.some(e=>!e.dead)){ const bonus=50+10*effWave(); S.mana+=bonus; dropLoot(rollItem(effWave()%5===0?2:1),R(-1.6,1.6),4.6,true); Meta.onWaveHeld(effWave());
     if(S.wave>=MAP.waves) winMap(); else { S.phase='build'; banner('HALL HELD','wave '+S.wave+' of '+MAP.waves+' repelled  ·  +'+bonus+' mana  ·  a reward drops by the crystal'); setMusic('build'); SFX.held(); } } }
-// the last wave of a map held: the map is cleared, the next one unlocks, the run ends in glory (the tavern shows the tally with a NEXT MAP button)
-function winMap(){ S.phase='won'; cancelPlace(); banner('HALL HELD','the horde broke on wave '+S.wave+'  ·  '+MAP.name+' is yours'); SFX.held(); setTimeout(()=>SFX.horn(),500); setMusic('none'); droneOff();
+// the last wave of a map held: the map is cleared, the next one unlocks, the run is paid -- and the hall stays open.
+// Build 160, Matt after his first hall: it said HALL HELD and then "didn't let me walk around or have any control of moving on" --
+// "you should be able to walk around and collect mana, spend your gold on upgrades, maybe even go to the hideout and back and move
+// on to the next map at your discretion". So holding the map starts a VICTORY LAP instead of ending the run: S.held, and the phase
+// goes back to 'build', so everything that already works between waves just works -- walking, the orbs and the loot on the floor,
+// placing/upgrading/repairing/selling, the bag, the tavern stations, the raven, the hideout portal there and back -- with no waves
+// left to start. What must not wait for the player is done here: ddMapsCleared, and the win's gold (Meta.onMapHeld, 10-meta.js),
+// so closing the tab mid-lap loses nothing. The tally (NEXT MAP / TAVERN / REPLAY) waits for MOVE ON (moveOn, below): the horn
+// button reads ▶ MOVE ON on the lap, and it or G ends the run the way the last wave used to. Nothing else can: hurtCrystal ignores
+// a held hall, and no mob is left to hurt it -- whatever a direct call (a test's __dd.winMap() mid-wave) leaves walking goes quietly
+function winMap(){ if(S.held) return; S.held=true; S.phase='build'; spawnQ=[]; for(const e of enemies) if(!e.dead){ e.through=true; e.dead=.001; }
+  banner('HALL HELD','the horde broke on wave '+S.wave+'  ·  '+MAP.name+' is yours'); SFX.held(); setTimeout(()=>SFX.horn(),500); setMusic('build'); droneOff();
   try{ localStorage.setItem('ddMapsCleared',String(Math.max(MAPS_CLEARED,MAPI+1))); }catch(e){}
+  Meta.onMapHeld(effWave(),{won:true,map:MAPI,mapName:MAP.name,hasNext:MAPI+1<MAPS.length});
+  setTimeout(()=>{ if(S.held&&S.phase==='build') toast('The hall is yours — walk it, collect, spend, visit the hideout. '+(TOUCH?'Tap ▶ MOVE ON':'G (or ▶ MOVE ON)')+' when you are ready'); },3600); }   // after the banner has had its moment
+// MOVE ON (build 160): the lap is over when the player says so -- the run ends as the held last wave used to end it: the phase 'won'
+// (update() stops the hall), the mouse freed, and Meta.onRunEnd's tally (it knows the gold went out at HALL HELD and pays nothing twice)
+function moveOn(){ if(!S.held||S.phase!=='build') return; S.phase='won'; cancelPlace(); setMusic('none'); droneOff();
   if(document.pointerLockElement&&document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play');
-  setTimeout(()=>{ if(S.phase!=='won') return; const shown=Meta.onRunEnd(effWave(),{won:true,map:MAPI,mapName:MAP.name,hasNext:MAPI+1<MAPS.length}); if(!shown){ $('deadwave').textContent=S.wave; $('dead').classList.remove('hide'); } },2400); }
+  const shown=Meta.onRunEnd(effWave(),{won:true,map:MAPI,mapName:MAP.name,hasNext:MAPI+1<MAPS.length}); if(!shown){ $('deadwave').textContent=S.wave; $('dead').classList.remove('hide'); } }
 
 // ================= PLACEMENT / REPAIR / SELL =================
 function select(kind){ if(S.phase==='start'||S.phase==='dead'||S.phase==='won'||S.phase==='deathcut') return; if(placing===kind){ cancelPlace(); return; } cancelPlace(); placing=kind; ghost=makeDef(kind,true); scene.add(ghost); const cfg=DEFS[kind]; ghostSector=sectorMesh(cfg.range||0,cfg.arc||360,0x40ff80); scene.add(ghostSector); ghostRot=0; placeStage=0; anchorPos=null; updateGhost(); }
@@ -1154,10 +1170,11 @@ const hud={}; function setT(id,v){ if(hud[id]!==v){ hud[id]=v; $(id).textContent
 function updateHUD(){ const cw_=Math.max(0,S.crystal/CRYSTAL_MAX*100)+'%'; if(hud.cbar!==cw_){ hud.cbar=cw_; $('cbar').style.width=cw_; } const hw=(hero.hp/hero.max*100)+'%'; if(hud.hbar!==hw){ hud.hbar=hw; $('hbar').style.width=hw; }
   setT('mana',Math.floor(S.mana)); setT('du',S.du+'/'+DU_CAP); updateGearHUD();
   const alive=enemies.filter(e=>!e.dead).length+spawnQ.length;
-  if(S.phase==='wave'){ setT('wavet','WAVE '+S.wave+' / '+MAP.waves); setT('phaset',alive+' enem'+(alive===1?'y':'ies')+' left'); } else if(S.phase==='won'){ setT('wavet','HALL HELD — '+MAP.name+' CLEARED'); setT('phaset',''); } else if(S.phase==='build'){ setT('wavet',S.wave?'HALL HELD — BUILD PHASE':'BUILD PHASE'); setT('phaset',TOUCH?'Place defenses, then tap 📯':'Place defenses (1–7), then press G to sound the horn'); }
+  if(S.phase==='wave'){ setT('wavet','WAVE '+S.wave+' / '+MAP.waves); setT('phaset',alive+' enem'+(alive===1?'y':'ies')+' left'); } else if(S.phase==='won'){ setT('wavet','HALL HELD — '+MAP.name+' CLEARED'); setT('phaset',''); } else if(S.held){ setT('wavet','HALL HELD — '+MAP.name+' CLEARED'); setT('phaset',TOUCH?'The hall is yours — tap ▶ MOVE ON when ready':'The hall is yours — walk, collect, spend · G moves on when you are ready'); } else if(S.phase==='build'){ setT('wavet',S.wave?'HALL HELD — BUILD PHASE':'BUILD PHASE'); setT('phaset',TOUCH?'Place defenses, then tap 📯':'Place defenses (1–7), then press G to sound the horn'); }
   DEFKEYS.forEach(k=>{ const el=$('slot-'+k), cfg=DEFS[k]; const cls='slot'+(placing===k?' sel':'')+((S.mana<cfg.mana||S.du+cfg.du>DU_CAP)?' poor':''); if(el.className!==cls) el.className=cls; });
   let pr=''; if(placing){ pr=placeStage===1?(ghostOk?(TOUCH?'Drag or ↻ to turn it  ·  tap ✔ to build':'Move the mouse, R or wheel to turn it  ·  click to build  ·  right-click to pick it up'):ghostReason):(ghostOk?(TOUCH?'Tap ✔ to set it down · look to aim':'Click to set it down  ·  look to aim  ·  Esc cancel'):ghostReason); } else { const d=nearestDef(3.4); if(d){ const cost=Math.ceil((d.max-d.hp)/8); pr=DEFS[d.kind].name+(d.lvl>1?' Mk '+MARK[d.lvl]:'')+'  '+Math.ceil(d.hp)+'/'+d.max+(cost?'  ·  E repair ('+cost+' mana)':(d.lvl<MAXLVL?'  ·  E upgrade ('+upCost(d)+' mana)':''))+'  ·  X sell (+'+Math.round(d.spent*.7)+')'; } }
   setT('prompt',pr); const wb=S.phase!=='build'; if(hud.wb!==wb){ hud.wb=wb; $('wavebtn').disabled=wb; }
+  setT('wavebtn',S.held?'▶ MOVE ON':'📯 START WAVE');   // build 160: the horn button on the victory lap (a co-op guest's reads the host's lap, 99-network.js)
 }
 const PV=new THREE.Vector3();
 function proj(x,y,z){ PV.set(x,y,z).project(camera); if(PV.z>1) return null; return [(PV.x+1)/2*ov.width,(1-PV.y)/2*ov.height]; }
@@ -1193,7 +1210,7 @@ const touchEnd=e=>{ for(const t of e.changedTouches){ if(t.identifier===joy.id){
 canvas.addEventListener('touchend',touchEnd); canvas.addEventListener('touchcancel',touchEnd);
 DEFKEYS.forEach((k,i)=>{ const cfg=DEFS[k]; const s=document.createElement('div'); s.className='slot'; s.id='slot-'+k; s.innerHTML='<div class="k">'+DEFKEY_LABELS[i]+'</div><div class="ic">'+cfg.ic+'</div><div class="n">'+cfg.name+'</div><div class=\"cst\">🌱 '+cfg.du+' · '+cfg.mana+' ◆</div>'; s.addEventListener('click',()=>select(k)); $('hotbar').appendChild(s); });
 if(TOUCH){ [['⚔',()=>swing()],['⤴',()=>jump()],['✔',()=>{ if(placing) confirmPlace(); }],['↻',()=>{ rotateGhost(PI/4); }],['🔧',()=>upgrade()],['🎒',()=>Meta.open()]].forEach(   /* by NAME at the tap, not the function as it stood here (build 159, Matt on his iPad: "the wrench doesn't work"): the modules load after this line and wrap swing/upgrade -- the portal, the tavern stations, the raven, a co-op guest's relayed swing and repair -- and the buttons were still holding the bare originals */([t,f])=>{ const b=document.createElement('div'); b.className='hb'; b.textContent=t; b.addEventListener('touchstart',e=>{ e.preventDefault(); f(); },{passive:false}); $('btns').appendChild(b); }); }
-$('wavebtn').addEventListener('click',()=>{ startWave(); if(!TOUCH&&canvas.requestPointerLock) canvas.requestPointerLock(); });
+$('wavebtn').addEventListener('click',()=>{ startWave(); if(!TOUCH&&S.phase!=='won'&&canvas.requestPointerLock) canvas.requestPointerLock(); });   // build 160: not after a MOVE ON -- the tally needs the mouse
 function play(){ if(S.phase!=='start') return; S.phase='build'; $('start').classList.add('hide'); SFX.enter(); setTimeout(()=>setMusic('build'),400); if(heroLoadError) setTimeout(()=>toast('Hero model failed to load ('+heroLoadError+') — using the old gnome'),600); if(!TOUCH&&canvas.requestPointerLock) canvas.requestPointerLock(); cam.x=hero.x; cam.y=hero.y+5; cam.z=hero.z+8; cam.d=cam.dist; toast('Build phase — pick a defense with the number keys, then G to start the wave'); }
 $('playbtn').addEventListener('click',play); $('tavbtn').addEventListener('click',()=>Meta.open()); $('bagbtn').addEventListener('click',()=>Meta.open());
 
@@ -1211,11 +1228,11 @@ requestAnimationFrame(frame);
 window.__loadtime=()=>Object.assign({},LOADT);
 window.__dd={renders:()=>RENDERS,placeDefAt,upgradeDef,S,hero,cam,renderer,camera,enemies,defs,projs,orbs,loot,grid,DEFS,MOBS,stat,mobSpd,gear:()=>gear,rollItem,dropLoot,resetGear,heroStat,heroMult,heroDmg,kill,Meta,SLOTS,applyGear,saveGear,pickup,tierOf,statStr,RNAME,RCSS,loadHeroGLB,toggleHero,ghost:()=>placing?{x:ghostPos[0],z:ghostPos[1],yaw:ghostYaw,ok:ghostOk,why:ghostReason,stage:placeStage,dist:Math.hypot(ghostPos[0]-hero.x,ghostPos[1]-hero.z),sector:!!ghostSector&&ghostSector.children.length>0}:null,rotateGhost,unstick,music:()=>({on:musicOn,mode:musicMode,step:mStep}),hoverSector:()=>!!hoverSector,heroModel:()=>GLBH?{label:GLBH.label,useGLB,clips:Object.keys(GLBH.map),cur:GLBH.cur?GLBH.cur.getClip().name:null,scale:GLBH.scale,height:GLBH.height,visible:GLBH.wrap.visible}:null,mobTemplate:k=>MOBGLB[k],scene,mobModel:k=>MOBGLB[k]?{clips:Object.keys(MOBGLB[k].map),scale:MOBGLB[k].scale}:null,mobState:e=>e&&e.mdl&&e.mdl.glb?{cur:e.mdl.cur?e.mdl.cur.getClip().name:null,time:e.mdl.cur?e.mdl.cur.time:0}:null,setHeroYaw:d=>{ heroYawOff=d; },deathCut:()=>deathCut,camPos:()=>({x:camera.position.x,y:camera.position.y,z:camera.position.z}),hurtCrystal,SFX,rails:()=>RAILBOXES.map(b=>({x0:+b.x0.toFixed(2),x1:+b.x1.toFixed(2),z0:+b.z0.toFixed(2),z1:+b.z1.toFixed(2),top:+b.top.toFixed(2)})),
   start:()=>{ if(S.phase==='start'){ S.phase='build'; $('start').classList.add('hide'); cam.x=hero.x; cam.y=hero.y+5; cam.z=hero.z+8; cam.d=cam.dist; } },
-  startWave, winMap, place:(k,cx,cz,rot)=>placeDef(k,cx,cz,rot||0), spawn:spawnEnemy, select, confirmPlace, swing, repair, upgrade, sell, jump, setKeys:(o)=>Object.assign(K,o), r:renderer,
+  startWave, winMap, moveOn, place:(k,cx,cz,rot)=>placeDef(k,cx,cz,rot||0), spawn:spawnEnemy, select, confirmPlace, swing, repair, upgrade, sell, jump, setKeys:(o)=>Object.assign(K,o), r:renderer,
   step:(dt,n)=>{ for(let i=0;i<(n||1);i++) update(dt||1/60); },
   shot:(w,h)=>{ w=w||960; h=h||540; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); updateCamera(0); renderer.render(scene,camera); const d=renderer.domElement.toDataURL('image/png'); onResize(); return d; },
   setHero:(x,z,yaw)=>{ hero.x=x; hero.z=z; if(yaw!==undefined) hero.yaw=yaw; }, setCam:(yaw,pitch,dist)=>{ cam.yaw=yaw; cam.pitch=pitch; cam.dist=dist; cam.d=dist; },
-  status:()=>({phase:S.phase,wave:S.wave,mana:S.mana,du:S.du,crystal:S.crystal,heroHp:Math.round(hero.hp),enemies:enemies.filter(e=>!e.dead).length,defs:defs.length,projs:projs.length,orbs:orbs.length,queue:spawnQ.length,kills:S.kills,loot:loot.length,t:+S.t.toFixed(1)}),
+  status:()=>({phase:S.phase,held:S.held,wave:S.wave,mana:S.mana,du:S.du,crystal:S.crystal,heroHp:Math.round(hero.hp),enemies:enemies.filter(e=>!e.dead).length,defs:defs.length,projs:projs.length,orbs:orbs.length,queue:spawnQ.length,kills:S.kills,loot:loot.length,t:+S.t.toFixed(1)}),
   addMana:n=>{ S.mana+=n; }, mute:()=>setSound(false), reflow, flow:()=>flowDef, flowFly:()=>flowFly, worldInfo:()=>Object.assign({duCap:DU_CAP},world.userData),
   map:()=>({index:MAPI,id:MAP.id,name:MAP.name,waves:MAP.waves,wbase:MAP.wbase,total:MAPS.length,cleared:MAPS_CLEARED,gw:GW,gh:GH,wallH:WALLH,windows:world.userData.windows|0,style:MAP.style||null}), maps:()=>MAPS.map(m=>({id:m.id,name:m.name,waves:m.waves})), effWave, winMap, lanes:()=>LANES, pathLen:(cx,cz)=>flowFree.dist[idx(cx,cz)], pathLenFly:(cx,cz)=>flowFly.dist[idx(cx,cz)], cellAt:(cx,cz)=>gat(cx,cz), cw, cwz, floorH, baseFloor, hgtAt:(cx,cz)=>hgt[idx(cx,cz)] };
 })();

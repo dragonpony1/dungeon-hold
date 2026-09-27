@@ -87,13 +87,17 @@ async function until(p,fn,arg,ms=6000){ try{ await p.waitForFunction(fn,arg,{tim
   await tickBoth(hostPage,guestPage,3,5);
   const totalWaves=await hostPage.evaluate(()=>window.__dd.map().waves);
   const g0=await wallet(guestPage);
-  const hostPhase=await hostPage.evaluate(w=>{ const d=window.__dd; d.S.wave=w-1; d.S.phase='build'; d.startWave(); let guard=0; while(d.S.phase==='wave'&&guard++<600){ d.step(1/60,5); for(const e of d.enemies) if(!e.dead) d.kill(e); } return d.S.phase; },totalWaves);
-  check("the last wave clearing for real wins the map on the host",hostPhase==='won',hostPhase);
+  const hostPhase=await hostPage.evaluate(w=>{ const d=window.__dd; d.S.wave=w-1; d.S.phase='build'; d.startWave(); let guard=0; while(d.S.phase==='wave'&&guard++<600){ d.step(1/60,5); for(const e of d.enemies) if(!e.dead) d.kill(e); } return {phase:d.S.phase,held:d.S.held}; },totalWaves);
+  check("the last wave clearing for real wins the map on the host -- held, and (build 160) on its victory lap until it moves on",hostPhase.phase==='build'&&hostPhase.held,JSON.stringify(hostPhase));
   const want=25*totalWaves+150;
+  // build 160: the map's payout reaches the guest at HALL HELD, while the host's hall is still open on its lap
+  const paidHeld=await until(guestPage,x=>window.__meta.gold()>=x,g0.gold+want,8000);
+  const gH=await wallet(guestPage); const lapPhase=await guestPage.evaluate(()=>({phase:window.__dd.S.phase,dead:!document.getElementById('dead').classList.contains('hide')}));
+  check("the guest is paid 25*"+totalWaves+"+150 = "+want+" at HALL HELD (on top of the last wave's own 10+5w), still in the hall on the host's lap",paidHeld&&gH.gold-g0.gold>=want&&lapPhase.phase==='build'&&!lapPhase.dead,JSON.stringify({g0,gH,lapPhase}));
+  await hostPage.evaluate(()=>window.__dd.moveOn());   // the host's ▶ MOVE ON ends the run
   let won=false; for(let i=0;i<80&&!won;i++){ await hostPage.evaluate(()=>window.__dd.step(1/60,1)); await guestPage.evaluate(()=>window.__dd.step(1/60,1)); await sleep(20); won=await guestPage.evaluate(()=>window.__dd.S.phase==='won'); }
-  await until(guestPage,x=>window.__meta.gold()>=x,g0.gold+want,8000);
   const g1=await wallet(guestPage); const deadp=await guestPage.evaluate(()=>document.getElementById('deadp').textContent);
-  check("the guest's HALL HELD screen pays 25*"+totalWaves+"+150 = "+want+" gold (on top of the last wave's own 10+5w)",won&&g1.gold-g0.gold>=want&&new RegExp('\\+'+want+' ● gold for the run').test(deadp),JSON.stringify({g0,g1,deadp}));
+  check("the host's MOVE ON brings the guest's HALL HELD screen, naming the "+want+" gold for the run -- paid once: its gold doesn't move again",won&&g1.gold===gH.gold&&new RegExp('\\+'+want+' ● gold for the run').test(deadp),JSON.stringify({gH,g1,deadp}));
   check("the host's campaign bookkeeping stays its own: the guest's best wave is untouched",await guestPage.evaluate(()=>window.__meta.best()===0));
   await close();
 }

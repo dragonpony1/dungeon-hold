@@ -45,7 +45,7 @@ node familiar-test.mjs                  # the single-file fallback suite reads $
 Suites: feat, loot, glb, place, csp, mob, mobpath, meta, tavern, tavernroom, familiar, familiars2, cone, music, defglb,
 ballista, lootfeel, weapons, towers, paperdoll, casino, ogre, forge, fix-r1, fix-r2, heroes, void, sets, throne, campaign, maps,
 moat, aim, newmobs, trollboss, armory, totem, pause, pwa, share, hideout, loadorder, bagsort, gearlock, coop-rewards,
-voidset, halo-column, ballista-rig, forestset, trainer, menu, crystalalarm, coop-lifecycle, coop-freeze, and the verify-* adversarial suites. Run them one at a
+voidset, halo-column, ballista-rig, forestset, trainer, menu, crystalalarm, coop-lifecycle, coop-freeze, victorylap, and the verify-* adversarial suites. Run them one at a
 time: ten in parallel time out on page loads (the page is 6.8 MB).
 
 ## Adding Meshy art
@@ -63,8 +63,9 @@ raised floor height, lay a staircase), the crystal cell, the gates (`lanes`, in 
 `from`: the map's own wave that gate first opens on), props, lights (world coords, `{cx,cz,y}` cells, or `{cx,cz,up}`
 above that cell's floor), the hall rectangle (banners), beams, a throne, and where the tavern room sits
 (`tavern:{dx,dz}`, an offset from map 1's room). The map is chosen when the page loads: `?map=N` or the saved `ddMap`, never
-past `ddMapsCleared`. Hold `waves` waves and the map is cleared (`winMap`): the tally shows NEXT MAP, which reloads with the
-next `?map`. Difficulty carries across maps through `effWave()` (map 2 wave 1 fights like wave 8); the HUD shows the map's own
+past `ddMapsCleared`. Hold `waves` waves and the map is cleared (`winMap`) and paid; since build 160 the hall then stays open
+for a victory lap (`S.held`, phase 'build', no more waves) until the player presses ▶ MOVE ON (the horn button, or G:
+`moveOn`), and only then the tally shows NEXT MAP, which reloads with the next `?map`. Difficulty carries across maps through `effWave()` (map 2 wave 1 fights like wave 8); the HUD shows the map's own
 wave count. Height: `hgt`/`rampA` per cell, `floorH(x,z)` (stairs are two flat steps per cell), no walking or pathing up a
 ledge taller than a step, a flight is entered and left at its ends only (never over its side), no building on stairs;
 raised tops and stone drops are generated after the walls (pale stone in marble halls), gates, torches, banners and
@@ -1018,6 +1019,32 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   -- for a second player on this PC, use another browser or a private window"). Warning only. `coop-party-test.mjs` (new, 20
   checks; with the waiting join turned off the guest is back 34 s after the host re-hosts instead of at once, and that check
   fails). Not done: the TURN relay for strict-NAT players still needs a relay account in Matt's name (LC5).
+- Build 160: the hall stays open after HALL HELD. Matt, after his first hall: it said HALL HELD and then "didn't let me walk
+  around or have any control of moving on" -- "you should be able to walk around and collect mana, spend your gold on upgrades,
+  maybe even go to the hideout and back and move on to the next map at your discretion". Holding a map's last wave is a
+  **victory lap** now, not the end of the run: `winMap` (game.js) sets `S.held` and puts the phase back to 'build', so
+  everything that works between waves works -- walking and jumping, the orbs and loot on the floor, placing, upgrading,
+  repairing and selling, the bag, the tavern and its stations, the raven, the hideout portal there and back -- and nothing
+  more comes down the lanes (`hurtCrystal` ignores a held hall; the guide's wave-zero goblin stays away). What must not wait
+  is done at once: `ddMapsCleared`, and the win's gold, `Meta.onMapHeld` (10-meta.js `settleRun`: 25·wave + 150 and the best
+  wave, saved), so closing the tab mid-lap loses nothing. The shop's tier-up still comes at the run's end (the wares on the
+  table stay through the lap; a tab closed mid-lap gets the new tier on its next load anyway). The horn button reads
+  **▶ MOVE ON** on the lap, and it or G (`startWave` → `moveOn`) ends the run the old way: phase 'won', the mouse freed,
+  `Meta.onRunEnd`'s tally (NEXT MAP / TO THE TAVERN / REPLAY THIS MAP), which finds the run settled and pays nothing twice
+  (TO THE TAVERN doesn't count the payout up again either: `paidEarly`). The map-one Forest-locker gate guards a wave, never
+  MOVE ON. **Co-op** (99-network.js): everyone gets the lap. The host's `winMap` sends `mapHeld` -- the banner, the map
+  counted as the guest's, and the host's exact pay (`runPay`) -- and its world broadcast says `held`; a guest's HUD, horn
+  button and portal follow it, and a guest's MOVE ON (G or the button) only says the host moves the party on. **Guests are
+  paid at HALL HELD**, not at MOVE ON: that keeps "closing the tab loses nothing" true for them too, and survives a host who
+  never moves on or whose tab dies (a guest whose host leaves on the lap gets its HALL HELD screen, not THE HOST LEFT). The
+  host's MOVE ON is what now sends `runEnd` -- with `held:true`, "already paid": a guest that was there isn't paid twice, one
+  that dropped and came back on the lap already has its pay in its save, and a friend who walked in on the lap held nothing --
+  and leaves the matchmaking server (`parkHost`); through the lap the host stays on it, so a friend can still walk in. An
+  older host that sends no `held` still pays at `runEnd`. `victorylap-test.mjs` (new, 32 checks: solo map one, then a co-op
+  pair with a friend who walks in on the lap, and a host who leaves on it; build 159 fails 9 of its first 10 checks, then
+  throws at the shop). campaign-test,
+  coop-rewards, coop-feedback and coop-loot hold the lap and then MOVE ON (the same checks, plus "no tally by itself" and
+  "paid once").
 - Build 152: MYTHIC gear. The hideout's forge (hideout builds 26-30) makes a tier one step above legendary, rarity 5,
   and the game wears it: `RNAME[5]` Mythic in its own pink, valid and fixable at 5, forge caps at 5, no level gate on
   anything the hideout forged. **Named mythics** (ten, a forge proc, Matt's stats, each with a signature power,

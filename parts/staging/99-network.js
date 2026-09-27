@@ -174,6 +174,10 @@
 // next game -- a join that waits asks again every few seconds while the server says there is no such room, instead of backing off to
 // a minute -- and the JOIN box comes up holding the last code. It never lands a guest on a map past its own unlock: from a map it had
 // followed the host to, it goes home, and the host's lobby moves it on again only while that lobby is really there.
+// ===== BUILD 160: THE VICTORY LAP, FOR EVERYONE. Holding a map's last wave no longer ends the run on the spot (game.js winMap): the hall
+// stays open until the host presses ▶ MOVE ON. The guests hear it at once ('mapHeld': the banner, the map counted as theirs, and the map's
+// pay -- see guestHeld) and roam the lap with the host: the orbs and loot, building, the portal. A guest's own MOVE ON only tells it the host
+// decides. The host's MOVE ON is what now sends 'runEnd' (held:true, nothing paid twice) and leaves the matchmaking server (parkHost).
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -857,7 +861,7 @@ function hostBroadcastWorld(dt){
   // personal resource). mana:S.mana stays too, unchanged meaning (the HOST's own pool) -- nothing else reads it
   // differently than before, so no existing caller (tests included) needed to change.
   const manas={}; manas[selfId]=S.mana; guestMana.forEach((v,id)=>{ manas[id]=v; });
-  sendSnap('world',{crystal:S.crystal,crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,waveTotal:MAP.waves,mapName:MAP.name,mana:S.mana,manas,du:S.du,duCap:DU_CAP});
+  sendSnap('world',{crystal:S.crystal,crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,held:!!S.held,waveTotal:MAP.waves,mapName:MAP.name,mana:S.mana,manas,du:S.du,duCap:DU_CAP});   // held (build 160): the host's hall is on its victory lap -- phase 'build', but no horn to wait for
 }
 // a guest's own local S.phase never actually moves through 'deathcut'/'dead'/'won' -- only the HOST's real crystal
 // hitting 0, or its real last wave breaking, does that (hurtCrystal/winMap, game.js), and neither one so much as
@@ -875,12 +879,21 @@ function hostBroadcastWorld(dt){
 // already show solo, retitled for a guest (never Meta.onRunEnd -- that's the single-player reward/campaign-progress
 // hook, scored off THIS client's own wave/gear, not something the host's outcome should trigger for a guest at all).
 let guestRunEnded=false;
+// build 160: the victory lap. The host's last wave held no longer ends the run -- its hall stays open (game.js winMap) until the host
+// presses MOVE ON -- so a guest hears about it twice: 'mapHeld' the moment the horde breaks, and 'runEnd' at the host's MOVE ON. The
+// map's payout goes with the FIRST, to every guest in the hall at that moment, exactly as the host is paid then (10-meta.js onMapHeld):
+// closing the tab on the lap, the host never moving on, or the host's tab dying all lose a guest nothing it earned, and 'runEnd' then
+// carries held:true -- "already paid" -- so nobody is paid twice: not a guest that was there, not one that dropped and came back on
+// the lap (its pay is in its save from before), and not one that walked in during the lap (it held nothing). An older host that sends
+// no held flag still pays at 'runEnd', as it always did. guestHeld is what this page was told and paid at HALL HELD
+let guestHeld=null;
 function guestShowRunEnd(w){
   guestRunEnded=true; S.phase=w.phase; cancelPlace(); droneOff(); setMusic('none');
   if(document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play');
   if(w.phase==='won'){ SFX.held(); $('deadh1').textContent='HALL HELD'; $('deadh2').textContent=w.mapName+' is cleared'; }
   else { sting(); $('deadh1').textContent='SHATTERED'; $('deadh2').textContent='THE HALL FELL ON WAVE '+w.wave; }
-  const pay=typeof w.pay==='number'&&Number.isFinite(w.pay)?Math.max(0,Math.round(w.pay)):w.wave>0?25*w.wave+(w.phase==='won'?150:0):0; if(pay){ Meta.addGold(pay,'run'); Meta.save(); }   // phase 13: the run's payout -- since build 159 (3/7) the host's own number (runPay), so a later map pays the guest what it pays the host; the old map-wave formula only for an older host that sends none
+  const paidAtHeld=w.phase==='won'&&!!w.held;   // build 160: paid at HALL HELD (mapHeld, below) -- or, arriving on the lap, not at all
+  const pay=paidAtHeld?(guestHeld?guestHeld.pay:0):typeof w.pay==='number'&&Number.isFinite(w.pay)?Math.max(0,Math.round(w.pay)):w.wave>0?25*w.wave+(w.phase==='won'?150:0):0; if(pay&&!paidAtHeld){ Meta.addGold(pay,'run'); Meta.save(); }   // phase 13: the run's payout -- since build 159 (3/7) the host's own number (runPay), so a later map pays the guest what it pays the host; the old map-wave formula only for an older host that sends none
   $('deadp').textContent=(pay?'+'+pay+' ● gold for the run. ':'')+'Your own gear, gold and skills stay with you. Go again.'+(offerRejoin()?" ⟲ REJOIN puts you in the host's next game as soon as they host it.":'');
   $('nextmapbtn').style.display='none'; $('dead').classList.remove('hide');
 }
@@ -917,7 +930,16 @@ const GSFX={horn:0,held:0,crystal:0,place:0,upgrade:0,die:0,phase:null,crystalHp
 window.__gsfx=()=>Object.assign({},GSFX);
 function guestWorldSfx(w){ if(GSFX.phase&&GSFX.phase!==w.phase){ if(w.phase==='wave'){ SFX.horn(); GSFX.horn++; } else if(w.phase==='build'&&GSFX.phase==='wave'){ SFX.held(); GSFX.held++; } } GSFX.phase=w.phase;
   if(GSFX.crystalHp!==null&&w.crystal<GSFX.crystalHp-.01){ SFX.crystal(); if(SFX.alarm) SFX.alarm(); GSFX.crystal++; } GSFX.crystalHp=w.crystal; }
-onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded){ if(data.phase==='won'){ try{ const cur=parseInt(localStorage.getItem('ddMapsCleared'))||0; localStorage.setItem('ddMapsCleared',String(Math.max(cur,MAPI+1))); }catch(e){} }   /* build 150: a hall held with the host counts for the guest too (winMap records it on the host only) -- the next room and the other heroes open for them as well */ guestShowRunEnd(data); } });
+function guestMapCleared(){ try{ const cur=parseInt(localStorage.getItem('ddMapsCleared'))||0; localStorage.setItem('ddMapsCleared',String(Math.max(cur,MAPI+1))); }catch(e){} }   /* build 150: a hall held with the host counts for the guest too (winMap records it on the host only) -- the next room and the other heroes open for them as well */
+onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded&&data){ if(data.phase==='won') guestMapCleared(); guestShowRunEnd(data); } });
+// build 160: the host's hall is held -- the victory lap begins, on this page too: the banner, the map counted as cleared, and the map's
+// payout, right now (see guestHeld above). The HUD, the horn button (▶ MOVE ON, which only tells a guest the host decides) and the portal
+// follow the host's world broadcast (held:true, phase 'build'); the end screen waits for the host's MOVE ON ('runEnd')
+onMessage('mapHeld',data=>{ if(role!=='guest'||guestRunEnded||guestHeld||!data) return;
+  const pay=typeof data.pay==='number'&&Number.isFinite(data.pay)?Math.max(0,Math.round(data.pay)):0;
+  guestHeld={pay,wave:data.wave|0,mapName:typeof data.mapName==='string'?data.mapName.slice(0,60):MAP.name}; guestMapCleared();
+  if(pay){ Meta.addGold(pay,'run'); Meta.save(); floatText(hero.x,hero.y+3.2,hero.z,'+'+Meta.fmtG(pay)+' ● gold — the hall is held','#ffd060'); }
+  banner('HALL HELD',MAP.name+' is yours'+(pay?'  ·  +'+pay+' ● gold':'')+'  ·  the host moves the party on when ready'); });   // the fanfare itself already played: guestWorldSfx hears the host's phase leave 'wave'   // MAP.name, never the host's text: banner() writes innerHTML (a guest is on the host's map, so it is the same name)
 // build 159 (3/7): what the host's own Meta.onRunEnd pays (10-meta.js: 25 a wave, +150 for a map held), worked out from the very wave
 // the host pays itself on -- the map's own count when the crystal falls (finishDeath), the CAMPAIGN wave when the map is held
 // (winMap's effWave()). A guest used to work it out from the map's count both times, so holding the Throne Room paid the host 500
@@ -925,22 +947,29 @@ onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded){ if(data.phase==='
 function runPay(w,won){ w=w|0; return w>0?25*w+(won?150:0):0; }
 { const origFinishDeath=finishDeath;
   finishDeath=function(){ origFinishDeath(); if(role==='host'){ send('runEnd',{phase:'dead',wave:S.wave,pay:runPay(S.wave,false)}); parkHost(); } }; }
+// build 160: the last wave held opens the victory lap (game.js winMap) -- the guests get it and the map's pay at once ('mapHeld'), and
+// the host stays on the matchmaking server: the run isn't over, and a friend may still walk in to see the hall. The run ends at the
+// host's MOVE ON (moveOn): 'runEnd' (held:true -- the pay already went out) and parkHost go from there now, as they went from winMap
 { const origWinMap=winMap;
-  winMap=function(){ origWinMap(); if(role==='host'){ send('runEnd',{phase:'won',wave:S.wave,mapName:MAP.name,pay:runPay(effWave(),true)}); parkHost(); } }; }
+  winMap=function(){ const was=S.held; origWinMap(); if(role==='host'&&!was&&S.held) send('mapHeld',{wave:S.wave,mapName:MAP.name,pay:runPay(effWave(),true)}); }; }
+{ const origMoveOn=moveOn;
+  moveOn=function(){ const was=S.phase; origMoveOn(); if(role==='host'&&was!=='won'&&S.phase==='won'){ send('runEnd',{phase:'won',held:true,wave:S.wave,mapName:MAP.name,pay:runPay(effWave(),true)}); parkHost(); } }; }
 
 // starting a wave is the host's call alone -- a guest is visiting the host's hall, not running a second one next to
 // it. startWave is a plain top-level function (game.js), so this reassigns the same binding every call site already
 // looks up by name (the G key, the wave button, window.__dd.startWave) rather than touching game.js itself.
 { const origStartWave=startWave;
-  startWave=function(){ if(role==='guest'){ toast("Only the host can start the wave — you're helping defend their hall"); return; } origStartWave(); }; }
+  startWave=function(){ if(role==='guest'){ toast((hostWorld&&hostWorld.held)||guestHeld?"The hall is held — the host moves the party on when they're ready":"Only the host can start the wave — you're helping defend their hall"); return; } origStartWave(); }; }   // build 160: on the host's victory lap the guest's horn reads ▶ MOVE ON, and MOVE ON is the host's call too
 
 { const prevH=Meta.hud; Meta.hud=()=>{ prevH();
   if(role==='guest'&&hostWorld){ const w=hostWorld; guestWorldSfx(w);
     $('cbar').style.width=Math.max(0,w.crystal/w.crystalMax*100)+'%';
     if(w.phase==='wave'){ $('wavet').textContent='WAVE '+w.wave+' / '+w.waveTotal; $('phaset').textContent='Helping defend the hall'; }
+    else if(w.phase==='build'&&w.held){ $('wavet').textContent='HALL HELD — '+w.mapName+' CLEARED'; $('phaset').textContent='The hall is yours to roam — the host moves the party on when ready'; }   // build 160: the host's victory lap
     else if(w.phase==='build'){ $('wavet').textContent=w.wave?'HALL HELD — BUILD PHASE':'BUILD PHASE'; $('phaset').textContent='Only the host can start the next wave'; }
     else if(w.phase==='won'){ $('wavet').textContent='HALL HELD — '+w.mapName+' CLEARED'; $('phaset').textContent=''; }
     else if(w.phase==='dead'){ $('wavet').textContent='THE CRYSTAL FELL'; $('phaset').textContent=''; }
+    { const b=$('wavebtn'), want=w.held?'▶ MOVE ON':'📯 START WAVE'; if(b&&b.textContent!==want) b.textContent=want; }   // build 160: the host's lap is this page's lap (game.js's own label only knows this page's S.held, never set on a guest)
     { const hc=[...conns.values()][0]; if(hc&&(w.phase==='build'||w.phase==='wave')){ if(hc.__hidden) $('phaset').textContent="The host's game is in the background"; else if(hc.__paused) $('phaset').textContent='The host paused the game'; } }   // build 159 (2/7): the heartbeat's own flags (the host says so the moment its tab hides) -- why no horn is coming. The hall itself runs on (the keeper), except on a phone host, which the browser stops outright; 'paused' only ever shows with COOP_HALL_RUNS off
     // this guest's OWN mana pool (phase 12 -- no longer the shared hall number), keyed out of w.manas by this
     // client's own peer id; the hall's real roots/DU cap stay shared, a structural cap on the hall, not personal
@@ -1279,6 +1308,7 @@ function guestHostLeft(why){
   if(hostLeftSaid||why==='full') return;
   if(guestRunEnded){ hostLeftSaid=true; $('deadp').textContent+=' The host has left the game.'; return; }   // already on SHATTERED / HALL HELD: that screen stays, it just says so
   if(!(S.phase==='build'||S.phase==='wave')) return;   // still on the title screen: the lobby's own
+  if(guestHeld){ hostLeftSaid=true; if(window.__pause&&window.__pause.isOpen()) window.__pause.close(false); guestShowRunEnd({phase:'won',held:true,wave:guestHeld.wave,mapName:guestHeld.mapName}); $('deadp').textContent+=' The host has left the game.'; toast('The host left the game'); return; }   // build 160: gone on the victory lap -- the hall WAS held, and this guest paid for it at HALL HELD: its own HALL HELD screen (REJOIN and all), not THE HOST LEFT
   hostLeftSaid=guestRunEnded=true; S.phase='dead'; cancelPlace(); droneOff(); setMusic('none');
   if(window.__pause&&window.__pause.isOpen()) window.__pause.close(false);
   if(document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play');
