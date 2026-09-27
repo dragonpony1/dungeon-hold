@@ -1,7 +1,7 @@
 // dungeon.html = parts/head.html + <script> parts/game.js + parts/modules/*.js (sorted) + </script> tail
 import fs from "fs"; import path from "path";
 import { unmeshoptDir } from "./unmeshopt.mjs";   // hideout build 17+: models arrive meshopt-compressed; UNMESHOPT=1 decodes the dist copy at build time for a host that refuses WebAssembly
-const SP=path.dirname(new URL(import.meta.url).pathname); const P=SP+"/parts";
+const SP=path.dirname(decodeURIComponent(new URL(import.meta.url).pathname).replace(/^\/(?=[A-Za-z]:)/,"")); const P=SP+"/parts";   // also on Windows: "/C:/…/clude%20project/…" -> "C:/…/clude project/…"
 const head=fs.readFileSync(P+"/head.html","utf8"), tail=fs.readFileSync(P+"/tail.html","utf8"); let game=fs.readFileSync(P+"/game.js","utf8");
 const modDir=P+"/modules"; let mods=""; const dirs=process.env.NOMODS?[]:[modDir]; if(process.env.EXTRA) dirs.push(process.env.EXTRA); const names=[];
 for(const dir of dirs){ if(!fs.existsSync(dir)) continue; for(const f of fs.readdirSync(dir).filter(f=>f.endsWith(".js")).sort()){ names.push(f); mods+="\n// ===== module: "+f+" =====\n"+fs.readFileSync(dir+"/"+f,"utf8")+"\n"; } }

@@ -3,7 +3,7 @@
 // public/assets/hideout/); this repo never edits the copy -- assemble.mjs derives the embedded variant at build time.
 // Usage: node sync-hideout.mjs        (REF=origin/hideout-wip by default; pass REF=<hash> to pin)
 import { execSync } from "child_process"; import fs from "fs"; import path from "path";
-const SP=path.dirname(new URL(import.meta.url).pathname); const REF=process.env.REF||"origin/hideout-wip";
+const SP=path.dirname(decodeURIComponent(new URL(import.meta.url).pathname).replace(/^\/(?=[A-Za-z]:)/,"")); const REF=process.env.REF||"origin/hideout-wip";   // also on Windows
 const sh=c=>execSync(c,{cwd:SP,encoding:"utf8",maxBuffer:64*1024*1024});
 if(!process.env.REF) sh("git fetch origin +refs/heads/hideout-wip:refs/remotes/origin/hideout-wip");
 const hash=sh("git rev-parse --short "+REF).trim();

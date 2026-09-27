@@ -1,4 +1,8 @@
-# Dungeon Hold
+# Rootgate
+
+Named **Rootgate** on 2026-09-27 (it was Dungeon Hold). Only the names players see changed — the title screen and the
+browser tab. The repo, web addresses (dragonpony1.github.io/dungeon-hold, dungeon-hold.52bulls.workers.dev), save keys
+(`dd*`) and record tags (`from:'dungeon-hold'`) keep the old name so links, saves and the hideout contracts keep working.
 
 A Dungeon Defenders–style 3D tower defense: a gnome hero, a crystal to hold, five original defenses, a loot loop with a
 physical tavern (locker, barkeep, trainer, anvil), six familiars, Meshy-made models. Three.js r128, plain JavaScript, one

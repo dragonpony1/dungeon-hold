@@ -1,5 +1,5 @@
 
-/* DUNGEON HOLD — a Dungeon Defenders style hall in the Gnome's Tower world.
+/* ROOTGATE (called Dungeon Hold until 2026-09-27) — a Dungeon Defenders style hall in the Gnome's Tower world.
    Third-person hero, hero-sized defenses, goblin waves. Single file, Three.js r128 inlined. */
 (function(){
 'use strict';
