@@ -26,7 +26,10 @@ const PIECES = ['armor', 'amulet', 'sword', 'staff', 'polearm', 'trinket'];
     let r = 0, g = 0, b = 0, n = 0;
     const got = [];
     for (const piece of PIECES) {
-      const f = files.find(x => x.toLowerCase().includes(piece));
+      // Matt names his staves "..._Stave_Mythic.png"; prefer his newer *_Mythic icons over the old concept renders
+      const words = piece === 'staff' ? ['stave', 'staff'] : [piece];
+      const hits = files.filter(x => words.some(w => x.toLowerCase().includes(w)));
+      const f = hits.find(x => /mythic/i.test(x)) || hits[0];
       if (!f) { console.log('  MISSING', id, piece); continue; }
       const img = await Jimp.read(path.join(dir, f));
       img.resize({ w: 512, h: 512 });

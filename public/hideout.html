@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="28">
+<meta name="hideout-build" content="29">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -228,7 +228,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 28;
+const HIDEOUT_BUILD = 29;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -531,24 +531,24 @@ const SET_WEAPONS = { void:['sword','staff','polearm'] };
 // (the game's stat keys), a signature power the MAIN GAME gives them in the dungeon, and they count toward any set;
 // you can wear two at once. art: Matt's picture once he makes it (items/named/<id>.webp) — until then the category
 // art stands in.
-const NAMED_ART_DIR = ITEMS_DIR + 'named/'; // Matt's pictures, shrunk to 512px JPEG
+const NAMED_ART_DIR = ITEMS_DIR + 'named/'; // Matt's pictures (named myth thumbs folder), shrunk by tools/named-art.js
 const NAMED_MYTHICS = {
-  rootsplitter:       { type:'weapon',   name:'Rootsplitter',             art:null, stats:{ dmg:30, hp:90, spd:15 },
+  rootsplitter:       { type:'weapon',   name:'Rootsplitter',             art:NAMED_ART_DIR+'rootsplitter.jpg', stats:{ dmg:30, hp:90, spd:15 },
     power:'Every 4th swing sends roots along the ground that hold enemies in place for 2 seconds.',
     lore:'A war-axe of living ironwood. The blade still sprouts leaves after every swing.' },
-  last_lantern:       { type:'weapon',   name:'The Last Lantern',         art:null, stats:{ dmg:24, tow:30, tarea:15 },
+  last_lantern:       { type:'weapon',   name:'The Last Lantern',         art:NAMED_ART_DIR+'last_lantern.jpg', stats:{ dmg:24, tow:30, tarea:15 },
     power:'Enemies near you glow and take 25% more damage from your defenses.',
     lore:'A halberd with a star caged at its tip. The dark leans away from it.' },
   mossheart_aegis:    { type:'armor',    name:'Mossheart Aegis',          art:NAMED_ART_DIR+'mossheart_aegis.jpg', stats:{ hp:170, def:22, regen:4.5 },
     power:'Stand still for 2 seconds and you and nearby defenses start healing.',
     lore:'Plate grown, not forged: bark and moss around a heartwood core that still beats.' },
-  voidwoven_mantle:   { type:'armor',    name:'Voidwoven Mantle',         art:null, stats:{ def:24, move:18, mana:50 },
+  voidwoven_mantle:   { type:'armor',    name:'Voidwoven Mantle',         art:NAMED_ART_DIR+'voidwoven_mantle.jpg', stats:{ def:24, move:18, mana:50 },
     power:'The first hit you take each wave is swallowed, and you blink a few steps away.',
     lore:'Stitched from the night between the stars. Blows land somewhere else.' },
-  tear_of_the_rootgate:{ type:'amulet',  name:'Tear of the Rootgate',     art:null, stats:{ mana:70, move:15, tow:25 },
+  tear_of_the_rootgate:{ type:'amulet',  name:'Tear of the Rootgate',     art:NAMED_ART_DIR+'tear_of_the_rootgate.jpg', stats:{ mana:70, move:15, tow:25 },
     power:'Once per wave, step through a portal to any of the three gates.',
     lore:'A teardrop of crystal with a tiny portal still turning inside.' },
-  wardens_oath:       { type:'amulet',   name:'The Warden\'s Oath',       art:null, stats:{ tow:42, def:12, hp:80 },
+  wardens_oath:       { type:'amulet',   name:'The Warden\'s Oath',       art:NAMED_ART_DIR+'wardens_oath.jpg', stats:{ tow:42, def:12, hp:80 },
     power:'The first enemy through each gate each wave is slowed and marked, and your defenses focus it.',
     lore:'A bronze sigil that grows warm when something is coming through the gate.' },
   bramblewhisk:       { type:'familiar', name:'Bramblewhisk',             art:NAMED_ART_DIR+'bramblewhisk.jpg', stats:{ fdmg:36, frate:45, move:10 },
