@@ -94,22 +94,24 @@ check("the picked-up orb credited the GUEST's own mana pool",guestManaAfterOrb>g
 const hostManaAfterOrb=await hostPage.evaluate(()=>window.__dd.status().mana);
 check("...and did NOT touch the host's own mana at all -- it was the guest's orb to collect",hostManaAfterOrb===hostManaBeforeOrb,JSON.stringify({hostManaBeforeOrb,hostManaAfterOrb}));
 
-// ==== 3: a real dropped item, picked up by the guest, lands in THEIR OWN bag -- not the host's ====
+// ==== 3: your loot is your own (build 151): a drop in the host's hall rolls one item PER player -- the host's lands on its
+// own floor, the guest gets its own roll on its own page (rolled there, with its own rules), and nobody sees anyone else's ====
 await guestPage.evaluate(()=>{ window.__meta.reset(); });
 const guestBagBefore=await guestPage.evaluate(()=>window.__meta.bag().length);
 const hostBagBefore=await hostPage.evaluate(()=>window.__meta.bag().length);
 const gPos2=await hostPage.evaluate(id=>window.__combat.guestHero(id),guestId);
-const dropped=await hostPage.evaluate(pos=>{ const it=window.__dd.rollItem(1); it.name='Test Coop Drop'; const l=window.__dd.dropLoot(it,pos.x,pos.z-6,true); return {id:it.id,name:it.name,x:l.x,z:l.z}; },gPos2);
-for(let i=0;i<60;i++) await hostPage.evaluate(()=>window.__dd.step(1/60,1));   // let it settle to the floor before reading its real position
-const lootPos=await hostPage.evaluate(()=>{ const l=window.__dd.loot[0]; return l?{x:l.x,z:l.z}:null; });
+const dropped=await hostPage.evaluate(pos=>{ const d=window.__dd; const it=d.rollItem(1,'armor',3); const l=d.dropLoot(it,pos.x,pos.z-6,true); return {slot:it.slot,x:l.x,z:l.z,hostLoot:d.loot.length}; },gPos2);
+await tickBoth(4,5);
+const guestOwn=await guestPage.waitForFunction(()=>window.__dd.loot.length>=1,null,{timeout:15000,polling:100}).then(()=>true).catch(()=>false);
+const guestDrop=await guestPage.evaluate(()=>{ const l=window.__dd.loot[0]; return {n:window.__dd.loot.length,slot:l&&l.it.slot,rarity:l&&l.it.rarity,puppets:window.__pickupsync.loot().length}; });
+check("the host's drop puts the guest's OWN roll of it on the guest's page (same slot, rarity floor 1), and the host's item is never a puppet there",guestOwn&&guestDrop.slot==='armor'&&guestDrop.rarity>=1&&guestDrop.puppets===0,JSON.stringify(guestDrop));
+for(let i=0;i<60;i++) await guestPage.evaluate(()=>window.__dd.step(1/60,1));   // let the guest's own drop settle
+const lootPos=await guestPage.evaluate(()=>{ const l=window.__dd.loot[0]; return l?{x:l.x,z:l.z}:null; });
 const walkedToLoot=lootPos&&await walkGuestTo(lootPos.x,lootPos.z);
-check("the guest can actually walk to where the real dropped item landed",walkedToLoot);
+check("the guest can walk to its own drop",walkedToLoot);
 await tickBoth(6,5);
-const lootCountAfter=await hostPage.evaluate(()=>window.__dd.loot.length);
-check("the host's real loot list actually shrank once the guest picked it up",lootCountAfter===0,"loot.length="+lootCountAfter);
-const guestBagAfter=await guestPage.evaluate(()=>window.__meta.bag().length);
-const hasDrop=await guestPage.evaluate(name=>window.__meta.bag().some(it=>it.name===name),dropped.name);
-check("the item landed in the GUEST's own bag",guestBagAfter>guestBagBefore&&hasDrop,JSON.stringify({guestBagBefore,guestBagAfter,hasDrop}));
+const after={guestLoot:await guestPage.evaluate(()=>window.__dd.loot.length),hostLoot:await hostPage.evaluate(()=>window.__dd.loot.length),guestBag:await guestPage.evaluate(()=>window.__meta.bag().length),hostBag:await hostPage.evaluate(()=>window.__meta.bag().length)};
+check("the guest bags its own item; the host's own drop stays on the host's floor, untouched",after.guestLoot===0&&after.guestBag>guestBagBefore&&after.hostLoot===dropped.hostLoot&&after.hostBag===hostBagBefore,JSON.stringify({after,guestBagBefore,hostBagBefore}));
 const hostBagAfter=await hostPage.evaluate(()=>window.__meta.bag().length);
 check("...and the host's own bag never saw it -- it was the guest's own item, not the host's",hostBagAfter===hostBagBefore,JSON.stringify({hostBagBefore,hostBagAfter}));
 

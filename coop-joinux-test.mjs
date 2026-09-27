@@ -33,7 +33,7 @@ async function openPage(qs){
 // ==== 1: the room code itself is short and easy to read/type, not PeerJS's own raw UUID ====
 {
   const {ctx,page}=await openPage();
-  await page.click('#hostbtn');
+  await page.evaluate(()=>window.__mp.open()); await page.click('#hostbtn');
   await page.waitForFunction(()=>{ const el=document.getElementById('hostCode'); return el&&el.textContent&&el.textContent.length>3; },null,{timeout:20000});
   const code=await page.evaluate(()=>document.getElementById('hostCode').textContent);
   check("the room code is short and friendly (5 chars, no ambiguous 0/O/1/I/L), not a raw UUID",
@@ -82,7 +82,7 @@ async function openPage(qs){
     window.__savedJoinCb=null;
     window.__net.join=(code,cb)=>{ window.__savedJoinCb=cb; };   // never calls back on its own -- the real hang
   });
-  await page.click('#joinbtn');
+  await page.evaluate(()=>window.__mp.open()); await page.click('#joinbtn');
   await page.fill('#joinCode','ANYCODE');
   await page.click('#joinGoBtn');
   const msgImmediately=await page.evaluate(()=>document.getElementById('joinMsg').textContent);

@@ -45,7 +45,7 @@ async function until(page,fn,arg,ms,label){ const t0=Date.now(); let last=null;
   console.log("   … gave up waiting for: "+(label||'condition')+" (last: "+JSON.stringify(last).slice(0,300)+")\n     page then: "+JSON.stringify(diag).slice(0,1500)); return null; }
 const ready=p=>until(p,()=>!!(window.__dd&&window.__net&&window.__lobby&&document.getElementById('lobbyPanel')),null,480000,'page ready');
 const msgs=p=>p.evaluate(()=>{ try{ return JSON.parse(sessionStorage.getItem('__lobbyMsgs')||'[]'); }catch(e){ return []; } });
-async function joinVia(page,code){ await page.click('#joinbtn'); await page.fill('#joinCode',code); await page.click('#joinGoBtn'); }
+async function joinVia(page,code){ await page.evaluate(()=>window.__mp.open()); await page.click('#joinbtn'); await page.fill('#joinCode',code); await page.click('#joinGoBtn'); }
 // the guest has rejoined the lobby ON the host's map, has the host's roster, and the rejoin pair is gone from its address bar
 const rejoined=(page,map)=>until(page,m=>{ const s=window.__lobby&&window.__lobby.state(); return s&&s.role==='guest'&&(s.phase==='lobby'||s.phase==='waiting')&&s.map===m&&s.lobbyMap===m&&window.__lobby.roster().length>=2&&!/coopjoin|coopmap/.test(location.search)?s:null; },map,900000,'rejoined on map '+(map+1));
 // the host's roster once it has n real rows (no row held for a guest still moving) and a condition on rows r / state s holds
@@ -57,7 +57,7 @@ const A=await newCtx(); await A.page.goto(BASE,{timeout:480000}); await ready(A.
 const MAP2=(await H.page.evaluate(()=>window.__dd.maps()))[1].name;
 const hm=await H.page.evaluate(()=>window.__dd.map().index), am=await A.page.evaluate(()=>window.__dd.map().index);
 check("the host opened map two (ddMapsCleared=1 in its context only) and the guest is on map one",hm===1&&am===0,JSON.stringify({host:hm,guest:am,map2:MAP2}));
-await H.page.click('#hostbtn');
+await H.page.evaluate(()=>window.__mp.open()); await H.page.click('#hostbtn');
 const code=await until(H.page,()=>{ const el=document.getElementById('hostCode'); return el&&/^[A-Z0-9]{5}$/.test(el.textContent)?el.textContent:null; },null,240000,'room code');
 if(!code){ check("hosting shows a room code",false); await browser.close(); server.close(); process.exit(1); }
 stamp("hosting "+code);
@@ -94,7 +94,7 @@ const fit=await B.page.evaluate(()=>{ const p=document.getElementById('lobbyPane
 check("the lobby fits a phone-width (400 px) screen: the panel and everything in it inside the screen, no sideways scroll",fit.left>=0&&fit.right<=fit.vw&&fit.start<=fit.vw&&!fit.over.length,JSON.stringify(fit));
 
 // ==== a hero change shows up live: the host picks a card, a guest switches hero ====
-await H.page.click('#heroline .hcard[data-hero="troll"]');
+await H.page.evaluate(()=>window.__heroes.select('troll'));   /* build 151: the cards sit behind the multiplayer screen; the screen's own 'change hero' cycles through __heroes.next, the same call */
 await A.page.evaluate(()=>window.__heroes.select('fighter'));   // a fresh guest's own cards are knight-only; the programmatic pick (the one the raven's H key uses) is how its hero changes here
 const heroA=await until(A.page,()=>{ const r=window.__lobby.roster(); return r[0]&&/TROLL ARCHER/.test(r[0].hero)&&/hero-troll\.png$/.test(r[0].img||'')?r[0]:null; },null,120000,'A sees host troll');
 const heroH=await until(H.page,()=>{ const r=window.__lobby.roster(); return r[1]&&/GNOME FIGHTER/.test(r[1].hero)&&/hero-fighter\.png$/.test(r[1].img||'')?r[1]:null; },null,120000,'host sees A fighter');

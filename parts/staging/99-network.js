@@ -789,10 +789,20 @@ function pickupPuppetsTick(dt){
   ORBPUP.forEach(p=>{ p.x=lerp(p.x,p.tx,k); p.y=lerp(p.y,p.ty,k); p.z=lerp(p.z,p.tz,k); p.mesh.position.set(p.x,p.y+Math.sin(S.t*4)*.05,p.z);
     if(p.mesh.userData.o) p.mesh.userData.o.rotation.y+=dt*3; });
 }
+// ===== YOUR LOOT IS YOUR OWN (build 151): "that would have fixed a big problem of getting the first green set". Gear was one
+// physical item on the host's floor that any player could grab (and a guest's grab went through lootGrant), so three
+// players split one stream and the host lost pieces. Now every drop the host's hall makes -- a mob's, the held wave's --
+// is rolled ONCE PER PLAYER: the host's own lands on its floor as ever, and each guest is told the roll's terms
+// (rarity floor, slot, level, where) and rolls its own with its own rules (its own Forest pity, its own set chances) onto
+// its own page, where it alone can walk over it. Loot is never shown to anyone else; mana orbs stay shared.
+let LASTROLL=null;
+{ const prev=rollItem; rollItem=function(minR,slot,lvl){ const it=prev(minR,slot,lvl); LASTROLL={it,args:[minR,slot,lvl]}; return it; }; }
+{ const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); if(role==='host'&&conns.size&&LASTROLL&&LASTROLL.it===it){ const a=LASTROLL.args; send('lootDrop',{minR:a[0]|0,slot:a[1]||null,lvl:Number.isFinite(+a[2])?+a[2]:null,x:+(+x).toFixed(2),z:+(+z).toFixed(2),gentle:!!gentle}); } return l; }; }   // only an item that came straight from rollItem is relayed: the Forest guarantee's set pieces (already personal, 93-gearsets.js) and take-backs are not
+onMessage('lootDrop',d=>{ if(role!=='guest'||!d) return; const it=rollItem(Math.max(0,Math.min(4,d.minR|0)),d.slot||undefined,d.lvl||undefined); dropLoot(it,+d.x||0,+d.z||0,!!d.gentle); });
 function hostBroadcastPickups(dt){
   if(role!=='host'||!conns.size) return;
   syncTP+=dt; if(syncTP<1/10) return; syncTP=0;
-  const lootList=loot.map(l=>{ if(!l.__coopId) l.__coopId='p'+(nextPickupId++); return {id:l.__coopId,x:+l.x.toFixed(2),y:+l.y.toFixed(2),z:+l.z.toFixed(2),rarity:l.it.rarity,slot:l.it.slot}; });
+  const lootList=[];   // build 151: the host's loot is its own -- never a puppet on a guest's screen (orbs still are)
   const orbList=orbs.map(o=>{ if(!o.__coopId) o.__coopId='p'+(nextPickupId++); return {id:o.__coopId,x:+o.x.toFixed(2),y:+o.y.toFixed(2),z:+o.z.toFixed(2)}; });
   send('pickups',{loot:lootList,orbs:orbList});
 }

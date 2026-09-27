@@ -27,7 +27,7 @@ for(const p of [hostPage,guestPage]){ await p.goto(pageUrl,{timeout:90000}); awa
 // starts life with S.phase==='start' exactly as it would for a real player who hasn't clicked anything yet
 
 // ---- host: click HOST A GAME, wait for a room code to appear, confirm it matches what __net actually opened ----
-await hostPage.click('#hostbtn');
+await hostPage.evaluate(()=>window.__mp.open()); await hostPage.click('#hostbtn');
 await hostPage.waitForFunction(()=>{ const el=document.getElementById('hostCode'); return el&&el.textContent&&el.textContent.length>3; },null,{timeout:20000});
 const hostCode=await hostPage.evaluate(()=>document.getElementById('hostCode').textContent);
 const hostNetId=await hostPage.evaluate(()=>window.__net.myId());
@@ -41,7 +41,7 @@ check("the host hasn't entered the hall yet -- the code stays on screen until th
 // handler calls play() on Enter while S.phase==='start', with no check for a focused input -- unguarded, pressing
 // Enter to submit a code would ALSO fire that, same conflict 60-lootfeel.js/65-tavernroom.js's own hotkeys already
 // guard against for their own inputs/overlays) ----
-await guestPage.click('#joinbtn');
+await guestPage.evaluate(()=>window.__mp.open()); await guestPage.click('#joinbtn');
 await guestPage.fill('#joinCode','not-a-real-room-code-xyz');
 await guestPage.press('#joinCode','Enter');
 // 'Connecting…' is set synchronously the instant doJoin() runs, so waiting for "any text" would resolve

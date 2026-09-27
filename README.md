@@ -909,6 +909,26 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   attempt (offer or answer lost) is retried with backoff instead of hanging forever, which is the likeliest cause of
   "he can't connect to me but I can connect to him". lobby-test.mjs drives three real browsers through all of it on a
   local signaling server. Built by a workflow agent and taken over to ship; its adversarial review follows.
+- Build 151: one MULTIPLAYER button. "One big takeaway from that testing session was that the title screen is too
+  busy: one button that says multiplayer, then into a new screen that says host or join with the rows of who's joined."
+  The title keeps a single 🤝 MULTIPLAYER button; HOST A GAME / JOIN A FRIEND, the code field and CONNECT, and the lobby
+  (the rows with their loading lights, your name, START, ENTER NOW, leave) live on their own screen (`#mpScreen`,
+  `99c-mpscreen.js`), which the button opens, ↩ BACK closes (leaving any lobby first), a page that reloaded into a lobby
+  (`?coopjoin`) opens by itself, and the game starting closes. A "playing as … · change hero" row on the screen says
+  which hero you bring and cycles it (the raven's H) without leaving the lobby, since the title's cards sit behind the
+  screen. Same ids, same wiring underneath: the co-op suites only open the screen first (`menu-test` checks the title
+  shows one button and the screen shows both and the hero row).
+  Known: the lobby suite's late-joiner check (a guest that followed the host to map two, the game started, then the
+  host leaves) still does not see "host left" within its wait; it predates this build and is next on the co-op list.
+  **Your loot is your own** ("that would have fixed a big problem of getting the first green set"): gear was one physical
+  item on the host's floor that any player could grab, so three players split one stream and the host lost pieces.
+  Every drop the host's hall makes (a mob's, the held wave's) is now rolled once PER player: the host's own lands on its
+  floor as ever, each guest is told the roll's terms (rarity floor, slot, level, where) and rolls its own, with its own
+  rules, onto its own page, where it alone can walk over it; loot is never shown to anyone else, mana orbs stay shared
+  (`coop-pickups-test`). With the personal Forest thanks of build 150, nobody can take another player's set piece.
+  Hideout builds 26-30 ride along (`parts/hideout` at 881d760): the ten named mythics' pictures
+  (`assets/hideout/items/named/*.jpg`) and the gear-set pieces (`assets/hideout/items/sets/*.jpg`); the game learns the
+  mythic tier itself in the next build.
 - Build 150: the trebuchet and the cold towers wear the player's art, co-op shows what the others carry, the guide
   never holds a room. **Turnip Trebuchet**: the four Meshy trebuchets (`assets/trebuchet-1..4.glb`, wood / iron /
   steel / gold as Marks I-IV; each carries its own shot in the sling) replace the procedural one; the frame runs along
