@@ -891,6 +891,10 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   higher mark grows taller, not longer. Co-op guests now load a defense's Mark II-IV models too (they only ever saw
   Mark I). Hideout builds 22 (machines already standing for new players) and 23 (the wardrobe honours takeBack) ride
   along. New suites: throneload-test.mjs, bramble-test.mjs; probes/thronetimes.mjs measures map two before and after.
+- Build 145: the title screen wears the player's painting ("we're gonna use this art for our main menu page"): a portal of
+  twisted roots, glowing mushrooms and violet crystals (`parts/assets/title-bg.webp`, 1536x864, 390 KB) behind the menu,
+  under a dark gradient so the heading, hero cards, buttons and small print stay readable (20-titleart.js turns the
+  #start.art class on once the image has loaded; the single-file build keeps its flat screen). menu-test checks it.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Eight more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry. The Holy set is next.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
