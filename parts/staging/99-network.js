@@ -165,6 +165,15 @@
 // numbers at a third of the size) to every guest that says it reads it, the old 'enemies' list to any that doesn't (an older build);
 // and a link that can't keep up skips the snapshots until it drains (sendSnap/snapBusy) instead of queueing seconds of them in
 // front of every hit and toast -- the mob deaths in a skipped list wait for that link's next one.
+// ===== BUILD 159 (7/7): THE PARTY STAYS TOGETHER BETWEEN RUNS. Every way on from a run reloads the page (TRY AGAIN, REPLAY, NEXT MAP,
+// RETURN TO TITLE), and HOST A GAME drew a fresh room code every time, so after every win or loss the host read out a new code and
+// everyone typed it in again. Now the host's tab keeps its code and HOST A GAME asks for that one first (a fresh one only if it's
+// taken), and a hall that has fallen or been held leaves the matchmaking server at once (parkHost): nobody walks into a run that's
+// over, and the code is free for the next one. A guest's end screen (SHATTERED, HALL HELD, THE HOST LEFT) offers ⟲ REJOIN <CODE>
+// beside TRY AGAIN, which stays a solo go. REJOIN reloads through the lobby's own rejoin link (?coopjoin) and waits for the host's
+// next game -- a join that waits asks again every few seconds while the server says there is no such room, instead of backing off to
+// a minute -- and the JOIN box comes up holding the last code. It never lands a guest on a map past its own unlock: from a map it had
+// followed the host to, it goes home, and the host's lobby moves it on again only while that lobby is really there.
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -194,6 +203,13 @@ function send(type,data,toId){
 // whole state anyway. One-shot messages (hp, toast, lootDrop, alive...) always go. A healthy link drains between two snapshots and
 // never gets near it; 64 KB is a second or two of mob lists on a link that is already behind
 const SNAP_BUF=64*1024;
+// build 159 (7/7): what this TAB remembers about its party, in its own sessionStorage -- a reload, NEXT MAP or the hideout keep it,
+// another tab (or the next day's window) never sees it: the room it was last in as a guest (the end screen's REJOIN, the JOIN box)
+// and the code it last hosted on (HOST A GAME asks for that one again). A browser that refuses sessionStorage still has this page's copy
+const tabGet=k=>{ try{ return sessionStorage.getItem(k); }catch(e){ return null; } }, tabSet=(k,v)=>{ try{ sessionStorage.setItem(k,v); }catch(e){} };
+let roomMem=null;
+function lastRoom(){ const c=tabGet('ddLastRoom')||roomMem; return typeof c==='string'&&c&&c.length<=40?c:null; }
+function rememberRoom(c){ if(typeof c!=='string'||!c||c.length>40) return; roomMem=c; tabSet('ddLastRoom',c); }
 function snapBusy(c){ const dc=c.dataChannel; const busy=!!(dc&&dc.bufferedAmount>SNAP_BUF)||(c.bufferSize|0)>0; if(busy) c.__skipped=(c.__skipped|0)+1; return busy; }   // bufferSize: PeerJS's own queue, used once the browser's is full
 function sendSnap(type,data){ let msg=null; conns.forEach(c=>{ if(!c.open||snapBusy(c)) return; if(msg===null) msg=JSON.stringify({type,data}); c.send(msg); }); }
 function wire(conn){
@@ -225,7 +241,7 @@ function drop(conn,why){ if(!conn.__why) conn.__why=why; try{ conn.close(); }cat
 // drops an attempt that is really stuck (see check() below) and makes a fresh one on the same Peer, backing off -- the join UI's
 // own timeout message shows meanwhile, and a late success still lets them in.
 let selfId=null;
-function keepOnBroker(p){ let n=0; p.on('open',()=>{ n=0; }); p.on('disconnected',()=>{ setTimeout(()=>{ try{ if(p===peer&&!p.destroyed&&p.disconnected) p.reconnect(); }catch(e){} },Math.min(30000,1500*Math.pow(2,n++))); }); }
+function keepOnBroker(p){ let n=0; p.on('open',()=>{ n=0; }); p.on('disconnected',()=>{ if(p.__parked) return; setTimeout(()=>{ try{ if(p===peer&&!p.destroyed&&p.disconnected&&!p.__parked) p.reconnect(); }catch(e){} },Math.min(30000,1500*Math.pow(2,n++))); }); }   // __parked: a finished hall left on purpose (parkHost, build 159 7/7)
 // build 159 (four players at most -- the README always said "up to three more join", nothing enforced it; a fifth was let in
 // and, past eight, sat in the game unlisted): a joiner past the third guest is told 'full' and let go a moment later, so the
 // message gets there before the close does. Counted on live connections; a guest reloading onto the host's map holds no
@@ -241,12 +257,19 @@ function host(roomCode,cb,peerOpts){
   p.on('error',e=>{ if(p===peer) cb&&cb(e); });
 }
 const JOIN_RETRY_MS=+Q.get('joinretry')||12000;   // first retry of a stuck attempt (test-only override, the same idiom as ?jointimeout); then twice as long each time, up to a minute
-function join(roomCode,cb,peerOpts){
+// build 159 (7/7): a join that WAITS for its host (o.wait: REJOIN, or CONNECT on the code of the room this tab was last in). The host
+// of a party that has just finished a run is reloading, so for a while there is no such room: the server says so ('peer-unavailable',
+// about 5 s after being asked), and a join then sat out its backoff (12 s, 24, 48, a minute) before asking again -- up to a minute of
+// the host's new lobby standing there a player short. A waiting join asks again WAIT_POLL_MS after each "no such room", for about ten
+// minutes, then carries on as any join does. Only on that answer: an attempt that has reached a host is never cut short by it
+const WAIT_POLL_MS=+Q.get('joinpoll')||4000, WAIT_POLLS=60;
+function join(roomCode,cb,peerOpts,o){
   if(peer) leave();   // build 159 (P2): CONNECT pressed again (or Enter twice) used to make a second Peer beside the first, and the first one's slow attempt could still open -- two live connections from one tab: the host simulated two of you, every reward came twice and you saw a puppet of yourself. The old Peer, and every attempt it had going, goes first
-  role='guest'; const p=peer=new Peer(undefined,iceOpts(peerOpts)); keepOnBroker(p); let asked=false, done=false, tries=0;
+  role='guest'; const p=peer=new Peer(undefined,iceOpts(peerOpts)); keepOnBroker(p); let asked=false, done=false, tries=0, polls=0, cur=null; const wait=!!(o&&o.wait);
   const attempt=()=>{ if(done||p!==peer||p.destroyed) return;
     if(p.disconnected){ setTimeout(attempt,3000); return; }   // off the broker for the moment (keepOnBroker is bringing it back): connect() would only refuse
     const conn=p.connect(roomCode,{reliable:true}), t0=Date.now(); let timer=0; if(!conn){ setTimeout(attempt,3000); return; }
+    cur={conn,stop:()=>clearTimeout(timer)};   // the attempt under way -- the one a "no such room" is about (one at a time: the next starts only after this one is dropped)
     // only an attempt that is really stuck is dropped: no ICE under way at all (the offer or the answer never arrived) or ICE failed.
     // One still negotiating ('checking') gets up to two minutes -- on a busy page (a big map decoding) every step just comes late,
     // and cutting it off to start over would only start over late again
@@ -256,11 +279,13 @@ function join(roomCode,cb,peerOpts){
       try{ conn.close(); }catch(e){} tries++; attempt(); };
     timer=setTimeout(check,Math.min(60000,JOIN_RETRY_MS*Math.pow(2,tries)));
     conn.on('open',()=>{ if(p!==peer){ try{ conn.close(); }catch(e){} return; }   // build 159 (P2): an attempt of a Peer this page has since replaced never gets in
-      if(done){ if(conns.get(conn.peer)!==conn) try{ conn.close(); }catch(e){} return; } done=true; clearTimeout(timer); conns.set(conn.peer,conn); wire(conn); cb&&cb(null,selfId); });   // done: 'open' can fire twice for one connection, and only one attempt may ever win -- a second attempt that opens too is closed
+      if(done){ if(conns.get(conn.peer)!==conn) try{ conn.close(); }catch(e){} return; } done=true; clearTimeout(timer); conns.set(conn.peer,conn); wire(conn); rememberRoom(roomCode); cb&&cb(null,selfId); });   // done: 'open' can fire twice for one connection, and only one attempt may ever win -- a second attempt that opens too is closed
     conn.on('error',e=>{ if(p===peer) cb&&cb(e); });
   };
   p.on('open',myId=>{ if(p!==peer) return; selfId=myId; if(asked) return; asked=true; attempt(); });
-  p.on('error',e=>{ if(p===peer) cb&&cb(e); });
+  p.on('error',e=>{ if(p!==peer) return;
+    if(wait&&e&&e.type==='peer-unavailable'&&cur&&!done&&polls<WAIT_POLLS){ const c=cur; cur=null; polls++; c.stop(); try{ c.conn.close(); }catch(x){} setTimeout(attempt,WAIT_POLL_MS); }   // build 159 (7/7): no such room yet -- ask again shortly (cur=null: the same attempt's second "no such room", a moment later, starts nothing)
+    cb&&cb(e); });
 }
 // leaving on purpose: 'bye' first (the close right behind it can outrun it -- either one tells the others), then shut everything.
 // `leaving` is up while our own closes fire their 'close' events: PeerJS emits them synchronously, and a guest's own leave must
@@ -385,7 +410,11 @@ window.__net.keeper=()=>({on:!!keeper,kind:keeper?keeper.kind:null,steps:keeperS
 const TEST_PEER_OPTS=Q.get('peerhost')?{host:Q.get('peerhost'),port:+Q.get('peerport')||9000,path:Q.get('peerpath')||'/peerjs'}:undefined;
 // a 5-char code from a 32-symbol alphabet (no 0/O/1/I/L -- easy to tell apart read aloud or thumb-typed) rather
 // than PeerJS's own default auto-generated id, a full UUID: fine for a machine, a real mouthful for a person
-function shortRoomCode(){ const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<5;i++) s+=A[Math.floor(Math.random()*A.length)]; return s; }
+const ROOM_A='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function shortRoomCode(){ const A=ROOM_A; let s=''; for(let i=0;i<5;i++) s+=A[Math.floor(Math.random()*A.length)]; return s; }
+// build 159 (7/7): the code this tab last hosted on, if it is one of ours (a console-made id is never reused)
+const HOST_KEY='ddHostCode', KEPT_RETRY_MS=1500;
+function keptHostCode(){ const c=tabGet(HOST_KEY); return c&&new RegExp('^['+ROOM_A+']{5}$').test(c)?c:null; }
 // build 159: say what actually went wrong. HOST's failure used to be written into the host panel in the same breath the panel
 // was hidden (the HOST button just came back, silently), and JOIN blamed the code for everything -- a correct code included,
 // when it was really the free matchmaking server (0.peerjs.com) that couldn't be reached. PeerJS's own error types tell them apart
@@ -400,19 +429,22 @@ function joinErrText(e){ const t=e&&e.type;
   return "Couldn't connect — check the code and try again."; }
 { const hostbtn=$('hostbtn'), joinbtn=$('joinbtn'), coopRow=$('coopRow'), hostPanel=$('hostPanel'), hostMsg=$('hostMsg'),
     joinPanel=$('joinPanel'), joinCode=$('joinCode'), joinGoBtn=$('joinGoBtn'), joinMsg=$('joinMsg'), coopMsg=$('coopMsg');
+  let hostSeq=0;   // build 159 (7/7): which HOST press is the current one -- a kept code's delayed second try must not start after BACK, or on top of a newer press
   hostbtn.addEventListener('click',()=>{
     coopRow.classList.add('hide'); hostPanel.classList.remove('hide'); hostMsg.textContent='Opening the gate…'; coopMsg.textContent='';
-    let tries=0;
+    let tries=0, kept=keptHostCode(), keptTries=0; const my=++hostSeq;
     const tryHost=()=>{
+      if(my!==hostSeq||hostPanel.classList.contains('hide')) return;
       let opened=false;
-      window.__net.host(shortRoomCode(),(err,id)=>{
+      window.__net.host(kept||shortRoomCode(),(err,id)=>{
         if(opened) return;   // the same Peer can report a later error (its signaling socket dropping, say) -- that must not tear down a lobby that is already open; the data channels to anyone in it don't need the broker any more
         if(err){
+          if(err.type==='unavailable-id'&&kept){ if(++keptTries<2){ setTimeout(tryHost,KEPT_RETRY_MS); return; } kept=null; tryHost(); return; }   // build 159 (7/7): last game's code is still taken -- the page this tab just left not quite let go of yet (asked again a moment later), or a duplicate of this tab hosting on it (then a fresh code, as ever)
           if(err.type==='unavailable-id'&&tries<4){ tries++; tryHost(); return; }   // a real collision on the room code itself -- quietly try a fresh one rather than surface a confusing error for something this recoverable
           coopMsg.textContent=hostErrText(err); hostPanel.classList.add('hide'); coopRow.classList.remove('hide'); return;   // #coopMsg sits outside the host panel, so it stays up with the buttons
         }
-        opened=true;
-        hostMsg.innerHTML='Share this code with your friends:<br><span class="netCode" id="hostCode">'+id+'</span>';
+        opened=true; const same=!!kept&&id===kept; tabSet(HOST_KEY,id);   // build 159 (7/7): this tab hosts on this code again next time
+        hostMsg.innerHTML='Share this code with your friends:<br><span class="netCode" id="hostCode">'+id+'</span>'+(same?'<br><small id="hostSame">the same code as your last game — your party can press ⟲ REJOIN</small>':'');
         $('hostCode').addEventListener('click',()=>{ const c=$('hostCode'); try{ navigator.clipboard.writeText(id); c.textContent='copied!'; setTimeout(()=>{ c.textContent=id; },900); }catch(e){} });
         window.__lobby.openHost(id);   // the lobby (99b-lobby.js) takes it from here: the roster, the loading lights, START
       },TEST_PEER_OPTS);
@@ -433,7 +465,8 @@ function joinErrText(e){ const t=e&&e.type;
   function doJoin(){
     if(joinGoBtn.disabled) return;   // build 159 (P2): one in flight already -- the Enter key never looked at the disabled button, so a double Enter made two joins
     let code=joinCode.value.trim(); if(!code) return; if(/^[a-z0-9]{4,8}$/i.test(code)) code=code.toUpperCase();   /* build 147: a short room code in any letter case (a phone keyboard capitalises the first letter or lowercases the lot); a long console-made id is left alone */
-    const my=++joinSeq;
+    const my=++joinSeq, wait=code===lastRoom();   // build 159 (7/7): the room this tab was last in (REJOIN, or the code the box came up holding): a join that waits for the host's next game, and says so
+    const waitMsg="Waiting for the host's next game — you'll go in by yourself as soon as they press HOST A GAME.";
     joinMsg.textContent='Connecting…'; joinMsg.classList.remove('err'); joinGoBtn.disabled=true;
     let settled=false;
     const timer=setTimeout(()=>{
@@ -445,14 +478,18 @@ function joinErrText(e){ const t=e&&e.type;
       if(my!==joinSeq) return;
       if(settled){ if(!err) window.__lobby.openGuest(code); return; }   // a late success after the timeout already showed -- still let them in (to the lobby) rather than strand a connection that did eventually land
       settled=true; clearTimeout(timer); joinGoBtn.disabled=false;
-      if(err){ joinMsg.textContent=joinErrText(err); joinMsg.classList.add('err'); return; }
+      if(err){ if(wait&&err.type==='peer-unavailable'){ joinMsg.textContent=waitMsg; return; } joinMsg.textContent=joinErrText(err); joinMsg.classList.add('err'); return; }   // build 159 (7/7): no such room YET, for a waiting join -- not an error, and join() is already asking again
       window.__lobby.openGuest(code);   // phase 14: into the host's lobby, not straight into the hall -- the host's START (or, after it, this page's own room finishing its load) is what enters
-    },TEST_PEER_OPTS);
+    },TEST_PEER_OPTS,{wait});
   }
   joinGoBtn.addEventListener('click',doJoin);
   joinCode.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter'){ e.preventDefault(); doJoin(); } });
-  // the same join, started by code rather than a click: 99b-lobby.js rejoins the room this way after reloading onto the host's map
-  window.__net.uiJoin=code=>{ coopRow.classList.add('hide'); joinPanel.classList.remove('hide'); joinCode.value=String(code||''); doJoin(); };
+  // the same join, started by code rather than a click: 99b-lobby.js rejoins the room this way after reloading onto the host's map --
+  // and, since build 159 (7/7), after an end screen's REJOIN. The multiplayer screen opens for it (it used to stay shut until the join
+  // had landed, on a map this player had unlocked: a REJOIN waiting for its host would have been a bare title screen, nothing said)
+  window.__net.uiJoin=code=>{ if(window.__mp&&S.phase==='start') window.__mp.open(); coopRow.classList.add('hide'); joinPanel.classList.remove('hide'); joinCode.value=String(code||''); doJoin(); };
+  // build 159 (7/7): the JOIN box comes up holding the room this tab was last in -- one tap on CONNECT, never a join by itself
+  { const c=lastRoom(); if(c&&!joinCode.value) joinCode.value=c; }
 }
 
 // ---- phase 3/4: every hero in the hall, broadcast a few times a second and rendered as a puppet on every OTHER
@@ -832,9 +869,30 @@ function guestShowRunEnd(w){
   if(w.phase==='won'){ SFX.held(); $('deadh1').textContent='HALL HELD'; $('deadh2').textContent=w.mapName+' is cleared'; }
   else { sting(); $('deadh1').textContent='SHATTERED'; $('deadh2').textContent='THE HALL FELL ON WAVE '+w.wave; }
   const pay=typeof w.pay==='number'&&Number.isFinite(w.pay)?Math.max(0,Math.round(w.pay)):w.wave>0?25*w.wave+(w.phase==='won'?150:0):0; if(pay){ Meta.addGold(pay,'run'); Meta.save(); }   // phase 13: the run's payout -- since build 159 (3/7) the host's own number (runPay), so a later map pays the guest what it pays the host; the old map-wave formula only for an older host that sends none
-  $('deadp').textContent=(pay?'+'+pay+' ● gold for the run. ':'')+'Your own gear, gold and skills stay with you. Go again.';
+  $('deadp').textContent=(pay?'+'+pay+' ● gold for the run. ':'')+'Your own gear, gold and skills stay with you. Go again.'+(offerRejoin()?" ⟲ REJOIN puts you in the host's next game as soon as they host it.":'');
   $('nextmapbtn').style.display='none'; $('dead').classList.remove('hide');
 }
+// build 159 (7/7): ⟲ REJOIN <CODE>, beside TRY AGAIN on a guest's end screen (TRY AGAIN stays what it always was: this player's own
+// title screen, to go solo or anywhere). It reloads through the lobby's own rejoin link -- ?coopjoin=CODE, which 99b-lobby.js reads,
+// strips and joins by itself, a join that waits for the host's next game (join()'s o.wait) -- and on the map this page is on, when
+// it is one this player has opened (fresh from storage: a hall held with the host has just opened the next one). A page that had
+// followed its host past this player's own unlock goes home instead (no ?coopmap), so a host who never comes back leaves the guest
+// on its own map, free to play; if the host does host again on that map, its lobby moves the guest there itself, as for any joiner
+const REJOIN=(()=>{ const a=$('againbtn'); if(!a) return null; const b=document.createElement('button'); b.className='big'; b.id='rejoinbtn'; b.style.display='none'; a.insertAdjacentElement('afterend',b);
+  b.addEventListener('click',()=>{ const c=lastRoom(); if(!c||b.disabled) return; b.disabled=true; b.textContent='⟲ REJOINING…'; location.href=rejoinHref(c); }); return b; })();
+function rejoinHref(code){ const q=new URLSearchParams(location.search); q.delete('coopmap'); q.delete('coopjoin');
+  let cleared=0; try{ cleared=parseInt(localStorage.getItem('ddMapsCleared'))||0; }catch(e){}
+  if(MAPI<=cleared) q.set('coopmap',String(MAPI)); q.set('coopjoin',code);
+  return location.pathname+'?'+q.toString()+location.hash; }
+function offerRejoin(){ const c=lastRoom(); if(!REJOIN||!c) return false; REJOIN.textContent='⟲ REJOIN '+(c.length<=8?c:'THE HOST'); REJOIN.style.display=''; return true; }
+window.__net.rejoinTo=()=>{ const c=lastRoom(); return c?rejoinHref(c):null; };   // a test hook: where REJOIN would take this page
+// build 159 (7/7): a hall that has fallen or been held takes nobody new. Every way on from its end screen reloads the page, so the host
+// leaves the matchmaking server there and then (PeerJS's disconnect(): the links to the guests stay up -- they need no server -- and
+// keepOnBroker leaves it off). A guest pressing REJOIN before the host has hosted again finds no such room and waits for the next one,
+// instead of walking into a run that is over (the host's lobby would have let it in as a late joiner, into a dead hall); and the code
+// is already free when the host's reloaded page asks for it again
+function parkHost(){ if(role!=='host'||!peer||peer.destroyed||peer.__parked) return; peer.__parked=true; try{ peer.disconnect(); }catch(e){} }
+window.__net.onBroker=()=>!!(peer&&!peer.destroyed&&!peer.disconnected);   // a test hook
 onMessage('world',data=>{ hostWorld=data; });
 // build 147: "I couldn't hear any of the sound effects" (as a guest). Nearly every sound is played by the host's own
 // simulation -- startWave's horn, a placement, a defense firing, a mob dying -- and none of that runs on a guest, whose
@@ -854,9 +912,9 @@ onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded){ if(data.phase==='
 // and the guest 325, and the gap grew every map
 function runPay(w,won){ w=w|0; return w>0?25*w+(won?150:0):0; }
 { const origFinishDeath=finishDeath;
-  finishDeath=function(){ origFinishDeath(); if(role==='host') send('runEnd',{phase:'dead',wave:S.wave,pay:runPay(S.wave,false)}); }; }
+  finishDeath=function(){ origFinishDeath(); if(role==='host'){ send('runEnd',{phase:'dead',wave:S.wave,pay:runPay(S.wave,false)}); parkHost(); } }; }
 { const origWinMap=winMap;
-  winMap=function(){ origWinMap(); if(role==='host') send('runEnd',{phase:'won',wave:S.wave,mapName:MAP.name,pay:runPay(effWave(),true)}); }; }
+  winMap=function(){ origWinMap(); if(role==='host'){ send('runEnd',{phase:'won',wave:S.wave,mapName:MAP.name,pay:runPay(effWave(),true)}); parkHost(); } }; }
 
 // starting a wave is the host's call alone -- a guest is visiting the host's hall, not running a second one next to
 // it. startWave is a plain top-level function (game.js), so this reassigns the same binding every call site already
@@ -1213,7 +1271,7 @@ function guestHostLeft(why){
   if(window.__pause&&window.__pause.isOpen()) window.__pause.close(false);
   if(document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play');
   $('deadh1').textContent='THE HOST LEFT'; $('deadh2').textContent=why==='lost'?'THE CONNECTION TO THEIR HALL DROPPED':'THE HALL CLOSED WITH THEM';
-  $('deadp').textContent='Your own gear, gold and skills stay with you. Back to the title to host a game or join another.';
+  $('deadp').textContent='Your own gear, gold and skills stay with you. Back to the title to host a game or join another.'+(offerRejoin()?' ⟲ REJOIN puts you back in their game as soon as it is open again.':'');   // build 159 (7/7): a host coming back (RETURN TO TITLE, then HOST A GAME on its same code), or a link of ours that dropped while the host's hall runs on
   $('nextmapbtn').style.display='none'; $('againbtn').textContent='↩ BACK TO THE TITLE'; $('dead').classList.remove('hide');
   toast('The host left the game');   // seen even from inside the tavern, which sits over the end screen
 }

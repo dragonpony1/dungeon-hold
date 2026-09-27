@@ -1000,6 +1000,24 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   mobsync turns the training guide off (its goblin is a real, shared mob); pickups drops the guest's item on open floor behind
   it, not across the crystal; lobby waits for "start without waiting" instead of reading it once; rewards' level check could
   never fail (`||after.level>=1`) and now needs both players past level 1 with the same level and xp.
+- Build 159 (7/7): the party stays together between runs, and two tabs say so. Every way on from a run reloads the page, and
+  HOST A GAME drew a fresh code each time, so after every win or loss the host read out a new code and everyone typed it in
+  again. Now (99-network.js) the host's tab keeps its code (`sessionStorage` ddHostCode, this tab only) and HOST A GAME asks for
+  it first -- once more 1.5 s later if it's still taken (the page just left may not have let go), then a fresh code as before
+  (a duplicated tab) -- and says "the same code as your last game". A hall that has fallen or been held leaves the matchmaking
+  server at once (`parkHost`: PeerJS's disconnect, the guests' links stay up), so nobody walks into a run that's over and the
+  code is free for the next one. A guest's end screen (SHATTERED, HALL HELD, THE HOST LEFT) offers **⟲ REJOIN <CODE>** beside
+  TRY AGAIN, which stays solo: it reloads through the lobby's own rejoin link (`?coopjoin=`, plus `?coopmap=` only for a map
+  this player has opened -- a guest that had followed its host past its own unlock goes home, and the host's lobby moves it on
+  again only while that lobby is really there) and waits for the host's next game: a join to the room this tab was last in
+  (`ddLastRoom`) asks again 4 s after each "no such room" for about ten minutes instead of backing off to a minute, and says
+  "Waiting for the host's next game". The multiplayer screen opens for any join started by code, and the JOIN box comes up
+  holding the last code (it never joins by itself). **Two tabs** (LC9, 99c-mpscreen.js): gold, xp, bag and gear are saved whole
+  by whichever tab saved last, so two tabs of the game in one browser overwrite each other; a BroadcastChannel ping now puts a
+  note on the title and multiplayer screens while another tab of the game is open ("only one tab's gold and gear will be kept
+  -- for a second player on this PC, use another browser or a private window"). Warning only. `coop-party-test.mjs` (new, 20
+  checks; with the waiting join turned off the guest is back 34 s after the host re-hosts instead of at once, and that check
+  fails). Not done: the TURN relay for strict-NAT players still needs a relay account in Matt's name (LC5).
 - Build 152: MYTHIC gear. The hideout's forge (hideout builds 26-30) makes a tier one step above legendary, rarity 5,
   and the game wears it: `RNAME[5]` Mythic in its own pink, valid and fixable at 5, forge caps at 5, no level gate on
   anything the hideout forged. **Named mythics** (ten, a forge proc, Matt's stats, each with a signature power,
