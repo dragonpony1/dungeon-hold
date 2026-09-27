@@ -650,7 +650,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=164;
+const BUILD=165;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -938,7 +938,7 @@ function upCost(d){ return 100*(d.lvl||1); }
 // that chain would have its `pos` silently dropped. upgradeDef is the actual logic, under a name nothing else
 // wraps, so a host-side guest request can call it directly and skip those (purely single-player-local) UI checks.
 function upgrade(pos){ return upgradeDef(pos); }
-function upgradeDef(pos){ const d=nearestDef(3.4,pos); if(!d) return; if(d.hp<d.max){ repair(pos); return; } if(d.lvl>=MAXLVL){ toast('Already Mark '+MARK[MAXLVL]+' — that is as good as it gets'); return; } const cost=upCost(d); if(S.mana<cost){ toast('Need '+cost+' mana to upgrade'); return; }
+function upgradeDef(pos){ const d=pickDef(pos); if(!d) return; if(d.hp<d.max){ repair(pos); return; } if(d.lvl>=MAXLVL){ toast('Already Mark '+MARK[MAXLVL]+' — that is as good as it gets'); return; } const cost=upCost(d); if(S.mana<cost){ toast('Need '+cost+' mana to upgrade'); return; }
   S.mana-=cost; d.spent+=cost; d.lvl++; d.max=Math.round(DEFS[d.kind].hp*(1+.4*(d.lvl-1))); d.hp=d.max; d.pop=0; const ring=M(new THREE.TorusGeometry(d.kind==='spike'?1.1:.98,.045,6,18),mat(d.lvl>=MAXLVL?0xd8322c:0xe0b040),0,.16+.1*(d.lvl-2),0); ring.rotation.x=PI/2; d.mdl.add(ring); SFX.place(); floatText(d.x,d.top+.9,d.z,'MARK '+MARK[d.lvl]+(DEFS[d.kind].arcs?'  ·  '+arcOf(d)+'° cone':''),'#e8b94a'); floatText(d.x,d.top+1.7,d.z,'-'+cost+' ◆ mana','#5ee9ff'); toast(DEFS[d.kind].name+' → Mark '+MARK[d.lvl]+'  ·  '+cost+' mana spent'); if(hoverFor===d){ if(hoverSector) scene.remove(hoverSector); hoverSector=null; hoverFor=null; } }
 function fireArrow(e,x,y,z,hit){ const splash=MOBS[e.kind]&&MOBS[e.kind].splash||0; const m=splash?grenadeMesh():arrowMesh(); scene.add(m); const x0=e.x, y0=e.y+1.2*e.sc, z0=e.z; const dur=Math.hypot(x-x0,z-z0)/(splash?13:18); projs.push({kind:'arrow',x0,y0,z0,x1:x,y1:y,z1:z,t:0,dur:Math.max(.2,dur),dmg:e.dmg,hit,mesh:m,splash,owner:e}); }   // a splash-tagged mob throws a grenade, slower and heavier than a plain shot
 // the floor ring the four elemental halos share: a glow ring at the reach, a small inner spinner — same idea as the
@@ -1146,7 +1146,22 @@ function moveOn(){ if(!S.held||S.phase!=='build') return; S.phase='won'; cancelP
 // ================= PLACEMENT / REPAIR / SELL =================
 function select(kind){ if(S.phase==='start'||S.phase==='dead'||S.phase==='won'||S.phase==='deathcut') return; if(placing===kind){ cancelPlace(); return; } cancelPlace(); placing=kind; ghost=makeDef(kind,true); scene.add(ghost); const cfg=DEFS[kind]; ghostSector=sectorMesh(cfg.range||0,cfg.arc||360,0x40ff80); scene.add(ghostSector); ghostRot=0; placeStage=0; anchorPos=null; updateGhost(); }
 function cancelPlace(){ if(ghost){ scene.remove(ghost); ghost=null; } if(ghostSector){ scene.remove(ghostSector); ghostSector=null; } placing=null; placeStage=0; anchorPos=null; }
-function updateHoverSector(){ const d=placing?null:nearestDef(3.4); if(d!==hoverFor){ if(hoverSector){ scene.remove(hoverSector); hoverSector=null; } hoverFor=d; if(d&&DEFS[d.kind].range){ hoverSector=sectorMesh(stat(d,'range'),arcOf(d),0xe8b94a); hoverSector.position.set(d.x,d.base,d.z); hoverSector.rotation.y=d.rot; scene.add(hoverSector); } } }
+function updateHoverSector(){ const d=placing?null:pickDef(); if(d!==hoverFor){ if(hoverSector){ scene.remove(hoverSector); hoverSector=null; } hoverFor=d; if(d&&DEFS[d.kind].range){ hoverSector=sectorMesh(stat(d,'range'),arcOf(d),0xe8b94a); hoverSector.position.set(d.x,d.base,d.z); hoverSector.rotation.y=d.rot; scene.add(hoverSector); } }
+  pickRing(d); }
+// the tower E / 🔧 / X will act on (build 165, Matt: "when you're trying to heal a tower mid wave it's very difficult to target a
+// specific tower if there are several"). It was simply the nearest within reach. Now, among the towers within reach: a hurt one
+// before a whole one (a hurt one mid-wave is what you came for -- E repairs first), then the one the gnome is facing, then the
+// nearest. A guest's action (99-network.js) passes where it stands and, if it sent one, its facing. The same pick drives the
+// range outline, the tower card (60-lootfeel.js) and a ring on the floor under it, so what you see is what the key will hit
+function pickDef(pos){ pos=pos||hero; const yaw=pos===hero?hero.yaw:pos.yaw; const fx=Number.isFinite(yaw)?Math.sin(yaw):0, fz=Number.isFinite(yaw)?Math.cos(yaw):0; let best=null, bs=1e9;
+  for(const d of defs){ const dx=d.x-pos.x, dz=d.z-pos.z, dist=Math.hypot(dx,dz); if(dist>=3.4) continue;
+    const facing=dist>.05&&(fx||fz)?(1-(dx*fx+dz*fz)/dist):1;   // 0 dead ahead .. 2 right behind
+    const sc=(d.hp<d.max?0:10)+facing*1.6+dist*.35; if(sc<bs){ bs=sc; best=d; } }
+  return best; }
+let pickRingM=null;
+function pickRing(d){ if(!d||!defs.includes(d)){ if(pickRingM) pickRingM.visible=false; return; }
+  if(!pickRingM){ pickRingM=new THREE.Mesh(new THREE.RingGeometry(.82,1,40),new THREE.MeshBasicMaterial({color:0xe8b94a,transparent:true,opacity:.6,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); pickRingM.rotation.x=-PI/2; pickRingM.userData.noOL=true; scene.add(pickRingM); }
+  const hurt=d.hp<d.max, r=d.kind==='slice'?stat(d,'range')*.55:1.25; pickRingM.visible=true; pickRingM.material.color.setHex(hurt?0x5ef0a0:0xe8b94a); pickRingM.scale.set(r,r,r); pickRingM.position.set(d.x,d.base+.06,d.z); pickRingM.material.opacity=.45+.25*Math.sin(S.t*6); }   // green: E repairs it, gold: E upgrades it
 function unstick(){ if(placeStage===1){ placeStage=0; anchorPos=null; ghostRot=anchorYaw-cam.yaw; } }
 function rotateGhost(a){ if(placeStage===1) anchorYaw+=a; else ghostRot+=a; }
 function updateGhost(){ if(!placing) return; const [px,pz]=placeStage===1?anchorPos:aimPoint(); const cx=wc(px), cz=wcz(pz); const t=gat(cx,cz), cfg=DEFS[placing]; let reason='';
@@ -1162,8 +1177,8 @@ function confirmPlace(){ if(!placing) return; if(!ghostOk){ toast(ghostReason); 
 // sector) behaves exactly as before — a guest's relayed repair/upgrade/sell just passes their own position instead,
 // reusing this single real implementation rather than a second, drift-prone copy of the cost/effect math
 function nearestDef(rad,pos){ pos=pos||hero; let best=null, bd=rad; for(const d of defs){ const dd=Math.hypot(d.x-pos.x,d.z-pos.z); if(dd<bd){ bd=dd; best=d; } } return best; }
-function repair(pos){ const d=nearestDef(3.4,pos); if(!d) return; if(d.hp>=d.max){ toast('Already at full health'); return; } const cost=Math.ceil((d.max-d.hp)/8); if(S.mana<cost){ toast('Need '+cost+' mana to repair'); return; } S.mana-=cost; d.hp=d.max; SFX.place(); floatText(d.x,d.top+.8,d.z,'REPAIRED','#5ee9ff'); floatText(d.x,d.top+1.6,d.z,'-'+cost+' ◆ mana','#5ee9ff'); }
-function sell(pos){ const d=nearestDef(3.4,pos); if(!d) return; const back=Math.round(d.spent*.7); S.mana+=back; removeDef(d); SFX.sell(); floatText(d.x,2,d.z,'+'+back+' mana','#5ee9ff'); }
+function repair(pos){ const d=pickDef(pos); if(!d) return; if(d.hp>=d.max){ toast('Already at full health'); return; } const cost=Math.ceil((d.max-d.hp)/8); if(S.mana<cost){ toast('Need '+cost+' mana to repair'); return; } S.mana-=cost; d.hp=d.max; SFX.place(); floatText(d.x,d.top+.8,d.z,'REPAIRED','#5ee9ff'); floatText(d.x,d.top+1.6,d.z,'-'+cost+' ◆ mana','#5ee9ff'); }
+function sell(pos){ const d=pickDef(pos); if(!d) return; const back=Math.round(d.spent*.7); S.mana+=back; removeDef(d); SFX.sell(); floatText(d.x,2,d.z,'+'+back+' mana','#5ee9ff'); }
 
 // ================= FX / HUD / OVERLAY =================
 function updateFx(dt){ S.t+=dt; const t=S.t;
@@ -1230,7 +1245,7 @@ function update(dt){ if(S.phase==='start'){ updateFx(dt); updateCamera(dt); retu
   if(S.phase==='deathcut'){ updateFx(dt); updateDeathCut(dt); updateHUD(); return; }
   if(S.phase!=='dead'&&S.phase!=='won'&&(!Meta.isOpen()||Meta.sharedHall())){ /* the tavern pauses the hall: nothing walks, swings or fires behind the overlay -- except a co-op host's with guests in it (build 159): their hall runs on, and the host's gnome just stands (99-network.js clears its keys) */ if(!Meta.isOpen()){ if(!TOUCH&&!locked&&S.phase!=='start'){ if(edgeX<.1) cam.yaw+=1.6*dt; else if(edgeX>.9) cam.yaw-=1.6*dt; } if(K.tl) cam.yaw+=2.2*dt; if(K.tr) cam.yaw-=2.2*dt; }   /* no camera pan from under a menu: the mouse's last spot (edgeX) is stale there */
     heroUpdate(dt); updateDefs(dt); updateEnemies(dt); updateProj(dt); updateOrbs(dt); updateLoot(dt); updateWave(dt); updateGhost(); updateHoverSector(); Meta.update(dt); }
-  updateFx(dt); updateCamera(dt); updateHUD(); Meta.hud(); }
+  updateFx(dt); updateCamera(dt); updateHUD(); Meta.hud(); if(S.phase!=='build'&&S.phase!=='wave') pickRing(null); }
 let lastT=performance.now();
 function frame(now){ requestAnimationFrame(frame); const dt=Math.min(.05,(now-lastT)/1000); lastT=now; if(!window.__freeze) update(dt); if(!Meta.isOpen()&&!HIDEOUT_SHOWN){ renderer.render(scene,camera); drawOverlay(); RENDERS++; } }   /* __freeze: tests step the hall themselves and still see it drawn */   // the tavern is opaque: no GPU work behind it
 requestAnimationFrame(frame);

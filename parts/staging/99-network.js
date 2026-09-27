@@ -1178,11 +1178,11 @@ function hostDefAction(data,fromId){
   const g=guestHero.get(fromId); if(!g) return;
   if(g.dead>0){ send('toast',"You're down — wait to respawn",fromId); return; }
   if(S.phase==='start'||S.phase==='dead'||S.phase==='won'||S.phase==='deathcut'){ send('toast','Not right now',fromId); return; }   // build 159 (3/7): the same end-of-run gate hostTryPlaceDef has always had -- a repair, upgrade or sell after the hall fell or held used to go through
-  const pos={x:g.x,z:g.z};
+  const pos={x:g.x,z:g.z,yaw:g.yaw};   // build 165: the guest's facing too -- game.js's pickDef takes a hurt tower first, then the one you face
   // build 159 (3/7), Matt's call: a guest sells only the defenses it built -- sell() takes whichever is nearest, so pressing X by a
   // friend's tower took it down and put 70% of what THEY paid in your own pool. The host may sell any (its hall), and repairing or
   // upgrading anyone's stays open to everyone: helping is fine
-  if(data.action==='sell'){ const d=nearestDef(3.4,pos); if(d&&d.ownerId!==fromId){ send('toast',"That's a teammate's defense — you can only sell the ones you built",fromId); return; } }
+  if(data.action==='sell'){ const d=pickDef(pos); if(d&&d.ownerId!==fromId){ send('toast',"That's a teammate's defense — you can only sell the ones you built",fromId); return; } }
   const origToast=toast; let said=null;
   toast=msg=>{ said=msg; };
   // repair/upgradeDef/sell (game.js) read/write the shared S.mana binding directly -- temporarily pointing it at
