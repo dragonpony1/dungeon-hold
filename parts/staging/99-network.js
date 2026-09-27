@@ -111,6 +111,11 @@
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
 const handlers={};          // message type -> fn(data, fromPeerId)
+// build 152 ("why can't Jacob join me"): PeerJS's default is one STUN server and no relay, so two players who both sit
+// behind a strict NAT (a mobile hotspot, some ISPs, an island uplink) never find a direct path and the join dies with
+// "Couldn't connect" -- ping has nothing to do with it. A TURN relay (the Open Relay Project's public one) is offered
+// alongside STUN, so the connection falls back to a relayed path when the direct one fails. A caller's own config wins.
+function iceOpts(o){ o=Object.assign({},o||{}); if(!o.config) o.config={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},{urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},{urls:'turns:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}]}; return o; }
 function onMessage(type,fn){ handlers[type]=fn; }
 const leaveHooks=[];        // extra listeners for a connection closing, after the one __leave handler below (99b-lobby.js drops a row, or hears that the host left); each guarded so one can't break the rest
 function onLeave(fn){ leaveHooks.push(fn); }
@@ -140,14 +145,14 @@ function wire(conn){
 let selfId=null;
 function keepOnBroker(p){ let n=0; p.on('open',()=>{ n=0; }); p.on('disconnected',()=>{ setTimeout(()=>{ try{ if(p===peer&&!p.destroyed&&p.disconnected) p.reconnect(); }catch(e){} },Math.min(30000,1500*Math.pow(2,n++))); }); }
 function host(roomCode,cb,peerOpts){
-  role='host'; const p=peer=new Peer(roomCode||undefined,peerOpts); keepOnBroker(p);
+  role='host'; const p=peer=new Peer(roomCode||undefined,iceOpts(peerOpts)); keepOnBroker(p);
   p.on('open',id=>{ selfId=id; cb&&cb(null,id); });
   p.on('connection',conn=>{ conn.on('open',()=>{ conns.set(conn.peer,conn); wire(conn); const h=handlers.__join; if(h) h(conn.peer); }); });
   p.on('error',e=>{ cb&&cb(e); });
 }
 const JOIN_RETRY_MS=+Q.get('joinretry')||12000;   // first retry of a stuck attempt (test-only override, the same idiom as ?jointimeout); then twice as long each time, up to a minute
 function join(roomCode,cb,peerOpts){
-  role='guest'; const p=peer=new Peer(undefined,peerOpts); keepOnBroker(p); let asked=false, done=false, tries=0;
+  role='guest'; const p=peer=new Peer(undefined,iceOpts(peerOpts)); keepOnBroker(p); let asked=false, done=false, tries=0;
   const attempt=()=>{ if(done||p!==peer||p.destroyed) return;
     if(p.disconnected){ setTimeout(attempt,3000); return; }   // off the broker for the moment (keepOnBroker is bringing it back): connect() would only refuse
     const conn=p.connect(roomCode,{reliable:true}), t0=Date.now(); let timer=0; if(!conn){ setTimeout(attempt,3000); return; }

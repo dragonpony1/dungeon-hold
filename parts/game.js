@@ -567,7 +567,7 @@ const DEFS={
 const DEFKEYS=['harpoon','acorn','ball','slice','spike','totem','frost','snare','zap','venom','ember','dazzle']; const DEFKEY_LABELS=['1','2','3','4','5','6','7','8','9','0','-','=']; const MAXLVL=5, MARK=['','I','II','III','IV','V'];
 // a defense's sector of fire at its current mark
 function arcOf(d){ const cfg=DEFS[d.kind]; if(cfg.arcs) return cfg.arcs[Math.min(cfg.arcs.length-1,(d.lvl||1)-1)]; return cfg.arc||360; }
-function mobSpd(e){ return e.spd*(e.slowT>0?DEFS.slice.slow:1)*(e.chillT>0?(e.chillK||DEFS.frost.chill):1); }   // spored mobs crawl; chilled ones too
+function mobSpd(e){ return e.spd*(e.slowT>0?DEFS.slice.slow:1)*(e.chillT>0?(e.chillK||DEFS.frost.chill):1)*(e.holdT>0?0:1)*(e.crawlT>0?.15:1); }   // holdT: Rootsplitter's roots; crawlT: the Hourglass (97-mythics.js)   // spored mobs crawl; chilled ones too
 const MOBS={goblin:{hp:10,spd:3.4,dmg:3,cd:1.0,mana:1,detour:3}, orc:{hp:45,spd:2.1,dmg:8,cd:1.4,mana:3,detour:1}, archer:{hp:22,spd:2.8,dmg:4,cd:1.6,mana:2,ranged:11,detour:4}, drake:{hp:32,spd:2.6,dmg:9,cd:1.8,mana:4,detour:0,fly:2.6}, ogre:{hp:200,spd:1.7,dmg:20,cd:2.2,mana:8,detour:0}, troll:{hp:65,spd:2.3,dmg:10,cd:2.0,mana:6,ranged:13,detour:3},
   trollboss:{hp:340,spd:1.9,dmg:14,cd:2.6,mana:14,ranged:11,splash:2.2,detour:2,healAmt:14,healR:6.5,healCd:3.2}};   // the lavender troll: a healer mini-boss — a slow lob that splashes, and a heal-pulse that mends nearby mobs (kill this one first)
 const DU_CAP=MAP.du||40, SENS=0.0042;   // roots: a bigger map gives more to build with
@@ -646,7 +646,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=151;
+const BUILD=152;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -843,7 +843,7 @@ function updateEnemies(dt){
       if(e.fly){ e.y=Math.max(baseFloor(e.x,e.z),e.y-9*dt); g.position.y=e.y; g.rotation.z+=dt*2.5; }   // a dead flyer drops
       if(e.mdl.glb){ mobAnim(e,dt); const t=e.dead-.9; if(t>0){ const s=Math.max(0,1-t/.35)*e.sc; g.scale.setScalar(Math.max(s,.001)); g.position.y=e.y-(1-s)*.4; } if(e.dead>1.25){ scene.remove(g); enemies.splice(i,1); } continue; }
       const s=Math.max(0,1-e.dead/.3)*e.sc; g.scale.set(s*1.3,s*.6,s*1.3); if(e.dead>.3){ scene.remove(g); enemies.splice(i,1); } continue; }
-    e.pop=Math.min(1,e.pop+dt*3); e.atk-=dt; e.slowT=Math.max(0,(e.slowT||0)-dt); e.chillT=Math.max(0,(e.chillT||0)-dt); if(!e.chillT) e.chillK=1; if(e.swing>=0){ e.swing+=dt; if(e.pending&&e.swing>=.2){ const tg=e.pending; e.pending=null; landHit(e,tg); } if(e.swing>.4) e.swing=-1; }
+    e.pop=Math.min(1,e.pop+dt*3); e.atk-=dt; e.slowT=Math.max(0,(e.slowT||0)-dt); if(e.holdT>0) e.holdT-=dt; if(e.crawlT>0) e.crawlT-=dt; if(e.lanternT>0) e.lanternT-=dt; e.chillT=Math.max(0,(e.chillT||0)-dt); if(!e.chillT) e.chillK=1; if(e.swing>=0){ e.swing+=dt; if(e.pending&&e.swing>=.2){ const tg=e.pending; e.pending=null; landHit(e,tg); } if(e.swing>.4) e.swing=-1; }
     if(e.lift>0) e.lift=Math.max(0,e.lift-dt*1.4);   // the cage's lift, a look only: the mob's real y (its floor) is untouched
     if(e.poisonT>0){ e.poisonT-=dt; e.poisonTick=(e.poisonTick||0)-dt; if(e.poisonTick<=0){ e.poisonTick=.5; hurt(e,e.poisonDmg*.5,0,0); } } e.confuseT=Math.max(0,(e.confuseT||0)-dt);   // the venom halo's lingering DOT (keeps ticking after a mob leaves the ring) and the dazzling halo's wander timer
     let target=null;
@@ -975,7 +975,7 @@ function updateDefs(dt){ const trampled=[];
     d.mdl.position.set(d.x+(d.shake>0?(rnd()-.5)*.12:0),d.base,d.z+(d.shake>0?(rnd()-.5)*.12:0));
     if(d.kind==='harpoon'||d.kind==='ball'||d.kind==='acorn'){ const half=arcOf(d)*PI/360, range=stat(d,'range'); let best=null, bestProg=1e18;   // among everything in range/arc/sight, engage whoever is furthest along toward the crystal (path distance, not raw distance to this tower) — a tower otherwise happily plinks the mob that wandered nearest to IT while one about to breach sits in range ignored
       for(const e of enemies){ if(e.dead) continue; const dd=Math.hypot(e.x-d.x,e.z-d.z); if(dd>range||Math.abs(angDiff(d.rot,Math.atan2(e.x-d.x,e.z-d.z)))>half||!los(d.x,d.z,e.x,e.z)) continue;
-        const prog=(e.fly?flowFly:flowFree).dist[idx(wc(e.x),wcz(e.z))]; const key=prog>=0?prog:1e6+dd; if(key<bestProg){ bestProg=key; best=e; } }
+        const prog=(e.fly?flowFly:flowFree).dist[idx(wc(e.x),wcz(e.z))]; const key=(e.marked?-1e5:0)+(prog>=0?prog:1e6+dd);   /* a marked mob (the Warden's Oath) is engaged first */ if(key<bestProg){ bestProg=key; best=e; } }
       if(best){ const ty=Math.atan2(best.x-d.x,best.z-d.z); d.yaw=angLerp(d.yaw,ty,1-Math.exp(-7*dt)); if(d.kind==='harpoon'){ const tp=clamp(Math.atan2((best.y+best.h*.55)-(d.base+1.35),Math.max(.4,Math.hypot(best.x-d.x,best.z-d.z))),-1.2,1.3); d.pitch=lerp(d.pitch||0,tp,1-Math.exp(-7*dt)); }   /* wide vertical reach (+-69-75deg) and a lower distance floor: a mob standing right under or right above the tower on the next step still needs a steep shot, not the shallow one a far-off target gets; a ballista also tilts to a drake in the air or a mob on a landing */ if(d.cd<=0&&Math.abs(angDiff(d.yaw,ty))<.25){ d.cd=stat(d,'cd'); fire(d,best); } } else { d.yaw=angLerp(d.yaw,d.rot,1-Math.exp(-2*dt)); if(d.kind==='harpoon') d.pitch=lerp(d.pitch||0,0,1-Math.exp(-2*dt)); }
       d.yaw=d.rot+clamp(angDiff(d.rot,d.yaw),-half,half);
       const y=d.mdl.userData.yoke; y.rotation.y=d.yaw-d.rot; if(d.kind==='harpoon') (d.mdl.userData.pitch||y).rotation.x=-(d.pitch||0); /* the Meshy ballista hinges its bow assembly on the pedestal; the procedural one tilts its yoke */ if(d.kind==='ball'){ if(d.mdl.userData.arm) d.mdl.userData.arm.rotation.x=-.9+d.recoil*2.0; else if(d.mdl.userData.glb) y.rotation.x=-d.recoil*.14; /* the Meshy trebuchet is one piece: it lurches on the throw (build 150) */ d.mdl.userData.ball.visible=d.cd<cfg.cd*.5; } else { y.position.z=-d.recoil*.22; d.mdl.userData.hp.visible=d.cd<cfg.cd*.45; } }
@@ -1030,7 +1030,7 @@ function updateOrbs(dt){
 
 // ================= LOOT =================
 const LR=()=>Math.random();   // loot uses real randomness, not the seeded world rng
-const RCOL=[0xcfcfcf,0x5ad05a,0x4a90ff,0xb050ff,0xffb830], RCSS=['#d8d8d8','#5ad05a','#6aa8ff','#c070ff','#ffc040'], RNAME=['Common','Uncommon','Rare','Epic','Legendary'];
+const RCOL=[0xcfcfcf,0x5ad05a,0x4a90ff,0xb050ff,0xffb830,0xff7ade], RCSS=['#d8d8d8','#5ad05a','#6aa8ff','#c070ff','#ffc040','#ff7ade'], RNAME=['Common','Uncommon','Rare','Epic','Legendary','Mythic'];   // Mythic (rarity 5, build 152): the hideout's forge alone makes it; the hall never drops it
 const SLOTS=['weapon','armor','charm','amulet','familiar'], SICON={weapon:'⚔',armor:'🛡',charm:'🔮',amulet:'📿',familiar:'🦉'};
 const BASES={weapon:['Shortsword','Broadsword','Cleaver','Warhammer','Halberd','Gnome Blade'],armor:['Jerkin','Chainmail','Breastplate','Plate Harness','Tower Plate','Warden Mail'],charm:['Charm','Talisman','Idol','Sigil','Lantern','Relic'],amulet:['Pendant','Amulet','Locket','Torc','Medallion','Heartstone'],familiar:['Wisp','Cave Bat','Moss Sprite','Fire Imp','Crystal Owl','Storm Drake']};
 const PREFIX=[['Rusty','Plain','Worn','Sturdy','Old'],['Fine','Hardened','Keen','Polished'],['Gleaming','Runed','Tempered','Silvered'],['Ancient','Stormforged','Dragonbone','Moonlit'],['Mythic','Eternal','Goblinbane','Crystalheart']];

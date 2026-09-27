@@ -6,7 +6,7 @@
 const SETS={};   // filled by 93-gearsets.js
 const NAMES=Object.keys(SETS);
 function setOf(it){ if(!it||!it.name) return null; for(const n of NAMES) if(it.name.endsWith(' '+n)) return n; return null; }
-function counts(){ const c={}; for(const s of SLOTS){ const n=setOf(gear[s]); if(n) c[n]=(c[n]|0)+1; } return c; }
+function counts(){ const c={}; let wild=0; for(const s of SLOTS){ const it=gear[s]; if(it&&it.named){ wild++; continue; } const n=setOf(it); if(n) c[n]=(c[n]|0)+1; } if(wild) for(const n in c) c[n]+=wild; return c; }   // build 152: a named mythic counts toward ANY set bonus (every set with a real piece on)
 function active(){ const c=counts(); const out=[]; for(const n of NAMES){ const k=c[n]|0; if(k>=3) out.push({name:n,count:k,tier:k>=5?5:3,bonus:k>=5?SETS[n].five:SETS[n].three,text:SETS[n].text[k>=5?1:0]}); } return out; }
 const PCT={tow:1,hp:1,mana:1,aoe:1,tcd:1};   // fractions that stack onto Meta.mult; the rest are flat stat points
 function setMult(k){ let v=0; for(const a of active()) if(PCT[k]&&a.bonus[k]) v+=a.bonus[k]; return v; }

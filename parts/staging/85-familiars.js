@@ -48,7 +48,7 @@ function famShotsUpdate(dt){ for(let i=famShots.length-1;i>=0;i--){ const s=famS
 // instead: a slim green dart with a green glow, a faint green trail, 1.6x the speed, and the pod's arc flattened to a
 // low skim (its spore cloud on landing is kept). The Imp keeps its fireball, a touch quicker too.
 const THORN={col:0x3dff5a,geo:null,mat:null,glowP:null,speed:1.6,UP:new THREE.Vector3(0,1,0)};
-function thornsOn(){ const b=window.__forest&&window.__forest.boon&&window.__forest.boon(); return !!(b&&b.thorns); }
+function thornsOn(){ const b=window.__forest&&window.__forest.boon&&window.__forest.boon(); return !!((b&&b.thorns)||(window.__mythic&&window.__mythic.has('bramblewhisk'))); }   // or the Bramblewhisk (build 152)
 function thornMesh(){ const T=THORN; if(!T.geo){ T.geo=G.cyl(0,.05,.46,6); T.mat=basic(0xb8ffb0); T.glowP=glow(T.col,.62,.9); }
   const g=new THREE.Group(); const c=new THREE.Mesh(T.geo,T.mat); c.userData.noOL=true; c.userData.shared=true; g.add(c); const s=T.glowP.clone(); s.userData.shared=true; g.add(s); g.userData.thorn=c; return g; }   // one geometry, one material, one glow material for every thorn: nothing allocated per shot but the group
 function aimThorn(g,vx,vy,vz){ const c=g&&g.userData.thorn; if(!c) return; const v=new THREE.Vector3(vx,vy,vz); if(v.lengthSq()<1e-6) return; c.quaternion.setFromUnitVectors(THORN.UP,v.normalize()); }
@@ -87,6 +87,6 @@ function swoopUpdate(dt){ if(!swoop||!fam) return; const w=swoop; w.t+=dt/w.dur;
 const famClearProc=famClearBolts; famClearBolts=function(){ famClearProc(); for(const s of famShots){ scene.remove(s.mesh); } famShots.length=0; };
 // the bag / sheet says what each familiar does
 const statStrProc=statStr; statStr=function(it){ const s=statStrProc(it); if(it&&it.slot==='familiar'){ const C=FAM_KIND[famKind(it)]; if(C) return s+' · '+C.desc; } return s; };
-Object.assign(window.__familiar,{build:it=>famModel(it),   /* late-bound (build 150): 30-familiar.js exported the procedural famModel before this module replaced it, so builds through the hook (a party puppet's pet, the suites) never asked for the Meshy model */ rate:()=>famRate(),dmg:()=>famDmg(),kinds:FAM_KIND,kindMul:()=>K(),glb:()=>Object.keys(FAM_GLB),fx:()=>famFx.length,shots:()=>famShots.length,swoop:()=>swoop?{t:+swoop.t.toFixed(2),bit:swoop.bit}:null,burning:()=>enemies.filter(e=>e.burnT>0&&!e.dead).length,pos:()=>fam?fam.g.position.toArray().map(v=>+v.toFixed(2)):null});
+Object.assign(window.__familiar,{build:it=>famModel(it),thornsOn:()=>thornsOn(),   /* late-bound (build 150): 30-familiar.js exported the procedural famModel before this module replaced it, so builds through the hook (a party puppet's pet, the suites) never asked for the Meshy model */ rate:()=>famRate(),dmg:()=>famDmg(),kinds:FAM_KIND,kindMul:()=>K(),glb:()=>Object.keys(FAM_GLB),fx:()=>famFx.length,shots:()=>famShots.length,swoop:()=>swoop?{t:+swoop.t.toFixed(2),bit:swoop.bit}:null,burning:()=>enemies.filter(e=>e.burnT>0&&!e.dead).length,pos:()=>fam?fam.g.position.toArray().map(v=>+v.toFixed(2)):null});
 window.__thorns={on:thornsOn,speed:THORN.speed,col:THORN.col,shots:()=>famShots.map(x=>({thorn:!!x.thorn,vx:x.vx,vy:x.vy,vz:x.vz,g:x.g,t:x.t}))};
 })();

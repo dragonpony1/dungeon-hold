@@ -4,18 +4,18 @@
 // gold that climbs slowly with the points already in the item. Bought at the anvil in the tavern, or from the character
 // sheet (Tab): tap a slot, pick a stat, press +.
 (function(){
-const UP_MAX=[50,75,100,150,200];                                    // upgrade points by rarity
+const UP_MAX=[50,75,100,150,200,260];                                    // upgrade points by rarity
 const UPINC={dmg:.5,spd:.5,hp:2,def:.2,regen:.05,tow:.5,trate:.4,tarea:.4,mana:.5,move:.2,fdmg:.5,frate:.5,fproj:1};   // what one point adds
-const UPCAP={def:60,move:50,spd:150,fproj:[0,1,1,2,3]};             // total-value caps; fproj = points allowed by rarity
+const UPCAP={def:60,move:50,spd:150,fproj:[0,1,1,2,3,3]};             // total-value caps; fproj = points allowed by rarity
 const UPKEYS={weapon:['dmg','spd','tow','trate'],armor:['hp','def','regen','tow'],charm:['tow','trate','tarea','mana'],amulet:['hp','regen','def','spd','move'],familiar:['fdmg','frate','fproj','tow']};
 const UPLBL={dmg:'⚔ Hero damage',spd:'⚡ Swing speed',hp:'❤ Max health',def:'🛡 Armor',regen:'✚ Regen',tow:'🏹 Defense damage',trate:'🔁 Defense attack speed',tarea:'◎ Defense range & area',mana:'◆ Mana from orbs',move:'👟 Move speed',fdmg:'✨ Pet damage',frate:'✨ Pet attack speed',fproj:'✨ Pet projectiles'};
 const UPFMT={dmg:v=>'+'+v,spd:v=>'+'+v+'%',hp:v=>'+'+v,def:v=>'+'+v+'%',regen:v=>'+'+v+'/s',tow:v=>'+'+v+'%',trate:v=>'+'+v+'%',tarea:v=>'+'+v+'%',mana:v=>'+'+v+'%',move:v=>'+'+v+'%',fdmg:v=>'+'+v,frate:v=>'+'+v+'%',fproj:v=>'+'+v};
-function upMax(it){ return UP_MAX[clamp(it.rarity|0,0,4)]; }
+function upMax(it){ return UP_MAX[clamp(it.rarity|0,0,5)]; }
 function upUsed(it){ return it.up|0; }
 function upLeft(it){ return Math.max(0,upMax(it)-upUsed(it)); }
 function upCost(it){ return Math.max(1,Math.round((3+2*(it.rarity|0))*(1+.06*upUsed(it))*(1+.1*((it.tier||tierOf(it.lvl||1))-1)))); }
 function upKeys(it){ return UPKEYS[it.slot]||[]; }
-function capOf(it,k){ const c=UPCAP[k]; if(Array.isArray(c)) return c[clamp(it.rarity|0,0,4)]; return c===undefined?Infinity:c; }
+function capOf(it,k){ const c=UPCAP[k]; if(Array.isArray(c)) return c[clamp(it.rarity|0,0,5)]; return c===undefined?Infinity:c; }
 function canUp(it,k){ if(!it) return {ok:false,why:'nothing there'}; if(!upKeys(it).includes(k)) return {ok:false,why:'not on this item'}; if(upLeft(it)<=0) return {ok:false,why:'fully upgraded'};
   if(k==='fproj'){ if(((it.ups&&it.ups.fproj)|0)>=capOf(it,k)) return {ok:false,why:capOf(it,k)?'max projectiles for '+RNAME[it.rarity]:'needs an Uncommon or better pet'}; }
   else if((it.stats[k]||0)+UPINC[k]>capOf(it,k)+1e-9) return {ok:false,why:'at the cap'};

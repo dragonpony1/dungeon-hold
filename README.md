@@ -909,6 +909,27 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   attempt (offer or answer lost) is retried with backoff instead of hanging forever, which is the likeliest cause of
   "he can't connect to me but I can connect to him". lobby-test.mjs drives three real browsers through all of it on a
   local signaling server. Built by a workflow agent and taken over to ship; its adversarial review follows.
+- Build 152: MYTHIC gear. The hideout's forge (hideout builds 26-30) makes a tier one step above legendary, rarity 5,
+  and the game wears it: `RNAME[5]` Mythic in its own pink, valid and fixable at 5, forge caps at 5, no level gate on
+  anything the hideout forged. **Named mythics** (ten, a forge proc, Matt's stats, each with a signature power,
+  `97-mythics.js`): Rootsplitter (every 4th swing sends roots that hold what is in front for 2 s), The Last Lantern
+  (enemies near you glow and take 25% more from anything but your sword), Mossheart Aegis (stand still 2 s and you and
+  the defenses beside you heal), Voidwoven Mantle (the first hit each wave is swallowed and you blink away), Tear of
+  the Rootgate (face a gate and press T to step through a portal to it, once a wave), The Warden's Oath (the first
+  enemy through each gate each wave is slowed and marked, and defenses engage it first), Bramblewhisk (the pet's
+  thorns), Old Lamplight (+1 pet projectile and the pet fires at whatever is being hit), Gloomcap Censer (defenses
+  beside you build 50% faster and fire 15% faster), Hourglass of Hollow Sand (when the crystal is about to fall the
+  horde crawls for 4 s, once a wave). Two named at once is the limit; a named piece counts toward ANY set bonus that
+  has a real piece on. **Mythic set pieces** ("Mythic Staff of the Void") are ordinary set pieces at the top rarity.
+  **dd_gear_return**: the hideout appends what the player sends back to the hall; the game moves every record into the
+  bag (`Meta.onPickup`) at load, when the hideout closes and when a title-screen visit ends, then clears the key
+  (a named record takes the table's stats and slot; the hideout's tier word is kept as `mythicTier`, the game's tier
+  stays the number). In co-op the mob-side powers run on the host's simulation; the stat halves travel with the look.
+  The other eight set endings, for when those sets land: of Chaos, of the Earth, of Fire, of Radiance, of the Storm,
+  of Shadow, of Ice, of the Wind (Matt is making a staff and a polearm for every set). `mythic-test.mjs` (new).
+  **"Why can't Jacob join me"**: PeerJS's default is one STUN server and no relay, so two players both behind a strict
+  NAT never find a direct path and the join dies with "Couldn't connect" (ping has nothing to do with it); a TURN relay
+  (the Open Relay Project's public one) is offered alongside STUN now, so the connection falls back to a relayed path.
 - Build 151: one MULTIPLAYER button. "One big takeaway from that testing session was that the title screen is too
   busy: one button that says multiplayer, then into a new screen that says host or join with the rows of who's joined."
   The title keeps a single 🤝 MULTIPLAYER button; HOST A GAME / JOIN A FRIEND, the code field and CONNECT, and the lobby
