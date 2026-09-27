@@ -21,6 +21,7 @@ const NAMED={
 };
 const slug=str=>String(str||'').toLowerCase().replace(/^the /,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
 const BY_NAME={}; for(const k in NAMED){ BY_NAME[slug(NAMED[k].name)]=k; BY_NAME[k]=k; }
+BY_NAME.hourglass_hollow_sand='hourglass_of_hollow_sand';   // the hideout's own id for it (NAMED_MYTHICS in hideout.html)
 function mythicId(it){ if(!it) return null; if(it.named&&typeof it.named==='string'&&BY_NAME[slug(it.named)]) return BY_NAME[slug(it.named)]; const k=BY_NAME[slug(it.name)]; return k||null; }
 function has(id){ for(const s of SLOTS){ const it=gear[s]; if(it&&it.named&&mythicId(it)===id) return true; } return false; }
 // ---- a hideout record into a game item: the hideout's tier word is kept aside (the game's tier is a number from the level),
@@ -29,8 +30,13 @@ function normalize(rec){ if(!rec||typeof rec!=='object') return null; const it={
   if(!SLOTS.includes(it.slot)){ const k=mythicId(rec); if(k) it.slot=NAMED[k].slot; else return null; }
   const st=(rec.stats&&typeof rec.stats==='object')?rec.stats:{}; for(const k in st){ const v=+st[k]; if(Number.isFinite(v)&&STATL[k]) it.stats[k]=v; }
   const k=mythicId(rec); if(rec.tier==='named'||(rec.named&&k)){ if(!k) return null; it.named=k; it.name=NAMED[k].name; it.slot=NAMED[k].slot; it.stats=Object.assign({},NAMED[k].stats); it.rarity=5; it.power=NAMED[k].power; }
-  if(rec.set&&typeof rec.set==='string') it.setId=rec.set.slice(0,24); if(rec.art&&typeof rec.art==='string') it.art=rec.art.slice(0,24);   // build 154: the hideout's set id and weapon look (sword/staff/polearm) ride along, so the hand shows the set's own weapon
+  // build 154/157: the set id and the weapon's kind ride along, so the hand shows the set's own weapon. A forged record calls
+  // them set and art (art = sword/staff/polearm there); a game item that went to the hideout and came back calls them setId
+  // and look, and its art is already a picture path
+  { const sid=rec.set||rec.setId, lk=[rec.look,rec.art].find(v=>/^(sword|staff|polearm|bow)$/.test(v));
+    if(sid&&typeof sid==='string') it.setId=sid.slice(0,24); if(lk) it.look=lk; }
   it.mythicTier=typeof rec.tier==='string'?rec.tier:(it.rarity>=5?'mythic':''); it.tier=tierOf(it.lvl); it.value=it.named?400:it.rarity>=5?250:[10,25,60,150,300][Math.max(0,Math.min(4,it.rarity|0))]; it.req=1;
+  { const A=window.__mythicDrops&&window.__mythicDrops.art, pic=A&&A(it); if(pic) it.art=pic; else if(typeof rec.art==='string'&&/\.(jpe?g|png|webp)$/i.test(rec.art)) it.art=rec.art.slice(0,200); }   // build 157: Matt's picture on its card (87-mythicdrops.js)
   return it; }
 function returnGear(){ let list=[]; try{ const a=JSON.parse(localStorage.getItem(RETURN_KEY)); if(Array.isArray(a)) list=a; }catch(e){} if(!list.length) return 0;
   let n=0; const left=[]; for(const rec of list){ const it=normalize(rec); if(!it){ continue; } if(Meta.onPickup(it,{x:hero.x,y:hero.y+1,z:hero.z})) n++; else left.push(rec); }

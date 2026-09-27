@@ -182,7 +182,7 @@ window.__staff.addKind('chaos',CH_K,chaosStaff); window.__staff.addKind('necroti
 window.__bow.addKind('chaos',CH_BOW); window.__bow.addKind('necrotic',NE_BOW); window.__bow.addKind('fire',FI_BOW);
 function setOf(it){ if(!it) return null; const id=String(it.setId||'').toLowerCase(); for(const k in SETS) if(SETS[k].ids.includes(id)) return k; const n=String(it.name||''); for(const k in SETS) if(SETS[k].tail.test(n)) return k; return null; }
 function setModel(it,mount){ const k=setOf(it); if(!k) return null; if(mount==='staff') return 'staff-'+k; if(mount==='bow') return 'bow-'+k;
-  return (it.art==='polearm'||/\bpolearm\b/i.test(it.name||'')?'polearm-':'sword-')+k; }   // the Knight: a polearm item stays a polearm, anything else is the set's sword
+  return (it.look==='polearm'||/\bpolearm\b/i.test(it.name||'')?'polearm-':'sword-')+k; }   // the Knight: a polearm item stays a polearm, anything else is the set's sword (it.look = the weapon's kind; it.art is the game's picture override)
 window.__weapons.setModel=setModel;
 // the swords' and polearms' glows breathe (a staff's and a bow's own animators already move theirs)
 const PULSES=new WeakMap(); let T=0;
