@@ -99,9 +99,18 @@ async function openPage(qs){
   const phaseBefore=await page.evaluate(()=>window.__dd.S.phase);
   check("still on the title screen while waiting",phaseBefore==='start',phaseBefore);
   await page.evaluate(()=>window.__savedJoinCb(null,'fake-guest-id'));
+  // since phase 14 a successful join opens the host's lobby (99b-lobby.js) rather than the hall itself
+  await page.waitForFunction(()=>window.__lobby.state().phase==='lobby',null,{timeout:5000});
+  const late=await page.evaluate(()=>({phase:window.__dd.S.phase,lobby:window.__lobby.state().phase,panel:!document.getElementById('lobbyPanel').classList.contains('hide'),joinHidden:document.getElementById('joinPanel').classList.contains('hide')}));
+  check("a late success after the timeout still lets them in -- into the lobby, not stranded on the error",late.lobby==='lobby'&&late.panel&&late.joinHidden&&late.phase==='start',JSON.stringify(late));
+  // this stub has no real host behind it, so no lobby ever arrives: after a few seconds the guest is offered ENTER NOW (the same
+  // way out a guest of an older, lobby-less host gets) and it really enters the hall
+  await page.waitForFunction(()=>!document.getElementById('lobbyEnter').classList.contains('hide'),null,{timeout:15000});
+  const noLobbyMsg=await page.evaluate(()=>document.getElementById('lobbyMsg').textContent);
+  await page.click('#lobbyEnter');
   await page.waitForFunction(()=>window.__dd.S.phase!=='start',null,{timeout:5000});
   const phaseAfter=await page.evaluate(()=>window.__dd.S.phase);
-  check("a late success after the timeout still lets them into the hall, not stranded",phaseAfter==='build',phaseAfter);
+  check("with no lobby from the host, ENTER NOW still gets them into the hall, not stranded",phaseAfter==='build'&&/no lobby/i.test(noLobbyMsg),JSON.stringify({phaseAfter,noLobbyMsg}));
   await ctx.close();
 }
 

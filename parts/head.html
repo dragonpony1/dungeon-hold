@@ -66,6 +66,31 @@ body.play #c{cursor:none}
 .netMsg{font-size:13px;color:#bfae90;min-height:1.2em;margin:0}
 .netMsg.err{color:#e07a7a}
 .netCode{font-size:24px;font-weight:bold;color:var(--gold);letter-spacing:3px;background:#1c1424;border:2px solid var(--gold);border-radius:8px;padding:8px 18px;cursor:pointer;user-select:all}
+/* the co-op lobby (99b-lobby.js): a row per player with a loading light, START for the host; fits a 400 px phone */
+.netPanel.lobby{width:100%;max-width:370px;gap:7px}
+.lbMap{font-size:12px;letter-spacing:1.5px;color:var(--gold);margin:0;text-align:center;line-height:1.5}
+.lbMap small{display:block;color:#bfae90;letter-spacing:.5px}
+.lbRoster{display:flex;flex-direction:column;gap:6px;width:100%}
+.lbRow{display:flex;align-items:center;gap:8px;background:#1c1424;border:2px solid #6b5a3c;border-radius:10px;padding:4px 8px 4px 4px;text-align:left;min-width:0}
+.lbRow.me{border-color:var(--gold);box-shadow:0 0 10px #e8b94a44}
+.lbRow img,.lbRow .lbImg{width:34px;height:42px;object-fit:cover;border-radius:6px;background:#2a2a33;flex:none;display:flex;align-items:center;justify-content:center;color:#8f8470;font-size:16px}
+.lbWho{flex:1;min-width:0;font-size:13px;color:#f1e6d0;line-height:1.3}
+.lbWho b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:bold;letter-spacing:.5px}
+.lbWho b small{font-weight:normal;color:var(--gold);font-size:11px}
+.lbWho span{display:block;font-size:11px;color:#bfae90;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lbWho em{color:#ffd27a;font-style:normal}
+.lbLight{flex:none;display:flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap}
+.lbLight i{width:11px;height:11px;border-radius:50%;display:inline-block;flex:none}
+.lbLight.amber{color:#ffd27a}.lbLight.amber i{background:#e8a33a;box-shadow:0 0 8px #e8a33a;animation:lbPulse .9s infinite alternate}
+.lbLight.green{color:#a6f0b4}.lbLight.green i{background:#4be06a;box-shadow:0 0 8px #4be06a}
+.lbLight small{font-size:10px;color:#a6f0b4;opacity:.85}
+@keyframes lbPulse{from{opacity:.4}to{opacity:1}}
+.lbName{font-size:12px;letter-spacing:1px;color:#bfae90;display:flex;align-items:center;gap:8px}
+.lbName .netInput{width:150px;font-size:13px;padding:5px 10px}
+#lobbyStart:disabled{opacity:.5;cursor:default;filter:grayscale(.7)}
+.lbLink{background:none;border:none;color:#bfae90;text-decoration:underline;cursor:pointer;font:12px Georgia,serif;padding:2px 6px}
+#start.inLobby #playbtn,#start.coopPage #playbtn,#start.coopPage #hostbtn{display:none!important}
+#start.inLobby #mapline button{pointer-events:none;opacity:.2}
 kbd{background:#2a1f33;border:1px solid #6b5a3c;border-radius:4px;padding:1px 6px;font-family:Georgia,serif;color:var(--gold)}
 .hide{display:none!important}
 #dead{pointer-events:none}#dead .big{pointer-events:auto}
@@ -105,6 +130,7 @@ kbd{background:#2a1f33;border:1px solid #6b5a3c;border-radius:4px;padding:1px 6p
   <button class="big alt small" id="hostbtn">🤝 HOST A GAME</button>
   <button class="big alt small" id="joinbtn">🚪 JOIN A FRIEND</button>
  </div>
+ <p class="netMsg" id="coopMsg"></p>
  <div class="netPanel hide" id="hostPanel">
   <p class="netMsg" id="hostMsg">Opening the gate…</p>
  </div>
@@ -112,6 +138,16 @@ kbd{background:#2a1f33;border:1px solid #6b5a3c;border-radius:4px;padding:1px 6p
   <input id="joinCode" class="netInput" placeholder="friend's code" autocomplete="off" spellcheck="false" maxlength="40">
   <button class="big alt small" id="joinGoBtn">CONNECT</button>
   <p class="netMsg" id="joinMsg"></p>
+ </div>
+ <div class="netPanel lobby hide" id="lobbyPanel">
+  <p class="lbMap" id="lobbyMap"></p>
+  <div class="lbRoster" id="lobbyRoster"></div>
+  <label class="lbName">your name <input id="lobbyName" class="netInput" placeholder="optional" autocomplete="off" spellcheck="false" maxlength="16"></label>
+  <button class="big small" id="lobbyStart" disabled>▶ START</button>
+  <button class="lbLink hide" id="lobbyForce">start without waiting</button>
+  <button class="big alt small hide" id="lobbyEnter">▶ ENTER NOW</button>
+  <p class="netMsg" id="lobbyMsg"></p>
+  <button class="lbLink" id="lobbyLeave">✕ leave the lobby</button>
  </div>
  <details id="howto" class="howto"><summary>ALL CONTROLS &amp; HOW IT WORKS</summary>
  <p><kbd>W A S D</kbd> run &nbsp; <kbd>Shift</kbd> sprint &nbsp; <kbd>mouse</kbd> look &nbsp; <kbd>click</kbd> swing &nbsp; <kbd>Space</kbd> jump</p>

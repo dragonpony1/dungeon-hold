@@ -1,7 +1,8 @@
 // ===== CO-OP (phase 10): the title-screen HOST A GAME / JOIN A FRIEND buttons -- co-op was previously a
 // window.__net-only API with no in-game way for an ordinary player to actually reach it. This suite drives the
 // REAL buttons/input (parts/head.html's #start screen, wired in 99-network.js), not window.__net directly, so it
-// exercises exactly what a real player clicks and types.
+// exercises exactly what a real player clicks and types. Since phase 14 both sides meet in a lobby first (lobby-test.mjs covers
+// it in depth); this suite keeps its own intent: the real buttons work, a wrong code errors, and host and guest end up in one hall.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 let PeerServer;
 try { ({ PeerServer } = await import("peer")); }
@@ -52,20 +53,24 @@ check("a wrong code shows a real error, not a silent hang",badMsg.length>0&&badM
 check("the Enter-key guard holds -- game.js's own Enter->play() handler did NOT fire while typing/submitting the code",
   guestPhaseAfterBad==='start',guestPhaseAfterBad);
 
-// ---- guest: the REAL code this time ----
+// ---- guest: the REAL code this time. Since phase 14 (99b-lobby.js) a successful join lands in the host's LOBBY -- both
+// players listed, each with a loading light -- rather than straight in the hall; the host's START is what takes them in ----
 await guestPage.fill('#joinCode',hostCode);
 await guestPage.click('#joinGoBtn');
-await guestPage.waitForFunction(()=>window.__dd.S.phase!=='start',null,{timeout:20000});
+await guestPage.waitForFunction(()=>window.__lobby.state().phase==='lobby'&&window.__lobby.roster().length===2,null,{timeout:60000});
 const guestRole=await guestPage.evaluate(()=>window.__net.role());
 check("joining with the real code connects as a real guest",guestRole==='guest',guestRole);
-const guestPhase=await guestPage.evaluate(()=>window.__dd.S.phase);
-check("a successful join enters the hall automatically (no separate 'enter' step needed, unlike hosting)",guestPhase==='build',guestPhase);
+const guestLobby=await guestPage.evaluate(()=>({phase:window.__dd.S.phase,lobby:window.__lobby.state().phase,panel:!document.getElementById('lobbyPanel').classList.contains('hide')}));
+check("a successful join opens the host's lobby, both players listed -- waiting there, not dropped into the hall alone",guestLobby.phase==='start'&&guestLobby.lobby==='lobby'&&guestLobby.panel,JSON.stringify(guestLobby));
 
-// ---- host: now actually enter, via the button the code panel left on screen ----
-await hostPage.click('#hostEnterBtn');
+// ---- host: START, once both lights are green, takes both of them into the hall on the same message ----
+await hostPage.waitForFunction(()=>{ const b=document.getElementById('lobbyStart'); return b&&!b.disabled&&window.__lobby.roster().length===2; },null,{timeout:120000});
+await hostPage.click('#lobbyStart');
 await hostPage.waitForFunction(()=>window.__dd.S.phase!=='start',null,{timeout:20000});
-const hostPhase=await hostPage.evaluate(()=>window.__dd.S.phase);
-check("clicking ENTER THE HALL after hosting actually enters it",hostPhase==='build',hostPhase);
+await guestPage.waitForFunction(()=>window.__dd.S.phase!=='start',null,{timeout:20000});
+const hostPhase=await hostPage.evaluate(()=>window.__dd.S.phase), guestPhase=await guestPage.evaluate(()=>window.__dd.S.phase);
+check("clicking START in the lobby enters the hall",hostPhase==='build',hostPhase);
+check("...and the guest goes in with it, no separate step of their own",guestPhase==='build',guestPhase);
 
 // ---- the connection is real: tick both and confirm the host sees the guest's simulated hero ----
 for(const p of [hostPage,guestPage]) await p.evaluate(()=>{ window.__freeze=true; window.__dd.step(1/60,30); });
