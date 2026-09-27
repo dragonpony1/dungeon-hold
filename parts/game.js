@@ -650,7 +650,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=162;
+const BUILD=163;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -828,7 +828,12 @@ function attack(e,tg){ e.swing=0; e.pending=tg; }
 function landHit(e,tg){
   if(tg.kind==='hero'){ if(!tg.hero.isDead()) tg.hero.hurt(e.dmg); }
   else if(tg.kind==='crystal'){ if(tg.ranged) fireArrow(e,0,2.6,0,{kind:'crystal'}); else hurtCrystal(e.dmg,e); }
-  else if(tg.kind==='def'){ const d=tg.obj; if(!defs.includes(d)) return; if(tg.ranged) fireArrow(e,d.x,1.0,d.z,{kind:'def',obj:d}); else { hurtDef(d,e.dmg); if(d.kind==='spike') hurt(e,Math.round(DEFS.spike.thorns*(1+oStat(d,'tow')/100)),0,0); } } }
+  else if(tg.kind==='def'){ const d=tg.obj; if(!defs.includes(d)) return; if(tg.ranged) fireArrow(e,d.x,1.0,d.z,{kind:'def',obj:d}); else { hurtDef(d,e.dmg); if(d.kind==='spike'&&!e.dead){ hurt(e,thornsBack(d,e.dmg),0,0); thornSpark(e); } } } }
+// the hedge's thorns (build 163, Matt: "I want the bramble barrier tower to return damage, like thorn damage"): each melee hit it takes
+// comes back as half the blow plus DEFS.spike.thorns, +25% a mark, scaled by the owner's defense-damage gear -- it used to be a flat 2
+// whoever swung, so an ogre's 20 cost the ogre 2. Now a goblin's 3 costs it 4, an orc's 8 costs it 6-7, an ogre's 20 costs it 12
+function thornsBack(d,hit){ return Math.max(1,Math.round((DEFS.spike.thorns+hit*.5)*(1+.25*((d.lvl||1)-1))*(1+oStat(d,'tow')/100))); }
+function thornSpark(e){ const fx=glow(0x8fd65a,1.1,.85); fx.position.set(e.x+R(-.2,.2),e.y+e.h*.55,e.z+R(-.2,.2)); scene.add(fx); projs.push({kind:'spark',t:0,mesh:fx}); }
 // co-op: which hero (the local one, or another player's, via Meta.heroes()) is nearest and close enough for e to
 // notice at all — same melee-proximity check the local hero always had, just no longer hardcoded to just it
 function nearestHero(e,extra){
