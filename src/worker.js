@@ -43,7 +43,8 @@ export default {
   },
 };
 
-// kind: 'forged' (a mythic/unique from the hideout's forge — type is the category, tier is mythic|unique)
+// kind: 'forged' (from the hideout's forge — type is the category, tier is named|mythic|unique; payload, since
+//    build 26, is the forged record: which named mythic or set it is, and its stats — optional, old rows have none)
 //    or 'carried' (a trophy locked in the dungeon and carried through the portal — type is the slot,
 //    tier is the rarity name, payload is the game's full item record so it survives the round trip)
 function rowToItem(row) {
@@ -83,7 +84,7 @@ export class HideoutDO {
       const body = await request.json().catch(() => null);
       if (!body || !body.type || !body.tier) return json({ error: 'type and tier required' }, 400);
       const kind = body.kind === 'carried' ? 'carried' : 'forged';
-      const payload = kind === 'carried' && body.payload && typeof body.payload === 'object' ? JSON.stringify(body.payload) : null;
+      const payload = body.payload && typeof body.payload === 'object' ? JSON.stringify(body.payload) : null;
       if (kind === 'carried' && !payload) return json({ error: 'a carried item needs its payload' }, 400);
       if (payload && payload.length > 8000) return json({ error: 'payload too large' }, 400);
       const id = crypto.randomUUID();

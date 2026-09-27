@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="25">
+<meta name="hideout-build" content="26">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -122,6 +122,7 @@ canvas{display:block}
 .islot img{width:40px;height:40px;object-fit:contain;pointer-events:none}
 .islot.dragsrc{opacity:0.3}
 .islot.droptarget{border-color:#ffe08a;box-shadow:0 0 8px #ffe08a88}
+.islot.sendzone{border-style:dashed;border-color:#c9a227;color:#ffe08a;font-size:22px;cursor:default;opacity:1}
 .dragicon{position:fixed;width:46px;height:46px;object-fit:contain;pointer-events:none;z-index:100;transform:translate(-50%,-50%);filter:drop-shadow(0 4px 8px #000)}
 .slot.empty{opacity:0.55}
 #chestWrap{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:20}
@@ -191,6 +192,8 @@ canvas{display:block}
   <div id="gearBody">
     <div class="isection">Bag</div><div id="invBag" class="islotgrid"></div>
     <div class="isection">Hotbar — keys 1 to 9</div><div id="invHot" class="islotgrid"></div>
+    <div id="invSendWrap" style="display:none"><div class="isection">Send to the hall — drag gear here and it goes into your hero's bag when you head back</div>
+      <div class="islotgrid" style="grid-template-columns:46px"><div id="invSend" class="islot sendzone">⇪</div></div></div>
     <div id="gearWaiting" style="display:none"><div class="isection">Waiting for room in your bag — click one to move it in</div><div id="gearGrid"></div></div>
   </div>
 </div></div>
@@ -214,6 +217,7 @@ canvas{display:block}
   <div id="lockerBody">
     <div class="lsection">Locked &amp; carried in</div><div id="lockerCarried" class="lgrid"></div>
     <div class="lsection">Rewards</div><div id="lockerRewards" class="lgrid"></div>
+    <div id="lockerReturnWrap" style="display:none"><div class="lsection">Going back to the hall — click one to keep it here instead</div><div id="lockerReturn" class="lgrid"></div></div>
   </div>
 </div></div>
 
@@ -224,7 +228,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 25;
+const HIDEOUT_BUILD = 26;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -365,7 +369,7 @@ function cutoutIcon(url) {
   if (!(url in cutoutCache)) {
     cutoutCache[url] = null;
     const img = new Image();
-    img.onload = () => { try { cutoutCache[url] = knockOutWhite(img).toDataURL(); refreshSlotViews(); } catch (e) {} };
+    img.onload = () => { try { cutoutCache[url] = knockOutBackground(img).toDataURL(); refreshSlotViews(); } catch (e) {} };
     img.src = url;
   }
   return cutoutCache[url] || url;
@@ -472,6 +476,15 @@ const RARITY_RANK = { common:0, uncommon:1, rare:2, epic:3, legendary:4 };
 const CARRIED_KEY = 'dd_gear_carried';
 function loadCarried() { try { const a = JSON.parse(localStorage.getItem(CARRIED_KEY)); return Array.isArray(a) ? a : []; } catch(e) { return []; } }
 function writeCarried(list) { localStorage.setItem(CARRIED_KEY, JSON.stringify(list)); }
+// Gear going back to the main game (the third contract, build 26). Dragging gear onto "Send to the hall" in the I
+// panel appends a record here and takes it out of the hideout; the GAME moves each record into the hero's bag when
+// the hideout closes and removes it. Record = the game's item shape {id, name, slot, rarity, lvl, stats, tier, set?,
+// named?} + from:'hideout', sentAt, and hideout:{kind, rec} (the slot item as it was, so it can come back unchanged).
+// Until the game's half exists RETURN_TO_HALL stays false and the drop spot is hidden — anything sent would just wait.
+// Waiting records show on the wall locker's "Going back to the hall" shelf, where a click brings one back.
+const RETURN_KEY = 'dd_gear_return', RETURN_TO_HALL = false;
+function loadReturn() { try { const a = JSON.parse(localStorage.getItem(RETURN_KEY)); return Array.isArray(a) ? a : []; } catch(e) { return []; } }
+function writeReturn(list) { localStorage.setItem(RETURN_KEY, JSON.stringify(list)); }
 // the game's slots drawn with the mythic category art — its "charm" is our trinket
 const SLOT_ICON = {
   weapon: ITEMS_DIR+'mythic_weapon.png', armor: ITEMS_DIR+'mythic_armor.png', amulet: ITEMS_DIR+'mythic_amulet.png',
@@ -487,6 +500,74 @@ const MYTHIC_GEAR = {
   familiar: { name:'Mythic Familiar', icon: ITEMS_DIR+'mythic_familiar.png' },
   trinket:  { name:'Mythic Trinket',  icon: ITEMS_DIR+'mythic_trinket.png' },
 };
+const GAME_SLOT = { weapon:'weapon', armor:'armor', amulet:'amulet', familiar:'familiar', trinket:'charm' }; // the game calls our trinket a charm
+const MYTHIC_RARITY = 5; // one step above the game's legendary (4) — the game has to learn this tier to let you wear them
+// A normal forge success makes a mythic piece of one of the ten gear sets, rolled at random (Matt: "pick slot, random
+// set"). The game tells a set piece by its name ending (93-gearsets.js makeSet: "<base> of the Forest"), so that's how
+// these are named. ids are the armor-stand set ids; the main game has Forest and Void so far and should use these same
+// name endings when it adds the rest. Art: Matt's GEAR SETS concept art, made small by tools/set-art.js into
+// items/sets/<id>-<piece>.jpg (sword, whip, armor, amulet, trinket — no familiar art yet, so familiars use the
+// category picture). Colours: the game's for Forest/Void, the rest from each set's glow.
+const SET_ART_DIR = ITEMS_DIR + 'sets/';
+const MYTHIC_SETS = [
+  { id:'forest',  tail:'of the Forest', color:'#5ad05a' },
+  { id:'void',    tail:'of the Void',   color:'#c070ff' },
+  { id:'crimson', tail:'of Chaos',      color:'#e0587a' },
+  { id:'rock',    tail:'of the Earth',  color:'#c8c070' },
+  { id:'lava',    tail:'of Fire',       color:'#ff7a30' },
+  { id:'angelic', tail:'of Radiance',   color:'#ffd878' },
+  { id:'storm',   tail:'of the Storm',  color:'#78b4ff' },
+  { id:'shadow',  tail:'of Shadow',     color:'#9ae070' },
+  { id:'ice',     tail:'of Frost',      color:'#8ad4ff' },
+  { id:'wind',    tail:'of the Wind',   color:'#9ee0e0' },
+];
+// which picture a forged set piece uses, by forge category. Weapons are swords, magical staves and polearms (Matt:
+// "no whips"); only swords have art for every set so far — add 'staff' / 'polearm' here once tools/set-art.js has
+// made them. A weapon's look also names it: "Mythic Staff of Chaos".
+const SET_ART_PIECES = { weapon:['sword'], armor:['armor'], amulet:['amulet'], trinket:['trinket'], familiar:[] };
+// Named mythics — only ever from a forge proc (NAMED_PROC_CHANCE). Designed with Matt 2026-09-27: fixed mythic stats
+// (the game's stat keys), a signature power the MAIN GAME gives them in the dungeon, and they count toward any set;
+// you can wear two at once. art: Matt's picture once he makes it (items/named/<id>.webp) — until then the category
+// art stands in.
+const NAMED_MYTHICS = {
+  rootsplitter:       { type:'weapon',   name:'Rootsplitter',             art:null, stats:{ dmg:30, hp:90, spd:15 },
+    power:'Every 4th swing sends roots along the ground that hold enemies in place for 2 seconds.',
+    lore:'A war-axe of living ironwood. The blade still sprouts leaves after every swing.' },
+  last_lantern:       { type:'weapon',   name:'The Last Lantern',         art:null, stats:{ dmg:24, tow:30, tarea:15 },
+    power:'Enemies near you glow and take 25% more damage from your defenses.',
+    lore:'A halberd with a star caged at its tip. The dark leans away from it.' },
+  mossheart_aegis:    { type:'armor',    name:'Mossheart Aegis',          art:null, stats:{ hp:170, def:22, regen:4.5 },
+    power:'Stand still for 2 seconds and you and nearby defenses start healing.',
+    lore:'Plate grown, not forged: bark and moss around a heartwood core that still beats.' },
+  voidwoven_mantle:   { type:'armor',    name:'Voidwoven Mantle',         art:null, stats:{ def:24, move:18, mana:50 },
+    power:'The first hit you take each wave is swallowed, and you blink a few steps away.',
+    lore:'Stitched from the night between the stars. Blows land somewhere else.' },
+  tear_of_the_rootgate:{ type:'amulet',  name:'Tear of the Rootgate',     art:null, stats:{ mana:70, move:15, tow:25 },
+    power:'Once per wave, step through a portal to any of the three gates.',
+    lore:'A teardrop of crystal with a tiny portal still turning inside.' },
+  wardens_oath:       { type:'amulet',   name:'The Warden\'s Oath',       art:null, stats:{ tow:42, def:12, hp:80 },
+    power:'The first enemy through each gate each wave is slowed and marked, and your defenses focus it.',
+    lore:'A bronze sigil that grows warm when something is coming through the gate.' },
+  bramblewhisk:       { type:'familiar', name:'Bramblewhisk',             art:null, stats:{ fdmg:36, frate:45, move:10 },
+    power:'Your pet\'s shots leave thorn patches that slow and prick enemies.',
+    lore:'A fox-spirit of thorns with a glowing mushroom tail. It bites, then giggles.' },
+  old_lamplight:      { type:'familiar', name:'Old Lamplight',            art:null, stats:{ fdmg:30, frate:60, fproj:1 },
+    power:'+1 pet projectile, and your pet fires at whatever your defenses are hitting.',
+    lore:'An owl whose body is an old lantern. It sees in the dark, and shoots at what it sees.' },
+  gloomcap_censer:    { type:'trinket',  name:'Gloomcap Censer',          art:null, stats:{ trate:20, tarea:18, regen:3 },
+    power:'Defenses near you build 50% faster and fire 15% faster.',
+    lore:'It swings a smoke of glowing spores. Defenses near it seem to wake up.' },
+  hourglass_hollow_sand:{ type:'trinket', name:'Hourglass of Hollow Sand', art:null, stats:{ spd:35, move:18, mana:40 },
+    power:'Once per wave, when a gate is about to fall, enemies slow to a crawl for 4 seconds.',
+    lore:'The sand falls upward. Nobody knows what it is counting down to.' },
+};
+// the game's own stat wording (parts/game.js STATL) so a tooltip here reads like the item card over there
+const STAT_LABEL = { dmg:v=>'+'+v+' dmg', spd:v=>'+'+v+'% swing', hp:v=>'+'+v+' hp', def:v=>'+'+v+'% armor', regen:v=>'+'+v+' hp/s',
+  tow:v=>'+'+v+'% defenses', mana:v=>'+'+v+'% mana', move:v=>'+'+v+'% speed', fdmg:v=>v+' pet dmg', frate:v=>'+'+v+'% pet rate',
+  trate:v=>'+'+v+'% defense speed', tarea:v=>'+'+v+'% defense range', fproj:v=>'+'+v+' pet projectile'+(v===1?'':'s') };
+function statText(stats) {
+  return stats && typeof stats === 'object' ? Object.entries(stats).map(([k, v]) => STAT_LABEL[k] ? STAT_LABEL[k](v) : k + ' ' + v).join(', ') : '';
+}
 
 // ============= SCENE =============
 const scene = new THREE.Scene();
@@ -742,13 +823,20 @@ colliders.push({minX:-roomHalfW-0.4,maxX:-roomHalfW+0.4,minZ:-roomHalfD,maxZ:roo
 const interactables = []; // {mesh, type, id, onUse}
 const raycaster = new THREE.Raycaster();
 
+// a name tag: the tag grows with the text (same letter size) up to twice as wide, then the letters shrink to fit —
+// "Mythic Armor of the Forest" came out as "ic Armor of the Fo" in the old fixed 256px tag
 function labelSprite(text, color) {
-  const cv = document.createElement('canvas'); cv.width=256; cv.height=64;
-  const g = cv.getContext('2d'); g.fillStyle='rgba(0,0,0,0.55)'; g.fillRect(0,0,256,64);
-  g.font='bold 26px monospace'; g.fillStyle=color||'#fff'; g.textAlign='center'; g.fillText(text,128,40);
+  const cv = document.createElement('canvas'), g = cv.getContext('2d');
+  let size = 26;
+  g.font = 'bold ' + size + 'px monospace';
+  const w = g.measureText(text).width;
+  if (w > 488) size = Math.floor(size * 488 / w);
+  cv.width = Math.max(256, Math.min(512, Math.ceil(w + 24))); cv.height = 64;
+  g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(0, 0, cv.width, 64);
+  g.font = 'bold ' + size + 'px monospace'; g.fillStyle = color || '#fff'; g.textAlign = 'center'; g.fillText(text, cv.width / 2, 40);
   const tex = new THREE.CanvasTexture(cv);
   const spr = new THREE.Sprite(new THREE.SpriteMaterial({map:tex, depthTest:false}));
-  spr.scale.set(2.2,0.55,1);
+  spr.scale.set(2.2 * cv.width / 256, 0.55, 1);
   return spr;
 }
 
@@ -1091,12 +1179,25 @@ function commitPlacement() {
 // backed by a Durable Object on the Worker — because Matt wants friends to see and grab what's dropped.
 // A "piece" is anything the player can put on display: a forged mythic/unique from the Forge, or a trophy
 // carried in from the dungeon (dd_gear_carried). Both are normalized to this one shape.
+// A forged record is one of three shapes: a named mythic {tier:'named', named:<NAMED_MYTHICS id>, stats…}, a mythic
+// set piece {tier:'mythic', set:<MYTHIC_SETS id>, name:'Mythic Amulet of the Void', stats…}, or — forged before build
+// 26 — a bare {tier:'mythic'|'unique', name|null}. The whole record rides along as the payload wherever it goes.
 function pieceFromForged(g) {
   const cat = MYTHIC_GEAR[g.type] ? MYTHIC_GEAR[g.type].name : g.type;
+  const catIcon = MYTHIC_GEAR[g.type] ? MYTHIC_GEAR[g.type].icon : SLOT_ICON.weapon;
+  const word = cat.replace(/^Mythic /, '');
+  const stats = statText(g.stats);
+  const N = g.tier === 'named' && NAMED_MYTHICS[g.named];
+  if (N) return { kind:'forged', key:'f:'+g.id, id:g.id, type:g.type, tier:'named', name:N.name,
+    icon: N.art || catIcon, color:'#ffcf3a', label: N.name, desc: N.name + ' (Named Mythic ' + word + ')', sub:'Named Mythic',
+    tip: N.name + ' — Named Mythic ' + word + (stats ? ' · ' + stats : '') + ' · Power: ' + N.power + ' · “' + N.lore + '”', payload: g };
+  const set = g.set && MYTHIC_SETS.find(s => s.id === g.set);
+  if (set) return { kind:'forged', key:'f:'+g.id, id:g.id, type:g.type, tier:'mythic', name:g.name,
+    icon: g.art ? SET_ART_DIR + set.id + '-' + g.art + '.jpg' : catIcon, color: set.color, label: g.name, desc: g.name, sub:'Mythic set piece',
+    tip: g.name + (stats ? ' · ' + stats : '') + ' · counts toward the ' + set.tail.replace(/^of (the )?/, '') + ' set', payload: g };
   return { kind:'forged', key:'f:'+g.id, id:g.id, type:g.type, tier:g.tier, name:g.name || null,
-    icon: MYTHIC_GEAR[g.type] ? MYTHIC_GEAR[g.type].icon : SLOT_ICON.weapon,
-    color: g.tier === 'unique' ? '#ffcf3a' : '#cfa0ff',
-    label: g.name || cat, desc: g.name ? g.name + ' (' + cat + ')' : cat, sub: null, payload: null };
+    icon: catIcon, color: g.tier === 'unique' ? '#ffcf3a' : '#cfa0ff',
+    label: g.name || cat, desc: g.name ? g.name + ' (' + cat + ')' : cat, sub: null, payload: g };
 }
 function pieceFromCarried(c) {
   const standGid = c.reward ? standGidFor(c) : null;
@@ -1119,8 +1220,9 @@ function pieceFromCarried(c) {
     sub: c.reward ? (c.reason || 'Reward') : ra.short + ' ' + c.slot + (c.lvl ? ' · Lv ' + c.lvl : ''),
     tip: desc + (stats ? ' — ' + stats : ''), payload: c };
 }
-function pieceFromShared(item) { // a row from the Worker's shared table
-  return item.kind === 'carried' && item.payload ? pieceFromCarried(item.payload) : pieceFromForged(item);
+function pieceFromShared(item) { // a row from the Worker's shared table (forged rows carry their record since build 26)
+  if (item.kind === 'carried' && item.payload) return pieceFromCarried(item.payload);
+  return pieceFromForged(item.payload && item.payload.id ? item.payload : item);
 }
 // gear you own lives in slots, so that's where a piece is found (placing uses the selected hotbar slot's)
 function findPiece(key) {
@@ -1141,7 +1243,7 @@ function makeGearStandGroup(piece, translucent, size) {
     const stand = box(0.5, 0.9, 0.5, new THREE.Color(piece.color).multiplyScalar(0.55).getHex());
     if (translucent) { stand.material.transparent = true; stand.material.opacity = 0.5; }
     g.add(stand);
-    spr.position.y = 0.75; spr.scale.set(0.6, 0.6, 1);
+    spr.position.y = 0.9; spr.scale.set(0.9, 0.9, 1); // resting on the plinth's top (0.45); big enough to make out the set art
   }
   if (translucent) { spr.material.transparent = true; spr.material.opacity = 0.55; }
   g.add(spr);
@@ -1154,19 +1256,32 @@ function iconTexture2(url) {
     // note, so in-world copies get the background cut out
     const tex = new THREE.Texture();
     const img = new Image();
-    img.onload = () => { tex.image = knockOutWhite(img); tex.needsUpdate = true; };
+    img.onload = () => { tex.image = knockOutBackground(img); tex.needsUpdate = true; };
     img.src = url;
     gearIconTexCache[url] = tex;
   }
   return gearIconTexCache[url];
 }
-// flood-fill from the corners through near-white pixels, so only background connected to the edge goes — the art's
-// dark outline stops the fill — then soften the fringe that anti-aliasing left behind
-function knockOutWhite(img) {
+// The gear art is painted on white: flood-fill from the corners through near-white pixels, so only background
+// connected to the edge goes — the art's dark outline stops the fill — then soften the fringe anti-aliasing left.
+// The gear-set art (items/sets) is painted on near-black, and its dark metal is too close to that backdrop to cut
+// cleanly (tried: it ate holes in the Chaos and Void armor), so dark art keeps its backdrop and only has its square
+// edges faded away — it reads as a glowing card.
+function knockOutBackground(img) {
   const S = 256;
   const cv = document.createElement('canvas'); cv.width = cv.height = S;
   const g = cv.getContext('2d'); g.drawImage(img, 0, 0, S, S);
   const d = g.getImageData(0, 0, S, S), px = d.data;
+  const cornerLight = [0, S - 1, (S - 1) * S, S * S - 1].reduce((a, p) => a + px[p*4] + px[p*4+1] + px[p*4+2], 0) / 12;
+  if (cornerLight < 128) {
+    const band = S * 0.1;
+    for (let p = 0; p < S * S; p++) {
+      const x = p % S, y = (p / S) | 0, e = Math.min(x, y, S - 1 - x, S - 1 - y) / band;
+      if (e < 1) px[p*4+3] = Math.round(px[p*4+3] * e * e * (3 - 2 * e));
+    }
+    g.putImageData(d, 0, 0);
+    return cv;
+  }
   const light = p => Math.min(px[p*4], px[p*4+1], px[p*4+2]);
   const cleared = new Uint8Array(S * S), stack = [0, S - 1, (S - 1) * S, S * S - 1];
   while (stack.length) {
@@ -1260,7 +1375,7 @@ function buildWorldGearVisual(item, piece, size) {
   group.rotation.y = item.ry || 0;
   if (!size) { // on a spot the label would poke through the board above; the look-at prompt names it instead
     const label = labelSprite(piece.label, piece.color);
-    label.position.set(0, 1.35, 0); label.scale.set(1.7, 0.42, 1);
+    label.position.set(0, 1.65, 0); label.scale.multiplyScalar(0.77); // keeps the tag's width-to-text ratio
     group.add(label);
   }
   scene.add(group);
@@ -1311,7 +1426,8 @@ async function pickupSharedGear(id) {
     // gear comes back to your hotbar, like picked-up furniture, so putting it somewhere else is quick
     const v = piece.kind === 'carried'
       ? { kind: 'carried', rec: piece.payload }
-      : { kind: 'forged', rec: { id: crypto.randomUUID(), type: item.type, tier: item.tier, name: item.name, craftedAt: item.createdAt || Date.now() } };
+      : { kind: 'forged', rec: item.payload && item.payload.id ? Object.assign({}, item.payload) // the whole record (named, set, stats)
+        : { id: crypto.randomUUID(), type: item.type, tier: item.tier, name: item.name, craftedAt: item.createdAt || Date.now() } };
     if (giveItem(v, 'hotbar')) flashMsg('Picked up ' + piece.desc);
     else { stashGear(v); flashMsg('Picked up ' + piece.desc + ' — your bag is full, so it went to ' + (v.kind === 'forged' ? 'the waiting list in your inventory (I)' : 'the wall locker')); }
     writeSave(); refreshSlotViews();
@@ -1347,6 +1463,7 @@ function openGearPanel() {
   gearWasActive = active;
   if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
   document.getElementById('gearWrap').style.display = 'flex';
+  document.getElementById('invSendWrap').style.display = RETURN_TO_HALL ? 'block' : 'none';
   buildGearGrid();
   refreshSlotViews();
 }
@@ -1410,6 +1527,7 @@ window.addEventListener('pointerup', ev => {
   d.img.remove(); d.el.classList.remove('dragsrc');
   if (dropHover) { dropHover.classList.remove('droptarget'); dropHover = null; }
   const t = slotUnder(ev);
+  if (t && t.id === 'invSend') { sendToHall(d.arr, d.i); refreshSlotViews(); return; }
   if (t && t.__slot && !(t.__slot.arr === d.arr && t.__slot.i === d.i)) {
     const { arr, i } = t.__slot;
     const moving = d.arr[d.i];
@@ -1490,7 +1608,46 @@ function takeGearFromLocker(piece) {
   sfxSuccess();
   flashMsg(piece.label + ' is in your bag — press I and drag it to your hotbar to put it on display');
 }
+// ---- back to the hall (see RETURN_KEY) ----
+function toGameItem(v) {
+  const stamp = { from: 'hideout', sentAt: Date.now(), hideout: { kind: v.kind, rec: v.rec } };
+  if (v.kind === 'carried') return Object.assign({}, v.rec, stamp); // it came from the game: its own record, as it was
+  const r = v.rec;
+  return Object.assign({ id: r.id, name: pieceFromForged(r).label, slot: r.slot || GAME_SLOT[r.type] || 'weapon',
+    rarity: r.rarity ?? MYTHIC_RARITY, lvl: r.lvl || FORGE_LVL, stats: r.stats || {}, tier: r.tier,
+    set: r.set || null, named: r.named || null, art: r.art || null }, stamp);
+}
+function sendToHall(arr, i) {
+  const v = arr[i];
+  if (!isGearItem(v)) { flashMsg('Only gear can go back to the hall'); return; }
+  const list = loadReturn();
+  list.push(toGameItem(v));
+  writeReturn(list);
+  arr[i] = null;
+  writeSave(); syncSelection(); refreshSlotViews();
+  sfxSuccess();
+  flashMsg(gearPiece(v).label + ' goes back to the hall with you — changed your mind? It waits in the wall locker until then');
+}
+function bringBackFromHall(id) {
+  const list = loadReturn(), i = list.findIndex(r => r && r.id === id && r.hideout && r.hideout.rec);
+  if (i < 0) return;
+  if (!giveItem({ kind: list[i].hideout.kind, rec: list[i].hideout.rec }, 'bag')) { flashMsg('Your bag and hotbar are full — make room first'); return; }
+  list.splice(i, 1);
+  writeReturn(list);
+  writeSave(); refreshSlotViews(); buildLockerGrids();
+  flashMsg('Kept here — it\'s back in your bag');
+}
 function buildLockerGrids() {
+  // gear on its way back to the hall (only ours — records the game might put in the key are none of our business)
+  const going = loadReturn().filter(r => r && r.hideout && r.hideout.rec);
+  document.getElementById('lockerReturnWrap').style.display = going.length ? 'block' : 'none';
+  const rg = document.getElementById('lockerReturn');
+  rg.innerHTML = '';
+  going.forEach(r => {
+    const piece = gearPiece(r.hideout);
+    piece.sub = 'Going back to the hall';
+    rg.appendChild(pieceCell(piece, () => bringBackFromHall(r.id)));
+  });
   const carried = loadCarried().map(pieceFromCarried);
   const fill = (id, list, emptyText) => {
     const grid = document.getElementById(id);
@@ -1794,16 +1951,42 @@ document.addEventListener('keydown', e => {
 });
 
 // ============= THE FORGE (Legendary Sludge -> gamble for mythic gear; MYTHIC_GEAR is defined up top) =============
-const FORGE_COST = 5, FORGE_SUCCESS_CHANCE = 0.35, UNIQUE_PROC_CHANCE = 0.1; // proc rolls only on a success — name/odds easy to retune later
-// placeholder name-roller — stands in for the real loot generator until that exists. A proc needs an actual name, not "Unique Mythic Trinket"
-const UNIQUE_NAME_PARTS = {
-  prefix: ['Ember','Void','Storm','Doom','Frost','Blood','Astral','Grim','Sun','Moon','Iron','Ghost'],
-  suffix: ['fang','caller','bane','heart','whisper','reaver','shard','crown','oath','ember','fall','light'],
-};
-function rollUniqueName() {
-  const p = UNIQUE_NAME_PARTS.prefix[Math.floor(Math.random()*UNIQUE_NAME_PARTS.prefix.length)];
-  const s = UNIQUE_NAME_PARTS.suffix[Math.floor(Math.random()*UNIQUE_NAME_PARTS.suffix.length)];
-  return p + s;
+// Each use costs FORGE_COST Legendary Sludge. First the proc: NAMED_PROC_CHANCE of all uses come out a named mythic
+// (Matt's number, "start at about 6%" — tune freely). Otherwise FORGE_SUCCESS_CHANCE makes a mythic set piece, and
+// the rest fail and lose the sludge.
+const FORGE_COST = 5, FORGE_SUCCESS_CHANCE = 0.35, NAMED_PROC_CHANCE = 0.06;
+const FORGE_LVL = 10; // placeholder item level for forged gear until the game says what a forged piece's level should be
+// mythic-tier stat values: the game's rollStat at rarity 5, level 10 (parts/game.js) — placeholders the game can rebalance
+const MYTHIC_STAT = { dmg:24, spd:45, hp:156, def:24, regen:4.5, tow:41, mana:65, move:20, fdmg:35, frate:63, trate:20, tarea:18 };
+const SET_STAT_POOL = { weapon:['dmg','spd','tow'], armor:['hp','def','regen'], amulet:['mana','tow','hp'],
+  familiar:['fdmg','frate','move'], trinket:['move','trate','tarea'] };
+function setPieceRecord(type) {
+  const set = MYTHIC_SETS[Math.floor(Math.random() * MYTHIC_SETS.length)];
+  const looks = SET_ART_PIECES[type] || [];
+  const art = looks.length ? looks[Math.floor(Math.random() * looks.length)] : null; // sword or whip, armor, …
+  const stats = {};
+  SET_STAT_POOL[type].forEach(k => { const v = MYTHIC_STAT[k] * (0.9 + Math.random() * 0.2); stats[k] = k === 'regen' ? Math.round(v * 10) / 10 : Math.round(v); });
+  const base = type === 'weapon' && art ? 'Mythic ' + art[0].toUpperCase() + art.slice(1) : MYTHIC_GEAR[type].name;
+  return { id: crypto.randomUUID(), type, slot: GAME_SLOT[type], tier: 'mythic', rarity: MYTHIC_RARITY, set: set.id, art,
+    name: base + ' ' + set.tail, lvl: FORGE_LVL, stats, craftedAt: Date.now() };
+}
+// a proc picks one of the target slot's named mythics, favouring ones you don't own yet
+function ownedNamed() {
+  const recs = slotArrays().flat().filter(v => isGearItem(v) && v.kind === 'forged').map(v => v.rec).concat(SAVE.gear);
+  return new Set(recs.filter(r => r.tier === 'named').map(r => r.named));
+}
+function namedRecord(type) {
+  const ids = Object.keys(NAMED_MYTHICS).filter(id => NAMED_MYTHICS[id].type === type);
+  const have = ownedNamed(), fresh = ids.filter(id => !have.has(id));
+  const pool = fresh.length ? fresh : ids;
+  const id = pool[Math.floor(Math.random() * pool.length)];
+  const N = NAMED_MYTHICS[id];
+  return { id: crypto.randomUUID(), type, slot: GAME_SLOT[type], tier: 'named', rarity: MYTHIC_RARITY, named: id,
+    name: N.name, lvl: FORGE_LVL, stats: Object.assign({}, N.stats), craftedAt: Date.now() };
+}
+function forgeOddsText() {
+  const set = Math.round((1 - NAMED_PROC_CHANCE) * FORGE_SUCCESS_CHANCE * 100), named = Math.round(NAMED_PROC_CHANCE * 100);
+  return 'Choose a gear target above, then Craft. About ' + set + '% make a Mythic set piece; ' + named + '% proc a Named Mythic.';
 }
 // MYTHIC_GEAR now exists, so the shared gear-display poller (which looks up icons by category) is safe to start
 pollDroppedGear();
@@ -1840,7 +2023,7 @@ function openForge() {
   document.getElementById('forgeWrap').style.display = 'flex';
   forgeSelected = null;
   const out = document.getElementById('forgeOutput');
-  out.className = ''; out.textContent = 'Choose a gear target above, then Craft.';
+  out.className = ''; out.textContent = forgeOddsText();
   buildForgeGrid();
 }
 function closeForge() {
@@ -1854,19 +2037,29 @@ document.getElementById('forgeCraftBtn').onclick = () => {
   SAVE.legendarySludge -= FORGE_COST;
   const out = document.getElementById('forgeOutput');
   sfxClick();
-  if (Math.random() < FORGE_SUCCESS_CHANCE) {
-    const isUnique = Math.random() < UNIQUE_PROC_CHANCE;
-    const uniqueName = isUnique ? rollUniqueName() : null;
-    const rec = { id: crypto.randomUUID(), type: forgeSelected, tier: isUnique ? 'unique' : 'mythic', name: uniqueName, craftedAt: Date.now() };
+  const rec = Math.random() < NAMED_PROC_CHANCE ? namedRecord(forgeSelected)
+    : Math.random() < FORGE_SUCCESS_CHANCE ? setPieceRecord(forgeSelected) : null;
+  if (rec) {
     const bagged = giveItem({ kind: 'forged', rec }, 'bag'); // a full bag keeps it on the waiting list in the I panel
     if (!bagged) SAVE.gear.push(rec);
     const where = bagged ? ' It’s in your bag (press I).' : ' Your bag is full — it’s waiting in your inventory (press I).';
-    out.className = isUnique ? 'unique' : 'success';
-    out.innerHTML = isUnique
-      ? '✨ UNIQUE PROC! ✨ You forged <b>' + uniqueName + '</b>, a unique ' + MYTHIC_GEAR[forgeSelected].name + '!' + where
-      : 'Success! Forged: <b>' + MYTHIC_GEAR[forgeSelected].name + '</b>.' + where;
+    const piece = pieceFromForged(rec);
+    if (rec.tier === 'named') {
+      const N = NAMED_MYTHICS[rec.named];
+      out.className = 'unique';
+      out.innerHTML = '<div><img src="' + cutoutIcon(piece.icon) + '" style="width:88px;height:88px;object-fit:contain;display:block;margin:0 auto 6px">'
+        + '✨ NAMED MYTHIC ✨<br><span style="font-size:1.35em">' + esc(N.name) + '</span>'
+        + '<div style="font-weight:normal;margin-top:6px">' + esc(statText(rec.stats)) + '</div>'
+        + '<div style="font-weight:normal;margin-top:4px"><b>Power:</b> ' + esc(N.power) + '</div>'
+        + '<div style="font-weight:normal;font-style:italic;opacity:0.85;margin-top:4px">“' + esc(N.lore) + '”</div>'
+        + '<div style="font-weight:normal;margin-top:6px">' + where + '</div></div>';
+    } else {
+      out.className = 'success';
+      out.innerHTML = '<div><img src="' + cutoutIcon(piece.icon) + '" style="width:88px;height:88px;object-fit:contain;display:block;margin:0 auto 6px;border-radius:8px">'
+        + 'Forged: <b style="color:' + piece.color + '">' + esc(rec.name) + '</b><br>' + esc(statText(rec.stats)) + '.' + where + '</div>';
+    }
     refreshSlotViews();
-    setTimeout(isUnique ? sfxUnique : sfxSuccess, 90);
+    setTimeout(rec.tier === 'named' ? sfxUnique : sfxSuccess, 90);
   } else {
     out.className = 'fail';
     out.textContent = 'The forge sputters and fails. The sludge is lost.';
