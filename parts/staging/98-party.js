@@ -12,19 +12,21 @@ function loadPuppetGLB(buf,label,cb){
     const fit=fitHero(root); toonify(root,fit.scale);
     const mixer=new THREE.AnimationMixer(root); const map=mapClips(gltf.animations||[]); const actions={};
     for(const k in map){ const a=mixer.clipAction(map[k]); if(k==='attack'||k==='jump'||k==='death'){ a.setLoop(THREE.LoopOnce,1); a.clampWhenFinished=true; } actions[k]=a; }
-    cb({wrap:fit.wrap,root,mixer,actions,map,cur:null,label});
+    cb({wrap:fit.wrap,root,mixer,actions,map,cur:null,label,scale:fit.scale});
   }catch(e){ console.warn('party glb '+label,e); } },e=>console.warn('party glb '+label,e));
 }
 function playPuppet(p,name,o){ const a=p.actions[name]; if(!a) return; o=o||{}; if(p.cur===a&&!o.restart) return; const prev=p.cur; p.cur=a; a.reset(); a.timeScale=o.speed||1; a.setEffectiveWeight(1); if(prev&&prev!==a){ if(o.fade) a.crossFadeFrom(prev,o.fade,false); else prev.stop(); } a.play(); }
 function disposePuppet(p){ if(!p.root) return; p.root.traverse(o=>{ if(!o.isMesh) return; if(!o.userData.isOL&&o.geometry) o.geometry.dispose(); const mats=Array.isArray(o.material)?o.material:[o.material]; mats.forEach(m=>{ if(m&&m.map&&!o.userData.isOL) m.map.dispose(); if(m) m.dispose(); }); }); }
 function add(id,heroGlbName,label){
-  if(PARTY.has(id)) return id;
-  const p={id,x:0,y:0,z:0,yaw:0,targetX:0,targetZ:0,targetYaw:0,moving:false,ready:false,wrap:null};
+  const old=PARTY.get(id); if(old&&old.glb===heroGlbName) return id;   // same rig: nothing to do (callers may call this every tick)
+  const gen=(old?old.gen||0:0)+1;   // a pick change re-skins (build 150): the old rig goes, a stale load of it is discarded by the generation
+  if(old){ undress(old); if(old.wrap) scene.remove(old.wrap); disposePuppet(old); }
+  const p={id,glb:heroGlbName,gen,x:old?old.x:0,y:0,z:old?old.z:0,yaw:old?old.yaw:0,targetX:old?old.targetX:0,targetZ:old?old.targetZ:0,targetYaw:old?old.targetYaw:0,moving:false,ready:false,wrap:null,look:old?old.look:null};
   PARTY.set(id,p);
   fetchBytes(ASSET(heroGlbName),'soon').then(buf=>{
-    if(!PARTY.has(id)) return;   // removed while its model was still loading
+    const cur=PARTY.get(id); if(!cur||cur.gen!==gen) return;   // removed, or re-skinned again, while its model was still loading
     loadPuppetGLB(buf,label||heroGlbName,loaded=>{
-      if(!PARTY.has(id)){ disposePuppet(loaded); return; }
+      const c2=PARTY.get(id); if(!c2||c2.gen!==gen){ disposePuppet(loaded); return; }
       Object.assign(p,loaded,{ready:true});
       p.wrap.position.set(p.x,p.y,p.z); p.wrap.rotation.y=p.yaw; scene.add(p.wrap);
       if(p.actions.idle) playPuppet(p,'idle',{fade:0});
@@ -32,7 +34,22 @@ function add(id,heroGlbName,label){
   }).catch(e=>console.warn('party hero fetch '+id,e));
   return id;
 }
-function remove(id){ const p=PARTY.get(id); if(!p) return; if(p.wrap) scene.remove(p.wrap); disposePuppet(p); PARTY.delete(id); }
+function remove(id){ const p=PARTY.get(id); if(!p) return; undress(p); if(p.wrap) scene.remove(p.wrap); disposePuppet(p); PARTY.delete(id); }
+// ---- the look (build 150: "don't see the guest's sword / familiars"): what a player wears, resolved on THEIR client
+// (99-network.js lookOf: the weapon model key their own rig mounted, its tier, its set for the tint, the full set for
+// the glow, the familiar's name and rarity) and rendered here on their puppet through the same builders the local hero
+// uses -- attachWeapon on the puppet's own mount node, __familiar.build for the pet (decorative: it hovers at the
+// shoulder, its shots are not synced), __setglow.dress for the aura shells. Re-dressed whenever the look key changes.
+function mountNode(root){ let n=null; root.traverse(o=>{ if(!n&&/^(weapon|staff|bow)Mount_\d+/.test(o.name)) n=o; }); return n; }
+function setLook(id,look){ const p=PARTY.get(id); if(!p) return; p.look=look||null; }
+function undress(p){ if(p.wobj&&p.wobj.parent) p.wobj.parent.remove(p.wobj); p.wobj=null; if(p.fam){ scene.remove(p.fam); p.fam=null; } if(p.glow){ if(window.__setglow) window.__setglow.undress(p.glow); p.glow=null; } p.lookKey=undefined; }
+// (the loaded pet models are part of the look key, so a pet is rebuilt once its Meshy model lands)
+function dress(p){ const lk=p.look; const fams=(window.__familiar&&window.__familiar.glb)?window.__familiar.glb().join(','):''; const key=lk?[lk.w,lk.t,lk.ws,lk.s,lk.f&&lk.f.n,lk.f&&lk.f.r,fams].join('|'):''; if(key===p.lookKey) return; undress(p); p.lookKey=key; if(!lk) return;
+  if(lk.w&&window.__weapons&&window.__weapons.attach){ if(p.mount===undefined) p.mount=mountNode(p.root); if(p.mount){ const myKey=key; window.__weapons.attach(p.mount,lk.w,lk.t||1,lk.ws||null,obj=>{ if(p.lookKey!==myKey||!PARTY.has(p.id)){ if(obj.parent) obj.parent.remove(obj); return; } if(p.wobj&&p.wobj.parent) p.wobj.parent.remove(p.wobj); p.wobj=obj; }); } }
+  if(lk.f&&window.__familiar&&window.__familiar.build){ try{ const g=window.__familiar.build({name:lk.f.n||'Wisp',rarity:lk.f.r|0,slot:'familiar'}); scene.add(g); p.fam=g; p.famT=0; }catch(e){ console.warn('party familiar',e); } }
+  if(lk.s&&window.__setglow&&Meta.packs){ const pk=Meta.packs.get(lk.s); if(pk&&pk.col){ try{ p.glow=window.__setglow.dress(p.root,pk.col,p.scale||1); }catch(e){ console.warn('party glow',e); } } } }
+function dressTick(p,dt){ if(p.fam){ p.famT+=dt; const a=p.yaw+2.3; p.fam.position.set(p.x+Math.sin(a)*.85,p.y+1.45+Math.sin(p.famT*2.3)*.09,p.z+Math.cos(a)*.85); p.fam.rotation.y=p.yaw; const ud=p.fam.userData; if(ud&&ud.wings) ud.wings.forEach(w=>{ w.rotation.z=(w.userData.side||1)*Math.sin(p.famT*14)*.45; }); }
+  if(p.glow&&window.__setglow) window.__setglow.pulse(p.glow,S.t); }
 // what the network layer (or, today, a test script) calls each time it hears where a party member is: puppets ease
 // toward the latest target rather than snapping to it, since real updates will arrive far slower than the render
 // framerate and a snap would read as teleporting
@@ -46,10 +63,10 @@ function updateParty(dt){
     let dy=p.targetYaw-p.yaw; dy=((dy+PI)%(2*PI)+2*PI)%(2*PI)-PI; const maxTurn=TURN*dt; p.yaw+=Math.max(-maxTurn,Math.min(maxTurn,dy));
     const st=p.moving?(p.actions.run?'run':'walk'):'idle';
     if(p.actions[st]) playPuppet(p,st,{fade:.15}); else if(p.actions.idle) playPuppet(p,'idle',{fade:.15});
-    p.mixer.update(dt); p.wrap.position.set(p.x,p.y,p.z); p.wrap.rotation.y=p.yaw; });
+    p.mixer.update(dt); p.wrap.position.set(p.x,p.y,p.z); p.wrap.rotation.y=p.yaw; dress(p); dressTick(p,dt); });
 }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); updateParty(dt); }; }
-window.__party={ add, remove, setTarget,
+window.__party={ add, remove, setTarget, setLook,
   list:()=>[...PARTY.keys()],
-  get:id=>{ const p=PARTY.get(id); if(!p) return null; return {id:p.id,x:+p.x.toFixed(3),z:+p.z.toFixed(3),yaw:+p.yaw.toFixed(3),ready:p.ready,moving:p.moving,cur:p.cur?Object.keys(p.actions).find(k=>p.actions[k]===p.cur):null,label:p.label}; } };
+  get:id=>{ const p=PARTY.get(id); if(!p) return null; return {id:p.id,glb:p.glb,x:+p.x.toFixed(3),z:+p.z.toFixed(3),yaw:+p.yaw.toFixed(3),ready:p.ready,moving:p.moving,cur:p.cur?Object.keys(p.actions).find(k=>p.actions[k]===p.cur):null,label:p.label,look:p.look||null,weapon:!!(p.wobj&&p.wobj.parent),weaponName:p.wobj&&p.wobj.userData.sword?p.wobj.userData.sword.name:null,familiar:!!p.fam,familiarKind:p.fam&&p.fam.userData?p.fam.userData.kind||null:null,glow:!!(p.glow&&p.glow.length)}; } };
 })();

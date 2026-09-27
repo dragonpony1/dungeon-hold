@@ -25,7 +25,11 @@ function famClearBolts(){ for(const b of famBolts) scene.remove(b.mesh); famBolt
 function famActive(){ return !!(gear.familiar&&(S.phase==='build'||S.phase==='wave')); }
 function famRate(){ const it=gear.familiar; return 1/(FAM_RATE*(1+((it&&it.stats.frate)||0)/100)); }
 function famDmg(){ const it=gear.familiar; return Math.max(1,Math.round(((it&&it.stats.fdmg)||1)*heroMult('dmg')*10)/10); }   // one decimal like heroDmg/stat: every Blade point shows
-function famTarget(){ let best=null, bd=FAM_RANGE; for(const e of enemies){ if(e.dead) continue; const d=Math.hypot(e.x-fam.x,e.z-fam.z); if(d<bd&&los(fam.x,fam.z,e.x,e.z)){ bd=d; best=e; } } return best; }
+// build 150: on a co-op guest the pet's foes are proxies of the host's mob puppets (99-network.js mobProxies) and a hit on
+// one is sent up to the host (famHit) instead of hurting a local mob that does not exist; solo and host pages see enemies
+function famFoes(){ return (window.__mobsync&&window.__mobsync.foes)?window.__mobsync.foes():enemies; }
+function famHurt(e,dmg,kx,kz){ if(e&&e.puppet){ if(window.__net&&window.__net.role&&window.__net.role()==='guest') window.__net.send('famHit',{id:e.__coopId,dmg:+(+dmg||0).toFixed(2),kx:+(kx||0).toFixed(2),kz:+(kz||0).toFixed(2)}); e.hp=(e.hp||0)-dmg; floatText(e.x,e.y+e.h+.3,e.z,String(Math.round(dmg)),'#ffd27a'); return; } return hurt(e,dmg,kx,kz); }
+function famTarget(){ let best=null, bd=FAM_RANGE; for(const e of famFoes()){ if(e.dead) continue; const d=Math.hypot(e.x-fam.x,e.z-fam.z); if(d<bd&&los(fam.x,fam.z,e.x,e.z)){ bd=d; best=e; } } return best; }
 // every bolt shares one sphere geometry + material and one pair of glow sprite materials per colour (Sprite.clone keeps the material), so a long run allocates nothing per shot
 const FAM_BOLT={geo:null,mat:null,glow:{}};
 function famBoltMesh(col){ const F=FAM_BOLT; if(!F.geo){ F.geo=G.sph(.08,8,6); F.mat=basic(0xffffff); F.white=glow(0xffffff,.3,.9); } if(!F.glow[col]) F.glow[col]=glow(col,.75,.9);
@@ -34,8 +38,8 @@ function famFire(e){ const it=gear.familiar, col=RCOL[it.rarity]||0xffffff; cons
   const fx=Math.sin(fam.yaw), fz=Math.cos(fam.yaw); const x=fam.x+fx*.25, y=fam.y-.02, z=fam.z+fz*.25; const tx=e.x, ty=e.y+e.h*.55, tz=e.z; const dx=tx-x, dy=ty-y, dz=tz-z, d=Math.hypot(dx,dy,dz)||1;
   b.position.set(x,y,z); scene.add(b); famBolts.push({x,y,z,vx:dx/d*FAM_BOLT_SPD,vy:dy/d*FAM_BOLT_SPD,vz:dz/d*FAM_BOLT_SPD,t:0,mesh:b,col}); fam.kick=1; }
 function famBoltsUpdate(dt){ for(let i=famBolts.length-1;i>=0;i--){ const b=famBolts[i]; b.t+=dt; b.x+=b.vx*dt; b.y+=b.vy*dt; b.z+=b.vz*dt; b.mesh.position.set(b.x,b.y,b.z); let hit=null;
-    for(const e of enemies){ if(e.dead) continue; if(Math.hypot(e.x-b.x,e.z-b.z)<e.r+.4&&b.y>e.y-.3&&b.y<e.y+e.h+.5){ hit=e; break; } }
-    if(hit){ const d=Math.hypot(b.vx,b.vz)||1; hurt(hit,famDmg(),b.vx/d*.5,b.vz/d*.5); SFX.hit(); }
+    for(const e of famFoes()){ if(e.dead) continue; if(Math.hypot(e.x-b.x,e.z-b.z)<e.r+.4&&b.y>e.y-.3&&b.y<e.y+e.h+.5){ hit=e; break; } }
+    if(hit){ const d=Math.hypot(b.vx,b.vz)||1; famHurt(hit,famDmg(),b.vx/d*.5,b.vz/d*.5); SFX.hit(); }
     if(hit||b.t>FAM_BOLT_LIFE||b.y<-2){ scene.remove(b.mesh); famBolts.splice(i,1); } } }
 function famUpdate(dt){ const it=gear.familiar;
   if(!famActive()){ if(fam) famRemove(); else if(famBolts.length) famClearBolts(); return; }

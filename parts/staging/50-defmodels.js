@@ -3,8 +3,9 @@
 // own model use the highest one below them. The game keeps driving the same userData handles it uses on the procedural
 // models: yoke (turns to aim / spins), hp / ball (projectile shown while loaded — dummies here), hub (spinner).
 const DEFGLB={};                                                     // kind -> [{wrap,scale,turn,tpl}] by mark index
-const DEF_H={harpoon:1.6,acorn:1.5,ball:2.2,slice:.6,spike:1.1,totem:2.8,frost:2.4,snare:2.6};              // target heights in world units (about the procedural sizes)
+const DEF_H={harpoon:1.6,acorn:1.5,ball:2.5,slice:.6,spike:1.1,totem:2.8,frost:2.8,snare:2.6};              // target heights in world units (about the procedural sizes)
 const DEF_W={slice:3.8,zap:3.2,venom:3.2,ember:3.2,dazzle:3.2};             // flat things fit by footprint width instead (the ring's toadstools stand at radius 2.3) — the halos are the same idea, a low sigil disc, not a spire
+const DEF_FACE={ball:-PI/2};   // a model whose front is not +z: the Meshy trebuchet's frame runs along x and throws toward +x (the counterweight side), so it is turned to face +z, the way every defense aims (build 150)
 const DEF_TURN=/yoke|turret|swivel|head|top|arm|bow|hub|blade|rotor/i; // a node named like this is the part that turns
 // the ballista's rig: the bow assembly (everything above HINGE of the model's height -- the stock, bow and winch post on
 // the pedestal) is cut off into a group named 'pitch' that tilts, inside a group named 'yoke' that pans, both hung from a
@@ -36,6 +37,7 @@ function sporeDisc(){ const disc=new THREE.Mesh(new THREE.CircleGeometry(2.5,24)
 const makeDefProc=makeDef;
 makeDef=function(kind,ghost,lvl){ const T=defTemplate(kind,lvl); if(!T) return makeDefProc(kind,ghost);
   const g=T.wrap.clone(); g.userData.glb=true; g.userData.tpl=T;                         // clone shares geometry + materials (outline shells included)
+  if(DEF_FACE[kind]&&g.children[0]) g.children[0].rotation.y+=DEF_FACE[kind];   // faced before the yoke wraps it, so the turn stays about the footprint centre
   let yoke=null; if(T.turn) g.traverse(o=>{ if(!yoke&&o.name===T.turn) yoke=o; });
   if(!yoke){ yoke=new THREE.Group(); const inner=g.children[0]; g.remove(inner); yoke.add(inner); g.add(yoke); }   // no named part: the whole model turns about its footprint centre
   g.userData.yoke=yoke; g.userData.hub=yoke; g.userData.hp=new THREE.Object3D(); g.userData.ball=new THREE.Object3D(); g.traverse(o=>{ if(o.name==='pitch') g.userData.pitch=o; });   // a hinged bow assembly pitches on its own
@@ -63,7 +65,8 @@ defMarks('spike','hedge');   // the bramble hedge (Meshy) Mark I..IV; Mark V kee
 defMarks('acorn','cannon');   // the acorn cannon (Meshy) Mark I..IV; Mark V keeps the tier-4 look
 defMarks('slice','cage');   // the Mycelium Cage (the player's Meshy set, build 148) Mark I..IV; Mark V keeps the tier-4 look. cage-3 is the unnumbered 'Trap' file
 defMarks('totem','totem');   // the rune totem (Meshy) Mark I..IV; Mark V keeps the tier-4 look
-defMarks('frost','frost');   // the frost spire (Meshy, "cold tower") Mark I..IV; Mark V keeps the tier-4 look
+defMarks('frost','frost');   // the Frost Spire: the player's four cold towers (build 150; the earlier frost-N files were runed pillars that read as rune totems) Mark I..IV; Mark V keeps the tier-4 look
+defMarks('ball','trebuchet');   // the Turnip Trebuchet: the player's four Meshy trebuchets, wood / iron / steel / gold as Marks I..IV (build 150); Mark V keeps the gold
 defMarks('snare','snare');   // the snare tower (Meshy) Mark I..IV; Mark V keeps the tier-4 look
 // the four elemental halos (Meshy): one sigil disc each, all marks — the glow ring drawn over them (game.js, auraRing) is what grows with each mark, not the model
 fetchDefGLB('zap',ASSET('aura-zap.glb'),0,'soon'); fetchDefGLB('venom',ASSET('aura-venom.glb'),0,'soon'); fetchDefGLB('ember',ASSET('aura-ember.glb'),0,'soon'); fetchDefGLB('dazzle',ASSET('aura-dazzle.glb'),0,'soon');

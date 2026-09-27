@@ -34,6 +34,12 @@ await page.evaluate(()=>{ const d=window.__dd; for(const x of d.defs.slice()){ d
 await page.waitForTimeout(300); await page.screenshot({path:SP+"/parts/shots/towers-row.png"});
 await page.evaluate(()=>{ const d=window.__dd; d.setHero(4,12,Math.PI); d.setCam(Math.PI+.4,.3,6); d.step(1/60,40); const es=[]; for(let i=0;i<6;i++){ const e=d.spawn("goblin","N"); e.x=-1+i*1.1; e.z=-6-(i%2); e.hp=e.max=999; es.push(e); } d.step(1/60,70); });
 await page.waitForTimeout(300); await page.screenshot({path:SP+"/parts/shots/towers-fight.png"});
+// the frost spire (build 150): a cold tower -- mobs in its ring crawl AND take a bite of cold every .9 s
+const r9=await page.evaluate(()=>{ const d=window.__dd; for(const x of d.defs.slice()){ d.setHero(x.x,x.z+1,0); d.sell(); } for(const e of d.enemies) d.kill(e); d.step(1/60,60); d.setHero(6,10,Math.PI);
+  const probe=d.spawn("goblin","N"); d.step(1/60,120); const px=probe.x, pz=probe.z; d.kill(probe); d.step(1/60,80);
+  const sp=d.place("frost",Math.floor((px+33)/2),Math.floor((pz+35)/2)+3,0); if(!sp) return {name:d.DEFS.frost.name,chilled:0,dmg:0,perBite:0,cd:0,glb:false,noPlace:true}; d.step(1/60,30); /* on the lane cell itself (the cells beside a lane are walls on map one), as the ring check does */ const g=d.spawn("goblin","N"); g.hp=g.max=9999; g.spd=0; g.x=sp.x-1.2; g.z=sp.z; let chilled=0; for(let i=0;i<240;i++){ d.step(1/60,1); if(g.chillT>0) chilled++; }
+  const out={name:d.DEFS.frost.name,chilled,dmg:9999-g.hp,perBite:d.stat(sp,"dmg"),cd:+d.stat(sp,"cd").toFixed(2),glb:!!sp.mdl.userData.glb}; d.kill(g); d.setHero(sp.x,sp.z+1,0); d.sell(); return out; });
+check("frost spire: a goblin in its ring is chilled the whole time and bitten by the cold about every .9 s (4 s -> 3-5 bites of 2)",r9.chilled>200&&r9.dmg>=3*r9.perBite&&r9.dmg<=5*r9.perBite,JSON.stringify(r9));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
 check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");

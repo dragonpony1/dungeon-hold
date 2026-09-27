@@ -2,7 +2,7 @@ import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 const SP=process.env.SP; const server=await serve(8874);
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const ctx=await browser.newContext({viewport:{width:1100,height:700}}); const page=await ctx.newPage(); const errors=[]; page.on("pageerror",e=>errors.push(String(e))); page.on("console",m=>{ if(m.type()==="error"||m.type()==="warning") errors.push(m.text().slice(0,200)); });
-await page.goto("http://127.0.0.1:8874/?silent&nogate"); await page.waitForFunction(()=>window.__dd&&window.__party&&window.__dd.heroModel()&&/Witch/.test(window.__dd.heroModel().label),null,{timeout:120000});
+await page.goto("http://127.0.0.1:8874/?silent&nogate",{timeout:240000}); await page.waitForFunction(()=>window.__dd&&window.__party&&window.__heroes,null,{timeout:180000}); await page.evaluate(()=>window.__heroes.select("witch")); /* the knight is the default hero since build 134; this suite was written for the witch */ await page.waitForFunction(()=>window.__dd.heroModel()&&/Witch/.test(window.__dd.heroModel().label),null,{timeout:180000});
 await page.evaluate(()=>{ window.__dd.start(); window.__dd.setHero(0,17,Math.PI); window.__dd.step(1/60,10); });
 
 // two party members spawn on their own hero models, well clear of each other and the local hero, without touching

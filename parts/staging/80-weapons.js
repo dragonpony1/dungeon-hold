@@ -28,14 +28,15 @@ function setTint(obj,pk){ obj.traverse(m=>{ if(m.isMesh&&!m.userData.isOL&&m.mat
 function heroMount(){ if(!(useGLB&&GLBH&&GLBH.root)) return null; if(GLBH.mountNode===undefined){ let n=null; GLBH.root.traverse(o=>{ if(!n&&/^(weapon|staff|bow)Mount_\d+/.test(o.name)) n=o; }); GLBH.mountNode=n; }   // an empty node under the hand bone
   const n=GLBH.mountNode; return n?{node:n,len:+n.name.split('_')[1],staff:/^staff/.test(n.name),bow:/^bow/.test(n.name)}:null; }
 function unmount(){ if(W.obj&&W.obj.parent) W.obj.parent.remove(W.obj); W.obj=null; W.hand=null; }
-function mountSword(name,tier,key){ const hm=heroMount(); if(!hm) return; loadSword(name,root=>{ if(W.key!==key) return;   // a newer request won
-    unmount(); const {node,len}=hm; const obj=root.clone(); const box=root.userData.box; const L=box.max.y-box.min.y;
-    const gripY=box.min.y+(root.userData.gripF!==undefined?root.userData.gripF:GRIP_F)*L, tipY=box.max.y; const s=(len*lenMul(tier)*(root.userData.lenScale||1))/(box.max.y-gripY);   /* lenScale: a template longer than a sword (a staff is body-length) */ obj.scale.setScalar(s); obj.position.set(0,-gripY*s,0);   // the grip point sits on the mount (in the fist); the blade runs up the mount's +Y
-    // ink outline + toon shading like everything else; the outline thickness accounts for the mount scale and the hero's fit
+// mount a weapon on ANY rig's mount node (build 150: the party puppets wear what their player wears): the template by
+// name, sized to the node's length suffix and the tier, outlined/toonified for the node's world scale, tinted for a set
+function attachWeapon(node,name,tier,setName,cb){ loadSword(name,root=>{ const len=+node.name.split('_')[1]||90; const obj=root.clone(); const box=root.userData.box; const L=box.max.y-box.min.y;
+    const gripY=box.min.y+(root.userData.gripF!==undefined?root.userData.gripF:GRIP_F)*L, tipY=box.max.y; const s=(len*lenMul(tier||1)*(root.userData.lenScale||1))/(box.max.y-gripY);   /* lenScale: a template longer than a sword (a staff is body-length) */ obj.scale.setScalar(s); obj.position.set(0,-gripY*s,0);   // the grip point sits on the mount (in the fist); the blade runs up the mount's +Y
     node.updateWorldMatrix(true,false); const worldPerUnit=s*node.getWorldScale(new THREE.Vector3()).x; if(root.userData.proc) outlineScaled(obj,worldPerUnit); else toonify(obj,worldPerUnit);
-    { const m=/\|set:(.+)$/.exec(key); const pk=m&&Meta.packs&&Meta.packs.get(m[1]); if(pk){ if(root.userData.proc){ obj.userData.void=true; obj.userData.set=pk.name; } else setTint(obj,pk); } }   // a set's own staff already wears its colours; a stand-in sword is tinted
-    obj.userData.sword={name,tier,scale:s,gripY,tipY,len:L};
-    node.add(obj); W.obj=obj; W.hand=node.parent; W.tier=tier; }); }
+    const pk=setName&&Meta.packs&&Meta.packs.get(setName); if(pk){ if(root.userData.proc){ obj.userData.void=true; obj.userData.set=pk.name; } else setTint(obj,pk); }   // a set's own staff already wears its colours; a stand-in sword is tinted
+    obj.userData.sword={name,tier,scale:s,gripY,tipY,len:L}; node.add(obj); if(cb) cb(obj); }); }
+function mountSword(name,tier,key){ const hm=heroMount(); if(!hm) return; const m=/\|set:(.+)$/.exec(key); attachWeapon(hm.node,name,tier,m?m[1]:null,obj=>{ if(W.key!==key){ if(obj.parent) obj.parent.remove(obj); return; }   // a newer request won
+    unmount(); W.obj=obj; W.hand=hm.node.parent; W.tier=tier; }); }
 function weaponsUpdate(dt){ const hm=heroMount(); if(!hm){ if(W.obj) unmount(); W.key=''; return; } if(W.obj&&W.obj.parent&&W.obj.parent!==hm.node) unmount();   // the hero model changed: drop the old weapon at once, the new one follows when its model is ready
   const it=gear.weapon, name=FORCE_WEAPON||(hm.staff?(window.__staff?window.__staff.staffFor(it):'staff-hazel'):hm.bow?(window.__bow?window.__bow.bowFor(it):'bow-ash'):swordFor(it)), tier=swordTier(it); const pk=Meta.packs&&Meta.packs.of(it); const key=name+'|'+tier+'|'+GLBH.label+(pk&&pk.emissive?'|set:'+pk.name:''); if(key===W.key&&W.obj&&W.obj.parent===hm.node) return; W.key=key; mountSword(name,tier,key); }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); weaponsUpdate(dt); }; }
@@ -44,6 +45,6 @@ loadSword('rusty',()=>{});
 // where the blade is right now, in world units (tests, and anything that wants to hang an effect on the weapon)
 function bladeWorld(){ if(!(W.obj&&W.obj.parent)) return null; const sd=W.obj.userData.sword, box=tpl[sd.name].userData.box; W.obj.updateWorldMatrix(true,false); const p=v=>W.obj.localToWorld(v.clone()).toArray().map(x=>+x.toFixed(3));
   const cx=(box.min.x+box.max.x)/2, cz=(box.min.z+box.max.z)/2; return {pommel:p(new THREE.Vector3(cx,box.min.y,cz)),grip:p(new THREE.Vector3(cx,sd.gripY,cz)),tip:p(new THREE.Vector3(cx,sd.tipY,cz)),mount:W.obj.parent.getWorldPosition(new THREE.Vector3()).toArray().map(x=>+x.toFixed(3)),hand:W.hand.getWorldPosition(new THREE.Vector3()).toArray().map(x=>+x.toFixed(3))}; }
-window.__weapons={force:n=>{ FORCE_WEAPON=n||null; },register:(n,fn)=>{ PROC_WEAPONS[n]=fn; },mounted:()=>W.obj,mount:heroMount,tick:dt=>weaponsUpdate(dt),model:(name,cb)=>loadSword(name,root=>cb(root.clone())),
+window.__weapons={force:n=>{ FORCE_WEAPON=n||null; },attach:attachWeapon,look:()=>({w:W.key.split('|')[0]||null,t:W.tier||1,s:(/\|set:(.+)$/.exec(W.key)||[])[1]||null}),register:(n,fn)=>{ PROC_WEAPONS[n]=fn; },mounted:()=>W.obj,mount:heroMount,tick:dt=>weaponsUpdate(dt),model:(name,cb)=>loadSword(name,root=>cb(root.clone())),
   state:()=>({key:W.key,void:!!(W.obj&&W.obj.userData.void),mounted:!!(W.obj&&W.obj.parent),whip:false,staff:!!(W.obj&&/^staff-/.test(W.obj.name)),bow:!!(W.obj&&/^bow-/.test(W.obj.name)),hand:W.hand?W.hand.name:null,tier:W.tier,loaded:Object.keys(tpl),mount:GLBH&&GLBH.mountNode?{bone:GLBH.mountNode.parent.name,len:+GLBH.mountNode.name.split('_')[1],staff:/^staff/.test(GLBH.mountNode.name),bow:/^bow/.test(GLBH.mountNode.name)}:null,label:GLBH&&GLBH.label}),swordFor,swordTier,blade:bladeWorld};
 })();

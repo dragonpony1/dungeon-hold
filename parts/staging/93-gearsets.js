@@ -36,9 +36,12 @@ let twinSide=1;
 // thanks includes Forest pieces for slots the player still lacks -- two owned after wave 1, four after wave 2 -- dropped
 // gently by the crystal with the wave's own reward. The FIFTH never drops in the hall: it waits in the hideout's wall locker (below). Pieces still lying on the floor count as owned,
 // so nothing is handed out twice; a player who already found some gets only what is missing.
-const FOREST_BY_WAVE={1:2,2:4};
-function forestGuarantee(w){ if(MAPI!==0) return 0; const target=FOREST_BY_WAVE[w]; if(!target) return 0; const have=forestOwned(); const missing=SLOTS.filter(k=>!have[k]); const n=Math.max(0,Math.min(missing.length,target-(SLOTS.length-missing.length))); const P=PACKS['of the Forest'];
-  for(let i=0;i<n;i++){ const it=rollItem(1,missing[i]); it.rarity=Math.max(it.rarity,1); makeSet(it,P); dropLoot(it,R(-2.2,2.2),4.6+.5*(i+1),true); } if(n) floatText(0,3.2,4.6,P.ic+' '+n+' PIECE'+(n>1?'S':'')+' OF THE FOREST — THE HALL\'S THANKS',P.css); return n; }
+const FOREST_BY_WAVE={1:2,2:4};   // the floor: two by wave 1, four by wave 2 -- and (build 150, "still not getting a full set by wave 4") every later held wave tops a short player back up to four, so pieces lost, sold or grabbed by a teammate are made good
+const forestTarget=w=>w>=2?4:w===1?2:0;
+const coopNow=()=>{ const n=window.__net; if(!(n&&n.role)) return false; const r=n.role(); return r==='guest'||(r==='host'&&n.peers().length>0); };
+function forestGuarantee(w){ if(MAPI!==0) return 0; const target=forestTarget(w); if(!target) return 0; const have=forestOwned(); const missing=SLOTS.filter(k=>!have[k]); const n=Math.max(0,Math.min(missing.length,target-(SLOTS.length-missing.length))); const P=PACKS['of the Forest']; const personal=coopNow();
+  for(let i=0;i<n;i++){ const it=rollItem(1,missing[i]); it.rarity=Math.max(it.rarity,1); makeSet(it,P); if(personal) Meta.onPickup(it,{x:R(-2.2,2.2),y:1.2,z:4.6}); else dropLoot(it,R(-2.2,2.2),4.6+.5*(i+1),true); }   /* co-op (build 150): the hall's thanks go straight into THIS player's bag -- the host's used to lie by the crystal where any guest could grab them (the host ended short, the guest doubled up); every page rolls its own against its own slots (the held wave reaches a guest through 99-network's waveHeld relay) */
+  if(n) floatText(0,3.2,4.6,P.ic+' '+n+' PIECE'+(n>1?'S':'')+' OF THE FOREST — THE HALL\'S THANKS'+(personal?' (in your bag)':''),P.css); return n; }
 { const prev=Meta.onWaveHeld; Meta.onWaveHeld=w=>{ prev(w); forestGuarantee(w); }; }
 
 // ---- the last piece: the hideout's wall locker. On map one, the moment four Forest pieces are in hand the fifth is rolled for
@@ -60,7 +63,8 @@ function offerLastPiece(){ if(MAPI!==0||lockerRead()) return false; const have=f
 function collectLastPiece(){ const o=lockerRead(); if(!o||!o.item||o.taken) return false; const list=carriedRead(); const rec=list.find(r=>r&&r.id===o.item.id); if(rec&&!rec.rewardSeen&&!rec.rewardTaken){ lesson('The wall locker is still shut — open it in the hideout to take your Forest piece',7); return false; }
   o.taken=true; lockerWrite(o); if(rec) carriedWrite(list.filter(r=>r!==rec)); Meta.onPickup(o.item); const P=PACKS['of the Forest'];
   lesson(P.ic+' The last piece of the Forest is yours — equip it, and watch your familiar: TWIN SHOT, two bolts in a spread, farther and quicker',10); if(SFX.setBong) SFX.setBong(); return true; }
-{ const prev=startWave; startWave=function(){ if(MAPI===0&&lockerPending()){ lesson('The horn waits: fetch your last Forest piece from the hideout\'s wall locker first — walk up to the portal and press E',7); if(SFX.rift) SFX.rift(); return; } return prev.apply(this,arguments); }; }
+const coopHosting=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='host'&&window.__net.peers().length);   // build 150: a host with guests in the hall never holds the room for its own locker
+{ const prev=startWave; startWave=function(){ if(MAPI===0&&lockerPending()&&!coopHosting()){ lesson('The horn waits: fetch your last Forest piece from the hideout\'s wall locker first — walk up to the portal and press E',7); if(SFX.rift) SFX.rift(); return; } return prev.apply(this,arguments); }; }
 { let wasOpen=false, tick=0; const prev=Meta.update; Meta.update=dt=>{ prev(dt); const open=!!(window.__hideout&&window.__hideout.isOpen()); if(wasOpen&&!open) collectLastPiece(); wasOpen=open; if(++tick%30===0&&MAPI===0&&(S.phase==='build'||S.phase==='wave')) offerLastPiece(); }; }
 // ---- the pity rule, a training wheel: on map one, a player holding three or four Forest pieces gets the missing slot from the
 // next Uncommon-or-better random-slot drop (a mob's, or the held wave's), so the set completes on the training ground instead of wave seven
@@ -120,10 +124,14 @@ const AURA_FS='uniform vec3 col; uniform float op;\nvoid main(){ gl_FragColor=ve
 function auraMat(col,skinned,t){ return new THREE.ShaderMaterial({side:THREE.BackSide,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,skinning:!!skinned,uniforms:{t:{value:t},col:{value:new THREE.Color(col)},op:{value:.32}},vertexShader:skinned?AURA_VS_SKIN:AURA_VS,fragmentShader:AURA_FS}); }
 function auraClear(){ for(const g of AURA.meshes){ if(g.parent) g.parent.remove(g); g.material.dispose(); } AURA.meshes=[]; AURA.root=null; AURA.col=null; }
 function fullPack(){ const w=worn().find(x=>x.tier>=5&&x.pack.col); return w?w.pack:null; }
+// the shells themselves, for any rig (build 150: a party puppet wears its player's full-set glow through window.__setglow)
+function auraDress(root,col,sc){ const t=.05/(sc||1), out=[]; root.traverse(m=>{ if(!m.isMesh||m.userData.isOL||m.userData.noOL||m.isSprite||m.userData.setGlow) return; if(/lash|handle/.test(m.parent&&m.parent.name||'')) return; let g; if(m.isSkinnedMesh){ g=new THREE.SkinnedMesh(m.geometry,auraMat(col,true,t)); g.bind(m.skeleton,m.bindMatrix); } else g=new THREE.Mesh(m.geometry,auraMat(col,false,t)); g.userData.isOL=true; g.userData.setGlow=true; g.frustumCulled=false; g.renderOrder=2; out.push(g); });
+  root.traverse(m=>{ if(m.isMesh&&!m.userData.isOL&&!m.userData.setGlow){ const g=out.find(x=>x.geometry===m.geometry&&!x.parent); if(g) m.add(g); } }); return out; }
+function auraUndress(list){ for(const g of list||[]){ if(g.parent) g.parent.remove(g); g.material.dispose(); } }
+window.__setglow={dress:auraDress,undress:auraUndress,pulse:(list,t)=>{ const op=.26+.08*Math.sin(t*2.2); for(const g of list||[]) g.material.uniforms.op.value=op; }};
 function auraUpdate(){ const pk=fullPack(); const root=(useGLB&&GLBH)?GLBH.root:(typeof H!=='undefined'?H.g:null); const col=pk?pk.col:null;
   if(!col||!root){ if(AURA.meshes.length) auraClear(); return; }
-  if(AURA.root!==root||AURA.col!==col){ auraClear(); const sc=(useGLB&&GLBH&&GLBH.scale)||1, t=.05/sc; root.traverse(m=>{ if(!m.isMesh||m.userData.isOL||m.userData.noOL||m.isSprite||m.userData.setGlow) return; if(/lash|handle/.test(m.parent&&m.parent.name||'')) return; let g; if(m.isSkinnedMesh){ g=new THREE.SkinnedMesh(m.geometry,auraMat(col,true,t)); g.bind(m.skeleton,m.bindMatrix); } else g=new THREE.Mesh(m.geometry,auraMat(col,false,t)); g.userData.isOL=true; g.userData.setGlow=true; g.frustumCulled=false; g.renderOrder=2; AURA.meshes.push(g); }); AURA.root=root; AURA.col=col;
-    root.traverse(m=>{ if(m.isMesh&&!m.userData.isOL&&!m.userData.setGlow){ const g=AURA.meshes.find(x=>x.geometry===m.geometry&&!x.parent); if(g) m.add(g); } }); }
+  if(AURA.root!==root||AURA.col!==col){ auraClear(); const sc=(useGLB&&GLBH&&GLBH.scale)||1; AURA.meshes=auraDress(root,col,sc); AURA.root=root; AURA.col=col; }
   const op=.26+.08*Math.sin(S.t*2.2); for(const g of AURA.meshes) g.material.uniforms.op.value=op; }
 // ---- the same power, on the ground: every defense the hero has placed carries a rune ring in the set's colour while
 // the full set is worn — on/off follows the set, so unequipping a piece (or selling the tower) clears it right away

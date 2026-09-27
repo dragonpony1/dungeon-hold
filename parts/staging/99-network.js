@@ -166,7 +166,7 @@ function join(roomCode,cb,peerOpts){
   p.on('error',e=>{ cb&&cb(e); });
 }
 function leave(){ conns.forEach(c=>c.close()); conns.clear(); if(peer) peer.destroy(); peer=null; role=null; selfId=null; }
-window.__net={ host, join, leave, send, onMessage, onLeave, role:()=>role, peers:()=>[...conns.keys()],
+window.__net={ host, join, leave, send, onMessage, onLeave, role:()=>role, peers:()=>[...conns.keys()], world:()=>hostWorld,
   hostId:()=>role==='guest'?[...conns.keys()][0]||null:null,   // a guest only ever has the one connection — a convenience name for it, same id __party keys its puppet under
   myId:()=>selfId||(peer&&peer.id)||null };
 
@@ -304,7 +304,7 @@ function guestInputTick(dt){
       // units in one packet is ignored (a map mismatch, or nonsense). An older guest that sends no position still
       // gets the keys path below.
       if(g.holdT>0) g.holdT-=dt;
-      else if(typeof inp.x==='number'&&typeof inp.z==='number'){ const dx=inp.x-g.x, dz=inp.z-g.z, d=Math.hypot(dx,dz); if(d>0&&d<30){ const k=Math.min(1,16*dt/d); moveCircle(g,dx*k,dz*k,.42,true); } if(typeof inp.hyaw==='number') g.yaw=inp.hyaw; g.y=floorAt(g.x,g.z,g.y); }
+      else if(typeof inp.x==='number'&&typeof inp.z==='number'){ const dx=inp.x-g.x, dz=inp.z-g.z, d=Math.hypot(dx,dz); if(d>0&&d<30){ const k=Math.min(1,16*dt/d); moveCircle(g,dx*k,dz*k,.42,true); if(d>1.4){ g.stuckT=(g.stuckT||0)+dt; if(g.stuckT>.8){ g.x=inp.x; g.z=inp.z; g.stuckT=0; } } else g.stuckT=0; }   /* build 150 ("guests not doing any damage"): a copy that cannot walk to where its guest really stands (a hedge or a wall between, the guest on a ledge) snaps there after .8 s -- the guest's swings and the mobs' aim use the copy, so a copy stuck behind a defense fought nothing */ if(typeof inp.hyaw==='number') g.yaw=inp.hyaw; g.y=floorAt(g.x,g.z,g.y); }
       else {
       let mx=0,mz=0; if(inp.w) mz+=1; if(inp.s) mz-=1; if(inp.d) mx+=1; if(inp.a) mx-=1;
       const len=Math.hypot(mx,mz);
@@ -318,8 +318,8 @@ function guestInputTick(dt){
     }
     // the host renders every guest as a puppet on its own screen too, straight from the state it just simulated —
     // no need to round-trip its own broadcast, which never loops back to the sender anyway
-    if(!window.__party.list().includes(id)) window.__party.add(id,HERO_GLB[inp.pick]||'witch.glb',heroLabel(inp.pick));
-    window.__party.setTarget(id,g.x,g.z,g.yaw);
+    window.__party.add(id,HERO_GLB[inp.pick]||'witch.glb',heroLabel(inp.pick));   // every tick: add() returns at once for the same rig and re-skins on a pick change (build 150)
+    window.__party.setTarget(id,g.x,g.z,g.yaw); if(window.__party.setLook) window.__party.setLook(id,inp.look||null);   // build 150: the host dresses its copy of the guest from the look that rides the guest's input
   });
 }
 function hurtGuestHero(id,dmg){
@@ -373,16 +373,17 @@ onMessage('hp',data=>{
 // carved out of this path entirely below (phase 9) -- swing() fires at PRESS time, before any charge/aim-adjustment
 // has happened, which is right for melee (swing lands almost immediately) but wrong for a held shot.
 { const origSwing=swing;
-  swing=function(){ const before=hero.swingT; origSwing(); if(role==='guest'&&before<0&&hero.swingT===0&&!(window.__aim&&window.__aim.kind())) send('swing',{yaw:+cam.yaw.toFixed(3),dmg:Math.round(heroDmg()*10)/10,reach:+(hero.reach||GUEST_REACH).toFixed(2)}); }; }
+  swing=function(){ const before=hero.swingT; origSwing(); if(role==='guest'&&before<0&&hero.swingT===0&&!(window.__aim&&window.__aim.kind())) send('swing',{yaw:+hero.yaw.toFixed(3),x:+hero.x.toFixed(2),z:+hero.z.toFixed(2),dmg:Math.round(heroDmg()*10)/10,reach:+(hero.reach||GUEST_REACH).toFixed(2)}); }; }   // build 150 ("guests' defenses do damage but not the sword"): the swing carries the guest's OWN facing and spot -- hitCone() swings from hero.yaw (the way the hero faces, the walk's direction when moving), not the camera's yaw the relay used to send, and from where the guest really stands, not where the host's copy got to
 // the melee cone: still not a faithful port of anything, just a straightforward "who's in front of me" check, same
 // as the real local hitCone() (game.js) a melee hero uses -- ranged guests no longer come through here (phase 9,
 // below, gives them a real bolt/arrow instead), so GUEST_REACH/GUEST_DMG's own fallbacks now only ever matter for
 // a 'swing' that somehow arrives with no dmg/reach at all.
-function guestHitCone(id,yaw,dmg,reach){
+function guestHitCone(id,yaw,dmg,reach,at){
   const g=guestHero.get(id); if(!g||g.dead>0) return;
-  const r=reach||GUEST_REACH, d=dmg||GUEST_DMG;
+  const r=reach||GUEST_REACH, d=dmg||GUEST_DMG; const gx=(at&&typeof at.x==='number')?at.x:g.x, gz=(at&&typeof at.z==='number')?at.z:g.z;   // the guest's reported spot when it sends one (build 150); the host's copy otherwise
+  if(Math.hypot(gx-g.x,gz-g.z)<30){ g.x=gx; g.z=gz; }   // and the copy is put there too: a swing is the surest word on where the guest is
   const fx=Math.sin(yaw), fz=Math.cos(yaw); let n=0;
-  for(const e of enemies){ if(e.dead) continue; const dx=e.x-g.x, dz=e.z-g.z, dd=Math.hypot(dx,dz);
+  for(const e of enemies){ if(e.dead) continue; const dx=e.x-gx, dz=e.z-gz, dd=Math.hypot(dx,dz);
     if(dd<r+e.r&&(dx*fx+dz*fz)/Math.max(dd,.01)>.4){ hurt(e,d,fx*1.4,fz*1.4); n++; } }
   if(n) SFX.hit();
 }
@@ -432,28 +433,31 @@ function hostGuestShot(data,fromId){
   else window.__bow.fireArrow(data.kind,from,dir,data.spd,opts);
 }
 onMessage('shot',(data,fromId)=>hostGuestShot(data,fromId));
-onMessage('swing',(data,fromId)=>{ guestHitCone(fromId,data.yaw,data.dmg,data.reach); });
+onMessage('swing',(data,fromId)=>{ guestHitCone(fromId,data.yaw,data.dmg,data.reach,data); });
 const guestStats=new Map();   // id -> {stat:{tow,trate,tarea,move,def,hp,regen},mult:{tow,tcd,aoe,move,hp}} -- this guest's OWN gear/skill numbers, last reported
 onMessage('input',(data,fromId)=>{ guestIn.set(fromId,data); if(data.stat&&data.mult) guestStats.set(fromId,{stat:data.stat,mult:data.mult,kind:data.kind||{}}); });
 Meta.defOwnerStat=(id,k)=>{ const s=guestStats.get(id); return s?s.stat[k]:undefined; };
 Meta.defOwnerMult=(id,k)=>{ const s=guestStats.get(id); return s?s.mult[k]:undefined; };
 Meta.defOwnerKind=(id,kind)=>{ const s=guestStats.get(id); return s?(s.kind&&s.kind[kind])||0:undefined; };   // that guest's own full-set power for this defense kind (94-voidset.js)
 
+// build 150: what this player wears, resolved here (the weapon model key its own rig mounted, the tier, the weapon's set for
+// the tint, the FULL set for the glow, the familiar's name and rarity) -- the receivers only need names (98-party.js dress)
+function lookOf(){ const w=window.__weapons&&window.__weapons.look?window.__weapons.look():null; const full=Meta.sets&&Meta.sets.active?Meta.sets.active().find(a=>a.tier>=5):null; const fi=gear.familiar; return {w:w&&w.w||null,t:w&&w.t||1,ws:w&&w.s||null,s:full?full.name:null,f:fi?{n:fi.name,r:fi.rarity|0}:null}; }
 let syncT=0;
 function hostBroadcastHeroes(dt){
   if(role!=='host'||!conns.size) return;
   syncT+=dt; if(syncT<1/15) return; syncT=0;   // 15Hz: plenty for a puppet that already eases toward its target (98-party.js) rather than snapping to it
   const h=window.__dd.hero;
-  const list=[{id:selfId,x:+h.x.toFixed(3),z:+h.z.toFixed(3),yaw:+h.yaw.toFixed(3),pick:window.__heroes.pick()}];
-  guestHero.forEach((g,id)=>{ const inp=guestIn.get(id); list.push({id,x:+g.x.toFixed(3),z:+g.z.toFixed(3),yaw:+g.yaw.toFixed(3),pick:(inp&&inp.pick)||'witch'}); });
+  const list=[{id:selfId,x:+h.x.toFixed(3),z:+h.z.toFixed(3),yaw:+h.yaw.toFixed(3),pick:window.__heroes.pick(),look:lookOf()}];
+  guestHero.forEach((g,id)=>{ const inp=guestIn.get(id); list.push({id,x:+g.x.toFixed(3),z:+g.z.toFixed(3),yaw:+g.yaw.toFixed(3),pick:(inp&&inp.pick)||'witch',look:(inp&&inp.look)||null}); });   // a guest's look rides its input (build 150); relayed here so every guest sees every other
   send('heroes',{list});
 }
 onMessage('heroes',data=>{
   const mine=selfId;
   const ids=new Set();
   data.list.forEach(h=>{ ids.add(h.id); if(h.id===mine) return;   // that's me -- I already render my own local hero directly, not as a puppet of myself
-    if(!window.__party.list().includes(h.id)) window.__party.add(h.id,HERO_GLB[h.pick]||'witch.glb',heroLabel(h.pick));
-    window.__party.setTarget(h.id,h.x,h.z,h.yaw); });
+    window.__party.add(h.id,HERO_GLB[h.pick]||'witch.glb',heroLabel(h.pick));   // same: a teammate's pick change re-skins their puppet here
+    window.__party.setTarget(h.id,h.x,h.z,h.yaw); if(window.__party.setLook) window.__party.setLook(h.id,h.look||null); });
   // a guest only ever hears about a departure through the roster shrinking (there's no direct connection between
   // two guests to carry a __leave event between them) -- so dropping whoever the latest roster no longer lists is
   // the only way any non-host screen finds out a fellow guest left
@@ -474,7 +478,8 @@ function guestSendInput(dt){
   send('input',{w:K.w?1:0,s:K.s?1:0,a:K.a?1:0,d:K.d?1:0,shift:K.shift?1:0,yaw:+cam.yaw.toFixed(3),pick:window.__heroes.pick(),x:+hero.x.toFixed(2),z:+hero.z.toFixed(2),hyaw:+hero.yaw.toFixed(3),   /* build 147: where this guest's own hero really is -- the host follows it instead of re-simulating the keys (see guestInputTick) */
     stat:{tow:heroStat('tow'),trate:heroStat('trate'),tarea:heroStat('tarea'),move:heroStat('move'),def:heroStat('def'),hp:heroStat('hp'),regen:heroStat('regen'),mana:heroStat('mana')},
     mult:{tow:heroMult('tow'),tcd:heroMult('tcd'),aoe:heroMult('aoe'),move:heroMult('move'),hp:heroMult('hp'),mana:heroMult('mana')},
-    kind:Meta.defKindMap?Meta.defKindMap():{}});   // a full set's per-defense-kind power (94-voidset.js), for the halos this guest places
+    kind:Meta.defKindMap?Meta.defKindMap():{},   // a full set's per-defense-kind power (94-voidset.js), for the halos this guest places
+    look:lookOf()});   // build 150: what this guest wears, for its puppet on every other screen
 }
 
 // ---- phase 5: the host's real crystal/wave state, so a guest is helping defend ONE hall rather than tracking a
@@ -532,7 +537,7 @@ const GSFX={horn:0,held:0,crystal:0,place:0,upgrade:0,die:0,phase:null,crystalHp
 window.__gsfx=()=>Object.assign({},GSFX);
 function guestWorldSfx(w){ if(GSFX.phase&&GSFX.phase!==w.phase){ if(w.phase==='wave'){ SFX.horn(); GSFX.horn++; } else if(w.phase==='build'&&GSFX.phase==='wave'){ SFX.held(); GSFX.held++; } } GSFX.phase=w.phase;
   if(GSFX.crystalHp!==null&&w.crystal<GSFX.crystalHp-.01){ SFX.crystal(); if(SFX.alarm) SFX.alarm(); GSFX.crystal++; } GSFX.crystalHp=w.crystal; }
-onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded) guestShowRunEnd(data); });
+onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded){ if(data.phase==='won'){ try{ const cur=parseInt(localStorage.getItem('ddMapsCleared'))||0; localStorage.setItem('ddMapsCleared',String(Math.max(cur,MAPI+1))); }catch(e){} }   /* build 150: a hall held with the host counts for the guest too (winMap records it on the host only) -- the next room and the other heroes open for them as well */ guestShowRunEnd(data); } });
 { const origFinishDeath=finishDeath;
   finishDeath=function(){ origFinishDeath(); if(role==='host') send('runEnd',{phase:'dead',wave:S.wave}); }; }
 { const origWinMap=winMap;
@@ -573,7 +578,12 @@ function mobPuppetAdd(id,kind){
 }
 function mobPuppetRemove(id){ const p=MOBPUP.get(id); if(!p) return; scene.remove(p.mdl.g); MOBPUP.delete(id); }   // no manual geometry/material dispose: makeMob's rigs are built the same way spawnEnemy's are, and the game's own enemy despawn (updateEnemies) never disposes them either -- they're shared/cached per kind, not per-instance
 let mobHitFeedback=0;   // how many times a guest's own screen has shown "something just hit this" -- a test hook, not gameplay state
-window.__mobsync={ list:()=>[...MOBPUP.keys()], get:id=>{ const p=MOBPUP.get(id); if(!p) return null; return {id,kind:p.kind,x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2),yaw:+p.yaw.toFixed(2),walking:p.walking,hp:p.hp}; }, hitFeedback:()=>mobHitFeedback };
+// build 150 ("guest bat not fighting at all"): a guest's pet aims at the host's mobs through these proxies of the mob puppets
+// (30-familiar.js famFoes), stable per id so a chain-lightning hit list keeps working; a hit on one goes to the host as famHit
+const MOBPROX=new Map(); const PROX_SIZE={ogre:[.95,2.3],trollboss:[.8,2.1],orc:[.6,1.6],archer:[.5,1.4],drake:[.6,1.2]};
+function mobProxies(){ if(role!=='guest') return enemies; const out=[]; MOBPUP.forEach((p,id)=>{ let q=MOBPROX.get(id); if(!q){ const sz=PROX_SIZE[p.kind]||[.5,1.3]; q={puppet:true,__coopId:id,kind:p.kind,r:sz[0],h:sz[1],dead:0,slowT:0,fly:p.kind==='drake'}; MOBPROX.set(id,q); } q.x=p.x; q.y=p.y; q.z=p.z; q.hp=p.hp; q.dead=(p.hp<=0)?1:0; if(!q.dead) out.push(q); }); MOBPROX.forEach((q,id)=>{ if(!MOBPUP.has(id)) MOBPROX.delete(id); }); return out; }
+onMessage('famHit',(data,fromId)=>{ if(role!=='host'||!data) return; const e=enemies.find(e=>e.__coopId===data.id&&!e.dead); if(!e) return; const dmg=Math.max(0,Math.min(400,+data.dmg||0)); if(dmg>0) hurt(e,dmg,+data.kx||0,+data.kz||0); });   // a guest's pet lands on the host's REAL mob, as guestHitCone and hostGuestShot do for the guest's own blows
+window.__mobsync={ foes:mobProxies, list:()=>[...MOBPUP.keys()], get:id=>{ const p=MOBPUP.get(id); if(!p) return null; return {id,kind:p.kind,x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2),yaw:+p.yaw.toFixed(2),walking:p.walking,hp:p.hp}; }, hitFeedback:()=>mobHitFeedback };
 function mobPuppetsTick(dt){
   MOBPUP.forEach(p=>{ const k=1-Math.exp(-10*dt); const m=p.mdl;
     p.x=lerp(p.x,p.tx,k); p.y=lerp(p.y,p.ty,k); p.z=lerp(p.z,p.tz,k); p.yaw=angLerp(p.yaw,p.tyaw,k);

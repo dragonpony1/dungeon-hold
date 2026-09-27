@@ -909,6 +909,47 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   attempt (offer or answer lost) is retried with backoff instead of hanging forever, which is the likeliest cause of
   "he can't connect to me but I can connect to him". lobby-test.mjs drives three real browsers through all of it on a
   local signaling server. Built by a workflow agent and taken over to ship; its adversarial review follows.
+- Build 150: the trebuchet and the cold towers wear the player's art, co-op shows what the others carry, the guide
+  never holds a room. **Turnip Trebuchet**: the four Meshy trebuchets (`assets/trebuchet-1..4.glb`, wood / iron /
+  steel / gold as Marks I-IV; each carries its own shot in the sling) replace the procedural one; the frame runs along
+  the model's x and throws toward the counterweight, so `DEF_FACE` turns it to face +z like every other defense, and the
+  one-piece model lurches on the throw instead of swinging an arm. "I want the trebuchet to do a lot of splash damage":
+  the splash is 3.2 wide (was 1.9) and grows .35 a mark, the edge of it still takes 65% of the hit (was 50%), the shove
+  is harder, and a pale shock ring races out to the splash's reach so the player sees what it covers. **Frost Spire**:
+  the four cold towers (`assets/frost-1..4.glb`; the earlier frost files were runed pillars that read as rune totems, the
+  Rune Totem keeps its own) stand 2.8 tall, and the spire now bites as well as chills: every mob in its ring takes 2
+  cold damage every .9 s (marks scale both, as for every defense) with a glint of ice on each bite (`towers-test`).
+  **Co-op, from the second playtest.** "Don't see the guest's sword", "can't see guests' familiars": a party puppet was
+  the bare hero model. Now each client resolves its own look (the weapon model its rig mounted, the tier, the weapon's set
+  for the tint, the full set for the glow, the familiar's name and rarity), a guest sends it with its input, the host
+  relays it in the heroes list, and every puppet is dressed through the same builders the local hero uses: the weapon on
+  the puppet's own mount node (`__weapons.attach`), the pet hovering at its shoulder (`__familiar.build`, decorative:
+  its shots are not synced), the full-set shells (`__setglow.dress`); a gear change re-dresses it (`coop-look-test.mjs`).
+  "The tutorial gets stuck in multiplayer": a guest used to spawn its own wave-zero goblin (a phantom nobody could kill,
+  so the guide sat on step one) and its ballista/horn/more steps could never tick. Now a guest spawns none, its steps
+  watch the synced lists (a death in the enemies list, a row in the defs list, the host's phase), in co-op Enter (or a
+  tap on the card) skips a tip that cannot tick on that side, and a host with guests in the hall sounds the horn even
+  with a Forest piece waiting in its locker; "reset guide" also clears the counters and wave zero, so the steps do not
+  tick themselves off at once from the last run. "Holding the first hall didn't count for guests": winMap recorded the
+  clear on the host only; a guest now records it from the host's run-end message, so the next room and the other heroes
+  open for them too (`coop-guide-test.mjs`). "Still not getting a full set by wave 4": in co-op the hall's thanks (the
+  Forest pieces of held waves 1 and 2) dropped by the crystal where any guest could grab them, so the host ended short
+  and a guest doubled up; now every page rolls its own against its own slots and they go straight into that player's
+  bag, and every later held wave tops a short player back up to four (solo keeps the drops by the crystal). "Guests'
+  defenses do damage but not the sword": the swing relay sent the camera's yaw and the host swung from its copy of the
+  guest, which since build 147 walks toward the guest's reported spot with collision and could stay stuck behind a
+  hedge; the swing now carries the guest's own facing and spot (what hitCone uses locally) and the host swings from
+  there, and a copy that cannot reach its guest for .8 s snaps to it. "Guest bat not fighting at all": a guest page
+  has no real enemies, so its pet never found a target; the pet now sees proxies of the host's mob puppets
+  (`__mobsync.foes`) and every hit it lands is sent up as famHit for the host to apply (`coop-look-test.mjs`). The
+  title screen's TAVERN button is gone ("don't need it"): the tavern still opens with I or the bag button in the hall.
+  "Guest game crashed and closed the browser while in the hideout" (a desktop guest): since build 140 the hideout frame
+  is preloaded and kept alive behind the hall, and a co-op page already carries a hall full of mob and defense puppets,
+  so two heavy scenes sat in one tab; on every co-op page (host or guest), a touch or small-memory device, or
+  `?litehideout`, the hideout is LITE now: made on the visit, torn down on the way out, never preloaded
+  (`hideoutlite-test.mjs`, `coop-guide-test`); a solo desktop run keeps the keep-alive.
+  "No way to see how much gold you have" on the full-screen Tab sheet (the forge sells upgrades there): its header now
+  carries "● N gold · level L" (`loadout-test`); the tavern page already had its own gold line.
 - Build 148: the Mycelium Cage, the loot card keeps a set whole, and co-op polish part one. The Mushroom Ring is gone:
   the player's four Meshy cages (`assets/cage-1..4.glb`, Marks I-IV; the unnumbered "Trap" file is tier 3) stand in
   its slot as the **Mycelium Cage**, a dome of glowing roots about 3.8 wide that mobs walk into. It still slows what is
