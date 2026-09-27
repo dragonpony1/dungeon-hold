@@ -909,6 +909,32 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   attempt (offer or answer lost) is retried with backoff instead of hanging forever, which is the likeliest cause of
   "he can't connect to me but I can connect to him". lobby-test.mjs drives three real browsers through all of it on a
   local signaling server. Built by a workflow agent and taken over to ship; its adversarial review follows.
+- Build 148: the Mycelium Cage, the loot card keeps a set whole, and co-op polish part one. The Mushroom Ring is gone:
+  the player's four Meshy cages (`assets/cage-1..4.glb`, Marks I-IV; the unnumbered "Trap" file is tier 3) stand in
+  its slot as the **Mycelium Cage**, a dome of glowing roots about 3.8 wide that mobs walk into. It still slows what is
+  inside, and now it IMPLODES: with victims inside it charges for a random 1.3-2.9 s (the roots relax outward, the
+  spores stop drifting up and swirl in toward the centre, the heart glows violet), then the roots snap shut, the spores
+  are sucked to the middle, the victims lift a little, a violet-then-cyan flash bursts for five times its damage, and a
+  murky green-violet cloud hangs over the cage for three seconds poisoning whoever stands in it (the venom halo's own
+  DOT). No screen shake. Empty, it never fires, only flexes now and then. Each implosion wears the cage a little
+  (the old trampling). The state rides `d.fx` and the look lives in `cageAnim`, so a co-op guest runs the same show on
+  its puppet from three cues the host sends (charge, calm, implode) and hears the implosion. `cage-test.mjs` (new)
+  checks the model, the three-phase cycle, the burst, the poison, the lift, the snap, the flash, the cloud, the random
+  gaps, and that an empty cage rests. **The loot card keeps a set whole**: walking over a better loose piece used to
+  offer "E to equip" for 4.8 s, and E is also the upgrade and interact key, so a full Forest set broke on a pickup;
+  now a worn piece that is holding a set bonus (three or more of its set on) is never offered for the quick swap — the
+  card says "your set of the Forest stays whole (3 worn)" and the piece waits in the bag; a better piece of the SAME set
+  still gets the offer (`lootfeel-test.mjs`). **Co-op polish, part one**, from the three-player playtest. "Having to
+  calibrate in game to get avatars to sync": the host used to re-simulate every guest from the keys they sent (15 times
+  a second) while the guest's own screen moved their hero at 60, two copies of one hero drifting apart until a wall
+  pinned both; now the guest's own position is the truth, the host walks its copy toward it (through moveCircle, so
+  walls hold) with a 16-unit-a-second catch-up cap and ignores a jump over 30 units. "He can't connect to me": a short
+  room code is taken in any letter case (a phone capitalises or lowercases it). "I couldn't hear any of the sound
+  effects" (as a guest): nearly every sound is the host's own simulation, so a guest now derives them from the synced
+  lists: the horn when the phase turns to wave and the held fanfare when it turns back, the crystal's hit and the alarm
+  when its hp drops, a placement or upgrade when the defs list gains a row or a mark, a death (the host queues each
+  kill, so none is missed between lists) when an enemy dies. `coopsfx-test.mjs` (new) checks the sounds;
+  `coop-input-test` the position.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Eight more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry. The Holy set is next.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost

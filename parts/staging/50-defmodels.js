@@ -4,7 +4,7 @@
 // models: yoke (turns to aim / spins), hp / ball (projectile shown while loaded — dummies here), hub (spinner).
 const DEFGLB={};                                                     // kind -> [{wrap,scale,turn,tpl}] by mark index
 const DEF_H={harpoon:1.6,acorn:1.5,ball:2.2,slice:.6,spike:1.1,totem:2.8,frost:2.4,snare:2.6};              // target heights in world units (about the procedural sizes)
-const DEF_W={slice:5.0,zap:3.2,venom:3.2,ember:3.2,dazzle:3.2};             // flat things fit by footprint width instead (the ring's toadstools stand at radius 2.3) — the halos are the same idea, a low sigil disc, not a spire
+const DEF_W={slice:3.8,zap:3.2,venom:3.2,ember:3.2,dazzle:3.2};             // flat things fit by footprint width instead (the ring's toadstools stand at radius 2.3) — the halos are the same idea, a low sigil disc, not a spire
 const DEF_TURN=/yoke|turret|swivel|head|top|arm|bow|hub|blade|rotor/i; // a node named like this is the part that turns
 // the ballista's rig: the bow assembly (everything above HINGE of the model's height -- the stock, bow and winch post on
 // the pedestal) is cut off into a group named 'pitch' that tilts, inside a group named 'yoke' that pans, both hung from a
@@ -29,7 +29,9 @@ function loadDefGLB(kind,b64,markIdx,cb){ try{ const u=Uint8Array.from(atob(b64)
 function fetchDefGLB(kind,url,markIdx,prio){ fetchBytes(url,prio).then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ regDefGLB(kind,gltf,markIdx); }catch(e){ console.warn('defense model '+kind,e); } },e=>console.warn('defense model '+kind,e))).catch(e=>console.warn('defense model '+kind+' ('+url+')',e)); }
 function defTemplate(kind,lvl){ const list=DEFGLB[kind]; if(!list) return null; let i=Math.min(list.length-1,Math.max(0,(lvl||1)-1)); while(i>=0&&!list[i]) i--; return i>=0?list[i]:null; }
 // the procedural ring's spore puffs and faint area disc, reused over the Meshy rings
-function sporeHub(){ const hub=new THREE.Group(); for(let k=0;k<7;k++){ const a=k/7*TAU, r=.4+((k*5)%3)*.55; const pf=glow(0xd08aff,.7+((k*3)%2)*.3,.3); pf.position.set(Math.cos(a)*r,.4,Math.sin(a)*r); pf.userData.ph=k*.31; hub.add(pf); } return hub; }
+function sporeHub(){ const hub=new THREE.Group(); for(let k=0;k<9;k++){ const a=k/9*TAU, r=.5+((k*5)%3)*.45; const pf=glow(k%3?0xd08aff:0x8ff6ff,.6+((k*3)%2)*.3,.3); pf.position.set(Math.cos(a)*r,.4,Math.sin(a)*r); pf.userData.ph=k*.31; pf.userData.a=a; pf.userData.r=r; hub.add(pf); } return hub; }   // angle + radius kept: the cage's vortex pulls them to the centre (cageAnim)
+// the cage's toxic cloud: murky green-violet puffs hanging over the roots, shown only while the implosion's cloud lasts
+function cageCloud(){ const cl=new THREE.Group(); for(let k=0;k<11;k++){ const a=k/11*TAU+.4, r=.3+((k*7)%4)*.42; const pf=glow(k%2?0x8ee06a:0x9a5adf,1.1+((k*5)%3)*.35,.3); const y=.8+((k*3)%3)*.55; pf.position.set(Math.cos(a)*r,y,Math.sin(a)*r); pf.userData.ph=k*.7; pf.userData.y=y; pf.userData.op=.34+((k*5)%3)*.1; cl.add(pf); }   // the puffs ride up through and over the roots, so the cloud reads from outside the dome cl.visible=false; return cl; }
 function sporeDisc(){ const disc=new THREE.Mesh(new THREE.CircleGeometry(2.5,24),new THREE.MeshBasicMaterial({color:C(0xb04ad0),transparent:true,opacity:.1,blending:THREE.AdditiveBlending,depthWrite:false})); disc.rotation.x=-PI/2; disc.position.y=.04; disc.userData.noOL=true; return disc; }
 const makeDefProc=makeDef;
 makeDef=function(kind,ghost,lvl){ const T=defTemplate(kind,lvl); if(!T) return makeDefProc(kind,ghost);
@@ -37,7 +39,8 @@ makeDef=function(kind,ghost,lvl){ const T=defTemplate(kind,lvl); if(!T) return m
   let yoke=null; if(T.turn) g.traverse(o=>{ if(!yoke&&o.name===T.turn) yoke=o; });
   if(!yoke){ yoke=new THREE.Group(); const inner=g.children[0]; g.remove(inner); yoke.add(inner); g.add(yoke); }   // no named part: the whole model turns about its footprint centre
   g.userData.yoke=yoke; g.userData.hub=yoke; g.userData.hp=new THREE.Object3D(); g.userData.ball=new THREE.Object3D(); g.traverse(o=>{ if(o.name==='pitch') g.userData.pitch=o; });   // a hinged bow assembly pitches on its own
-  if(kind==='slice'){ g.userData.yoke=new THREE.Object3D(); g.userData.hub=sporeHub(); g.add(g.userData.hub); if(!ghost) g.add(sporeDisc()); }   // the ring does not spin: its spore puffs drift up as before, over the model
+  if(kind==='slice'){ g.userData.yoke=new THREE.Object3D(); const cg=new THREE.Group(); cg.name='cage'; while(g.children.length) cg.add(g.children[0]); g.add(cg); g.userData.cage=cg;   // the roots on an inner group: the snap and the breathing scale it, while updateDefs keeps scaling the root by range
+    g.userData.hub=sporeHub(); g.add(g.userData.hub); if(!ghost){ const disc=sporeDisc(); g.add(disc); g.userData.disc=disc; const fl=glow(0xc060ff,1,0); fl.position.y=1.35; g.add(fl); g.userData.flash=fl; g.userData.cloud=cageCloud(); g.add(g.userData.cloud); } }   // the flash at the heart and the cloud over it, both dark until the implosion (cageAnim)
   if(ghost){ g.traverse(m=>{ if(m.isMesh){ if(m.userData.isOL) m.visible=false; else m.material=GHOST_OK; } }); }
   else g.add(blob(.95));
   return g; };
@@ -58,7 +61,7 @@ function ensureDefMark(kind,lvl){ const list=DEF_LAZY[kind]; if(!list) return fa
 defMarks('harpoon','ballista');   // Mark I..IV; Mark V keeps the tier-4 look
 defMarks('spike','hedge');   // the bramble hedge (Meshy) Mark I..IV; Mark V keeps the tier-4 look (hedge-1 is the hedge every mark used to share; II-IV are the player's T2-T4 cut to one 1024 px base-colour map, all toonify() reads)
 defMarks('acorn','cannon');   // the acorn cannon (Meshy) Mark I..IV; Mark V keeps the tier-4 look
-defMarks('slice','mushroom');   // the mushroom ring (Meshy) Mark I..IV; Mark V keeps the tier-4 look
+defMarks('slice','cage');   // the Mycelium Cage (the player's Meshy set, build 148) Mark I..IV; Mark V keeps the tier-4 look. cage-3 is the unnumbered 'Trap' file
 defMarks('totem','totem');   // the rune totem (Meshy) Mark I..IV; Mark V keeps the tier-4 look
 defMarks('frost','frost');   // the frost spire (Meshy, "cold tower") Mark I..IV; Mark V keeps the tier-4 look
 defMarks('snare','snare');   // the snare tower (Meshy) Mark I..IV; Mark V keeps the tier-4 look

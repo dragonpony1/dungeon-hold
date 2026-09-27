@@ -21,11 +21,16 @@ function statRows(it,before){ const keys=Object.keys(it.stats); if(before) for(c
     const dl=!before?'<span class="nu">new</span>':d>0?'<span class="up">▲ '+fmt(k,d)+'</span>':d<0?'<span class="dn">▼ '+fmt(k,-d)+'</span>':'<span class="nu">=</span>';
     return '<div class="pc-s"><span>'+lab+'</span>'+dl+'</div>'; }).join(''); }
 function footer(){ const it=CS.it; if(!it) return ''; if(CS.outcome==='equipped') return 'Equipped!'; if(CS.outcome==='sold') return 'sold for '+it.value+' '+(Meta.bag?'gold':'mana');
+  if(CS.keep) return 'in your bag  ·  your set '+CS.keep.name+' stays whole ('+CS.keep.count+' worn)  ·  swap it from the bag if you mean to';
   return CS.canEquip?'<b>E</b> equip now  ·  in your bag':(CS.better?'in your bag':'in your bag  ·  not better than yours'); }
-function showCard(it,before,outcome){ CS.it=it; CS.before=before; CS.outcome=outcome; CS.better=!before||it.score>before.score; CS.canEquip=outcome==='bagged'&&CS.better&&!!Meta.equip;
+// a worn piece that is holding a set bonus (three or more of its set on) is never swapped by the card's quick E: a better
+// loose piece would break the set the player built, so it goes to the bag with a note instead (swap it from the bag or the
+// sheet on purpose). A better piece of the SAME set still gets the offer -- that only makes the set stronger. (build 147)
+function keepsSet(it,before){ if(!before||!Meta.sets) return null; const n=Meta.sets.setOf(before); if(!n||Meta.sets.setOf(it)===n) return null; const a=Meta.sets.active().find(x=>x.name===n); return a?{name:n,count:a.count}:null; }
+function showCard(it,before,outcome){ CS.it=it; CS.before=before; CS.outcome=outcome; CS.better=!before||it.score>before.score; CS.keep=CS.better?keepsSet(it,before):null; CS.canEquip=outcome==='bagged'&&CS.better&&!!Meta.equip&&!CS.keep;
   card.innerHTML='<div class="pc-h"><div class="pc-ic">'+SICON[it.slot]+'</div><div><div class="pc-n" style="color:'+RCSS[it.rarity]+'">'+it.name+'</div><div class="pc-t">T'+(it.tier||tierOf(it.lvl))+' · '+RNAME[it.rarity].toUpperCase()+(before?' · vs '+before.name:' · new slot')+'</div></div></div>'+statRows(it,before)+'<div class="pc-f">'+footer()+'</div>';
   card.classList.remove('eq'); card.classList.add('show'); if(CS.timer) clearTimeout(CS.timer); CS.timer=setTimeout(hideCard,4800); }
-function hideCard(){ card.classList.remove('show'); CS.it=null; CS.canEquip=false; }
+function hideCard(){ card.classList.remove('show'); CS.it=null; CS.canEquip=false; CS.keep=null; }
 function equipFromCard(){ if(!CS.it||!CS.canEquip||!Meta.equip) return false; if(!Meta.equip(CS.it.id)) return false; CS.canEquip=false; CS.outcome='equipped'; card.querySelector('.pc-f').innerHTML='Equipped!'; card.classList.add('eq'); if(CS.timer) clearTimeout(CS.timer); CS.timer=setTimeout(hideCard,2200); refreshGear(true); return true; }
 addEventListener('keydown',e=>{ if(e.code!=='KeyE'||!CS.canEquip||Meta.isOpen()) return; if(equipFromCard()){ e.stopImmediatePropagation(); e.preventDefault(); } },true);
 card.addEventListener('click',e=>{ e.stopPropagation(); equipFromCard(); }); card.addEventListener('touchstart',e=>{ e.preventDefault(); e.stopPropagation(); equipFromCard(); },{passive:false});
@@ -77,5 +82,5 @@ function defCard(){ if(!dcEl){ const anchor=$('herostats')||$('xpline')||$('gear
   const key=d.kind+d.lvl+'|'+Math.ceil(d.hp)+'|'+rows.join(''); if(key===dcKey) return; dcKey=key;
   dcEl.innerHTML='<div class="dc-n">'+cfg.ic+' '+cfg.name+' · Mark '+MARK[d.lvl]+'</div>'+rows.join(''); dcEl.classList.add('show'); }
 { const prevU=Meta.update; Meta.update=dt=>{ prevU(dt); visualsUpdate(dt); }; const prevH=Meta.hud; Meta.hud=()=>{ prevH(); statsUpdate(); defCard(); }; }
-window.__feel={defcard:()=>dcEl&&dcEl.classList.contains('show')?dcEl.textContent:null,card:()=>CS.it?{name:CS.it.name,id:CS.it.id,outcome:CS.outcome,canEquip:CS.canEquip,shown:card.classList.contains('show'),html:card.innerHTML}:null,stats:heroStats,visuals:()=>({weapon:!!V.weapon,weaponColor:V.weapon?'#'+V.weapon.material.color.getHexString():null,hostIsBone:!!(V.host&&V.host.isBone),charm:!!V.charm,amulet:!!V.amulet}),equipFromCard};
+window.__feel={defcard:()=>dcEl&&dcEl.classList.contains('show')?dcEl.textContent:null,card:()=>CS.it?{name:CS.it.name,id:CS.it.id,outcome:CS.outcome,canEquip:CS.canEquip,keep:CS.keep||null,shown:card.classList.contains('show'),html:card.innerHTML}:null,stats:heroStats,visuals:()=>({weapon:!!V.weapon,weaponColor:V.weapon?'#'+V.weapon.material.color.getHexString():null,hostIsBone:!!(V.host&&V.host.isBone),charm:!!V.charm,amulet:!!V.amulet}),equipFromCard};
 })();

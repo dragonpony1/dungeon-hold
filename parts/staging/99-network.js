@@ -226,7 +226,7 @@ function shortRoomCode(){ const A='ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s=''; f
   // message with zero signal, after a wait generous enough not to false-positive on an ordinary slow connection.
   const JOIN_TIMEOUT=+Q.get('jointimeout')||20000;   // test-only override (?jointimeout=300), same escape-hatch idiom as peerhost/peerport/peerpath above
   function doJoin(){
-    const code=joinCode.value.trim(); if(!code) return;
+    let code=joinCode.value.trim(); if(!code) return; if(/^[a-z0-9]{4,8}$/i.test(code)) code=code.toUpperCase();   /* build 147: a short room code in any letter case (a phone keyboard capitalises the first letter or lowercases the lot); a long console-made id is left alone */
     joinMsg.textContent='Connecting…'; joinMsg.classList.remove('err'); joinGoBtn.disabled=true;
     let settled=false;
     const timer=setTimeout(()=>{
@@ -283,7 +283,7 @@ function guestInputTick(dt){
   if(role!=='host') return;
   guestIn.forEach((inp,id)=>{
     let g=guestHero.get(id);
-    if(!g){ const ox=guestHero.size*1.5; g={x:ox,y:0,z:6,yaw:0,hp:GUEST_MAX_HP,max:GUEST_MAX_HP,hurtT:0,dead:0,spawnX:ox}; guestHero.set(id,g); guestMana.set(id,MAP_MANA); }
+    if(!g){ const ox=guestHero.size*1.5; g={x:ox,y:0,z:6,yaw:0,hp:GUEST_MAX_HP,max:GUEST_MAX_HP,hurtT:0,dead:0,spawnX:ox,holdT:.8}; guestHero.set(id,g); guestMana.set(id,MAP_MANA); send('hp',{hp:g.hp,max:g.max,dead:0,x:g.x,y:g.y,z:g.z},id); }   /* build 147: the guest's own position leads now (below), so on registration their local hero is put at this spawn (the 'hp' handler applies x/z) and the host holds its copy there for a moment rather than chasing the spot their page loaded them at, on top of the host */
     const s=guestStats.get(id);
     // gear-scaled max hp, delta-preserving on increase -- the same pattern applyGear() (game.js) uses for the real hero
     const newMax=Math.round((GUEST_MAX_HP+(s?s.stat.hp:0))*(s?s.mult.hp:1));
@@ -295,6 +295,17 @@ function guestInputTick(dt){
     if(g.dead>0){ g.dead-=dt; if(g.dead<=0){ g.dead=0; g.hp=g.max; g.x=g.spawnX; g.z=6; g.y=0; send('hp',{hp:g.hp,max:g.max,dead:g.dead,x:g.x,y:g.y,z:g.z},id); } }
     else{
       g.hurtT-=dt; if(g.hurtT<0&&g.hp<g.max) g.hp=Math.min(g.max,g.hp+(1.5+(s?s.stat.regen:0))*dt);   // passive regen, same base rate and gear scaling as heroUpdate's (game.js)
+      // build 147 ("having to calibrate in game to get avatars to sync"): the host used to re-simulate every guest from
+      // the keys they sent, 15 times a second, while the guest's own screen moved their hero from the same keys at
+      // 60 -- two copies of one hero that started apart and drifted further with every dropped packet, until walking
+      // into a wall pinned both to the same spot. Now the guest's own position is the truth: the host walks its copy
+      // toward it (through moveCircle, so walls and rails still hold) with a catch-up cap of 16 units a second, so a
+      // late packet is caught up in a fraction of a second but nobody can teleport, and a jump of more than 30
+      // units in one packet is ignored (a map mismatch, or nonsense). An older guest that sends no position still
+      // gets the keys path below.
+      if(g.holdT>0) g.holdT-=dt;
+      else if(typeof inp.x==='number'&&typeof inp.z==='number'){ const dx=inp.x-g.x, dz=inp.z-g.z, d=Math.hypot(dx,dz); if(d>0&&d<30){ const k=Math.min(1,16*dt/d); moveCircle(g,dx*k,dz*k,.42,true); } if(typeof inp.hyaw==='number') g.yaw=inp.hyaw; g.y=floorAt(g.x,g.z,g.y); }
+      else {
       let mx=0,mz=0; if(inp.w) mz+=1; if(inp.s) mz-=1; if(inp.d) mx+=1; if(inp.a) mx-=1;
       const len=Math.hypot(mx,mz);
       if(len>.05){ mx/=Math.max(len,1); mz/=Math.max(len,1);
@@ -303,7 +314,7 @@ function guestInputTick(dt){
         const mul=(inp.shift?11:7.5)/7.5*(1+(s?s.stat.move:0)/100)*(s?s.mult.move:1);   // same gear-scaled speed formula heroUpdate uses for the real hero
         moveCircle(g,vx*7.5*mul*dt,vz*7.5*mul*dt,.42,true);
         g.yaw=angLerp(g.yaw,Math.atan2(vx,vz),1-Math.exp(-12*dt)); }
-      g.y=floorAt(g.x,g.z,g.y);
+      g.y=floorAt(g.x,g.z,g.y); }
     }
     // the host renders every guest as a puppet on its own screen too, straight from the state it just simulated —
     // no need to round-trip its own broadcast, which never loops back to the sender anyway
@@ -460,7 +471,7 @@ let syncTIn=0;
 function guestSendInput(dt){
   if(role!=='guest') return;
   syncTIn+=dt; if(syncTIn<1/15) return; syncTIn=0;
-  send('input',{w:K.w?1:0,s:K.s?1:0,a:K.a?1:0,d:K.d?1:0,shift:K.shift?1:0,yaw:+cam.yaw.toFixed(3),pick:window.__heroes.pick(),
+  send('input',{w:K.w?1:0,s:K.s?1:0,a:K.a?1:0,d:K.d?1:0,shift:K.shift?1:0,yaw:+cam.yaw.toFixed(3),pick:window.__heroes.pick(),x:+hero.x.toFixed(2),z:+hero.z.toFixed(2),hyaw:+hero.yaw.toFixed(3),   /* build 147: where this guest's own hero really is -- the host follows it instead of re-simulating the keys (see guestInputTick) */
     stat:{tow:heroStat('tow'),trate:heroStat('trate'),tarea:heroStat('tarea'),move:heroStat('move'),def:heroStat('def'),hp:heroStat('hp'),regen:heroStat('regen'),mana:heroStat('mana')},
     mult:{tow:heroMult('tow'),tcd:heroMult('tcd'),aoe:heroMult('aoe'),move:heroMult('move'),hp:heroMult('hp'),mana:heroMult('mana')},
     kind:Meta.defKindMap?Meta.defKindMap():{}});   // a full set's per-defense-kind power (94-voidset.js), for the halos this guest places
@@ -510,6 +521,17 @@ function guestShowRunEnd(w){
   $('nextmapbtn').style.display='none'; $('dead').classList.remove('hide');
 }
 onMessage('world',data=>{ hostWorld=data; });
+// build 147: "I couldn't hear any of the sound effects" (as a guest). Nearly every sound is played by the host's own
+// simulation -- startWave's horn, a placement, a defense firing, a mob dying -- and none of that runs on a guest, whose
+// world arrives as lists. So a guest derives the big ones from those lists: the horn when the host's phase turns to
+// 'wave' and the held fanfare when it turns back, the crystal's hit (and the alarm bell) when its hp drops, a placement
+// or an upgrade when the defs list gains a row or a mark, a death when an enemy leaves the list with its hp spent.
+// Hits already sounded (phase 11, the hp diff); orbs and loot already sound on the grant. Shots stay silent for now
+// (bolts and arrows are not synced). GSFX counts them for the suites.
+const GSFX={horn:0,held:0,crystal:0,place:0,upgrade:0,die:0,phase:null,crystalHp:null,defsSeen:false,dieT:0};
+window.__gsfx=()=>Object.assign({},GSFX);
+function guestWorldSfx(w){ if(GSFX.phase&&GSFX.phase!==w.phase){ if(w.phase==='wave'){ SFX.horn(); GSFX.horn++; } else if(w.phase==='build'&&GSFX.phase==='wave'){ SFX.held(); GSFX.held++; } } GSFX.phase=w.phase;
+  if(GSFX.crystalHp!==null&&w.crystal<GSFX.crystalHp-.01){ SFX.crystal(); if(SFX.alarm) SFX.alarm(); GSFX.crystal++; } GSFX.crystalHp=w.crystal; }
 onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded) guestShowRunEnd(data); });
 { const origFinishDeath=finishDeath;
   finishDeath=function(){ origFinishDeath(); if(role==='host') send('runEnd',{phase:'dead',wave:S.wave}); }; }
@@ -523,7 +545,7 @@ onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded) guestShowRunEnd(da
   startWave=function(){ if(role==='guest'){ toast("Only the host can start the wave — you're helping defend their hall"); return; } origStartWave(); }; }
 
 { const prevH=Meta.hud; Meta.hud=()=>{ prevH();
-  if(role==='guest'&&hostWorld){ const w=hostWorld;
+  if(role==='guest'&&hostWorld){ const w=hostWorld; guestWorldSfx(w);
     $('cbar').style.width=Math.max(0,w.crystal/w.crystalMax*100)+'%';
     if(w.phase==='wave'){ $('wavet').textContent='WAVE '+w.wave+' / '+w.waveTotal; $('phaset').textContent='Helping defend the hall'; }
     else if(w.phase==='build'){ $('wavet').textContent=w.wave?'HALL HELD — BUILD PHASE':'BUILD PHASE'; $('phaset').textContent='Only the host can start the next wave'; }
@@ -562,12 +584,15 @@ function mobPuppetsTick(dt){
     m.g.position.set(p.x,p.y,p.z); m.g.rotation.y=p.yaw; });
 }
 let nextEnemyId=1, syncTE=0;
+const diedQ=[];   // build 147: mobs killed on the host since its last enemies list -- filled the moment kill() runs, not by scanning `enemies` at broadcast time (a mob killed and removed between two slow frames was never reported, and the guest never heard it die)
+{ const prevKill=kill; kill=function(e){ const was=e&&e.dead; const r=prevKill.apply(this,arguments); if(role==='host'&&e&&!was&&e.dead){ if(!e.__coopId) e.__coopId='e'+(nextEnemyId++); diedQ.push({id:e.__coopId,kind:e.kind}); } return r; }; }
 function hostBroadcastEnemies(dt){
   if(role!=='host'||!conns.size) return;
   syncTE+=dt; if(syncTE<1/12) return; syncTE=0;
   const list=enemies.filter(e=>!e.dead).map(e=>{ if(!e.__coopId) e.__coopId='e'+(nextEnemyId++);
     return {id:e.__coopId,kind:e.kind,x:+e.x.toFixed(2),y:+e.y.toFixed(2),z:+e.z.toFixed(2),yaw:+e.yaw.toFixed(2),walking:!!e.walking,hp:+e.hp.toFixed(1)}; });   // y matters for flyers (drake etc, spawned at e.fly's altitude) -- without it they'd render as if grounded; hp is new (see below)
-  send('enemies',{list});
+  const died=diedQ.splice(0);   // build 147: every mob killed since the last list (queued by the kill wrapper below at the moment it happens, so a slow frame can never miss one), for the guest's death sound; one that leaves the list without dying reached the crystal
+  send('enemies',{list,died});
 }
 // hp above is new: real hits (guestHitCone, hostGuestShot's bolts/arrows) already land on the host's REAL enemies --
 // the damage was never fake -- but nothing ever told a GUEST's screen that anything happened. hurt() (game.js)
@@ -580,9 +605,10 @@ onMessage('enemies',data=>{
   const ids=new Set();
   data.list.forEach(e=>{ ids.add(e.id);
     let p=MOBPUP.get(e.id);
-    if(!p){ p=mobPuppetAdd(e.id,e.kind); p.x=p.tx=e.x; p.y=p.ty=e.y; p.z=p.tz=e.z; p.yaw=p.tyaw=e.yaw; p.hp=e.hp; }   // snap on first sight, no popping in from the origin, and no false "hit" flash for however damaged it already was
+    if(!p){ p=mobPuppetAdd(e.id,e.kind); p.x=p.tx=e.x; p.y=p.ty=e.y; p.z=p.tz=e.z; p.yaw=p.tyaw=e.yaw; p.hp=e.hp; p.kind=e.kind; }   // snap on first sight, no popping in from the origin, and no false "hit" flash for however damaged it already was
     else if(e.hp<p.hp-.05){ floatText(p.x,p.y+1.5,p.z,String(Math.round((p.hp-e.hp)*10)/10),'#ffd060'); SFX.hit(); mobHitFeedback++; }
     p.tx=e.x; p.ty=e.y; p.tz=e.z; p.tyaw=e.yaw; p.walking=e.walking; p.hp=e.hp; });
+  (data.died||[]).forEach(d=>{ const now=performance.now(); if(now-GSFX.dieT>80){ GSFX.dieT=now; if((d.kind==='ogre'||d.kind==='trollboss')&&SFX.bigDie) SFX.bigDie(); else SFX.die(); } GSFX.die++; });   // build 147: the death sound for each mob the host says died since its last list (throttled to one every 80 ms so a splash kill is a thud, not a drumroll)
   [...MOBPUP.keys()].forEach(id=>{ if(!ids.has(id)) mobPuppetRemove(id); });   // a dead or despawned enemy just stops being in the list -- same roster-diff removal 99-network.js already uses for heroes
 });
 
@@ -602,6 +628,14 @@ function defPuppetAdd(id,kind,lvl,x,y,z,rot){
   const m=makeDef(kind,false,lvl); m.position.set(x,y,z); m.rotation.y=rot; scene.add(m);
   DEFPUP.set(id,{kind,lvl,mdl:m});
 }
+// the cage's show on a guest (build 148): the host cues charge / calm / implode over the wire (Meta.onDefFx), the guest runs
+// the same cageAnim on its puppet and plays the implosion sound; the damage itself stays the host's, as for every defense
+{ const prev=Meta.onDefFx; Meta.onDefFx=function(d,fx,arg){ prev(d,fx,arg); if(role!=='host'||!d) return; if(!d.__coopId) d.__coopId='d'+(nextDefId++); send('fx',{id:d.__coopId,fx,arg}); }; }
+onMessage('fx',data=>{ const p=DEFPUP.get(data.id); if(!p||p.kind!=='slice') return; const fx=p.fx||(p.fx=cageState());
+  if(data.fx==='charge'){ fx.phase='charge'; fx.t=0; fx.k=0; fx.dur=+data.arg||2; } else if(data.fx==='calm'){ fx.phase='rest'; fx.t=0; } else if(data.fx==='implode'){ fx.phase='boom'; fx.t=0; fx.k=1; fx.cloud=DEFS.slice.cloud; SFX.implode(); } });
+function defPuppetsTick(dt){ if(role!=='guest') return; DEFPUP.forEach(p=>{ if(p.kind!=='slice') return; const fx=p.fx||(p.fx=cageState()); fx.t+=dt;
+  if(fx.phase==='charge'){ fx.k=Math.min(1,fx.t/fx.dur); if(fx.t>fx.dur+1){ fx.phase='rest'; fx.t=0; } } else if(fx.phase==='boom'){ if(fx.t>=.45){ fx.phase='rest'; fx.t=0; fx.k=0; } } else if(fx.t>fx.next){ fx.t=0; fx.next=R(3,7); fx.flex=.5; }
+  if(fx.cloud>0) fx.cloud-=dt; cageAnim(p.mdl,fx,dt,fx.phase==='rest'?0:1); }); }
 function defPuppetRemove(id){ const p=DEFPUP.get(id); if(!p) return; scene.remove(p.mdl); DEFPUP.delete(id); }   // no manual dispose, same reasoning as mob puppets: the real defs array's own removeDef never disposes either
 window.__defsync={ list:()=>[...DEFPUP.keys()], get:id=>{ const p=DEFPUP.get(id); if(!p) return null; return {id,kind:p.kind,lvl:p.lvl,x:+p.mdl.position.x.toFixed(2),y:+p.mdl.position.y.toFixed(2),z:+p.mdl.position.z.toFixed(2)}; } };
 let nextDefId=1, syncTD=0;
@@ -616,11 +650,13 @@ onMessage('defs',data=>{
   const ids=new Set();
   data.list.forEach(d=>{ ids.add(d.id);
     let p=DEFPUP.get(d.id);
-    if(!p){ defPuppetAdd(d.id,d.kind,d.lvl,d.x,d.y,d.z,d.rot); return; }
+    if(!p){ defPuppetAdd(d.id,d.kind,d.lvl,d.x,d.y,d.z,d.rot); if(GSFX.defsSeen){ SFX.place(); GSFX.place++; } return; }   // a defense set down since the last list: the placement sound (build 147), whoever placed it
     ensureDefMark(d.kind,d.lvl); ensureDefMark(d.kind,d.lvl+1); const T=defTemplate(d.kind,d.lvl);   // an upgrade on the host asks for that mark's model here too (and the next one up), as reskinDefs does for the host's own
+    if(d.lvl>p.lvl){ SFX.place(); GSFX.upgrade++; }   // a mark up: the same sound the host hears for it (build 147)
     if(p.lvl!==d.lvl||(T&&p.mdl.userData.tpl!==T)){ scene.remove(p.mdl); p.mdl=makeDef(d.kind,false,d.lvl); p.mdl.position.set(d.x,d.y,d.z); p.mdl.rotation.y=d.rot; scene.add(p.mdl); p.lvl=d.lvl; }   // a new mark, or its model just landed (the first build wore the mark below while it downloaded): the same test reskinDefs makes, caught on the host's next list, twice a second
   });
   [...DEFPUP.keys()].forEach(id=>{ if(!ids.has(id)) defPuppetRemove(id); });   // sold or destroyed on the host -- same roster-diff removal as heroes and enemies
+  GSFX.defsSeen=true;   // from the second list on, a new row is a placement worth a sound; the first list is the hall as found
 });
 
 // ---- phase 7: guest defense placement -- placing, repairing, upgrading and selling a REAL defense on the host's
@@ -786,5 +822,5 @@ onMessage('lootGrant',data=>{ if(role==='guest') guestApplyLoot(data.it); });
 onMessage('orbGrant',data=>{ if(role!=='guest') return; SFX.mana(); floatText(hero.x,hero.y+1,hero.z,'+'+data.v,'#5ee9ff'); });
 
 onMessage('__leave',fromId=>{ window.__party.remove(fromId); guestIn.delete(fromId); guestHero.delete(fromId); guestStats.delete(fromId); guestMana.delete(fromId); [...MOBPUP.keys()].forEach(mobPuppetRemove); [...DEFPUP.keys()].forEach(defPuppetRemove); });   // guestStats gone -> Meta.defOwnerStat/Mult return undefined for whatever this guest placed -> stat() falls back to the host's own numbers, automatically
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); guestInputTick(dt); hostBroadcastHeroes(dt); hostBroadcastWorld(dt); hostBroadcastEnemies(dt); hostBroadcastDefs(dt); hostBroadcastPickups(dt); mobPuppetsTick(dt); pickupPuppetsTick(dt); guestPickupTick(dt); guestSendInput(dt); }; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); guestInputTick(dt); hostBroadcastHeroes(dt); hostBroadcastWorld(dt); hostBroadcastEnemies(dt); hostBroadcastDefs(dt); hostBroadcastPickups(dt); mobPuppetsTick(dt); defPuppetsTick(dt); pickupPuppetsTick(dt); guestPickupTick(dt); guestSendInput(dt); }; }
 })();

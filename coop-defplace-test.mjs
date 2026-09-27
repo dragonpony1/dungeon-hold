@@ -23,6 +23,7 @@ const hostPage=await hostCtx.newPage(), guestPage=await guestCtx.newPage();
 const errors=[]; for(const p of [hostPage,guestPage]) p.on("pageerror",e=>errors.push(String(e)));
 
 for(const p of [hostPage,guestPage]){ await p.goto("http://127.0.0.1:8884/?silent&nogate",{timeout:90000}); await p.waitForFunction(()=>window.__dd&&window.__net&&window.__combat,null,{timeout:60000}); }
+await guestPage.evaluate(()=>window.__heroes.select('witch'));   // the ball is the witch's piece -- a knight guest (build 146's default) can't select it
 for(const p of [hostPage,guestPage]) await p.evaluate(()=>{ window.__dd.start(); window.__dd.step(1/60,30); });   // 30, not 5 -- matches place-test.mjs; S.phase needs that long to leave 'start' before select() will do anything
 
 async function tickBoth(batches=10,size=5){

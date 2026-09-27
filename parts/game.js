@@ -24,7 +24,7 @@ function A(){ if(soundOff) return null; if(!ac){ ac=new (window.AudioContext||wi
 function SFXOUT(a){ return (a.__mix&&a.__mix.sfx)||a.destination; } function MUSOUT(a){ return (a.__mix&&a.__mix.music)||a.destination; }
 function beep(f,dur,type,vol,slide){ const a=A(); if(!a) return; const o=a.createOscillator(), g=a.createGain(); o.type=type||'square'; o.frequency.setValueAtTime(f,a.currentTime); if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(20,f+slide),a.currentTime+dur); g.gain.setValueAtTime(vol||.06,a.currentTime); g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+dur); o.connect(g).connect(SFXOUT(a)); o.start(); o.stop(a.currentTime+dur); }
 function noise(dur,vol,f){ const a=A(); if(!a) return; const n=(a.sampleRate*dur)|0, b=a.createBuffer(1,n,a.sampleRate), d=b.getChannelData(0); for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n); const s=a.createBufferSource(); s.buffer=b; const fl=a.createBiquadFilter(); fl.type='bandpass'; fl.frequency.value=f||1200; fl.Q.value=.7; const g=a.createGain(); g.gain.value=vol||.1; s.connect(fl).connect(g).connect(SFXOUT(a)); s.start(); }
-const SFX={ acorn:()=>{ beep(520,.08,'triangle',.05,-200); noise(.05,.06,3000); }, spore:()=>noise(.2,.045,520), swing:()=>noise(.16,.14,900), harpoon:()=>{noise(.07,.12,2600); beep(240,.12,'square',.05,-160);}, ball:()=>beep(95,.32,'sine',.14,-45), hit:()=>beep(520,.06,'square',.04,-220), mana:()=>beep(880,.13,'sine',.05,420), crystal:()=>beep(150,.45,'sawtooth',.07,-70), place:()=>beep(330,.11,'triangle',.06,140), horn:()=>{beep(196,.7,'sawtooth',.06,0); beep(294,.7,'sawtooth',.05,0);}, held:()=>{beep(523,.15,'triangle',.06,0); setTimeout(()=>beep(659,.15,'triangle',.06,0),150); setTimeout(()=>beep(784,.3,'triangle',.06,0),300);}, hurt:()=>beep(200,.15,'square',.06,-80), sell:()=>beep(660,.1,'sine',.05,-300), die:()=>{ noise(.16,.11,650); beep(320,.18,'square',.045,-220); }, bigDie:()=>{ noise(.4,.18,300); beep(85,.55,'sawtooth',.12,-45); }, jump:()=>beep(380,.09,'square',.035,320), land:()=>noise(.05,.07,320), step:()=>noise(.03,.035,420), enter:()=>{ beep(392,.18,'triangle',.05,0); setTimeout(()=>beep(523,.28,'triangle',.05,0),160); }, loot:(r)=>{ const n=[523,659,784,1047,1319]; for(let i=0;i<=Math.min(4,r+1);i++) setTimeout(()=>beep(n[i],.14,'triangle',.06,0),i*90); }, destroy:()=>noise(.35,.16,400), thud:()=>beep(70,.25,'sine',.12,-30) };
+const SFX={ acorn:()=>{ beep(520,.08,'triangle',.05,-200); noise(.05,.06,3000); }, spore:()=>noise(.2,.045,520), swing:()=>noise(.16,.14,900), harpoon:()=>{noise(.07,.12,2600); beep(240,.12,'square',.05,-160);}, ball:()=>beep(95,.32,'sine',.14,-45), hit:()=>beep(520,.06,'square',.04,-220), mana:()=>beep(880,.13,'sine',.05,420), crystal:()=>beep(150,.45,'sawtooth',.07,-70), place:()=>beep(330,.11,'triangle',.06,140), horn:()=>{beep(196,.7,'sawtooth',.06,0); beep(294,.7,'sawtooth',.05,0);}, held:()=>{beep(523,.15,'triangle',.06,0); setTimeout(()=>beep(659,.15,'triangle',.06,0),150); setTimeout(()=>beep(784,.3,'triangle',.06,0),300);}, hurt:()=>beep(200,.15,'square',.06,-80), implode:()=>{ noise(.32,.14,700); beep(140,.42,'sawtooth',.06,-90); setTimeout(()=>{ beep(1046,.14,'sine',.045,-500); beep(62,.45,'sine',.14,-20); },140); }, sell:()=>beep(660,.1,'sine',.05,-300), die:()=>{ noise(.16,.11,650); beep(320,.18,'square',.045,-220); }, bigDie:()=>{ noise(.4,.18,300); beep(85,.55,'sawtooth',.12,-45); }, jump:()=>beep(380,.09,'square',.035,320), land:()=>noise(.05,.07,320), step:()=>noise(.03,.035,420), enter:()=>{ beep(392,.18,'triangle',.05,0); setTimeout(()=>beep(523,.28,'triangle',.05,0),160); }, loot:(r)=>{ const n=[523,659,784,1047,1319]; for(let i=0;i<=Math.min(4,r+1);i++) setTimeout(()=>beep(n[i],.14,'triangle',.06,0),i*90); }, destroy:()=>noise(.35,.16,400), thud:()=>beep(70,.25,'sine',.12,-30) };
 // ================= MUSIC (procedural: hall theme while building, battle loop during waves) =================
 let musicOn=localStorage.getItem('ddMusic')!=='off', musicMode='none', musicTimer=null, mNext=0, mStep=0, mGain=null;
 const mf=m=>440*Math.pow(2,(m-69)/12);
@@ -515,7 +515,7 @@ function makeDef(kind,ghost){
     for(let k=0;k<8;k++){ const a=k/8*TAU+.2, r=2.3, sc=.8+((k*7)%3)*.2; g.add(M(G.cyl(.07,.1,.42*sc,6),cream,Math.cos(a)*r,.21*sc,Math.sin(a)*r)); const cap=M(G.sph(.24*sc,9,7),capM,Math.cos(a)*r,.44*sc,Math.sin(a)*r); cap.scale.y=.6; g.add(cap);
       for(let q=0;q<3;q++){ const b=(q/3)*TAU+k; const sp=M(G.sph(.045,5,4),spot,Math.cos(a)*r+Math.cos(b)*.15*sc,.5*sc,Math.sin(a)*r+Math.sin(b)*.15*sc); sp.userData.noOL=true; g.add(sp); } }
     const disc=new THREE.Mesh(new THREE.CircleGeometry(2.5,24),new THREE.MeshBasicMaterial({color:C(0xb04ad0),transparent:true,opacity:.14,blending:THREE.AdditiveBlending,depthWrite:false})); disc.rotation.x=-PI/2; disc.position.y=.05; disc.userData.noOL=true; g.add(disc);
-    const hub=new THREE.Group(); for(let k=0;k<7;k++){ const a=k/7*TAU, r=.4+((k*5)%3)*.55; const pf=glow(0xd08aff,.7+((k*3)%2)*.3,.3); pf.position.set(Math.cos(a)*r,.4,Math.sin(a)*r); pf.userData.ph=k*.31; hub.add(pf); } g.add(hub); g.userData.hub=hub;
+    const hub=new THREE.Group(); for(let k=0;k<7;k++){ const a=k/7*TAU, r=.4+((k*5)%3)*.55; const pf=glow(0xd08aff,.7+((k*3)%2)*.3,.3); pf.position.set(Math.cos(a)*r,.4,Math.sin(a)*r); pf.userData.ph=k*.31; pf.userData.a=a; pf.userData.r=r; hub.add(pf); } g.add(hub); g.userData.hub=hub;
   } else {
     const leafD=mat(0x2f5a2a), leafL=mat(0x3f7a36), thorn=mat(0x6b4a2a), berry=basic(0xd8323c);
     for(let k=0;k<7;k++){ const x=-.85+k*.28, h=.7+((k*5)%3)*.18; const b=M(G.box(.42,h,.5),k%2?leafD:leafL,x,h/2+.05,(k%3-1)*.08); b.rotation.y=((k*7)%5-2)*.18; b.rotation.z=((k*3)%3-1)*.08; g.add(b); }
@@ -554,7 +554,7 @@ const DEFS={
   harpoon:{name:'Ballista',ic:'🏹',du:4,mana:60,hp:90,top:1.6,range:22,arc:16,arcs:[16,22,28,34,40],cd:1.6,dmg:6},        // single bolt, long range; cone widens with each of its four upgrades
   acorn:{name:'Acorn Cannon',ic:'🌰',du:3,mana:45,hp:80,top:1.4,range:12,rangeUp:1.5,arc:70,cd:1.1,dmg:3,shots:3},          // a hollow oak stump that sprays three bouncing acorns in a cone
   ball:{name:'Turnip Trebuchet',ic:'🥔',du:5,mana:80,hp:90,top:2.2,range:17,arc:100,cd:2.8,dmg:6,splash:1.9},               // lobs a turnip that splats for area damage
-  slice:{name:'Mushroom Ring',ic:'🍄',du:6,mana:90,hp:110,top:.05,range:2.6,rangeUp:.6,arc:360,cd:.45,dmg:2,slow:.55},     // a fairy ring: mobs inside are spored (damage over time) and slowed; heavy traffic tramples it
+  slice:{name:'Mycelium Cage',ic:'🍄',du:6,mana:90,hp:110,top:.05,range:2.6,rangeUp:.6,arc:360,cd:.45,dmg:2,slow:.55,charge:[1.3,2.9],burst:5,cloud:3},     // a cage of glowing roots: mobs inside are slowed, and at a random interval the cage implodes on them (a spore vortex, a violet flash of burst x dmg, a lingering cloud that poisons for cloud s); heavy traffic tramples it
   spike:{name:'Bramble Hedge',ic:'🌿',du:3,mana:50,hp:220,top:1.0,thorns:2,regrow:3},                                       // a thorn wall that hurts attackers and regrows when left alone
   totem:{name:'Rune Totem',ic:'🗿',du:4,mana:70,hp:120,top:2.8,range:7,rangeUp:1,arc:360,buff:.15,buffUp:.05},           // a runed pillar: every other defense in its ring hits 15% harder and faster (+5% a mark); totems never stack
   frost:{name:'Frost Spire',ic:'❄',du:4,mana:60,hp:100,top:2.4,range:6,rangeUp:.8,arc:360,chill:.6,chillUp:.06},          // an ice spire: mobs in its ring crawl at 60% (6 points slower a mark); the deepest cold wins, it never stacks                                       // a thorn wall that hurts attackers and regrows when left alone
@@ -583,7 +583,7 @@ let gear={weapon:null,armor:null,charm:null,amulet:null,familiar:null};
 const Meta={
   mult:k=>0,            // multiplicative bonus from skills for a key: 'dmg','hp','spd','move','tow','tcd','aoe','mana' (0.25 = +25%)
   onPickup:it=>false,   // return true when the module took the item (into the bag); false = old behaviour (auto equip / sell)
-  onKill:e=>{}, onWaveHeld:w=>{}, onRunEnd:w=>false,   // onRunEnd: true when the module shows its own run-summary/tavern screen
+  onKill:e=>{}, onWaveHeld:w=>{}, onRunEnd:w=>false, onDefFx:(d,fx)=>{},   // a defense's one-shot effect (the cage's implosion) for a module to relay (99-network.js sends it to the guests)   // onRunEnd: true when the module shows its own run-summary/tavern screen
   update:dt=>{}, hud:()=>{}, open:()=>{}, isOpen:()=>false,
   heroes:()=>[],   // co-op: other players' heroes an enemy should also be able to notice, each {x,y,z,isDead:()=>bool,hurt:dmg=>void} — empty outside a hosted session (99-network.js)
   defOwnerStat:(id,k)=>undefined, defOwnerMult:(id,k)=>undefined };   // co-op: a connected guest's own heroStat/heroMult value for a defense they placed — undefined (not 0/1) means "no such live guest", so stat()'s oStat/oMult fall back to the local hero's own numbers (99-network.js)
@@ -646,7 +646,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=146;
+const BUILD=148;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -844,6 +844,7 @@ function updateEnemies(dt){
       if(e.mdl.glb){ mobAnim(e,dt); const t=e.dead-.9; if(t>0){ const s=Math.max(0,1-t/.35)*e.sc; g.scale.setScalar(Math.max(s,.001)); g.position.y=e.y-(1-s)*.4; } if(e.dead>1.25){ scene.remove(g); enemies.splice(i,1); } continue; }
       const s=Math.max(0,1-e.dead/.3)*e.sc; g.scale.set(s*1.3,s*.6,s*1.3); if(e.dead>.3){ scene.remove(g); enemies.splice(i,1); } continue; }
     e.pop=Math.min(1,e.pop+dt*3); e.atk-=dt; e.slowT=Math.max(0,(e.slowT||0)-dt); e.chillT=Math.max(0,(e.chillT||0)-dt); if(!e.chillT) e.chillK=1; if(e.swing>=0){ e.swing+=dt; if(e.pending&&e.swing>=.2){ const tg=e.pending; e.pending=null; landHit(e,tg); } if(e.swing>.4) e.swing=-1; }
+    if(e.lift>0) e.lift=Math.max(0,e.lift-dt*1.4);   // the cage's lift, a look only: the mob's real y (its floor) is untouched
     if(e.poisonT>0){ e.poisonT-=dt; e.poisonTick=(e.poisonTick||0)-dt; if(e.poisonTick<=0){ e.poisonTick=.5; hurt(e,e.poisonDmg*.5,0,0); } } e.confuseT=Math.max(0,(e.confuseT||0)-dt);   // the venom halo's lingering DOT (keeps ticking after a mob leaves the ring) and the dazzling halo's wander timer
     let target=null;
     // co-op: the roar/enrage check below wants the nearest hero at ANY range (not nearestHero's own tight melee-
@@ -873,7 +874,7 @@ function updateEnemies(dt){
       else { e.yaw=angLerp(e.yaw,ty,1-Math.exp(-10*dt)); if(e.atk<=0){ e.atk=e.cd; attack(e,target); } } }
     if(e.fly){ const ty=baseFloor(e.x,e.z)+e.fly+Math.sin(S.t*2.2+e.ph)*.25; e.y=lerp(e.y,ty,1-Math.exp(-3*dt)); } else e.y=baseFloor(e.x,e.z); e.squash=Math.max(0,e.squash-dt*7);
     const sc=e.sc*(e.pop<1?easeOutBack(e.pop):1), sq=e.squash; g.scale.set(sc*(1+sq*.25),sc*(1-sq*.35),sc*(1+sq*.25));
-    g.position.set(e.x,e.y,e.z); g.rotation.y=e.yaw; const w=e.walking?1:0; const m=e.mdl;
+    g.position.set(e.x,e.y+(e.lift||0),e.z); g.rotation.y=e.yaw; const w=e.walking?1:0; const m=e.mdl;
     if(e.fly){ g.rotation.z=Math.sin(S.t*2.2+e.ph)*.07; g.rotation.x=e.walking?-.12:0; const P=m.parts; if(P){ const f=Math.sin(S.t*7+e.ph)*.55; if(P.wingL) P.wingL.rotation.z=f; if(P.wingR) P.wingR.rotation.z=-f; if(P.tail) P.tail.rotation.y=Math.sin(S.t*2.6+e.ph)*.25; } }   // wingbeats, a tail sway, a lean into the flight
     if(m.glb){ mobAnim(e,dt); continue; }
     m.legs[0].rotation.x=Math.sin(e.ph)*.8*w; m.legs[1].rotation.x=-Math.sin(e.ph)*.8*w; m.arms[0].rotation.x=-Math.sin(e.ph)*.6*w;
@@ -933,6 +934,37 @@ function auraRing(d,rr,col,active,s){ let a=d.mdl.userData.aura; if(!a){ a=new T
     const cg=new THREE.CylinderGeometry(1,1,HALO_COL_H,48,1,true); { const pos=cg.attributes.position, cols=new Float32Array(pos.count*3); for(let i=0;i<pos.count;i++){ const k=Math.max(0,.5-pos.getY(i)/HALO_COL_H); cols[i*3]=cols[i*3+1]=cols[i*3+2]=k*k; } cg.setAttribute('color',new THREE.BufferAttribute(cols,3)); }
     const column=new THREE.Mesh(cg,new THREE.MeshBasicMaterial({color:col,vertexColors:true,transparent:true,opacity:HALO_COL_OP,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); column.position.y=HALO_COL_H/2; column.userData.noOL=true; a.add(column); a.userData.column=column; d.mdl.add(a); d.mdl.userData.aura=a; }
   a.position.y=.03; a.scale.set(rr/s,1/s,rr/s); a.userData.inner.rotation.z+=(active?2.5:.8)*.016; a.userData.ring.material.opacity=.3+.1*Math.sin(S.t*2.4)+(active?.15:0); a.userData.column.material.opacity=HALO_COL_OP+.015*Math.sin(S.t*1.7)+(active?.04:0); }
+// ---- the Mycelium Cage: rest, charge, implode. At rest the cage only slows what walks in and its spores drift up. With
+// victims inside it charges for a random while (its roots relax outward, the spores start to swirl inward), then IMPLODES:
+// the roots snap shut, the vortex is sucked to the centre, the victims are lifted a little, a violet-cyan flash bursts for
+// burst x dmg, and a toxic cloud lingers over the cage poisoning whoever is in it (the venom halo's own DOT fields). No
+// screen shake. Empty, it still flexes now and then so it reads as alive. d.fx carries the state ({phase,t,k,cloud}); the
+// animation itself lives in cageAnim(mdl,fx,dt) so a guest can run the same look on its puppet from the host's cue.
+function cageState(){ return {phase:'rest',t:0,k:0,cloud:0,next:R(3,7),booms:0,last:0}; }
+function cageTick(d,near,dt,rr,trampled){ const cfg=DEFS[d.kind]; const fx=d.fx||(d.fx=cageState()); fx.t+=dt;
+  if(fx.phase==='rest'){ fx.k=Math.max(0,fx.k-dt*2); if(near.length&&d.pop>=1){ fx.phase='charge'; fx.t=0; fx.dur=R(cfg.charge[0],cfg.charge[1]); SFX.spore(); Meta.onDefFx(d,'charge',fx.dur); } else if(fx.t>fx.next){ fx.t=0; fx.next=R(3,7); fx.flex=.5; } }
+  else if(fx.phase==='charge'){ fx.k=Math.min(1,fx.t/fx.dur); if(!near.length){ fx.phase='rest'; fx.t=0; Meta.onDefFx(d,'calm'); } else if(fx.t>=fx.dur){ cageImplode(d,near,cfg,trampled); } }
+  else if(fx.phase==='boom'){ if(fx.t>=.45){ fx.phase='rest'; fx.t=0; fx.k=0; } }
+  if(fx.cloud>0){ fx.cloud-=dt; const dur=cfg.cloud, dmg=stat(d,'dmg'); for(const e of near){ if(!(e.poisonT>fx.cloud)){ e.poisonT=fx.cloud; e.poisonDmg=Math.max(e.poisonDmg||0,dmg); } } }   // the cloud keeps poisoning whoever stands in it while it lasts; a mob that leaves keeps ticking for what it caught
+  if(fx.phase==='charge') for(const e of near) e.lift=Math.max(e.lift||0,.12*fx.k);
+  cageAnim(d.mdl,fx,dt,near.length); }
+function cageImplode(d,near,cfg,trampled){ const fx=d.fx; fx.phase='boom'; fx.t=0; fx.k=1; fx.booms++; fx.last=S.t; fx.cloud=cfg.cloud; const dmg=stat(d,'dmg')*cfg.burst;
+  for(const e of near){ e.lift=.5; hurt(e,dmg,0,0); e.poisonT=cfg.cloud; e.poisonDmg=Math.max(e.poisonDmg||0,stat(d,'dmg')); }
+  SFX.implode(); floatText(d.x,d.base+1.6,d.z,'IMPLOSION','#d08aff'); d.hp-=near.length*1.2; if(d.hp<=0&&trampled) trampled.push(d); Meta.onDefFx(d,'implode'); }
+// the look, on any cage model (the host's real one or a guest's puppet): the inner 'cage' group breathes at rest, relaxes
+// outward while charging, snaps shut on the boom and eases back; the spores drift up at rest and get pulled in to the
+// centre as the charge builds; a flash sprite at the heart blooms violet then cyan on the boom; a toxic cloud hangs after
+function cageAnim(mdl,fx,dt,n){ const u=mdl.userData; const cage=u.cage; const t=S.t; let sc=1+.015*Math.sin(t*1.7);
+  if(fx.flex>0){ fx.flex-=dt; sc+=.05*Math.sin((.5-fx.flex)*TAU*2)*(fx.flex/.5); }   // the idle flex: a quick swell and settle
+  if(fx.phase==='charge') sc=1+.12*easeOut(fx.k)+.02*Math.sin(t*14)*fx.k;   // roots relax outward, trembling more as it comes
+  else if(fx.phase==='boom'){ const q=fx.t/.45; sc=q<.22?1.12-(.3*q/.22):.82+.18*easeOutBack(Math.min(1,(q-.22)/.78)); }   // the snap shut, then the ease back
+  if(cage) cage.scale.setScalar(sc);
+  const hub=u.hub; if(hub){ hub.rotation.y+=dt*(fx.phase==='charge'?(1.2+4*fx.k):fx.phase==='boom'?7:.5); const pull=fx.phase==='charge'?fx.k:fx.phase==='boom'?1:0; const lift=n?1.7:1.1;
+    for(const pf of hub.children){ const ud=pf.userData; const k=((t*.45+ud.ph)%1.1)/1.1; const r=ud.r*(1-.85*pull); pf.position.set(Math.cos(ud.a)*r,fx.phase==='boom'?.6:.25+k*lift*(1-.6*pull),Math.sin(ud.a)*r); pf.material.opacity=(.22+Math.min(n,4)*.06+.3*pull)*(fx.phase==='boom'?Math.max(0,1-fx.t/.3):(1-k*(1-pull*.5))); } }
+  const fl=u.flash; if(fl){ let o=0, s=1; if(fx.phase==='boom'){ const q=fx.t/.45; o=q<.15?q/.15:Math.max(0,1-(q-.15)/.85); s=1.4+5.2*Math.min(1,q/.3); fl.material.color.setHex(q<.3?0xc060ff:0x7ff6ff); } else if(fx.phase==='charge'){ o=.25*fx.k; s=.8+.6*fx.k; fl.material.color.setHex(0xb060ff); } fl.material.opacity=o; fl.scale.set(s,s,1); }
+  const disc=u.disc; if(disc){ const q=fx.phase==='boom'?fx.t/.45:0; disc.material.opacity=fx.phase==='boom'?.1+.55*Math.max(0,1-q):.1+.12*(fx.phase==='charge'?fx.k:0); disc.material.color.setHex(fx.phase==='boom'&&q>.3?0x7ff6ff:0xb04ad0); }   // the floor disc flares with the flash (it shows through the roots where the sprite cannot)
+  const cl=u.cloud; if(cl){ const on=fx.cloud>0; cl.visible=on; if(on){ const a=Math.min(1,fx.cloud/.6)*Math.min(1,(DEFS.slice.cloud-fx.cloud)/.25+.2); cl.rotation.y+=dt*.6; for(const pf of cl.children){ const ud=pf.userData; pf.position.y=ud.y+.12*Math.sin(t*1.3+ud.ph); pf.material.opacity=a*ud.op; } } } }
+function easeOut(k){ return 1-(1-k)*(1-k); }
 function updateDefs(dt){ const trampled=[];
   // the totems' rings: every other defense inside one hits harder and faster by the strongest ring it stands in
   for(const d of defs) d.buff=0; for(const t of defs){ if(t.kind!=='totem'||t.pop<1) continue; const r=stat(t,'range'), b=stat(t,'buff'); for(const d of defs){ if(d===t||d.kind==='totem') continue; if(Math.hypot(d.x-t.x,d.z-t.z)<=r) d.buff=Math.max(d.buff,b); } }
@@ -945,9 +977,8 @@ function updateDefs(dt){ const trampled=[];
       d.yaw=d.rot+clamp(angDiff(d.rot,d.yaw),-half,half);
       const y=d.mdl.userData.yoke; y.rotation.y=d.yaw-d.rot; if(d.kind==='harpoon') (d.mdl.userData.pitch||y).rotation.x=-(d.pitch||0); /* the Meshy ballista hinges its bow assembly on the pedestal; the procedural one tilts its yoke */ if(d.kind==='ball'){ if(d.mdl.userData.arm) d.mdl.userData.arm.rotation.x=-.9+d.recoil*2.0; d.mdl.userData.ball.visible=d.cd<cfg.cd*.5; } else { y.position.z=-d.recoil*.22; d.mdl.userData.hp.visible=d.cd<cfg.cd*.45; } }
     else if(d.kind==='slice'){ const rr=stat(d,'range'); const near=[]; for(const e of enemies){ if(!e.dead&&!e.fly&&Math.hypot(e.x-d.x,e.z-d.z)<rr+e.r*.5) near.push(e); }
-      d.spin=lerp(d.spin,near.length?1.8:.5,1-Math.exp(-3*dt)); const hub=d.mdl.userData.hub; if(hub){ hub.rotation.y+=d.spin*dt; const lift=near.length?1.7:1.1; for(const pf of hub.children){ const k=((S.t*.45+pf.userData.ph)%1.1)/1.1; pf.position.y=.25+k*lift; pf.material.opacity=(.22+Math.min(near.length,4)*.06)*(1-k); } }
       for(const e of near) e.slowT=.5;
-      if(near.length&&d.cd<=0){ d.cd=stat(d,'cd'); for(const e of near) hurt(e,stat(d,'dmg'),0,0); SFX.spore(); d.hp-=near.length*.35; if(d.hp<=0) trampled.push(d); } }
+      cageTick(d,near,dt,rr,trampled); }
     else if(d.kind==='spike'){ d.calm=(d.calm||0)+dt; if(d.calm>4&&d.hp<d.max) d.hp=Math.min(d.max,d.hp+cfg.regrow*dt); }
     else if(d.kind==='totem'||d.kind==='frost'){ const rr=stat(d,'range'); let n=0; if(d.kind==='frost'){ const k=stat(d,'chill'); for(const e of enemies){ if(!e.dead&&Math.hypot(e.x-d.x,e.z-d.z)<rr+e.r*.5){ e.chillT=.5; e.chillK=Math.min(e.chillK||1,k); n++; } } } else { for(const o of defs) if(o!==d&&o.kind!=='totem'&&Math.hypot(o.x-d.x,o.z-d.z)<=rr) n++; }
       let a=d.mdl.userData.aura; if(!a){ const col=d.kind==='frost'?0x8ee0ff:0xffd27a; a=new THREE.Group(); const ring=new THREE.Mesh(new THREE.RingGeometry(.94,1,48),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); ring.rotation.x=-PI/2; ring.userData.noOL=true; a.add(ring); const inner=new THREE.Mesh(new THREE.RingGeometry(.2,.24,24),ring.material.clone()); inner.rotation.x=-PI/2; inner.userData.noOL=true; a.add(inner); const plume=glow(col,1.5,.55); a.add(plume); a.userData.ring=ring; a.userData.inner=inner; a.userData.plume=plume; d.mdl.add(a); d.mdl.userData.aura=a; }   /* the ring on the floor at the reach, a small spinner, a plume of light at the top */
