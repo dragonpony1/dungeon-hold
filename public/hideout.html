@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="32">
+<meta name="hideout-build" content="33">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -228,7 +228,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 32;
+const HIDEOUT_BUILD = 33;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -510,7 +510,7 @@ const MYTHIC_RARITY = 5; // one step above the game's legendary (4) — the game
 // category picture). Colours: the game's for Forest/Void, the rest from each set's glow.
 const SET_ART_DIR = ITEMS_DIR + 'sets/';
 const MYTHIC_SETS = [
-  { id:'forest',  tail:'of the Forest', color:'#5ad05a' },
+  { id:'forest',  tail:'of the Forest', color:'#5ad05a', offForge:true }, // Matt: "skipping nature set for now" — still shown right if already forged
   { id:'void',    tail:'of the Void',   color:'#c070ff' },
   { id:'crimson', tail:'of Chaos',      color:'#e0587a' },
   { id:'rock',    tail:'of the Earth',  color:'#c8c070' },
@@ -1969,7 +1969,8 @@ const MYTHIC_STAT = { dmg:24, spd:45, hp:156, def:24, regen:4.5, tow:41, mana:65
 const SET_STAT_POOL = { weapon:['dmg','spd','tow'], armor:['hp','def','regen'], amulet:['mana','tow','hp'],
   familiar:['fdmg','frate','move'], trinket:['move','trate','tarea'] };
 function setPieceRecord(type) {
-  const set = MYTHIC_SETS[Math.floor(Math.random() * MYTHIC_SETS.length)];
+  const rollable = MYTHIC_SETS.filter(s => !s.offForge); // nine sets — Nature/Forest is skipped for now
+  const set = rollable[Math.floor(Math.random() * rollable.length)];
   const looks = (type === 'weapon' && SET_WEAPONS[set.id]) || SET_ART_PIECES[type] || [];
   const art = looks.length ? looks[Math.floor(Math.random() * looks.length)] : null; // sword or whip, armor, …
   const stats = {};
