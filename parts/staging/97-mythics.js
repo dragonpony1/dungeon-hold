@@ -85,15 +85,21 @@ addEventListener('keydown',e=>{ if(e.code!=='KeyT'||e.repeat||Meta.isOpen()) ret
 // build 159 (5/7): "once a wave" is the HALL's wave -- a co-op guest's own S.wave never moves (only the host counts waves), so its Tear
 // of the Rootgate worked once a session. A guest counts the host's wave from its world broadcast
 function hallWave(){ const n=window.__net; if(n&&n.role&&n.role()==='guest'){ const w=n.world&&n.world(); if(w&&Number.isFinite(w.wave)) return w.wave; } return S.wave; }
-function tick(dt){ const wv=hallWave(); if(wv!==W.wave){ W.wave=wv; newWave(); }
+// build 162 (Matt: "maybe a little particulate animation when it's working"): a tower the Mossheart is mending sheds soft green motes
+// that drift up off it and fade -- a few a second while its health is actually climbing, none once it's full
+const MOTES=[];
+function mossHeal(d,dt){ if(d.hp>=d.max) return; d.hp=Math.min(d.max,d.hp+2*dt); d.mossMote=(d.mossMote||0)-dt; if(d.mossMote>0) return; d.mossMote=.22;
+  const top=(DEFS[d.kind]&&DEFS[d.kind].top)||1; const m=glow(0x8ef4c0,.5,.8); m.position.set(d.x+R(-.55,.55),baseFloor(d.x,d.z)+R(.2,Math.max(.6,top*.8)),d.z+R(-.55,.55)); m.name='mossMote'; m.userData.noOL=true; scene.add(m); MOTES.push({m,t:0}); }
+function motesTick(dt){ for(let i=MOTES.length-1;i>=0;i--){ const o=MOTES[i]; o.t+=dt; const k=o.t/.9; o.m.position.y+=dt*1.1; o.m.material.opacity=.8*(1-k)*Math.min(1,o.t*6); o.m.scale.setScalar(.5*(1-k*.4)); if(k>=1){ scene.remove(o.m); o.m.material.dispose(); MOTES.splice(i,1); } } }
+function tick(dt){ const wv=hallWave(); if(wv!==W.wave){ W.wave=wv; newWave(); } motesTick(dt);
   GW=(Meta.coopWear&&netRole()==='host')?Meta.coopWear():null; if(GW&&!GW.length) GW=null;   // the guests who wear named mythics, this frame (see GW above)
   if(anyWears('last_lantern')) for(const e of enemies){ if(e.dead) continue; const lit=nearWearer('last_lantern',e.x,e.z,5); if(lit){ e.lanternT=.35; if(!e.lanternFx&&e.mdl&&e.mdl.g){ const g=glow(0xffd27a,1.7,.35); g.position.y=(e.h||1.2)*.6; e.mdl.g.add(g); e.lanternFx=g; } } if(e.lanternFx) e.lanternFx.visible=e.lanternT>0; }
-  if(has('mossheart_aegis')){ if(!hero.moving&&hero.swingT<0&&hero.dead<=0) W.idleT+=dt; else W.idleT=0; if(W.idleT>=2){ hero.hp=Math.min(hero.max,hero.hp+hero.max*.03*dt); for(const d of defs) if(near(d.x,d.z,6)) d.hp=Math.min(d.max,d.hp+2*dt); W.healT+=dt; if(W.healT>=1){ W.healT=0; floatText(hero.x,hero.y+1.6,hero.z,'✚','#8ef4c0'); } } } else W.idleT=0;
+  if(has('mossheart_aegis')){ if(!hero.moving&&hero.swingT<0&&hero.dead<=0) W.idleT+=dt; else W.idleT=0; if(W.idleT>=2){ hero.hp=Math.min(hero.max,hero.hp+hero.max*.03*dt); for(const d of defs) if(near(d.x,d.z,6)) mossHeal(d,dt); W.healT+=dt; if(W.healT>=1){ W.healT=0; floatText(hero.x,hero.y+1.6,hero.z,'✚','#8ef4c0'); } } } else W.idleT=0;
   // a guest's Mossheart, on the host: the same heal on the host's copy of that guest (its idle flag rides the input) and the defenses
   // near it. The guest's own page heals its own bar by the same rule, side by side, as passive regen always has -- the copy used to stay
   // put, so the bar showed health the guest didn't have and the next hit took it all back at once
   for(const w of guestsWith('mossheart_aegis')){ const g=w.g; if(w.idle&&!(g.dead>0)) g.mossT=(g.mossT||0)+dt; else g.mossT=0;
-    if(g.mossT>=2){ g.hp=Math.min(g.max,g.hp+g.max*.03*dt); for(const d of defs) if(Math.hypot(d.x-g.x,d.z-g.z)<=6) d.hp=Math.min(d.max,d.hp+2*dt); g.mossFx=(g.mossFx||0)+dt; if(g.mossFx>=1){ g.mossFx=0; floatText(g.x,g.y+1.6,g.z,'✚','#8ef4c0'); } } }
+    if(g.mossT>=2){ g.hp=Math.min(g.max,g.hp+g.max*.03*dt); for(const d of defs) if(Math.hypot(d.x-g.x,d.z-g.z)<=6) mossHeal(d,dt); g.mossFx=(g.mossFx||0)+dt; if(g.mossFx>=1){ g.mossFx=0; floatText(g.x,g.y+1.6,g.z,'✚','#8ef4c0'); } } }
   if(anyWears('gloomcap_censer')) for(const d of defs){ if(d.pop<1&&nearWearer('gloomcap_censer',d.x,d.z,6)) d.pop=Math.min(1,d.pop+dt*2); }
   if(anyWears('hourglass_of_hollow_sand')&&!W.hour&&S.phase==='wave'&&S.crystal<CRYSTAL_MAX*.3){ W.hour=true; for(const e of enemies) if(!e.dead) e.crawlT=4; toast('The sand runs out — the horde crawls'); if(SFX.rift) SFX.rift(); if(netRole()==='host') window.__net.send('toast','The sand runs out — the horde crawls'); } }   // co-op: every guest hears it too, whoever wears the Hourglass
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); tick(dt); }; }
