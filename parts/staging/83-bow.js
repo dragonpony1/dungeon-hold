@@ -37,6 +37,7 @@ function makeBow(kind){ const K=BOW_KINDS[kind]||BOW_KINDS.ash; const g=new THRE
   if(K.halo){ const h=new THREE.Mesh(new THREE.TorusGeometry(.12,.011,6,24),bright(K.band)); h.name='halo'; h.userData.noOL=true; h.rotation.x=PI/2; h.position.set(0,gp.y,gp.z); g.add(h); }   // a gold halo about the grip
   for(let i=0;i<(K.shards||0);i++){ const sh=new THREE.Mesh(new THREE.OctahedronGeometry(.03,0),mat(K.dark)); sh.name='shard'+i; sh.scale.set(1,2.2,1); g.add(sh); }   // dark shards adrift along the limbs
   const grip=new THREE.Object3D(); grip.name='bowGrip'; grip.position.set(0,gp.y,gp.z); g.add(grip);                                    // where the fist closes and an arrow leaves
+  if(K.deco) K.deco(g,{limbU,limbL,at,P,gp,L,wood,dark,band,bright});                                                                   // build 154: a gear set's own fittings (86-setweapons.js), hung on the limbs with at() so they bend with the draw
   g.userData.box=new THREE.Box3(new THREE.Vector3(-.12,-.05,-.15),new THREE.Vector3(.12,L+.05,.45)); g.userData.gripF=.5; g.userData.lenScale=.72*(K.len||1); g.userData.proc=true; g.userData.kind=kind; g.userData.bowKind=K; g.userData.L=L; g.userData.zs=P(0).z; g.userData.gz=gp.z; setDraw(g,0); return g; }
 // the draw: 0 at brace, 1 at full draw — the limbs bend back toward the archer about the grip, the string halves run from the
 // bent tips to the nock, and the nocked arrow shows while drawing
@@ -50,7 +51,7 @@ function animFor(root){ let a=ANIMS.get(root); if(a) return a; const by=n=>root.
   a=dt=>{ t+=dt; if(gem) gem.rotation.y+=dt*1.4; if(gl) gl.material.opacity=.55+.25*Math.sin(t*4); if(halo) halo.rotation.y+=dt*.8; if(str) str.material.opacity=.7+.3*Math.sin(t*6); if(str1) str1.material.opacity=str.material.opacity; motes.forEach(o=>{ o.a+=dt*2.0; o.m.position.set(Math.sin(o.a)*o.r,gx.y+Math.sin(t*3+o.a)*.03,gx.z+Math.cos(o.a)*o.r); o.m.rotation.y=o.a; }); shards.forEach(o=>{ const y=o.u*L+Math.sin(t*1.3+o.ph)*.05; o.s.position.set(Math.sin(t*.9+o.ph)*.09,y,gx.z*.6+Math.cos(t*.9+o.ph)*.05); o.s.rotation.set(Math.sin(t+o.ph)*.3,t*.7,.3); }); };
   ANIMS.set(root,a); return a; }
 // which bow a weapon item shows: the tier picks the forge bow, the Void set its own
-function bowFor(it){ if(!it) return 'bow-ash'; const pk=Meta.packs&&Meta.packs.of(it); if(pk&&pk.models&&pk.models.bow) return pk.models.bow; if(pk&&/void/i.test(pk.name||pk.id||'')) return 'bow-void'; const t=Math.max(1,Math.min(5,it.tier||tierOf(it.lvl||1))); return 'bow-'+['ash','yew','horn','storm','war'][t-1]; }
+function bowFor(it){ if(!it) return 'bow-ash'; const sw=window.__weapons.setModel&&window.__weapons.setModel(it,'bow'); if(sw) return sw;   /* build 154: a gear set's own bow (86-setweapons.js) */ const pk=Meta.packs&&Meta.packs.of(it); if(pk&&pk.models&&pk.models.bow) return pk.models.bow; if(pk&&/void/i.test(pk.name||pk.id||'')) return 'bow-void'; const t=Math.max(1,Math.min(5,it.tier||tierOf(it.lvl||1))); return 'bow-'+['ash','yew','horn','storm','war'][t-1]; }
 // ---- the arrow: a shaft with a steel head and fletching in the bow's colour, flying flat ----
 const ARROWS=[];
 const ARROW_L=1.4, ARROW_V=30;
@@ -86,6 +87,7 @@ const ATTACK_TURN=-PI/2; let DRAW=0;
     if(bow){ holdBow(wo); animFor(wo)(dt); const A=window.__aim, held=!!(A&&A.holding()); const drawing=swinging&&(held||hero.swingT<swingDur()*hitFrac()); DRAW=lerp(DRAW,drawing?(held?.35+.65*A.charge():1):0,1-Math.exp(-(drawing?16:40)*dt)); /* held, the string comes back with the charge */ setDraw(wo,DRAW); } PLANTED.forEach(p=>animFor(p)(dt)); }; }
 Object.keys(BOW_KINDS).forEach(k=>{ window.__weapons.register('bow-'+k,()=>makeBow(k)); });   // served by the weapon mount like a loaded sword
 window.__bow={kinds:()=>Object.keys(BOW_KINDS),info:k=>Object.assign({kind:k},BOW_KINDS[k]),make:makeBow,bowFor,arrows:()=>ARROWS.length,plant:plantBow,planted:()=>PLANTED.length,clear:()=>{ PLANTED.forEach(g=>scene.remove(g)); PLANTED.length=0; },
+  addKind:(k,K)=>{ BOW_KINDS[k]=K; window.__weapons.register('bow-'+k,()=>makeBow(k)); },   // build 154: a gear set's bow (86-setweapons.js) — K as above, plus K.deco for its own fittings; its arrows take K.glow
   fire:(g,dx,dy,dz)=>fireArrow(g.userData.kind,gripWorld(g),new THREE.Vector3(dx,dy||0,dz),ARROW_V),
   fireFromHand:(dx,dy,dz)=>{ const wo=window.__weapons.mounted(); if(!(wo&&/^bow-/.test(wo.name))) return null; return fireArrow(wo.userData.kind,gripWorld(wo),new THREE.Vector3(dx,dy||0,dz),ARROW_V); },draw:()=>+DRAW.toFixed(2),turn:()=>+heroYawOff.toFixed(2),
   fireArrow,ARROW_V};   // raw (kind,fromVec3,dirVec3,speed,opts) and the base speed constant -- no live bow model needed, unlike fire()/fireFromHand() above; 99-network.js spawns a guest's shot straight from their host-tracked position this way

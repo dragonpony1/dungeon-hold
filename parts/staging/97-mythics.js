@@ -29,6 +29,7 @@ function normalize(rec){ if(!rec||typeof rec!=='object') return null; const it={
   if(!SLOTS.includes(it.slot)){ const k=mythicId(rec); if(k) it.slot=NAMED[k].slot; else return null; }
   const st=(rec.stats&&typeof rec.stats==='object')?rec.stats:{}; for(const k in st){ const v=+st[k]; if(Number.isFinite(v)&&STATL[k]) it.stats[k]=v; }
   const k=mythicId(rec); if(rec.tier==='named'||(rec.named&&k)){ if(!k) return null; it.named=k; it.name=NAMED[k].name; it.slot=NAMED[k].slot; it.stats=Object.assign({},NAMED[k].stats); it.rarity=5; it.power=NAMED[k].power; }
+  if(rec.set&&typeof rec.set==='string') it.setId=rec.set.slice(0,24); if(rec.art&&typeof rec.art==='string') it.art=rec.art.slice(0,24);   // build 154: the hideout's set id and weapon look (sword/staff/polearm) ride along, so the hand shows the set's own weapon
   it.mythicTier=typeof rec.tier==='string'?rec.tier:(it.rarity>=5?'mythic':''); it.tier=tierOf(it.lvl); it.value=it.named?400:it.rarity>=5?250:[10,25,60,150,300][Math.max(0,Math.min(4,it.rarity|0))]; it.req=1;
   return it; }
 function returnGear(){ let list=[]; try{ const a=JSON.parse(localStorage.getItem(RETURN_KEY)); if(Array.isArray(a)) list=a; }catch(e){} if(!list.length) return 0;

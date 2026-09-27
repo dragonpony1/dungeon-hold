@@ -9,7 +9,7 @@ const tpl={}, loading={}; const PROC_WEAPONS={};   // name -> template root (bou
 // which model an item shows: its name decides (cleavers are the goblin blade, embers burn, storms and the deep are ice,
 // crystal and myth are holy), then the base weapon, then rarity — so a new find usually looks new in the hand
 const BASE_SWORD=[['shortsword','rusty'],['broadsword','rusty'],['cleaver','venom'],['warhammer','flame'],['halberd','frost'],['gnome blade','holy']];
-function swordFor(it){ if(!it) return 'rusty'; const n=(it.name||'').toLowerCase(), r=Math.max(0,Math.min(4,it.rarity|0)); const pk=Meta.packs&&Meta.packs.of(it); if(pk&&pk.models&&pk.models.sword) return pk.models.sword;   // a great set's stand-in blade until its own model lands
+function swordFor(it){ if(!it) return 'rusty'; const sw=window.__weapons.setModel&&window.__weapons.setModel(it,'sword'); if(sw) return sw;   /* build 154: a gear set's own sword or polearm (86-setweapons.js) */ const n=(it.name||'').toLowerCase(), r=Math.max(0,Math.min(4,it.rarity|0)); const pk=Meta.packs&&Meta.packs.of(it); if(pk&&pk.models&&pk.models.sword) return pk.models.sword;   // a great set's stand-in blade until its own model lands
   if(/cleaver|goblin|venom|serpent/.test(n)) return 'venom';
   if(/ember|flame|fire|dragon|blaze/.test(n)) return 'flame';
   if(/frost|\bice\b|deep|storm|moon|silver/.test(n)) return 'frost';

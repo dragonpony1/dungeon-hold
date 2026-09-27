@@ -35,7 +35,7 @@ function animFor(root){ let a=ANIMS.get(root); if(a) return a; const by=n=>root.
 function headOf(root){ return root.getObjectByName('staffHead')||root; }
 Object.keys(STAFF_KINDS).forEach(k=>{ window.__weapons.register('staff-'+k,()=>makeStaff(k)); });   // served by the weapon mount like a loaded sword
 // which staff a weapon item shows: the tier picks the forge staff, the Void set its own
-function staffFor(it){ if(!it) return 'staff-hazel'; const pk=Meta.packs&&Meta.packs.of(it); if(pk&&pk.models&&pk.models.staff) return pk.models.staff; if(pk&&/void/i.test(pk.name||pk.id||'')) return 'staff-void'; const t=Math.max(1,Math.min(5,it.tier||tierOf(it.lvl||1))); return 'staff-'+['hazel','copper','runed','storm','battle'][t-1]; }
+function staffFor(it){ if(!it) return 'staff-hazel'; const sw=window.__weapons.setModel&&window.__weapons.setModel(it,'staff'); if(sw) return sw;   /* build 154: a gear set's own staff (86-setweapons.js) */ const pk=Meta.packs&&Meta.packs.of(it); if(pk&&pk.models&&pk.models.staff) return pk.models.staff; if(pk&&/void/i.test(pk.name||pk.id||'')) return 'staff-void'; const t=Math.max(1,Math.min(5,it.tier||tierOf(it.lvl||1))); return 'staff-'+['hazel','copper','runed','storm','battle'][t-1]; }
 // ---- the bolt: a spark of the staff's own colour, thrown from the crystal, bursting on the first wall ----
 const BOLTS=[], BURSTS=[];
 function fireBolt(kind,from,dir,speed,opts){ opts=opts||{}; const K=STAFF_KINDS[kind]||STAFF_KINDS.hazel; const g=new THREE.Group(); g.position.copy(from); const core=M(G.sph(.2,8,6),basic(0xffffff)); core.userData.noOL=true; g.add(core); const shell=new THREE.Mesh(new THREE.OctahedronGeometry(.34,0),basic(K.gem,{transparent:true,opacity:.8})); shell.userData.noOL=true; g.add(shell);
@@ -61,5 +61,6 @@ window.__staff={kinds:()=>Object.keys(STAFF_KINDS),info:k=>Object.assign({kind:k
   fire:(g,dx,dy,dz)=>{ const from=staffHeadWorld(g); return fireBolt(g.userData.kind,from,new THREE.Vector3(dx,dy||0,dz),22); },
   fireFromHand:(dx,dy,dz)=>{ const wo=window.__weapons.mounted(); if(!(wo&&/^staff-/.test(wo.name))) return null; return fireBolt(wo.userData.kind,staffHeadWorld(wo),new THREE.Vector3(dx,dy||0,dz),22); },
   bolts:()=>BOLTS.length,bursts:()=>BURSTS.length,staffFor,planted:()=>PLANTED.length,
+  addKind:(k,K,build)=>{ STAFF_KINDS[k]=K; window.__weapons.register('staff-'+k,build); },   // build 154: a staff built elsewhere (86-setweapons.js) — K gives its bolt and burst their colours
   fireBolt};   // raw (kind,fromVec3,dirVec3,speed,opts) -- no live staff model needed, unlike fire()/fireFromHand() above; 99-network.js spawns a guest's shot straight from their host-tracked position this way
 })();
