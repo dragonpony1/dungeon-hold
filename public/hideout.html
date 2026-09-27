@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="31">
+<meta name="hideout-build" content="32">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -228,7 +228,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 31;
+const HIDEOUT_BUILD = 32;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -526,7 +526,8 @@ const MYTHIC_SETS = [
 // once its items/sets/<id>-staff.jpg / -polearm.jpg exist, and its weapons roll among all three. A weapon's look also
 // names it: "Mythic Staff of the Void".
 const SET_ART_PIECES = { weapon:['sword'], armor:['armor'], amulet:['amulet'], trinket:['trinket'], familiar:[] };
-const SET_WEAPONS = { void:['sword','staff','polearm'], crimson:['sword','staff','polearm'], lava:['sword','staff','polearm'] };
+const SET_WEAPONS = { void:['sword','staff','polearm'], crimson:['sword','staff','polearm'], lava:['sword','staff','polearm'],
+  rock:['sword','staff','polearm'], angelic:['sword','staff','polearm'] };
 // Named mythics — only ever from a forge proc (NAMED_PROC_CHANCE). Designed with Matt 2026-09-27: fixed mythic stats
 // (the game's stat keys), a signature power the MAIN GAME gives them in the dungeon, and they count toward any set;
 // you can wear two at once. art: Matt's picture once he makes it (items/named/<id>.webp) — until then the category
