@@ -31,7 +31,7 @@ let twinSide=1;
 { const prev=famFire; famFire=function(e){ prev(e); const b=famBoon(); if(!(b&&b.twin)) return; const k=((window.__familiar&&window.__familiar.state())||{}).kind||''; /* the species: 85-familiars keeps kindOf() to itself */ if(k==='Bat'||k==='Crystal Owl'||k==='Storm Drake'){ prev(e); return; }   /* these act on the target itself: a plain second strike */
     const dist=Math.hypot(e.x-fam.x,e.z-fam.z)||1, ang=Math.atan2(e.x-fam.x,e.z-fam.z)+(b.spread||.26)*twinSide; twinSide=-twinSide; prev(Object.assign({},e,{x:fam.x+Math.sin(ang)*dist,z:fam.z+Math.cos(ang)*dist})); }; }   // the second bolt fans out to one side, then the other
 { const prev=famRate; famRate=function(){ const r=prev(); const b=famBoon(); return b&&b.rate?r/b.rate:r; }; }
-{ const prev=famTarget; famTarget=function(){ const b=famBoon(); if(!(b&&b.range)) return prev(); let best=null, bd=FAM_RANGE*b.range; for(const e of enemies){ if(e.dead) continue; const d=Math.hypot(e.x-fam.x,e.z-fam.z); if(d<bd&&los(fam.x,fam.z,e.x,e.z)){ bd=d; best=e; } } return best; }; }
+{ const prev=famTarget; famTarget=function(){ const b=famBoon(); if(!(b&&b.range)) return prev(); let best=null, bd=FAM_RANGE*b.range; for(const e of famFoes()){ if(e.dead) continue; const d=Math.hypot(e.x-fam.x,e.z-fam.z); if(d<bd&&los(fam.x,fam.z,e.x,e.z)){ bd=d; best=e; } } return best; }; }   // famFoes, not enemies (build 159, 5/7): on a co-op guest the host's mobs are only famFoes' proxies and `enemies` is empty, so a guest who finished the Forest set -- the map-one set the guide walks everyone through -- had a pet that never fired again; solo and the host get `enemies` itself back
 // ---- the guarantee, the bigger training wheel: on map one four Forest pieces are in hand by wave two. Each held wave's
 // thanks includes Forest pieces for slots the player still lacks -- two owned after wave 1, four after wave 2 -- dropped
 // gently by the crystal with the wave's own reward. The FIFTH never drops in the hall: it waits in the hideout's wall locker (below). Pieces still lying on the floor count as owned,
@@ -141,7 +141,15 @@ function defRingUpdate(){ const pk=fullPack(); const col=pk?pk.col:null;
       d.setRing.material.opacity=.35+.2*Math.sin(S.t*2.4+d.x+d.z); }
     else if(d.setRing){ d.mdl.remove(d.setRing); d.setRing.material.dispose(); d.setRing=null; d.setRingCol=null; } } }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); auraUpdate(); defRingUpdate(); }; }
-Meta.packs={of:packOf,list:()=>Object.keys(PACKS),get:n=>PACKS[n],add:addSet,art:itemArt,artHtml,aura:()=>({on:AURA.meshes.length>0,col:AURA.col,meshes:AURA.meshes.length,attached:AURA.meshes.filter(g=>g.parent).length}),defRings:()=>defs.filter(d=>d.setRing).length};
+// build 159 (5/7): a co-op guest's sword lands on the host through 99-network.js's guestHitCone, never through hitCone, so the wrap above
+// never saw it and a guest's full Void set never tore a rift. guestSwing runs that swing (swing) the way the wrap runs the host's --
+// the same before-and-after test, the same powers -- from the full sets the guest's input names, with the swing's own damage.
+// Returns where each power fired, for the guest's own screen
+function guestSwing(names,dmg,swing){ const five=[...new Set(Array.isArray(names)?names:[])].map(n=>PACKS[n]).filter(p=>p&&p.onHit), at=[]; if(!five.length){ swing(); return at; }
+  const before=[]; for(const e of enemies) if(!e.dead) before.push([e,e.hp]); swing();
+  for(const [e,h] of before) if(e.hp<h) for(const p of five){ p.onHit(e,dmg); at.push({x:+e.x.toFixed(2),y:+(e.y||0).toFixed(2),z:+e.z.toFixed(2),c:p.col}); } return at; }
+Meta.packs={of:packOf,list:()=>Object.keys(PACKS),get:n=>PACKS[n],add:addSet,art:itemArt,artHtml,aura:()=>({on:AURA.meshes.length>0,col:AURA.col,meshes:AURA.meshes.length,attached:AURA.meshes.filter(g=>g.parent).length}),defRings:()=>defs.filter(d=>d.setRing).length,
+  guestSwing,ring:(x,y,z,col)=>{ riftFx(x,y,z,col||0x8a3dff); }};   // ring: the rift's ring where the host says a guest's swing tore one (99-network.js 'powerFx')
 window.__void={NAME:'of the Void',isVoid:it=>packOf(it)===PACKS['of the Void'],chance:w=>PACKS['of the Void'].chance(w===undefined?effWave():w),lvl:()=>{ const a=Meta.sets.active().find(x=>x.name==='of the Void'); return a?a.tier:0; },make:it=>makeSet(it,PACKS['of the Void']),fx:()=>FX.length,rift};
 window.__packs=Meta.packs;
 window.__forest={NAME:'of the Forest',isForest:it=>packOf(it)===PACKS['of the Forest'],owned:forestOwned,pity:forestPity,boon:famBoon,guarantee:forestGuarantee,BY_WAVE:FOREST_BY_WAVE,locker:lockerRead,lockerPending,offer:offerLastPiece,collect:collectLastPiece,LOCKER_KEY,chance:w=>PACKS['of the Forest'].chance(w===undefined?effWave():w),lvl:()=>{ const a=Meta.sets.active().find(x=>x.name==='of the Forest'); return a?a.tier:0; },make:it=>makeSet(it,PACKS['of the Forest']),HINT_KEY};

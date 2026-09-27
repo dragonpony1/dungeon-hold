@@ -55,7 +55,7 @@ function carryGear(){ const bag=Meta.bag(); const counts={}; RARITY_KEY.forEach(
   Meta.save(); lastCarry={n,counts,carried}; return lastCarry; }
 function bagSummary(){ const c={}; Meta.bag().filter(it=>!it.locked).forEach(it=>{ const k=RARITY_KEY[clampR(it.rarity)]; c[k]=(c[k]||0)+1; }); return RARITY_KEY.filter(k=>c[k]).map(k=>c[k]+' '+k).join(', '); }
 function portalNear(){ if(!window.__portal||window.__portal.state()!=='shown') return false; const p=window.__portal.pos(); return Math.hypot(hero.x-p.x,hero.z-p.z)<NEAR; }
-function canUse(){ return portalNear()&&!placing&&!Meta.isOpen()&&S.phase==='build'; }
+function canUse(){ return portalNear()&&!placing&&!Meta.isOpen()&&hallPhase()==='build'; }   // hallPhase (58-portal.js, build 159 5/7): the host's phase on a co-op guest, whose own S.phase is 'build' all run
 // the frame is made once and kept: hidden (visibility, so its page keeps running its loads) between visits, and the
 // hideout page told which it is -- 'hideout:hide' stops it drawing and releases the mouse, 'hideout:show' re-reads the
 // gear bag and the locker, re-arms the rewards banner and brings back its click-to-enter screen (hideout build 18)
@@ -93,8 +93,9 @@ function passThrough(){ go(true); }
 // the title screen: a visit outside a run, next to the TAVERN button
 { const tav=$('tavbtn'); if(tav){ const b=document.createElement('button'); b.id='hideoutbtn'; b.className='big alt'; b.textContent='🔮 THE HIDEOUT'; b.addEventListener('click',e=>{ e.stopPropagation(); if(S.phase==='start') passThrough(); }); tav.insertAdjacentElement('afterend',b); } }
 // pulled back out the moment a visit's phase ends for any reason (the horn, the crystal falling, the last wave held).
-// Polled rather than hooked into Meta.update, since update() itself stops running on the dead/won screens.
-setInterval(()=>{ if(shown&&S.phase!=='build'&&S.phase!=='start') closeHideout(S.phase==='wave'?'The horn sounds — back to the hall!':null);
+// Polled rather than hooked into Meta.update, since update() itself stops running on the dead/won screens. A co-op guest goes by
+// the host's phase (hallPhase, 58-portal.js; build 159 5/7) -- its own never left 'build', so the host's horn never called it back
+setInterval(()=>{ const ph=hallPhase(); if(shown&&ph!=='build'&&ph!=='start') closeHideout(ph==='wave'?'The horn sounds — back to the hall!':null);
   if(hideoutLite()&&frame&&!shown) teardown();   /* a page that turned lite after a frame was kept (it hosted or joined after a solo start): the kept frame goes now */
   if(!frame&&preloadT===null&&S.phase==='build'&&window.__loadtime&&window.__loadtime().all!==null) preloadT=setTimeout(preload,1500); },250);   // build 142: only once the hall's own loads are all in (the load timer's 'everything'), so its ~33 MB never competes with a map still streaming -- map two needs ~109 MB of its own   // the first build phase of a run: four seconds in (the hall's own priority loads have gone out by then), the hideout starts loading behind the hall
 window.__hideout={lite:hideoutLite,isOpen:()=>shown,open:openHideout,close:()=>closeHideout(),near:portalNear,url:()=>frame?frame.src:null,opens:()=>opens,preloaded:()=>!!frame&&!shown,loaded:()=>loaded,preload,passThrough,carry:carryGear,lastCarry:()=>lastCarry,readBag,readCarried,BAG_KEY,CARRY_KEY,build:()=>HIDEOUT_BUILD};

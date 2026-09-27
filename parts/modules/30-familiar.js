@@ -28,7 +28,10 @@ function famDmg(){ const it=gear.familiar; return Math.max(1,Math.round(((it&&it
 // build 150: on a co-op guest the pet's foes are proxies of the host's mob puppets (99-network.js mobProxies) and a hit on
 // one is sent up to the host (famHit) instead of hurting a local mob that does not exist; solo and host pages see enemies
 function famFoes(){ return (window.__mobsync&&window.__mobsync.foes)?window.__mobsync.foes():enemies; }
-function famHurt(e,dmg,kx,kz){ if(e&&e.puppet){ if(window.__net&&window.__net.role&&window.__net.role()==='guest') window.__net.send('famHit',{id:e.__coopId,dmg:+(+dmg||0).toFixed(2),kx:+(kx||0).toFixed(2),kz:+(kz||0).toFixed(2)}); e.hp=(e.hp||0)-dmg; floatText(e.x,e.y+e.h+.3,e.z,String(Math.round(dmg)),'#ffd27a'); return; } return hurt(e,dmg,kx,kz); }
+// ex (build 159, 5/7): what else the hit does -- {slow} for the Moss Sprite's spores, {burn,burnDmg} for the Fire Imp. The callers still
+// put it on the mob themselves (85-familiars.js), which is all a real mob needs; on a proxy that went nowhere (the host's mob never
+// slowed or burned, and the proxy's burn never ticked: burnUpdate walks this page's own, empty `enemies`), so it rides the famHit up
+function famHurt(e,dmg,kx,kz,ex){ if(e&&e.puppet){ if(window.__net&&window.__net.role&&window.__net.role()==='guest'){ const m={id:e.__coopId,dmg:+(+dmg||0).toFixed(2),kx:+(kx||0).toFixed(2),kz:+(kz||0).toFixed(2)}; if(ex){ if(ex.slow>0) m.slow=+(+ex.slow).toFixed(2); if(ex.burn>0){ m.burn=+(+ex.burn).toFixed(2); m.burnDmg=+(+ex.burnDmg||0).toFixed(2); } } window.__net.send('famHit',m); } e.hp=(e.hp||0)-dmg; floatText(e.x,e.y+e.h+.3,e.z,String(Math.round(dmg)),'#ffd27a'); return; } return hurt(e,dmg,kx,kz); }
 function famTarget(){ let best=null, bd=FAM_RANGE; for(const e of famFoes()){ if(e.dead) continue; const d=Math.hypot(e.x-fam.x,e.z-fam.z); if(d<bd&&los(fam.x,fam.z,e.x,e.z)){ bd=d; best=e; } } return best; }
 // every bolt shares one sphere geometry + material and one pair of glow sprite materials per colour (Sprite.clone keeps the material), so a long run allocates nothing per shot
 const FAM_BOLT={geo:null,mat:null,glow:{}};

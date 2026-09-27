@@ -3,8 +3,9 @@
 // counting toward any set bonus, 92-sets.js) and mythic SET pieces ("Mythic Staff of the Void", ordinary set pieces at the
 // top rarity). They reach the hall through dd_gear_return: a localStorage array the hideout appends to when the player
 // sends gear back; every record is moved into the bag (Meta.onPickup) when the hideout closes, when a title-screen visit
-// ends, and once at load, and the key is cleared. The powers below run on the page that wears them: in co-op that is the
-// host's simulation for the mob-side effects (a guest's page has no real mobs), while the stat halves travel with the look.
+// ends, and once at load, and the key is cleared. The powers below run on the page that wears them -- and, since build 159 (5/7),
+// the host runs a co-op guest's too: a guest's page has no real mobs, so its mob-side powers never touched the hall until the host
+// learned what each guest wears (GW below; the Mantle and the sword's powers are 99-network.js's). The stat halves travel with the look.
 (function(){
 const RETURN_KEY='dd_gear_return';
 const NAMED={
@@ -46,33 +47,59 @@ function returnGear(){ let list=[]; try{ const a=JSON.parse(localStorage.getItem
 const W={wave:-1,swings:0,mantle:false,tear:false,hour:false,oath:{},idleT:0,healT:0};
 function newWave(){ W.mantle=false; W.tear=false; W.hour=false; W.oath={}; }
 function near(x,z,r){ return Math.hypot(x-hero.x,z-hero.z)<=r; }
+// ---- build 159 (5/7): a co-op GUEST's named mythics. has() reads this page's gear, and a guest's page has no real mobs, so a guest's
+// Hourglass, Oath, Lantern and Censer never touched the hall. The guest's input now names what it wears (99-network.js), and on the
+// host GW is that list for this frame, each guest with the host's copy of its hero (Meta.coopWear): a hall-wide power (the Hourglass,
+// the Oath) fires if ANYONE wears it, once a wave as ever; a power around its wearer (the Lantern, the Censer, Mossheart's healing)
+// works around each wearer's own spot. Solo and a guest page have no GW, so every check below is exactly has() as before. A guest's
+// Mantle is hurtGuestHero's (99-network.js: that is where a guest is hit); its Rootsplitter relays its own 4th swing ('roots', below)
+let GW=null;
+function wornIds(){ const out=[]; for(const s of SLOTS){ const it=gear[s]; const k=it&&it.named?mythicId(it):null; if(k&&!out.includes(k)) out.push(k); } return out; }   // what this page wears, for its co-op input
+function guestsWith(id){ return GW?GW.filter(w=>w.myth.includes(id)):[]; }
+function anyWears(id){ return has(id)||!!(GW&&GW.some(w=>w.myth.includes(id))); }
+function nearWearer(id,x,z,r){ if(has(id)&&near(x,z,r)) return true; if(GW) for(const w of GW) if(w.myth.includes(id)&&Math.hypot(x-w.g.x,z-w.g.z)<=r) return true; return false; }
+const netRole=()=>{ const n=window.__net; return n&&n.role?n.role():null; };
 let HERO_HIT=false;
+function asHero(fn){ const was=HERO_HIT; HERO_HIT=true; try{ return fn(); }finally{ HERO_HIT=was; } }   // a hero's own blow, not a defense's (the Lantern's 25% is for defenses): 99-network.js swings a guest's sword through this
+// Rootsplitter's roots, from any spot and facing: this hero's 4th swing, or a guest's (relayed as 'roots', applied here on the host)
+function roots(x,y,z,yaw,reach){ const fx=Math.sin(yaw), fz=Math.cos(yaw); let n=0;
+  for(const e of enemies){ if(e.dead||e.fly) continue; const dx=e.x-x, dz=e.z-z, d=Math.hypot(dx,dz); if(d<reach+e.r&&(dx*fx+dz*fz)/Math.max(d,.01)>.3){ e.holdT=2; n++; } }
+  for(let i=0;i<5;i++){ const g=glow(0x5ad05a,.7+i*.15,.7); g.position.set(x+fx*(.6+i*.55),baseFloor(x+fx*(.6+i*.55),z+fz*(.6+i*.55))+.15,z+fz*(.6+i*.55)); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); }
+  if(n) floatText(x+fx*1.5,y+1.4,z+fz*1.5,'ROOTS','#5ad05a'); return n; }
 { const prev=hitCone; hitCone=function(){ HERO_HIT=true; try{ prev(); }finally{ HERO_HIT=false; }
     if(!has('rootsplitter')) return; W.swings++; if(W.swings%4) return;
-    const fx=Math.sin(hero.yaw), fz=Math.cos(hero.yaw), reach=(hero.reach||2.4)+2.5; let n=0;
-    for(const e of enemies){ if(e.dead||e.fly) continue; const dx=e.x-hero.x, dz=e.z-hero.z, d=Math.hypot(dx,dz); if(d<reach+e.r&&(dx*fx+dz*fz)/Math.max(d,.01)>.3){ e.holdT=2; n++; } }
-    for(let i=0;i<5;i++){ const g=glow(0x5ad05a,.7+i*.15,.7); g.position.set(hero.x+fx*(.6+i*.55),baseFloor(hero.x+fx*(.6+i*.55),hero.z+fz*(.6+i*.55))+.15,hero.z+fz*(.6+i*.55)); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); }
-    if(n) floatText(hero.x+fx*1.5,hero.y+1.4,hero.z+fz*1.5,'ROOTS','#5ad05a'); }; }
-{ const prev=hurt; hurt=function(e,dmg,kx,kz){ if(e&&e.lanternT>0&&!HERO_HIT&&has('last_lantern')) dmg=Math.round(dmg*1.25*10)/10; return prev(e,dmg,kx,kz); }; }
+    const reach=(hero.reach||2.4)+2.5; roots(hero.x,hero.y,hero.z,hero.yaw,reach);
+    if(netRole()==='guest') window.__net.send('roots',{x:+hero.x.toFixed(2),z:+hero.z.toFixed(2),yaw:+hero.yaw.toFixed(3),reach:+reach.toFixed(2)}); }; }   // build 159 (5/7): a guest's roots here only drew the splats (its page has no real mobs); the host holds its mobs (99-network.js)
+{ const prev=hurt; hurt=function(e,dmg,kx,kz){ if(e&&e.lanternT>0&&!HERO_HIT&&anyWears('last_lantern')) dmg=Math.round(dmg*1.25*10)/10; return prev(e,dmg,kx,kz); }; }
 { const prev=hurtHero; hurtHero=function(dmg){ if(has('voidwoven_mantle')&&!W.mantle&&S.phase==='wave'&&hero.dead<=0){ W.mantle=true; let bx=-Math.sin(hero.yaw), bz=-Math.cos(hero.yaw); let nearest=null, nd=1e9; for(const e of enemies){ if(e.dead) continue; const d=Math.hypot(e.x-hero.x,e.z-hero.z); if(d<nd){ nd=d; nearest=e; } } if(nearest&&nd>.01){ bx=(hero.x-nearest.x)/nd; bz=(hero.z-nearest.z)/nd; }
       for(let i=0;i<6;i++) moveCircle(hero,bx*.6,bz*.6,.42,true); hero.hurtT=1; const g=glow(0xc070ff,2.4,.9); g.position.set(hero.x,hero.y+.9,hero.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); toast('The mantle swallows the blow'); return; }
     return prev(dmg); }; }
-{ const prev=spawnEnemy; spawnEnemy=function(kind,lane){ const e=prev(kind,lane); if(e&&has('wardens_oath')&&S.phase==='wave'&&!W.oath[lane||'N']){ W.oath[lane||'N']=true; e.marked=true; e.slowT=1e9; const g=glow(0xff6a5a,.9,.85); g.position.y=(e.h||1.2)+.7; if(e.mdl&&e.mdl.g) e.mdl.g.add(g); } return e; }; }
-{ const prev=stat; stat=function(d,k){ const v=prev(d,k); if(k==='cd'&&has('gloomcap_censer')&&d&&near(d.x,d.z,6)) return v/1.15; return v; }; }
+{ const prev=spawnEnemy; spawnEnemy=function(kind,lane){ const e=prev(kind,lane); if(e&&anyWears('wardens_oath')&&S.phase==='wave'&&!W.oath[lane||'N']){ W.oath[lane||'N']=true; e.marked=true; e.slowT=1e9; const g=glow(0xff6a5a,.9,.85); g.position.y=(e.h||1.2)+.7; if(e.mdl&&e.mdl.g) e.mdl.g.add(g); } return e; }; }
+{ const prev=stat; stat=function(d,k){ const v=prev(d,k); if(k==='cd'&&d&&nearWearer('gloomcap_censer',d.x,d.z,6)) return v/1.15; return v; }; }
 { const prev=famTarget; famTarget=function(){ if(has('old_lamplight')&&typeof fam!=='undefined'&&fam){ let best=null, bd=FAM_RANGE; for(const e of famFoes()){ if(e.dead||!(e.squash>.2)) continue; const d=Math.hypot(e.x-fam.x,e.z-fam.z); if(d<bd&&los(fam.x,fam.z,e.x,e.z)){ bd=d; best=e; } } if(best) return best; } return prev(); }; }
 function gateFacing(){ let best=null, bd=-2; const fx=Math.sin(cam.yaw), fz=Math.cos(cam.yaw); for(const k in LANES){ const L=LANES[k]; const gx=cw(L.cx), gz=cwz(L.cz); const dx=gx-hero.x, dz=gz-hero.z, d=Math.hypot(dx,dz)||1; const dot=(dx*fx+dz*fz)/d; if(dot>bd){ bd=dot; best={k,x:gx,z:gz}; } } return best; }
-function tear(){ if(!has('tear_of_the_rootgate')||W.tear||!(S.phase==='wave'||S.phase==='build')||hero.dead>0) return false; const g=gateFacing(); if(!g) return false; W.tear=true;
+function tear(){ const ph=hallPhase(); if(!has('tear_of_the_rootgate')||W.tear||!(ph==='wave'||ph==='build')||hero.dead>0) return false; const g=gateFacing(); if(!g) return false; W.tear=true;   // hallPhase (58-portal.js): the host's phase on a co-op guest. The host's copy follows the jump (99-network.js, build 159 4/7)
   const a=glow(0xd08aff,2.6,.9); a.position.set(hero.x,hero.y+.9,hero.z); scene.add(a); projs.push({kind:'splat',t:0,mesh:a});
   hero.x=g.x; hero.z=g.z; hero.y=baseFloor(g.x,g.z); const b=glow(0xd08aff,2.6,.9); b.position.set(hero.x,hero.y+.9,hero.z); scene.add(b); projs.push({kind:'splat',t:0,mesh:b}); if(SFX.rift) SFX.rift(); toast('Through the Rootgate: the '+g.k+' gate'); return true; }
 addEventListener('keydown',e=>{ if(e.code!=='KeyT'||e.repeat||Meta.isOpen()) return; const t=e.target&&e.target.tagName; if(t==='INPUT'||t==='TEXTAREA') return; if(tear()){ e.preventDefault(); e.stopImmediatePropagation(); } },true);
-function tick(dt){ if(S.wave!==W.wave){ W.wave=S.wave; newWave(); }
-  if(has('last_lantern')) for(const e of enemies){ if(e.dead) continue; const lit=near(e.x,e.z,5); if(lit){ e.lanternT=.35; if(!e.lanternFx&&e.mdl&&e.mdl.g){ const g=glow(0xffd27a,1.7,.35); g.position.y=(e.h||1.2)*.6; e.mdl.g.add(g); e.lanternFx=g; } } if(e.lanternFx) e.lanternFx.visible=e.lanternT>0; }
+// build 159 (5/7): "once a wave" is the HALL's wave -- a co-op guest's own S.wave never moves (only the host counts waves), so its Tear
+// of the Rootgate worked once a session. A guest counts the host's wave from its world broadcast
+function hallWave(){ const n=window.__net; if(n&&n.role&&n.role()==='guest'){ const w=n.world&&n.world(); if(w&&Number.isFinite(w.wave)) return w.wave; } return S.wave; }
+function tick(dt){ const wv=hallWave(); if(wv!==W.wave){ W.wave=wv; newWave(); }
+  GW=(Meta.coopWear&&netRole()==='host')?Meta.coopWear():null; if(GW&&!GW.length) GW=null;   // the guests who wear named mythics, this frame (see GW above)
+  if(anyWears('last_lantern')) for(const e of enemies){ if(e.dead) continue; const lit=nearWearer('last_lantern',e.x,e.z,5); if(lit){ e.lanternT=.35; if(!e.lanternFx&&e.mdl&&e.mdl.g){ const g=glow(0xffd27a,1.7,.35); g.position.y=(e.h||1.2)*.6; e.mdl.g.add(g); e.lanternFx=g; } } if(e.lanternFx) e.lanternFx.visible=e.lanternT>0; }
   if(has('mossheart_aegis')){ if(!hero.moving&&hero.swingT<0&&hero.dead<=0) W.idleT+=dt; else W.idleT=0; if(W.idleT>=2){ hero.hp=Math.min(hero.max,hero.hp+hero.max*.03*dt); for(const d of defs) if(near(d.x,d.z,6)) d.hp=Math.min(d.max,d.hp+2*dt); W.healT+=dt; if(W.healT>=1){ W.healT=0; floatText(hero.x,hero.y+1.6,hero.z,'✚','#8ef4c0'); } } } else W.idleT=0;
-  if(has('gloomcap_censer')) for(const d of defs){ if(d.pop<1&&near(d.x,d.z,6)) d.pop=Math.min(1,d.pop+dt*2); }
-  if(has('hourglass_of_hollow_sand')&&!W.hour&&S.phase==='wave'&&S.crystal<CRYSTAL_MAX*.3){ W.hour=true; for(const e of enemies) if(!e.dead) e.crawlT=4; toast('The sand runs out — the horde crawls'); if(SFX.rift) SFX.rift(); } }
+  // a guest's Mossheart, on the host: the same heal on the host's copy of that guest (its idle flag rides the input) and the defenses
+  // near it. The guest's own page heals its own bar by the same rule, side by side, as passive regen always has -- the copy used to stay
+  // put, so the bar showed health the guest didn't have and the next hit took it all back at once
+  for(const w of guestsWith('mossheart_aegis')){ const g=w.g; if(w.idle&&!(g.dead>0)) g.mossT=(g.mossT||0)+dt; else g.mossT=0;
+    if(g.mossT>=2){ g.hp=Math.min(g.max,g.hp+g.max*.03*dt); for(const d of defs) if(Math.hypot(d.x-g.x,d.z-g.z)<=6) d.hp=Math.min(d.max,d.hp+2*dt); g.mossFx=(g.mossFx||0)+dt; if(g.mossFx>=1){ g.mossFx=0; floatText(g.x,g.y+1.6,g.z,'✚','#8ef4c0'); } } }
+  if(anyWears('gloomcap_censer')) for(const d of defs){ if(d.pop<1&&nearWearer('gloomcap_censer',d.x,d.z,6)) d.pop=Math.min(1,d.pop+dt*2); }
+  if(anyWears('hourglass_of_hollow_sand')&&!W.hour&&S.phase==='wave'&&S.crystal<CRYSTAL_MAX*.3){ W.hour=true; for(const e of enemies) if(!e.dead) e.crawlT=4; toast('The sand runs out — the horde crawls'); if(SFX.rift) SFX.rift(); if(netRole()==='host') window.__net.send('toast','The sand runs out — the horde crawls'); } }   // co-op: every guest hears it too, whoever wears the Hourglass
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); tick(dt); }; }
 // ---- the return: at load, when the hideout closes, when a title-screen visit ends (both show as open -> closed)
 let wasOpen=false; setInterval(()=>{ const open=!!(window.__hideout&&window.__hideout.isOpen()); if(wasOpen&&!open) returnGear(); wasOpen=open; },400);
 setTimeout(returnGear,1500);
-window.__mythic={NAMED,has,id:mythicId,normalize,returnGear,KEY:RETURN_KEY,hurt:(e,d)=>hurt(e,d,0,0),hurtHero:d=>hurtHero(d),tear,state:()=>({wave:W.wave,swings:W.swings,mantle:W.mantle,tear:W.tear,hour:W.hour,oath:Object.keys(W.oath),idleT:+W.idleT.toFixed(2)})};
+window.__mythic={NAMED,has,id:mythicId,normalize,returnGear,KEY:RETURN_KEY,hurt:(e,d)=>hurt(e,d,0,0),hurtHero:d=>hurtHero(d),tear,state:()=>({wave:W.wave,swings:W.swings,mantle:W.mantle,tear:W.tear,hour:W.hour,oath:Object.keys(W.oath),idleT:+W.idleT.toFixed(2)}),
+  worn:wornIds,roots,asHero,wearers:()=>GW?GW.map(w=>({id:w.id,myth:w.myth.slice(),idle:!!w.idle})):[]};   // build 159 (5/7): for 99-network.js (a guest's input, a guest's roots and sword) and the suites
 })();

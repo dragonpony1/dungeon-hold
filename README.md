@@ -967,6 +967,21 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   slower than a walk; now 8x the gap, a jump of 12+ shown where it lands), and a Troll teammate's bow is held the build 155/156
   way on every screen (`__bow.holdFor`). `coop-herosync-test.mjs` (new); the suites that expected a guest at (0,6) now read
   its own spot.
+- Build 159 (5/7): the newer features work for a guest too. They ran only on the page that wore them, and a guest's page has no
+  real mobs. A guest who finished the Forest set (the map-one starter set) lost its pet's attacks for good: TWIN SHOT's longer
+  reach looked for targets in the guest's own empty mob list (93-gearsets.js now asks `famFoes()`). A guest's Fire Imp now sets the
+  host's mob burning and its Moss Sprite slows it (the pet's hit message carries slow/burn, capped at a little over the pets' own
+  numbers). A guest's input now names the named mythics it wears, its full sets and whether it stands still, and the host runs
+  those powers for it (97-mythics.js `GW`, `Meta.coopWear` in 99-network.js): the Hourglass and the Warden's Oath fire if anyone
+  wears them; the Last Lantern, the Gloomcap Censer and Mossheart's healing work around each wearer's own spot (Mossheart heals the
+  host's copy of the guest side by side with the guest's own bar, so the bar no longer shows health the guest doesn't have); a
+  guest's Mantle swallows its first hit of each of the host's waves and blinks it away; its full Void set tears rifts off its sword
+  (93-gearsets.js `guestSwing`, the same test the host's own swing gets), and its sword no longer counts as a defense for the
+  Lantern's +25%; its Rootsplitter's 4th swing roots the host's mobs ('roots'); rift rings and ROOTS show on the guest's screen
+  ('powerFx'). Old Lamplight's "fires at whatever is being hit" works on a guest (its copies of the host's mobs now know when they
+  were just hit). The Tear of the Rootgate counts the host's waves on a guest (it worked once a session). The hideout portal
+  follows the host's phase on a guest (`hallPhase()`, 58-portal.js): gone for the host's waves, and the horn calls a guest back out
+  of the hideout. `coop-features-test.mjs` (new).
 - Build 152: MYTHIC gear. The hideout's forge (hideout builds 26-30) makes a tier one step above legendary, rarity 5,
   and the game wears it: `RNAME[5]` Mythic in its own pink, valid and fixable at 5, forge caps at 5, no level gate on
   anything the hideout forged. **Named mythics** (ten, a forge proc, Matt's stats, each with a signature power,

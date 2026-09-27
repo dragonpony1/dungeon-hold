@@ -151,6 +151,16 @@
 // shooter stands, as a swing always did. A click in the moment between switching to a ranged hero and the bow or staff appearing
 // no longer sends a sword swing with the bow's 24 reach. And every puppet keeps up with its player (98-party.js), a Troll's bow
 // held the build 155/156 way on every screen.
+// ===== BUILD 159 (5/7): THE NEWER FEATURES, FOR A GUEST TOO. Most of what came after co-op ran only on the page that wore it, and a
+// guest's page has no real mobs. A guest's input now also names the named mythics it wears, its full sets and whether it stands
+// still (myth/five/idle), and the host runs those powers for it: the Hourglass and the Warden's Oath fire if anyone wears them; the
+// Last Lantern, the Gloomcap Censer and Mossheart's healing work around the host's copy of each wearer (97-mythics.js); a guest's
+// Mantle swallows its first hit of each of the host's waves (guestMantle); its full Void set tears rifts off its sword
+// (93-gearsets.js guestSwing, from guestHitCone); its Rootsplitter's 4th swing roots the host's mobs ('roots'); and its pet's
+// spores and burns reach the host's mobs (famHit's slow/burn). The rings and shouts come back to the guest's own screen ('powerFx').
+// On the guest's own page: its Tear of the Rootgate counts the host's waves, a finished Forest set no longer silences its pet
+// (93-gearsets.js), and the hideout portal follows the host's phase -- gone for the host's waves, and the horn calls a guest back
+// out of the hideout (58-portal.js hallPhase).
 (function(){
 let peer=null, role=null;   // 'host' | 'guest' | null
 const conns=new Map();      // one entry per connected remote peer, keyed by ITS peer id — same key on both host and guest sides, so the generic close handler below (and anything else keyed off a peer id) works identically for either role
@@ -556,9 +566,21 @@ function guestInputTick(dt){
     window.__party.setTarget(id,g.x,g.z,g.yaw); if(window.__party.setLook) window.__party.setLook(id,inp.look||null);   // build 150: the host dresses its copy of the guest from the look that rides the guest's input
   });
 }
+// build 159 (5/7): a guest's Voidwoven Mantle. 97-mythics.js wraps hurtHero, but a guest is hurt here, so a guest's mantle never swallowed
+// anything. The same rule, on the host's copy: the first hit of each of the HOST's waves is swallowed and the copy blinks a few steps
+// away from the nearest mob; the guest is told to blink the same way on its own screen (its position leads, so the copy holds the new
+// spot a moment while the guest's reports from there arrive) -- 'mantle' below
+function guestMantle(id,g,s){ if(!(s&&s.myth&&s.myth.includes('voidwoven_mantle'))||S.phase!=='wave'||g.mantleW===S.wave) return false; g.mantleW=S.wave;
+  let bx=-Math.sin(g.yaw), bz=-Math.cos(g.yaw), nearest=null, nd=1e9; for(const e of enemies){ if(e.dead) continue; const d=Math.hypot(e.x-g.x,e.z-g.z); if(d<nd){ nd=d; nearest=e; } } if(nearest&&nd>.01){ bx=(g.x-nearest.x)/nd; bz=(g.z-nearest.z)/nd; }
+  for(let i=0;i<6;i++) moveCircle(g,bx*.6,bz*.6,.42,true); g.y=floorAt(g.x,g.z,g.y); g.hurtT=1; g.holdT=Math.max(g.holdT||0,.35);
+  const gl=glow(0xc070ff,2.4,.9); gl.position.set(g.x,g.y+.9,g.z); scene.add(gl); projs.push({kind:'splat',t:0,mesh:gl});
+  send('mantle',{bx:+bx.toFixed(3),bz:+bz.toFixed(3)},id); return true; }
+onMessage('mantle',d=>{ if(role!=='guest'||!d||hero.dead>0) return; const bx=+d.bx||0, bz=+d.bz||0, l=Math.hypot(bx,bz); if(!(l>.01)) return;
+  for(let i=0;i<6;i++) moveCircle(hero,bx/l*.6,bz/l*.6,.42,true); hero.hurtT=1; const gl=glow(0xc070ff,2.4,.9); gl.position.set(hero.x,hero.y+.9,hero.z); scene.add(gl); projs.push({kind:'splat',t:0,mesh:gl}); toast('The mantle swallows the blow'); });
 function hurtGuestHero(id,dmg){
   const g=guestHero.get(id); if(!g||g.dead>0) return;
   const s=guestStats.get(id), def=s?s.stat.def:0;
+  if(guestMantle(id,g,s)) return;
   dmg=Math.max(1,Math.round(dmg*(1-Math.min(75,def)/100)));   // same gear-scaled mitigation hurtHero() (game.js) applies to the real hero
   g.hp-=dmg; g.hurtT=3; if(g.hp<=0){ g.hp=0; g.dead=4; } send('hp',{hp:g.hp,max:g.max,dead:g.dead,x:g.x,y:g.y,z:g.z},id);
 }
@@ -626,9 +648,16 @@ function guestHitCone(id,yaw,dmg,reach,at){
   const r=Math.min(reach||GUEST_REACH,GUEST_MELEE_MAX), d=dmg||GUEST_DMG; const gx=(at&&typeof at.x==='number')?at.x:g.x, gz=(at&&typeof at.z==='number')?at.z:g.z;   // the guest's reported spot when it sends one (build 150); the host's copy otherwise. Build 159 (4/7): never a sword longer than a sword (GUEST_MELEE_MAX) -- an older guest still sends the bow's 24 in the moment after a switch
   if(Math.hypot(gx-g.x,gz-g.z)<30){ g.x=gx; g.z=gz; }   // and the copy is put there too: a swing is the surest word on where the guest is
   const fx=Math.sin(yaw), fz=Math.cos(yaw); let n=0;
-  for(const e of enemies){ if(e.dead) continue; const dx=e.x-gx, dz=e.z-gz, dd=Math.hypot(dx,dz);
-    if(dd<r+e.r&&(dx*fx+dz*fz)/Math.max(dd,.01)>.4){ hurt(e,d,fx*1.4,fz*1.4); n++; } }
+  const cone=()=>{ for(const e of enemies){ if(e.dead) continue; const dx=e.x-gx, dz=e.z-gz, dd=Math.hypot(dx,dz);
+    if(dd<r+e.r&&(dx*fx+dz*fz)/Math.max(dd,.01)>.4){ hurt(e,d,fx*1.4,fz*1.4); n++; } } };
+  // build 159 (5/7): the powers a host's own swing carries, for the guest's too. This path never went through hitCone, so a guest's full
+  // Void set never tore a rift (93-gearsets.js guestSwing runs the swing and that guest's five-piece powers the way the hitCone wrap does
+  // the host's), and the Last Lantern counted a guest's sword as a DEFENSE's blow, 25% more on a lit mob (asHero, 97-mythics.js)
+  const s=guestStats.get(id), P=Meta.packs, M=window.__mythic;
+  const go=()=>P&&P.guestSwing?P.guestSwing(s&&s.five,d,cone):(cone(),[]);
+  const fired=M&&M.asHero?M.asHero(go):go();
   if(n) SFX.hit();
+  if(fired.length) send('powerFx',{k:'rift',at:fired.slice(0,24)},id);   // the rift's ring on the swinger's own screen (its page has no real mobs to tear one on)
 }
 // phase 9: a ranged guest's shot is now a REAL bolt/arrow, not an instant cone -- it travels, stops at the first
 // wall or mob it meets, and a full-draw arrow pierces, exactly like the host's own local shots (82-staff.js's
@@ -684,7 +713,22 @@ function hostGuestShot(data,fromId){
 onMessage('shot',(data,fromId)=>hostGuestShot(data,fromId));
 onMessage('swing',(data,fromId)=>{ guestHitCone(fromId,data.yaw,data.dmg,data.reach,data); });
 const guestStats=new Map();   // id -> {stat:{tow,trate,tarea,move,def,hp,regen},mult:{tow,tcd,aoe,move,hp}} -- this guest's OWN gear/skill numbers, last reported
-onMessage('input',(data,fromId)=>{ guestIn.set(fromId,data); if(data.stat&&data.mult) guestStats.set(fromId,{stat:data.stat,mult:data.mult,kind:data.kind||{}}); });
+// build 159 (5/7): myth, five and idle -- the named mythics this guest wears, its full sets and whether its hero stands still -- so the
+// host can run that guest's powers (97-mythics.js GW, 93-gearsets.js guestSwing, guestMantle above). Only names the game knows are kept
+const strList=(a,ok)=>Array.isArray(a)?a.filter(k=>typeof k==='string'&&k.length<40&&(!ok||ok(k))).slice(0,8):[];
+onMessage('input',(data,fromId)=>{ guestIn.set(fromId,data); if(data.stat&&data.mult){ const NM=window.__mythic&&window.__mythic.NAMED;
+  guestStats.set(fromId,{stat:data.stat,mult:data.mult,kind:data.kind||{},myth:strList(data.myth,k=>!!(NM&&Object.prototype.hasOwnProperty.call(NM,k))),five:strList(data.five),idle:!!data.idle}); } });
+Meta.coopWear=()=>{ if(role!=='host') return null; const out=[]; guestHero.forEach((g,id)=>{ const s=guestStats.get(id); if(s&&s.myth&&s.myth.length) out.push({id,myth:s.myth,idle:s.idle,g}); }); return out; };   // who wears what, for 97-mythics.js (g: the host's live copy of that guest's hero)
+// a guest's Rootsplitter: its own 4th swing drew the roots on its own screen (97-mythics.js) and says so here; the host holds its mobs
+// from where the guest stands, as the host's own swing does. Only for a guest that wears it, alive, from within a few steps of its copy
+onMessage('roots',(d,fromId)=>{ if(role!=='host'||!d) return; const g=guestHero.get(fromId), s=guestStats.get(fromId), M=window.__mythic; if(!g||g.dead>0||!(s&&s.myth.includes('rootsplitter'))||!(M&&M.roots)) return;
+  const now=performance.now(); if(now-(g.rootsAt||-1e9)<300) return; g.rootsAt=now;   // four swings can't come quicker than this
+  const ok=typeof d.x==='number'&&typeof d.z==='number'&&Math.hypot(d.x-g.x,d.z-g.z)<6, x=ok?d.x:g.x, z=ok?d.z:g.z, yaw=Number.isFinite(+d.yaw)?+d.yaw:g.yaw;
+  if(M.roots(x,g.y,z,yaw,Math.max(0,Math.min(27,+d.reach||0)))) send('powerFx',{k:'roots',x:+x.toFixed(2),z:+z.toFixed(2),yaw:+yaw.toFixed(3)},fromId); });
+// what the host says a guest's power just did, drawn on that guest's own screen: the Void rift's rings, the ROOTS shout
+onMessage('powerFx',d=>{ if(role!=='guest'||!d) return;
+  if(d.k==='rift'&&Array.isArray(d.at)){ const P=Meta.packs; d.at.slice(0,24).forEach(p=>{ if(P&&P.ring&&p&&Number.isFinite(+p.x)&&Number.isFinite(+p.z)) P.ring(+p.x,+p.y||0,+p.z,+p.c||0x8a3dff); }); if(SFX.rift) SFX.rift(); }
+  else if(d.k==='roots'&&Number.isFinite(+d.x)&&Number.isFinite(+d.z)){ const fx=Math.sin(+d.yaw||0), fz=Math.cos(+d.yaw||0); floatText(+d.x+fx*1.5,hero.y+1.4,+d.z+fz*1.5,'ROOTS','#5ad05a'); } });
 Meta.defOwnerStat=(id,k)=>{ const s=guestStats.get(id); return s?s.stat[k]:undefined; };
 Meta.defOwnerMult=(id,k)=>{ const s=guestStats.get(id); return s?s.mult[k]:undefined; };
 Meta.defOwnerKind=(id,kind)=>{ const s=guestStats.get(id); return s?(s.kind&&s.kind[kind])||0:undefined; };   // that guest's own full-set power for this defense kind (94-voidset.js)
@@ -729,6 +773,7 @@ function guestSendInput(dt){
     mult:{tow:heroMult('tow'),tcd:heroMult('tcd'),aoe:heroMult('aoe'),move:heroMult('move'),hp:heroMult('hp'),mana:heroMult('mana')},
     kind:Meta.defKindMap?Meta.defKindMap():{},   // a full set's per-defense-kind power (94-voidset.js), for the halos this guest places
     seat:window.__lobby&&window.__lobby.seat?window.__lobby.seat():undefined,   // build 159 (3/7): this tab's lobby seat, so the host can keep this player's mana and defenses for them across a drop (seatJoin)
+    myth:window.__mythic&&window.__mythic.worn?window.__mythic.worn():[], five:Meta.sets&&Meta.sets.active?Meta.sets.active().filter(a=>a.tier>=5).map(a=>a.name):[], idle:(!hero.moving&&hero.swingT<0&&hero.dead<=0)?1:0,   // build 159 (5/7): what the host needs to run this guest's named mythics and five-piece powers (the 'input' handler), and Mossheart's "stand still"
     look:lookOf()});   // build 150: what this guest wears, for its puppet on every other screen
 }
 
@@ -837,11 +882,17 @@ let mobHitFeedback=0;   // how many times a guest's own screen has shown "someth
 // build 150 ("guest bat not fighting at all"): a guest's pet aims at the host's mobs through these proxies of the mob puppets
 // (30-familiar.js famFoes), stable per id so a chain-lightning hit list keeps working; a hit on one goes to the host as famHit
 const MOBPROX=new Map(); const PROX_SIZE={ogre:[.95,2.3],trollboss:[.8,2.1],orc:[.6,1.6],archer:[.5,1.4],drake:[.6,1.2]};
-function mobProxies(){ if(role!=='guest') return enemies; const out=[]; MOBPUP.forEach((p,id)=>{ let q=MOBPROX.get(id); if(!q){ const sz=PROX_SIZE[p.kind]||[.5,1.3]; q={puppet:true,__coopId:id,kind:p.kind,r:sz[0],h:sz[1],dead:0,slowT:0,fly:p.kind==='drake'}; MOBPROX.set(id,q); } q.x=p.x; q.y=p.y; q.z=p.z; q.hp=p.hp; q.dead=(p.hp<=0)?1:0; if(!q.dead) out.push(q); }); MOBPROX.forEach((q,id)=>{ if(!MOBPUP.has(id)) MOBPROX.delete(id); }); return out; }
-onMessage('famHit',(data,fromId)=>{ if(role!=='host'||!data) return; const e=enemies.find(e=>e.__coopId===data.id&&!e.dead); if(!e) return; const dmg=Math.max(0,Math.min(400,+data.dmg||0)); if(dmg>0) hurt(e,dmg,+data.kx||0,+data.kz||0); });   // a guest's pet lands on the host's REAL mob, as guestHitCone and hostGuestShot do for the guest's own blows
+function mobProxies(){ if(role!=='guest') return enemies; const out=[]; MOBPUP.forEach((p,id)=>{ let q=MOBPROX.get(id); if(!q){ const sz=PROX_SIZE[p.kind]||[.5,1.3]; q={puppet:true,__coopId:id,kind:p.kind,r:sz[0],h:sz[1],dead:0,slowT:0,fly:p.kind==='drake'}; MOBPROX.set(id,q); } q.x=p.x; q.y=p.y; q.z=p.z; q.hp=p.hp; q.squash=p.squash||0; q.dead=(p.hp<=0)?1:0; if(!q.dead) out.push(q); }); MOBPROX.forEach((q,id)=>{ if(!MOBPUP.has(id)) MOBPROX.delete(id); }); return out; }   // squash (build 159, 5/7): "just hit", as hurt() marks a real mob -- Old Lamplight's pet fires at whatever is being hit (97-mythics.js), and on a guest nothing ever was
+onMessage('famHit',(data,fromId)=>{ if(role!=='host'||!data) return; const e=enemies.find(e=>e.__coopId===data.id&&!e.dead); if(!e) return; const dmg=Math.max(0,Math.min(400,+data.dmg||0)); if(dmg>0) hurt(e,dmg,+data.kx||0,+data.kz||0);   // a guest's pet lands on the host's REAL mob, as guestHitCone and hostGuestShot do for the guest's own blows
+  // build 159 (5/7): and what the pet's hit does besides (famHurt's ex): the Moss Sprite's spores slow it, the Fire Imp sets it burning --
+  // this page's own burnUpdate (85-familiars.js) ticks the burn from here, as for the host's own Imp. Capped at a little over the
+  // pets' own numbers (2.2 s of slow, 3 s of burn), so a doctored page can't freeze or cook a mob for good
+  if(e.dead) return; const sl=+data.slow, bu=+data.burn;
+  if(sl>0) e.slowT=Math.max(e.slowT||0,Math.min(5,sl));
+  if(bu>0){ e.burnT=Math.min(5,bu); e.burnDmg=Math.max(0,Math.min(50,+data.burnDmg||0)); e.burnTick=e.burnTick||0; } });
 window.__mobsync={ foes:mobProxies, list:()=>[...MOBPUP.keys()], get:id=>{ const p=MOBPUP.get(id); if(!p) return null; return {id,kind:p.kind,x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2),yaw:+p.yaw.toFixed(2),walking:p.walking,hp:p.hp}; }, hitFeedback:()=>mobHitFeedback };
 function mobPuppetsTick(dt){
-  MOBPUP.forEach(p=>{ const k=1-Math.exp(-10*dt); const m=p.mdl;
+  MOBPUP.forEach(p=>{ const k=1-Math.exp(-10*dt); const m=p.mdl; if(p.squash>0) p.squash=Math.max(0,p.squash-dt*7);   // hurt()'s own fade (game.js updateEnemies)
     p.x=lerp(p.x,p.tx,k); p.y=lerp(p.y,p.ty,k); p.z=lerp(p.z,p.tz,k); p.yaw=angLerp(p.yaw,p.tyaw,k);
     if(m.glb){ const A=m.actions; const name=p.walking?(A.walk?'walk':(A.run?'run':null)):'idle'; if(name&&A[name]) mobPlay(m,name,{fade:.15}); m.mixer.update(dt); }
     else { p.ph+=dt*(p.walking?9:0); const w=p.walking?1:0;
@@ -873,7 +924,7 @@ onMessage('enemies',data=>{
   data.list.forEach(e=>{ ids.add(e.id);
     let p=MOBPUP.get(e.id);
     if(!p){ p=mobPuppetAdd(e.id,e.kind); p.x=p.tx=e.x; p.y=p.ty=e.y; p.z=p.tz=e.z; p.yaw=p.tyaw=e.yaw; p.hp=e.hp; p.kind=e.kind; }   // snap on first sight, no popping in from the origin, and no false "hit" flash for however damaged it already was
-    else if(e.hp<p.hp-.05){ floatText(p.x,p.y+1.5,p.z,String(Math.round((p.hp-e.hp)*10)/10),'#ffd060'); SFX.hit(); mobHitFeedback++; }
+    else if(e.hp<p.hp-.05){ floatText(p.x,p.y+1.5,p.z,String(Math.round((p.hp-e.hp)*10)/10),'#ffd060'); SFX.hit(); mobHitFeedback++; p.squash=1; }   // squash: see mobProxies
     p.tx=e.x; p.ty=e.y; p.tz=e.z; p.tyaw=e.yaw; p.walking=e.walking; p.hp=e.hp; });
   (data.died||[]).forEach(d=>{ const now=performance.now(); if(now-GSFX.dieT>80){ GSFX.dieT=now; if((d.kind==='ogre'||d.kind==='trollboss')&&SFX.bigDie) SFX.bigDie(); else SFX.die(); } GSFX.die++; });   // build 147: the death sound for each mob the host says died since its last list (throttled to one every 80 ms so a splash kill is a thud, not a drumroll)
   [...MOBPUP.keys()].forEach(id=>{ if(!ids.has(id)) mobPuppetRemove(id); });   // a dead or despawned enemy just stops being in the list -- same roster-diff removal 99-network.js already uses for heroes
