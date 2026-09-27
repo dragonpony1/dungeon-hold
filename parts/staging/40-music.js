@@ -19,7 +19,7 @@ setMusic=function(mode){ const want=(musicOn&&!soundOff)?mode:'none';
 // warm the bytes early (no audio context needed for that), so the first play starts at once
 for(const k in TRACKS) musFetch(k);
 // ---- sound samples (wav/mp3 in assets/): fetched early, decoded on first use, played through the game's audio context ----
-const SAMPLES={roar:'assets/sfx-ogre-laugh.wav',horn:'assets/sfx-horn.mp3',place:'assets/sfx-place.mp3',ballista:'assets/sfx-ballista.mp3'};   // the ogre's arrival; the START WAVE horn (a ship's horn by Felix Blume, freesound.org, cut to one blast -- build 140)
+const SAMPLES={roar:'assets/sfx-ogre-laugh.wav',horn:'assets/sfx-horn.mp3',place:'assets/sfx-place.mp3',ballista:'assets/sfx-ballista.mp3',crystal:'assets/sfx-crystal.wav'};   // crystal: Matt's "crystal taking damage" clip, one hit cut from its 45 s loop (build 166)   // the ogre's arrival; the START WAVE horn (a ship's horn by Felix Blume, freesound.org, cut to one blast -- build 140)
 const smpBuf={}, smpBytes={};
 function sampleFetch(name){ if(!HAS_ASSETS){ smpBytes[name]=false; return; } if(smpBytes[name]!==undefined) return; smpBytes[name]=null; fetch(SAMPLES[name]).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.arrayBuffer(); }).then(b=>{ smpBytes[name]=b; }).catch(e=>{ console.warn('sfx: could not fetch '+name,e); smpBytes[name]=false; }); }
 function playSample(name,vol,rate){ const a=A(); if(!a) return false; const go=buf=>{ const s=a.createBufferSource(); s.buffer=buf; if(rate) s.playbackRate.value=rate; const g=a.createGain(); g.gain.value=vol||.5; s.connect(g).connect(SFXOUT(a)); s.start(); };
@@ -29,6 +29,10 @@ for(const k in SAMPLES) sampleFetch(k);
 { const synthRoar=SFX.roar; SFX.roar=()=>{ if(!playSample('roar',.6)) { if(synthRoar) synthRoar(); } }; }
 { const synthHorn=SFX.horn; SFX.horn=()=>{ if(!playSample('horn',.55)) { if(synthHorn) synthHorn(); } }; }
 { const synthPlace=SFX.place; SFX.place=()=>{ if(!playSample('place',.5)) { if(synthPlace) synthPlace(); } }; }
+// the crystal taking a hit (build 166, Matt: "that crystal gets killed so quietly"): his clip, loud, instead of the low synth buzz. A
+// swarm at the crystal lands several hits a second, so the clip starts at most every .45 s -- each one still rings over the last
+{ const synthCrystal=SFX.crystal; let last=-1e9; SFX.crystal=()=>{ const t=performance.now(); if(t-last<450) return; last=t; if(!playSample('crystal',.75)) { if(synthCrystal) synthCrystal(); } }; }
+{ const prevCut=startDeathCut; startDeathCut=function(){ playSample('crystal',1,.62); return prevCut.apply(this,arguments); }; }   // and the killing blow: the same hit, slowed and deepened, at full volume
 // the ballista: every fourth bolt from each one plays the player's shot clip instead of the synth twang (the other three
 // keep it, so a hall full of ballistas doesn't drown in the sample); SFX.harpoon is shared with the witch's staff and the
 // familiars, so the count lives here, on the defense's own fire()
