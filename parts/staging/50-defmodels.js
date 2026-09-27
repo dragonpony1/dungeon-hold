@@ -3,7 +3,7 @@
 // own model use the highest one below them. The game keeps driving the same userData handles it uses on the procedural
 // models: yoke (turns to aim / spins), hp / ball (projectile shown while loaded — dummies here), hub (spinner).
 const DEFGLB={};                                                     // kind -> [{wrap,scale,turn,tpl}] by mark index
-const DEF_H={harpoon:1.6,acorn:1.5,ball:2.5,slice:.6,spike:1.1,totem:2.8,frost:2.8,snare:2.6};              // target heights in world units (about the procedural sizes)
+const DEF_H={harpoon:1.6*BALLISTA_UP,   /* build 164: "a little bigger" -- 1.6 → ~1.95 */acorn:1.5,ball:2.5,slice:.6,spike:1.1,totem:2.8,frost:2.8,snare:2.6};              // target heights in world units (about the procedural sizes)
 const DEF_W={slice:3.8,zap:3.2,venom:3.2,ember:3.2,dazzle:3.2};             // flat things fit by footprint width instead (the ring's toadstools stand at radius 2.3) — the halos are the same idea, a low sigil disc, not a spire
 const DEF_FACE={ball:-PI/2};   // a model whose front is not +z: the Meshy trebuchet's frame runs along x and throws toward +x (the counterweight side), so it is turned to face +z, the way every defense aims (build 150)
 const DEF_TURN=/yoke|turret|swivel|head|top|arm|bow|hub|blade|rotor/i; // a node named like this is the part that turns
