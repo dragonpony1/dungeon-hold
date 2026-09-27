@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="23">
+<meta name="hideout-build" content="24">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -224,7 +224,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 23;
+const HIDEOUT_BUILD = 24;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -379,7 +379,8 @@ const GEAR = {
   painting_hug:      { name:'Painting: The Family Hug',   icon:ITEMS_DIR+'painting_hug.webp',     cost:7 },
   painting_tease:    { name:'Painting: The Teasing',      icon:ITEMS_DIR+'painting_tease.webp',   cost:7 },
   painting_company:  { name:'Painting: The Company',      icon:ITEMS_DIR+'painting_company.webp', cost:7 },
-  banner:            { name:'Fleur Banner',      icon:ITEMS_DIR+'banner.webp',            cost:4  },
+  painting_rootgate: { name:'Painting: The Rootgate',     icon:ITEMS_DIR+'painting_rootgate.webp', cost:7 },
+  banner:           { name:'Fleur Banner',      icon:ITEMS_DIR+'banner.webp',            cost:4  },
   barrel:            { name:'Storage Barrel',    icon:ITEMS_DIR+'barrel.webp',            cost:3  },
   bench:             { name:'Ironwood Bench',    icon:ITEMS_DIR+'bench.webp',             cost:5  },
   bookshelf_stocked: { name:'Filled Bookshelf',  icon:ITEMS_DIR+'bookshelf_stocked.webp', cost:8  },
@@ -607,6 +608,7 @@ const PAINTINGS = {
   painting_hug:     { w: 2.4, h: 1.6 },
   painting_tease:   { w: 2.4, h: 1.6 },
   painting_company: { w: 2.4, h: 1.6 },
+  painting_rootgate: { w: 4.0, h: 2.25 }, // widescreen (16:9) scene — a centrepiece, about 60% of a wall panel
 };
 const WALL_ITEMS = new Set(Object.keys(PAINTINGS));
 function makePainting(gid) {
@@ -741,7 +743,7 @@ function box(w,h,d,color) {
 const PROPS_DIR = '/assets/hideout/props/';
 const PROP_PRIORITY = { portal: 0, vending_machine: 1, ore_forge: 1, sludge_cauldron: 1 }; // the things you walk up to first
 
-const SCALE_MAP = { vending_machine: (EYE_HEIGHT/1.90)*3.5*0.75, sludge_cauldron: 2.0, ore_forge: 2.6, portal: 2.0, wall_locker: 1.5, painting_triumph: 1.0, painting_hug: 1.0, painting_tease: 1.0, painting_company: 1.0,
+const SCALE_MAP = { vending_machine: (EYE_HEIGHT/1.90)*3.5*0.75, sludge_cauldron: 2.0, ore_forge: 2.6, portal: 2.0, wall_locker: 1.5, painting_triumph: 1.0, painting_hug: 1.0, painting_tease: 1.0, painting_company: 1.0, painting_rootgate: 1.0,
   small_table: 1.5 }; // raw 2.0 x 0.72 x 0.9 -> 3 wide, top at waist height
 STAND_SETS.forEach(s => { SCALE_MAP['stand_' + s] = 1.35; }); // raw models are 2 units tall -> 2.7, a touch taller than the player // portal scale kept modest on purpose — easy to bump up once Matt sees it in place
 const DEFAULT_PLACE_SCALE = 1.7; // every Meshy prop is normalized so its longest axis is ~1.9 raw units regardless of what it is, so scale 1.0 reads as toy-sized next to the player

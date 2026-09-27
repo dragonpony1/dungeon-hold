@@ -52,7 +52,7 @@ check("guest's puppet eases to the host's SECOND broadcast position (not stuck a
 
 // the guest's own local hero is a completely separate thing from the puppet mirroring the host
 const guestLocalHero=await guestPage.evaluate(()=>({x:window.__dd.hero.x,z:window.__dd.hero.z,pick:window.__heroes.pick()}));
-check("guest's own local hero is untouched by the host's movement",guestLocalHero.x===0&&guestLocalHero.pick==="witch",JSON.stringify(guestLocalHero));
+check("guest's own local hero is untouched by the host's movement",guestLocalHero.x===0&&guestLocalHero.pick==="knight"   /* the knight since build 134: a fresh player's first hero (70-hero2.js); the witch was the old default */,JSON.stringify(guestLocalHero));
 
 // host leaves -- the guest's puppet for it should be cleanly removed
 await hostPage.evaluate(()=>window.__net.leave());

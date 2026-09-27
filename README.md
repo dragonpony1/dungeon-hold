@@ -895,6 +895,20 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   twisted roots, glowing mushrooms and violet crystals (`parts/assets/title-bg.webp`, 1536x864, 390 KB) behind the menu,
   under a dark gradient so the heading, hero cards, buttons and small print stay readable (20-titleart.js turns the
   #start.art class on once the image has loaded; the single-file build keeps its flat screen). menu-test checks it.
+- Build 146: the co-op LOBBY ("it's a little clunky to wait until everyone is in ... we could wait in the lobby until
+  there's a green light the room is loaded"). HOST A GAME and JOIN A FRIEND both land in a lobby on the title screen
+  (99b-lobby.js): one row per player with their hero portrait and a light, amber "loading N s" while their room is
+  still coming down, green "ready N s" once it is (the build-142 load timer), and "✓ all" when everything has streamed
+  in; a name field; START for the host, counting the green lights and shut until all are green ("START · 2/3 ready"),
+  with "start without waiting" after 45 s; one START message enters every page together. The host's map rides with
+  the roster: a guest on another map says "Moving to <map>…", reloads onto it (?coopmap=N&coopjoin=CODE, the one pair
+  that lifts that player's own unlock gate for that page load) and rejoins by itself; a player joining after START
+  goes in as soon as their room is ready (ENTER NOW offered); a guest leaving drops off the roster; a host leaving
+  sends the guests back to the title screen. 99-network.js: the peer stays on the signaling broker across drops
+  (PeerJS never came back by itself once a quiet tab was dropped: a host could take no more joiners), and a stuck join
+  attempt (offer or answer lost) is retried with backoff instead of hanging forever, which is the likeliest cause of
+  "he can't connect to me but I can connect to him". lobby-test.mjs drives three real browsers through all of it on a
+  local signaling server. Built by a workflow agent and taken over to ship; its adversarial review follows.
 - Ideas queued: switch heroes mid-defense; a Survival mode (endless waves); touch buttons for pause and the sheet on iPad.
 - Eight more great sets to design (suffix, drop rule, buffs, sound); each is one `addSet` entry. The Holy set is next.
 - Meshy art still wanted: turnip trebuchet, hobgoblin archer, and the Frost Spire (none of the uploads so far is a frost
