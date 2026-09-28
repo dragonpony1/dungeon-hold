@@ -653,7 +653,19 @@ function angDiff(a,b){ let d=(b-a)%TAU; if(d>PI) d-=TAU; if(d<-PI) d+=TAU; retur
 function angLerp(a,b,t){ return a+angDiff(a,b)*t; }
 function easeOutBack(t){ const c=1.7; return 1+(c+1)*Math.pow(t-1,3)+c*Math.pow(t-1,2); }
 const RAILBOXES=[];   // thin collision boxes along edges where a real railing model stands (56-thronedecor.js pushes these, each with its own .top); empty on every other map, so this is a no-op there
-function solidAt(x,z,y,forHero){ const cx=wc(x),cz=wcz(z); const t=gat(cx,cz); if(forHero?heroSolid(t):!(walk(t)||(y>=1e5&&t===T.WATER))) return true; /* a flyer (y far above) may cross the moat */ if(baseFloor(x,z)>y+.62) return true; /* a ledge taller than a step: no climbing it (a jumping hero clears what it can) */ if(forHero) for(let i=0;i<RAILBOXES.length;i++){ const b=RAILBOXES[i]; if(x>=b.x0&&x<=b.x1&&z>=b.z0&&z<=b.z1&&y<b.top-.25) return true; } /* hero only, and only below its guard height: a jump can clear the rail and land on it (floorAt), same "stand on top" rule as a short defense — a mob's pathing already avoids these edges via the height-diff check above, and a box that's fine for the hero's own width can still clip a mob's path along a narrow stair */ const d=inb(cx,cz)?defAt[idx(cx,cz)]:null; if(d){ if(d.kind==='slice'||y>d.top+.3) return false; return forHero?y<d.top-.25:true; } return false; }
+// build 196 (Matt: "we need to talk about the hitboxes on defenses, i keep getting stuck in them"): every defense
+// blocked the HERO across its whole grid cell (a full 2x2 unit square, defAt's own placement unit) no matter how much
+// smaller the model actually looks -- the ballista's real base is a fraction of that, so a player caught an invisible
+// wall well past the visible edge, worst at a corner where two cells meet. A mob's own collision (forHero=false) is
+// untouched below -- pathing/detour logic already handles mobs its own way, and mobs are never the ones complaining
+// about a wall they can't see. The bramble hedge (Matt: "we probably need to keep hedge box") is the one exception:
+// it deliberately spans 5 cells to seal a whole corridor (86h build note: "a hedge closes a hall, not just a
+// corridor"), so it keeps blocking that full length -- just narrower across it, the same shrink applied lengthwise.
+const DEF_HERO_R=.62, DEF_HERO_HEDGE_LEN=2.2, DEF_HERO_HEDGE_HALF=.5;
+function defBlocksHero(d,x,z){ const dx=x-d.x, dz=z-d.z;
+  if(d.kind==='spike'){ const c=Math.cos(d.rot||0), s=Math.sin(d.rot||0); return Math.abs(dx*c-dz*s)<=DEF_HERO_HEDGE_LEN&&Math.abs(dx*s+dz*c)<=DEF_HERO_HEDGE_HALF; }
+  return dx*dx+dz*dz<=DEF_HERO_R*DEF_HERO_R; }
+function solidAt(x,z,y,forHero){ const cx=wc(x),cz=wcz(z); const t=gat(cx,cz); if(forHero?heroSolid(t):!(walk(t)||(y>=1e5&&t===T.WATER))) return true; /* a flyer (y far above) may cross the moat */ if(baseFloor(x,z)>y+.62) return true; /* a ledge taller than a step: no climbing it (a jumping hero clears what it can) */ if(forHero) for(let i=0;i<RAILBOXES.length;i++){ const b=RAILBOXES[i]; if(x>=b.x0&&x<=b.x1&&z>=b.z0&&z<=b.z1&&y<b.top-.25) return true; } /* hero only, and only below its guard height: a jump can clear the rail and land on it (floorAt), same "stand on top" rule as a short defense — a mob's pathing already avoids these edges via the height-diff check above, and a box that's fine for the hero's own width can still clip a mob's path along a narrow stair */ const d=inb(cx,cz)?defAt[idx(cx,cz)]:null; if(d){ if(d.kind==='slice'||y>d.top+.3) return false; if(forHero) return defBlocksHero(d,x,z)&&y<d.top-.25; return true; } return false; }
 const ARC=[[1,0],[-1,0],[0,1],[0,-1],[.71,.71],[-.71,.71],[.71,-.71],[-.71,-.71]];
 function moveCircle(e,dx,dz,r,forHero){ const y=e.fly?1e6:(e.y||0); let nx=e.x+dx, ok=true; for(const a of ARC){ if(solidAt(nx+a[0]*r,e.z+a[1]*r,y,forHero)){ ok=false; break; } } if(ok) e.x=nx;
   let nz=e.z+dz; ok=true; for(const a of ARC){ if(solidAt(e.x+a[0]*r,nz+a[1]*r,y,forHero)){ ok=false; break; } } if(ok) e.z=nz; }
@@ -703,7 +715,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=195;
+const BUILD=196;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1300,7 +1312,14 @@ function unstick(){ if(placeStage===1){ placeStage=0; anchorPos=null; ghostRot=a
 function rotateGhost(a){ if(placeStage===1) anchorYaw+=a; else ghostRot+=a; }
 function updateGhost(){ if(!placing) return; const [px,pz]=placeStage===1?anchorPos:aimPoint(); const cx=wc(px), cz=wcz(pz); const t=gat(cx,cz), cfg=DEFS[placing]; let reason='';
   const yaw=placeStage===1?anchorYaw:cam.yaw+ghostRot; const cells=footprintCells(placing,px,pz,yaw); const heroCell=idx(wc(hero.x),wcz(hero.z));
-  if(!(t===T.FLOOR||t===T.CARPET)||cells.some(i=>!walk(grid[i]))) reason="Can't build there"; else if(cells.some(i=>defAt[i])) reason='Already occupied'; else if(cells.includes(heroCell)||Math.hypot(px-hero.x,pz-hero.z)<1.1) reason="You're standing there"; else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units'; else if(S.mana<cfg.mana) reason='Not enough mana'; else if(enemies.some(e=>!e.dead&&Math.hypot(e.x-px,e.z-pz)<2.2)) reason='Enemy too close';
+  // build 196 (Matt: "if your too close to a placeable when you put it down you get trapped in its box"): this used to
+  // be a flat 1.1-unit circle from the placement point regardless of the defense's real shape -- fine for a round
+  // tower (barely: 1.1 only just clears the new DEF_HERO_R+hero radius, ~1.04), but the bramble hedge spans far
+  // more than 1.1 units along its own length (DEF_HERO_HEDGE_LEN), so standing that "safe" distance away ALONG the
+  // hedge still left you inside its real collision zone the instant it landed. Ask the same function solidAt uses
+  // to decide it instead of guessing a circle: would the hero's own current spot actually be blocked by this exact
+  // defense, in this exact spot and orientation, once it exists
+  if(!(t===T.FLOOR||t===T.CARPET)||cells.some(i=>!walk(grid[i]))) reason="Can't build there"; else if(cells.some(i=>defAt[i])) reason='Already occupied'; else if(cells.includes(heroCell)||defBlocksHero({x:px,z:pz,rot:yaw,kind:placing},hero.x,hero.z)) reason="You're standing there"; else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units'; else if(S.mana<cfg.mana) reason='Not enough mana'; else if(enemies.some(e=>!e.dead&&Math.hypot(e.x-px,e.z-pz)<2.2)) reason='Enemy too close';
   ghostOk=!reason; ghostReason=reason; ghostCell=[cx,cz]; ghostPos=[px,pz]; ghostYaw=yaw;
   ghost.position.set(px,standH(cells,px,pz),pz); ghost.rotation.y=ghostYaw; const m=ghostOk?GHOST_OK:GHOST_BAD; ghost.traverse(o=>{ if(o.isMesh) o.material=m; });
   if(ghostSector){ ghostSector.position.set(px,baseFloor(px,pz),pz); ghostSector.rotation.y=ghostYaw; tintSector(ghostSector,ghostOk?0x40ff80:0xff3030); } }
