@@ -53,7 +53,7 @@ const full=n=>!!(Meta.sets.active().find(a=>a.name===n&&a.tier>=5));
 // one set at a time: a set roll that lands on a set the player has not started, while another of these eight is started,
 // mostly goes to the started one (the most pieces owned, worn or bagged)
 const EIGHT=['of Chaos','of the Earth','of Fire','of Radiance','of the Storm','of Shadow','of Ice','of the Wind'];
-function ownedCounts(){ const c={}; const tag=it=>{ const n=it&&Meta.sets.setOf(it); if(n&&EIGHT.includes(n)) c[n]=(c[n]|0)+1; }; for(const s of SLOTS) tag(gear[s]); for(const it of (Meta.bag?Meta.bag():[])) tag(it); return c; }
+function ownedCounts(){ const c={}; const tag=it=>{ const n=it&&Meta.sets.setOf(it); if(n&&EIGHT.includes(n)) c[n]=(c[n]|0)+1; }; for(const it of (Meta.allWorn?Meta.allWorn():SLOTS.map(s=>gear[s]))) tag(it); for(const it of (Meta.bag?Meta.bag():[])) tag(it); return c; }   // worn by any hero (build 171)
 function focus(it){ const n=Meta.sets.setOf(it); if(!n||!EIGHT.includes(n)) return it; const c=ownedCounts(); let best=null, bn=0; for(const k in c) if(c[k]>bn){ bn=c[k]; best=k; } if(!best||best===n||LR()>=.6) return it; const base=it.name.replace(/ of (the )?[A-Z]\w*( [A-Z]\w*)?$/,''); it.name=base+' '+best; return it; }
 { const prev=rollItem; rollItem=function(minR,slot,lvl){ return focus(prev(minR,slot,lvl)); }; }
 window.__sets8={EIGHT,chance,ownedCounts,full,focus,hurtDef:(d,dmg)=>hurtDef(d,dmg),stormHits:()=>stormHits};

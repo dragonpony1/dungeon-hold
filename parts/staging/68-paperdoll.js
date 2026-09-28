@@ -131,17 +131,28 @@ function setsPanel(){ if(!Meta.sets) return ''; const so=Meta.sets.setOf, bag=Me
 // ---- LOADOUTS (build 141): "give me 4 loadout buttons ... maybe a picture of the armor set". Four slots under the hero; SAVE keeps
 // what you wear now (the five item ids), WEAR puts it all back on from the bag or the armory. A piece sold or carried to the
 // hideout since is reported, a piece above your level is refused as usual. localStorage 'dd_loadouts' (the wipe clears dd* keys).
-const LD_KEY='dd_loadouts', LD_N=4;
-let LD=(()=>{ try{ const a=JSON.parse(localStorage.getItem(LD_KEY)); if(Array.isArray(a)) return Array.from({length:LD_N},(_,i)=>a[i]&&typeof a[i]==='object'&&a[i].ids&&typeof a[i].ids==='object'?a[i]:null); }catch(e){} return Array(LD_N).fill(null); })();
-function ldSave(){ try{ localStorage.setItem(LD_KEY,JSON.stringify(LD)); }catch(e){} }
-function findItem(id){ for(const s of SLOTS) if(gear[s]&&gear[s].id===id) return {it:gear[s],where:'worn'}; const b=Meta.bag().find(x=>x.id===id); if(b) return {it:b,where:'bag'}; const a=(Meta.armory?Meta.armory():[]).find(x=>x.id===id); return a?{it:a,where:'arm'}:null; }
-function ldStore(i){ const ids={}, names={}; let n=0; for(const s of SLOTS) if(gear[s]){ ids[s]=gear[s].id; names[s]=gear[s].name; n++; } if(!n){ toast('Wear something first — a loadout keeps what you have on'); return false; } LD[i]={ids,names,at:Date.now()}; ldSave(); D.ldArm=null; toast('Loadout '+(i+1)+' saved'); if(SFX.pickup) SFX.pickup(); return true; }
+// Build 171: every hero has their own four (each hero wears their own gear, 71-herogear.js). dd_heroLoadouts = {heroId:[4]};
+// dd_loadouts still gets the current hero's four on every save (older builds, tests). 71-herogear.js hands the old shared
+// four to the hero picked when this build first loads. Read lazily: this file loads before the heroes do (70-hero2.js).
+const LD_KEY='dd_loadouts', LDH_KEY='dd_heroLoadouts', LD_N=4;
+const ldFix=a=>Array.from({length:LD_N},(_,i)=>a&&a[i]&&typeof a[i]==='object'&&a[i].ids&&typeof a[i].ids==='object'?a[i]:null);
+let LDALL=null, LD=ldFix(null);
+const ldHero=()=>{ try{ return (window.__heroes&&window.__heroes.pick())||'knight'; }catch(e){ return 'knight'; } };
+function ldSync(){ if(!LDALL){ LDALL={}; let o=null; try{ o=JSON.parse(localStorage.getItem(LDH_KEY)); }catch(e){}
+    if(o&&typeof o==='object'&&!Array.isArray(o)){ for(const k in o) LDALL[k]=ldFix(o[k]); }
+    else { let a=null; try{ a=JSON.parse(localStorage.getItem(LD_KEY)); }catch(e){} if(Array.isArray(a)) LDALL[ldHero()]=ldFix(a); } }   // no per-hero store (71 writes one at boot): the shared four are this hero's
+  const h=ldHero(); if(!LDALL[h]) LDALL[h]=ldFix(null); LD=LDALL[h]; return LD; }
+function ldSave(){ try{ localStorage.setItem(LDH_KEY,JSON.stringify(LDALL)); localStorage.setItem(LD_KEY,JSON.stringify(LD)); }catch(e){} }
+// where a piece is: worn by this hero, in the bag, in the armory, or worn by another hero (a loadout saved while it was here)
+function findItem(id){ for(const s of SLOTS) if(gear[s]&&gear[s].id===id) return {it:gear[s],where:'worn'}; const b=Meta.bag().find(x=>x.id===id); if(b) return {it:b,where:'bag'}; const a=(Meta.armory?Meta.armory():[]).find(x=>x.id===id); if(a) return {it:a,where:'arm'};
+  const w=Meta.heroGear&&Meta.heroGear.whereWorn(id); return w?{it:w.it,where:'hero',hero:w.hero}:null; }
+function ldStore(i){ ldSync(); const ids={}, names={}; let n=0; for(const s of SLOTS) if(gear[s]){ ids[s]=gear[s].id; names[s]=gear[s].name; n++; } if(!n){ toast('Wear something first — a loadout keeps what you have on'); return false; } LD[i]={ids,names,at:Date.now()}; ldSave(); D.ldArm=null; toast('Loadout '+(i+1)+' saved'); if(SFX.pickup) SFX.pickup(); return true; }
 function ldWorn(L){ const ks=SLOTS.filter(s=>L.ids[s]); return ks.length>0&&ks.every(s=>gear[s]&&gear[s].id===L.ids[s]); }
-function ldWear(i){ const L=LD[i]; if(!L) return false; let on=0, miss=0, gated=0, full=0;
+function ldWear(i){ ldSync(); const L=LD[i]; if(!L) return false; let on=0, miss=0, gated=0, full=0; const took=[];
   for(const s of SLOTS){ const id=L.ids[s]; if(!id) continue; if(gear[s]&&gear[s].id===id) continue; const f=findItem(id); if(!f){ miss++; continue; }
     if(f.where==='arm'){ if(!(Meta.unstash&&Meta.unstash(id))){ full++; continue; } }
-    if(Meta.equip(id)) on++; else gated++; }
-  const bits=[]; if(miss) bits.push(miss+' gone (sold, scrapped or carried to the hideout)'); if(gated) bits.push(gated+' refused'); if(full) bits.push(full+' stuck in the armory — the bag is full');
+    if(Meta.equip(id)){ on++; if(f.where==='hero') took.push(f.hero); } else gated++; }   // a piece another hero wears comes off them (71-herogear.js)
+  const bits=[]; if(took.length) bits.push(took.length+' taken from the '+[...new Set(took)].map(h=>Meta.heroGear.shortName(h)).join(' and the ')); if(miss) bits.push(miss+' gone (sold, scrapped or carried to the hideout)'); if(gated) bits.push(gated+' refused'); if(full) bits.push(full+' stuck in the armory — the bag is full');
   toast('Loadout '+(i+1)+(on?' on — '+on+' piece'+(on===1?'':'s')+' changed':' — nothing to change')+(bits.length?' · '+bits.join(' · '):'')); render(); return on>0; }
 function ldInfo(L,i){ const items=SLOTS.map(s=>L.ids[s]?findItem(L.ids[s]):null), have=items.filter(Boolean).map(f=>f.it), missing=SLOTS.filter(s=>L.ids[s]).length-have.length;
   const tally={}; for(const it of have){ const n=Meta.sets&&Meta.sets.setOf(it); if(n) tally[n]=(tally[n]||0)+1; } let top=null; for(const n in tally) if(tally[n]>=3&&(!top||tally[n]>tally[top])) top=n;
@@ -164,9 +175,10 @@ function summaryCard(){ const M=Meta, pts=M.points?M.points():0, lvl=M.level?M.l
 function itemCard(){ const it=selected(); if(!it){ D.sel=null; return summaryCard(); } const F=Meta.forge, eq=D.sel.from==='eq', arm=D.sel.from==='arm', lines=statStr(it).split(' · ').map(s=>'<div class="cd-l">'+s+'</div>').join('');
   return '<div class="dl-card"><div class="cd-head">'+icon(it,it.slot)+'<div><div class="cd-nm" style="color:'+RCSS[it.rarity]+'">'+it.name+'</div><div class="cd-sub">'+RNAME[it.rarity]+' '+it.slot+' · tier '+tierN(it)+(it.req?' · <span'+(lvOk(it)?'':' style="color:#ff6a5a"')+'>level '+it.req+(lvOk(it)?'':' needed')+'</span>':'')+(eq?' · worn':arm?' · in the armory':'')+'</div></div></div><div class="cd-stats">'+lines+(F?'<div class="cd-l mute">forge allowance: '+F.used(it)+' / '+F.max(it)+' upgrades'+(eq?' — buy them in its slot above':'')+'</div>':'')+'</div><div class="cd-fl">'+FLAVOR[Math.min(4,it.rarity|0)]+'</div><div class="cd-btns">'+(eq?'<button data-act="unequip" data-slot="'+it.slot+'">UNEQUIP</button>':arm?'<button data-act="unstash" data-id="'+it.id+'">TAKE BACK</button>':(lvOk(it)?'<button data-act="equip" data-id="'+it.id+'">EQUIP</button>':'<button disabled title="needs level '+it.req+'">LEVEL '+it.req+' NEEDED</button>')+(Meta.stash?'<button data-act="stash" data-id="'+it.id+'" title="keep it on a stand in the tavern">KEEP IN ARMORY</button>':'')+(Meta.toggleLock?'<button data-act="lock" data-id="'+it.id+'" title="a locked piece is never scrapped at the portal or sold as junk">'+(it.locked?'🔓 UNLOCK':'🔒 LOCK')+'</button>':'')+'<button class="sell" data-act="sell" data-id="'+it.id+'"'+(it.locked?' disabled title="unlock it to sell"':'')+'>SELL · '+Meta.fmtG(it.value||0)+' ●</button>')+'</div></div>'; }
 function heroName(){ try{ const h=window.__heroes&&window.__heroes.list().find(h=>h.id===window.__heroes.pick()); return h?h.name:'GNOME BATTLE WITCH'; }catch(e){ return 'GNOME BATTLE WITCH'; } }
-function build(){ const stt=window.__feel?window.__feel.stats():{dmg:heroDmg(),aps:+(1/swingDur()).toFixed(2),magic:0,dps:Math.round(heroDmg()/swingDur()),armor:heroStat('def'),tow:Math.round(((1+heroStat('tow')/100)*heroMult('tow')-1)*100),hp:Math.round(hero.hp)+'/'+hero.max};
+function build(){ ldSync(); const stt=window.__feel?window.__feel.stats():{dmg:heroDmg(),aps:+(1/swingDur()).toFixed(2),magic:0,dps:Math.round(heroDmg()/swingDur()),armor:heroStat('def'),tow:Math.round(((1+heroStat('tow')/100)*heroMult('tow')-1)*100),hp:Math.round(hero.hp)+'/'+hero.max};
   const M=Meta, lvl=M.level?M.level():1, bagN=Meta.bag().length, cap=Meta.BAG_CAP||24, hpF=Math.max(0,Math.min(1,hero.hp/hero.max)), mnF=Math.max(0,Math.min(1,S.mana/Math.max(500,S.mana)));
   return '<div class="dl-box"><i class="cn tl"></i><i class="cn tr"></i><i class="cn bl"></i><i class="cn br"></i><button class="dl-x" data-act="close">✕</button><h1><span class="orn"></span>The '+heroName()+'<span class="orn r"></span></h1><div class="dl-gold">● <b>'+(Meta.fmtG?Meta.fmtG(Meta.gold()):Math.round(Meta.gold()))+'</b> gold · level '+(Meta.level?Meta.level():1)+'</div>'+
+    (Meta.heroGear?'<div class="dl-whose" style="text-align:center;font-size:12px;color:#c9b8a0;margin:-2px 0 6px">the gear below is the '+Meta.heroGear.shortName(ldHero())+'\'s own · the inventory and the armory are shared by every hero</div>':'')+   // build 171
     (D.hint&&Meta.forge?'<div class="fg-hint">🔨 The anvil: buy upgrades for it with gold, straight into each piece of gear below (up to its allowance)</div>':'')+
     '<div class="dl-grid"><div class="dl-col">'+slotPanel('weapon')+slotPanel('armor')+slotPanel('familiar')+'</div>'+
     '<div class="dl-col mid"><div class="dl-figure"><div class="arch"></div><div class="glow"></div><div class="vig"></div></div>'+
@@ -191,7 +203,7 @@ function ensure(){ if(el) return; el=document.createElement('div'); el.id='doll'
     else if(act==='lock'){ const on=Meta.toggleLock(ds.id); if(on!==null) toast(on?'Locked — never scrapped or sold as junk':'Unlocked'); render(); }
     else if(act==='sell'){ const it=Meta.bag().find(b=>b.id===ds.id); const g=Meta.sell(ds.id); if(g) toast('Sold '+(it?it.name:'item')+' for '+Meta.fmtG(g)+' ●'); D.sel=null; render(); }
     else if(act==='selljunk'){ const r=Meta.sellJunk(); toast(r.n?'Sold '+r.n+' item'+(r.n===1?'':'s')+' for '+Meta.fmtG(r.gold)+' ●':'Nothing worth selling'); D.sel=null; render(); }
-    else if(act==='ldsave'){ const i=+ds.i; if(LD[i]&&!(D.ldArm&&D.ldArm.i===i&&Date.now()-D.ldArm.t<3000)){ D.ldArm={i,t:Date.now()}; render(); return; } ldStore(i); render(); }
+    else if(act==='ldsave'){ ldSync(); const i=+ds.i; if(LD[i]&&!(D.ldArm&&D.ldArm.i===i&&Date.now()-D.ldArm.t<3000)){ D.ldArm={i,t:Date.now()}; render(); return; } ldStore(i); render(); }
     else if(act==='ldwear'){ ldWear(+ds.i); }
     else if(act==='up'){ const it=gear[ds.slot]; if(!it||!Meta.forge) return; const n=Meta.forge.upgrade(it.id,ds.key,+ds.n||1); if(!n){ const c=Meta.forge.can(it,ds.key); toast(c.why||'cannot upgrade that'); } render(); } });
   el.addEventListener('mouseover',e=>{ const c=e.target.closest('.ld[data-ld]'); const i=c?+c.dataset.ld:null; if(i!==D.ldPrev){ D.ldPrev=i; render(); } });
@@ -223,5 +235,5 @@ function dollFrame(dt){ const fig=el&&el.querySelector('.dl-figure'); if(!fig||!
 addEventListener('keydown',e=>{ if(e.code==='Tab'||e.code==='KeyC'){ if(S.phase==='start'||S.phase==='dead'||S.phase==='won') return; if(e.code==='Tab') e.preventDefault(); if(typeof Tavern!=='undefined'&&Tavern&&Tavern.isOpen()) return; toggle(); e.stopImmediatePropagation(); return; }
   if(D.open){ if(e.code==='Escape'||e.code==='KeyI'||e.code==='KeyB'){ e.preventDefault(); close(); } e.stopImmediatePropagation(); } },true);
 ensure();
-window.__doll={preview:i=>{ D.ldPrev=i==null?null:i; if(D.open) render(); },loadouts:()=>JSON.parse(JSON.stringify(LD)),saveLoadout:ldStore,wearLoadout:ldWear,LD_KEY,open,close,isOpen:()=>D.open,html:()=>el?el.innerHTML:'',select:(id,from,slot)=>{ D.sel=id?{id,from:from||'bag',slot}:null; if(D.open) render(); },selected:()=>D.sel,portrait:()=>D.cv?{w:D.cv.width,h:D.cv.height,cam:!!PC}:null,forge:()=>null,setForge:()=>{}};
+window.__doll={preview:i=>{ D.ldPrev=i==null?null:i; if(D.open) render(); },loadouts:()=>JSON.parse(JSON.stringify(ldSync())),saveLoadout:ldStore,wearLoadout:ldWear,LD_KEY,open,close,isOpen:()=>D.open,html:()=>el?el.innerHTML:'',select:(id,from,slot)=>{ D.sel=id?{id,from:from||'bag',slot}:null; if(D.open) render(); },selected:()=>D.sel,portrait:()=>D.cv?{w:D.cv.width,h:D.cv.height,cam:!!PC}:null,forge:()=>null,setForge:()=>{}};
 })();

@@ -127,6 +127,14 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   with a longbow, reach 24; Gnome Knight with a sword, reach 2.4); all twelve defenses split evenly, three per hero. The start screen
   picks one (saved as `ddHero`); a pick swaps the model live. The start screen also has a testing line: unlock all maps,
   auto-mana (orbs fly to you from anywhere), +1000 gold, ↻ fresh reload (a plain reload; the page's URL is left alone since a host may sign it; saves kept) and wipe saves (two clicks: forgets every `dd*` key, then reloads fresh).
+- `71-herogear.js` (build 171) — each hero wears their own five slots; the bag and the armory are shared. `gear` is still the
+  live set (the current hero's); `installHero` is wrapped so a switch files the old hero's pieces and puts the new hero's on
+  (stats, sets, familiar and the weapon in hand all follow `gear`). Saved as `dd_heroGear` `{v,on,sig,heroes:{id:{slot:item}}}`;
+  `ddGear` keeps being written as the current hero's set (and a ddGear this build did not write — an older build, a test — is
+  adopted for the hero it mirrored). First load migrates the old shared set to the picked hero. `Meta.equip` of a piece another
+  hero wears moves it (their slot empties, a toast says so). `Meta.allWorn()` is every hero's worn pieces (the set drop rules
+  count them as owned); `__heroGear.check()` is the exactly-once census (bag + armory + every hero). Loadouts are per hero too
+  (`68-paperdoll.js`, `dd_heroLoadouts`; `dd_loadouts` mirrors the current hero's four). Test: `herogear-test.mjs`.
 - `82-staff.js` — battle staffs built in code, no model to load: six kinds (`hazel`, `copper`, `runed`, `storm`, `battle` for
   the five forge tiers, `void` for the set) in the sword GLBs' model units, the fist 44% of the way up (`userData.gripF`).
   Registered with the weapon mount as `staff-<kind>` through `window.__weapons.register` (a code-built template is served

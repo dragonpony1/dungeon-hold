@@ -94,7 +94,7 @@ function tvEmptyCard(slot){ return '<div class="tv-card" data-act="sel" data-id=
 function tvDeltas(it){ const eq=gear[it.slot]; const keys=Object.keys(it.stats); if(eq&&eq.id!==it.id) for(const k in eq.stats) if(!keys.includes(k)) keys.push(k);
   return keys.map(k=>{ const v=it.stats[k]||0, e=(eq&&eq.id!==it.id)?(eq.stats[k]||0):0; const d=Math.round((v-e)*10)/10; const dl=(!eq||eq.id===it.id)?'':d>0?'<span class="up">+'+d+'</span>':d<0?'<span class="dn">'+d+'</span>':'<span style="color:#8f8470">=</span>'; return '<div>'+tvEsc(STATL[k](v))+dl+'</div>'; }).join(''); }
 // ---- panes ----
-function tvRenderBag(){ const bag=Meta.bag(); let eqH='<div class="tv-sub">EQUIPPED</div>'; for(const s of SLOTS){ const it=gear[s]; eqH+=it?tvCard(it,'eq'):tvEmptyCard(s); }
+function tvRenderBag(){ const bag=Meta.bag(); let eqH='<div class="tv-sub">EQUIPPED'+(Meta.heroGear&&window.__heroes?' · THE '+Meta.heroGear.shortName(window.__heroes.pick()).toUpperCase()+'\'S OWN':'')+'</div>';   /* build 171: each hero wears their own (71-herogear.js); the bag is everyone's */ for(const s of SLOTS){ const it=gear[s]; eqH+=it?tvCard(it,'eq'):tvEmptyCard(s); }
   const junk=bag.filter(Meta.isJunk).length;
   const sortMode=Meta.bagSort(), SORT_LABEL={type:'⚔ by type',rarity:'★ by rarity',newest:'newest first'};   // one button that cycles: small enough for a phone's header row
   let bagH='<div class="tv-sub">BAG <span class="tv-n">'+bag.length+'/'+Meta.BAG_CAP+'</span><span class="sp"></span><button class="tv-btn sm" data-act="sort" id="tv-sort" title="Change how the bag is sorted">'+SORT_LABEL[sortMode]+'</button><button class="tv-btn" data-act="selljunk" id="tv-selljunk"'+(junk?'':' disabled')+'>Sell junk'+(junk?' ('+junk+')':'')+'</button></div>';

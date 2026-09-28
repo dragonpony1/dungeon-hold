@@ -103,6 +103,7 @@ await guestPage.evaluate(()=>{ window.__dd.gear().weapon={stats:{dmg:50}}; });  
 // (the reach is set at once, the staff mounts once her model is in), then read HER damage: each hero swings from its own base
 await guestPage.evaluate(()=>window.__heroes.select('witch'));
 for(let i=0;i<120;i++){ if(await guestPage.evaluate(()=>window.__aim.kind())==='staff') break; await tickBoth(1,1); await new Promise(r=>setTimeout(r,15)); }
+await guestPage.evaluate(()=>{ window.__dd.gear().weapon={stats:{dmg:50}}; });   // build 171: each hero wears their own gear (71-herogear.js) -- the +50 weapon above stayed with the Knight, so the Witch gets her own
 check("the guest is the witch now, staff in hand (reach 18)",await guestPage.evaluate(()=>window.__aim.kind()==='staff'&&window.__dd.hero.reach===18),JSON.stringify(await guestPage.evaluate(()=>({kind:window.__aim.kind(),reach:window.__dd.hero.reach,pick:window.__heroes.pick()}))));
 const expectedDmg=await guestPage.evaluate(()=>Math.round(window.__dd.heroDmg()*10)/10);
 check("guest's own heroDmg() reflects the +50 dmg weapon (sanity: not the flat 8 baseline)",expectedDmg>20,"heroDmg="+expectedDmg);
