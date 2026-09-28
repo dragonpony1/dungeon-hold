@@ -30,8 +30,21 @@ function heroMount(){ if(!(useGLB&&GLBH&&GLBH.root)) return null; if(GLBH.mountN
 function unmount(){ if(W.obj&&W.obj.parent) W.obj.parent.remove(W.obj); W.obj=null; W.hand=null; }
 // mount a weapon on ANY rig's mount node (build 150: the party puppets wear what their player wears): the template by
 // name, sized to the node's length suffix and the tier, outlined/toonified for the node's world scale, tinted for a set
+// build 183 (Matt: "its sorta just floating on his wrist, i dont know if we can curl his hand slightly and get it
+// closer to being in his hand"): the Knight's rig has no finger bones at all (probes/glbinfo.mjs: 24 joints, stops at
+// LeftHand/RightHand) -- there is no curl to pose, so the fix is mount calibration instead. His weaponMount_90 empty
+// sits noticeably off from where the hand mesh's own (sculpted, static) half-closed fingers actually rest: close-up
+// renders (tools/scratch-main/knight-grip.mjs) showed the hilt hovering up near the wrist with the fingers dangling
+// well past it. A one-time local offset along the mount's own Z walks the whole weapon down into the fingers'
+// resting curl -- found empirically (a sweep of +/-5 on each axis, then narrowing in Z), same idea as the Troll's
+// build-156 "briefcase" bow-hold fix. It's on the MOUNT (weaponMount_ only -- the Knight's own sword/polearm hand),
+// not the item, so it corrects the rig regardless of which sword, polearm or set weapon ends up there; a staff or
+// bow mount (a different empty, on a different rig) is untouched
+const KNIGHT_GRIP_FIX={weapon:15};
 function attachWeapon(node,name,tier,setName,cb){ loadSword(name,root=>{ const len=+node.name.split('_')[1]||90; const obj=root.clone(); const box=root.userData.box; const L=box.max.y-box.min.y;
-    const gripY=box.min.y+(root.userData.gripF!==undefined?root.userData.gripF:GRIP_F)*L, tipY=box.max.y; const s=(len*lenMul(tier||1)*(root.userData.lenScale||1))/(box.max.y-gripY);   /* lenScale: a template longer than a sword (a staff is body-length) */ obj.scale.setScalar(s); obj.position.set(0,-gripY*s,0);   // the grip point sits on the mount (in the fist); the blade runs up the mount's +Y
+    const gripY=box.min.y+(root.userData.gripF!==undefined?root.userData.gripF:GRIP_F)*L, tipY=box.max.y; const s=(len*lenMul(tier||1)*(root.userData.lenScale||1))/(box.max.y-gripY);   /* lenScale: a template longer than a sword (a staff is body-length) */ obj.scale.setScalar(s);
+    const mountKind=/^weapon/.test(node.name)?'weapon':/^staff/.test(node.name)?'staff':/^bow/.test(node.name)?'bow':null, fixZ=KNIGHT_GRIP_FIX[mountKind]||0;
+    obj.position.set(0,-gripY*s,fixZ);   // the grip point sits on the mount (in the fist); the blade runs up the mount's +Y
     node.updateWorldMatrix(true,false); const worldPerUnit=s*node.getWorldScale(new THREE.Vector3()).x; if(root.userData.proc) outlineScaled(obj,worldPerUnit); else toonify(obj,worldPerUnit);
     const pk=setName&&Meta.packs&&Meta.packs.get(setName); if(pk){ if(root.userData.proc){ obj.userData.void=true; obj.userData.set=pk.name; } else setTint(obj,pk); }   // a set's own staff already wears its colours; a stand-in sword is tinted
     obj.userData.sword={name,tier,scale:s,gripY,tipY,len:L}; node.add(obj); if(cb) cb(obj); }); }
