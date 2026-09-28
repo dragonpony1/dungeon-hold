@@ -22,7 +22,13 @@ if(TUTORIAL) return;
 const FILES={walk:'cyclops-walk.glb',run:'cyclops-run.glb',attack:'cyclops-swing.glb'};
 MOBDIM.cyclops={fit:5.8,h:5.3,r:1.55,nat:{walk:.85,run:1.9}};
 MOBS.cyclops={hp:430,spd:1.35,dmg:36,cd:2.9,mana:45,ranged:15,splash:2.6,detour:0};
-Promise.all(Object.values(FILES).map(f=>fetchBytes(ASSET(f),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej)))))
+// build 187 fix (throneload-test.mjs: "map two's model bytes stay under 52 MB" -- these three files alone are ~31 MB):
+// he can ONLY ever appear on the Throne Room's own Survival wave 20, never the map's regular 7-wave campaign clear, so
+// there's no reason to spend that download on a first-time player just clearing the map -- fetch only once Survival is
+// actually the chosen mode here, which is also exactly when there's real time (however long the run takes to reach
+// wave 20) for it to land in the background before he'd ever need to show
+function loadCyclopsModel(){ if(MOBGLB.cyclops||loadCyclopsModel.started) return; loadCyclopsModel.started=true;
+  Promise.all(Object.values(FILES).map(f=>fetchBytes(ASSET(f),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej)))))
   .then(([wg,rg,ag])=>{ try{ const root=wg.scene||wg.scenes[0];
     // Matt's Meshy export authors this rig's look almost entirely through an emissiveTexture (emissiveFactor [1,1,1],
     // metallic/roughness left at the glTF default of 1/1) -- a baked-lighting technique that reads fine in Meshy's own
@@ -36,7 +42,10 @@ Promise.all(Object.values(FILES).map(f=>fetchBytes(ASSET(f),'soon').then(buf=>ne
     const fit=fitModel(root,MOBDIM.cyclops.fit); toonify(root,fit.scale);
     const clips=[].concat(wg.animations||[],rg.animations||[],ag.animations||[]);
     MOBGLB.cyclops={wrap:fit.wrap,map:mapClips(clips),scale:fit.scale}; }catch(e){ console.warn('cyclops model',e); } })
-  .catch(e=>console.warn('cyclops model',e));
+  .catch(e=>console.warn('cyclops model',e)); }
+// checked every tick (cheap: two property reads) rather than once at page load, since a player can flip the title
+// screen's mode toggle to Survival on the Throne Room after this module has already finished its own top-level run
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(MAP.id==='throne'&&SURVIVAL) loadCyclopsModel(); }; }
 // ---------------------------------------------------------------- when he arrives: wave 20 of the Throne Room's own
 // count, Survival only, once the wave's regular content is fully cleared -- checked BEFORE updateWave's own "wave
 // held" check (same function, run first), so on the exact frame the hall would otherwise go quiet he's already a
