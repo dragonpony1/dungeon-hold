@@ -8,11 +8,11 @@
 // no use here) plus three real animation clips: cyclops-walk.glb ("walking_man"), cyclops-run.glb ("running"),
 // cyclops-swing.glb ("Heavy_Hammer_Swing"). Loaded like any other mob GLB (fetchMobGLB in game.js) except the three
 // clips are combined from three separate files onto one shared skeleton before mapClips sorts them into walk/run/attack.
-// Abilities: STOMP (a shockwave that knocks back nearby heroes and dents nearby towers), a heavy lobbed BOULDER at
-// distant towers (free from the game's own ranged-mob system once he carries `ranged`+`splash`, same mechanism as the
-// trollboss's grenade), and EYE GLARE (a telegraphed beam along a fixed line -- dodge by moving off it before it
-// fires; while it's charging and for a moment after, he takes 50% more damage, the "eye is the weak spot" Matt asked
-// for, done as a timed vulnerability rather than a body-part hit system this game doesn't otherwise have).
+// Abilities: STOMP (a shockwave that knocks back nearby heroes and dents nearby towers), a heavy lobbed BOULDER at a
+// tower he hasn't closed on yet (its own timed ability, not his default engagement -- he otherwise charges straight
+// into melee like any other ground mob), and EYE GLARE (a telegraphed beam along a fixed line -- dodge by moving off
+// it before it fires; while it's charging and for a moment after, he takes 50% more damage, the "eye is the weak
+// spot" Matt asked for, done as a timed vulnerability rather than a body-part hit system this game doesn't otherwise have).
 // NOT built here: the Gladehart stag reward (a whole separate pet-companion entity that doesn't exist in code yet --
 // flagged to Matt as its own future task). Killing him now pays a big one-time gold/mana bonus and a mythic-tier
 // item at the crystal instead, so the encounter has a payoff today.
@@ -21,7 +21,7 @@ if(TUTORIAL) return;
 // ---------------------------------------------------------------- the model: three clips, one shared rig
 const FILES={walk:'cyclops-walk.glb',run:'cyclops-run.glb',attack:'cyclops-swing.glb'};
 MOBDIM.cyclops={fit:5.8,h:5.3,r:1.55,nat:{walk:.85,run:1.9}};
-MOBS.cyclops={hp:430,spd:1.35,dmg:36,cd:2.9,mana:45,ranged:15,splash:2.6,detour:0};
+MOBS.cyclops={hp:430,spd:1.35,dmg:36,cd:2.9,mana:45,splash:2.6,detour:0};   // build 190 (Matt: "when he gets attacked by defenses he stops moving forward, he should come right up to a ballista and start pounding it"): no `ranged` -- that field alone makes the game's generic mob AI hang back and snipe a tower from range instead of closing to melee (it doesn't know he's a Cyclops, just that anything with `ranged` prefers a tower at a distance). Boulder Toss is its own timed ability below instead, thrown occasionally on top of normal melee, never his default way of dealing with a tower. `splash` stays -- fireArrow (game.js) reads it to pick the heavier grenade-style projectile visual for the throw, unrelated to the ranged-targeting behavior that field caused
 // build 187 fix (throneload-test.mjs: "map two's model bytes stay under 52 MB" -- these three files alone are ~31 MB):
 // he can ONLY ever appear on the Throne Room's own Survival wave 20, never the map's regular 7-wave campaign clear, so
 // there's no reason to spend that download on a first-time player just clearing the map -- fetch only once Survival is
@@ -54,7 +54,7 @@ function loadCyclopsModel(){ if(MOBGLB.cyclops) return Promise.resolve(); if(loa
 // living enemy and that check finds one, same as if a player-visible mob were still up
 let doneWave=-1;   // the map-relative wave he's already answered, so a later run (a fresh page) can ask again
 function spawnCyclops(){ const k=Object.keys(LANES)[0]; if(!k) return; doneWave=S.wave; banner('☠ THE CYCLOPS','the ground shakes — something huge is coming');
-  const e=spawnEnemy('cyclops',k); e.stompCd=5+R(0,2); e.eyeCd=7+R(0,2); e.eyeCharging=false; e.eyeOpenT=0; SFX.roar(); camShake=1.1; }
+  const e=spawnEnemy('cyclops',k); e.stompCd=5+R(0,2); e.eyeCd=7+R(0,2); e.eyeCharging=false; e.eyeOpenT=0; camShake=1.1; }   // build 190 (Matt: "take the laugh out"): no SFX.roar() here -- it's the same growl ogreRoar() uses, which read as an ogre's laugh, not the Cyclops's own moment
 { const prev=updateWave; updateWave=function(dt){
     if(SURVIVAL&&S.phase==='wave'&&MAP.id==='throne'&&!spawnQ.length&&!enemies.some(e=>!e.dead)){
       const mw=effWave()-MAP.wbase; if(mw===20&&doneWave!==S.wave) spawnCyclops();
@@ -70,8 +70,9 @@ function spawnCyclops(){ const k=Object.keys(LANES)[0]; if(!k) return; doneWave=
 const _heroes=()=>[{x:hero.x,y:hero.y,z:hero.z,isDead:()=>hero.dead>0,hurt:hurtHero}].concat(Meta.heroes?Meta.heroes():[]);
 const FX=[];   // {mesh,t,life,kind:'beam'} or {mesh,kind:'glow'} -- glow's own lifetime is the eye-charge state, not a timer here
 function stomp(e){ const fl=baseFloor(e.x,e.z); const R_HERO=5.5, R_DEF=4.2, dmg=Math.round(MOBS.cyclops.dmg*1.15);
+  e.swing=0;   // build 190 (Matt: "no arm swining animations"): Stomp had no gesture of its own -- he just stood there while the ring/knockback happened. Riding e.swing plays his real Heavy_Hammer_Swing clip (mobAnim, game.js) for the same window an ordinary melee hit would, same slam-it-down motion, no new animation needed
   const ring=glow(0xffb050,1,.85); ring.position.set(e.x,fl+.15,e.z); ring.rotation.x=-Math.PI/2; scene.add(ring); projs.push({kind:'shock',t:0,mesh:ring,r:R_HERO});
-  SFX.roar(); camShake=Math.max(camShake,.9);
+  camShake=Math.max(camShake,.9);
   for(const h of _heroes()) if(!h.isDead()){ const dx=h.x-e.x, dz=h.z-e.z, d=Math.hypot(dx,dz); if(d<=R_HERO&&d>.01) h.hurt(dmg); }
   const dxH=hero.x-e.x, dzH=hero.z-e.z, dH=Math.hypot(dxH,dzH);
   if(hero.dead<=0&&dH<=R_HERO&&dH>.01){ const nx=dxH/dH, nz=dzH/dH; for(let i=0;i<7;i++) moveCircle(hero,nx*.5,nz*.5,.42,true); }
@@ -89,10 +90,15 @@ function eyeFire(e){ e.eyeCharging=false; e.eyeOpenT=1.0; e.eyeCd=9+R(0,2);
     if(Math.abs(px*e.eyeDz-pz*e.eyeDx)<=1.15) h.hurt(dmg); } }
 function fxTick(dt){ for(let i=FX.length-1;i>=0;i--){ const f=FX[i];
     if(f.kind==='beam'){ f.t+=dt; f.mesh.material.opacity=.9*(1-f.t/f.life); if(f.t>=f.life){ scene.remove(f.mesh); f.mesh.material.dispose(); FX.splice(i,1); } } } }
+// a tower he hasn't reached yet, worth a thrown boulder instead of waiting to walk all the way up to it (adjacent
+// towers are left to his ordinary melee -- this is flavor on top of closing in, not a replacement for it)
+function boulderToss(e){ let best=null, bd=14; for(const d of defs){ const dd=Math.hypot(d.x-e.x,d.z-e.z); if(dd<bd&&dd>3&&los(e.x,e.z,d.x,d.z)){ bd=dd; best=d; } } if(!best) return;
+  e.swing=0; fireArrow(e,best.x,1.0,best.z,{kind:'def',obj:best}); }
 { const prev=updateEnemies; updateEnemies=function(dt){ prev(dt); fxTick(dt);
     for(const e of enemies){ if(e.dead||e.kind!=='cyclops') continue;
-      if(e.stompCd===undefined){ e.stompCd=5+R(0,2); e.eyeCd=7+R(0,2); e.eyeCharging=false; e.eyeOpenT=0; }
+      if(e.stompCd===undefined){ e.stompCd=5+R(0,2); e.eyeCd=7+R(0,2); e.eyeCharging=false; e.eyeOpenT=0; e.boulderCd=6+R(0,2); }
       e.stompCd-=dt; if(e.stompCd<=0&&e.swing<0){ e.stompCd=7+R(-1,1); stomp(e); }
+      e.boulderCd-=dt; if(e.boulderCd<=0&&e.swing<0){ e.boulderCd=11+R(-1,1); boulderToss(e); }
       if(e.eyeOpenT>0) e.eyeOpenT-=dt;
       if(e.eyeCharging){ e.eyeChargeT+=dt; if(e.eyeGlow) e.eyeGlow.material.opacity=Math.min(.85,e.eyeChargeT/1.3*.85);
         if(e.eyeChargeT>=1.3) eyeFire(e); }
