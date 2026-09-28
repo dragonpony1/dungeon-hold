@@ -7,7 +7,7 @@ function go(i){ i=Math.max(0,Math.min(i,MAPS.length-1,cleared())); try{ localSto
 function next(){ if(MAPI+1<MAPS.length) go(MAPI+1); }
 function mapLine(){ const el=$('mapline'); if(!el) return; if(TUTORIAL){ el.innerHTML='<span>🎓 '+MAP.name+'<small>one hall, one door, a few goblins — about three minutes, then room one</small></span>'; return; }   // build 166: the tutorial hall is no map of the campaign's -- no ◀ ▶, no "map N of 5" (89-tutorial.js)
   const c=cleared(); const m=MAP; el.innerHTML='<button id="mapprev" title="previous map"'+(MAPI>0?'':' disabled')+'>◀</button><span>MAP '+(MAPI+1)+' OF '+MAPS.length+' · '+m.name+(c>MAPI?' ✓':'')+'<small>'+m.sub+(MAPI+1<MAPS.length&&c<=MAPI?' · hold all '+m.waves+' waves to unlock map '+(MAPI+2):'')+'</small></span><button id="mapnext" title="next map"'+(MAPI+1<MAPS.length&&c>MAPI?'':' disabled')+'>▶</button>';
-  $('mapprev').onclick=()=>go(MAPI-1); $('mapnext').onclick=()=>go(MAPI+1); }
+  $('mapprev').onclick=()=>go(MAPI-1); $('mapnext').onclick=()=>go(MAPI+1); if(window.__survival) window.__survival.render(); }   // build 176: the mode row under it (95b-survival.js) follows an unlock
 mapLine();
 // the hero pick, under the map line
 function heroLine(){ let el=$('heroline'); if(!el){ el=document.createElement('div'); el.id='heroline'; el.className='herorow'; $('mapline').insertAdjacentElement('afterend',el); } const H=HEROES, cur=heroPick.id;

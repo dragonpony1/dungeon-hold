@@ -186,6 +186,21 @@ const MAPS_CLEARED=(()=>{ try{ return Math.max(0,Math.min(MAPS.length,parseInt(l
 // bar as soon as it has read them); ?coopmap without a room code, and ?map= for everyone, stay gated exactly as before.
 const MAPI=TUTORIAL?0:(()=>{ const cm=parseInt(Q.get('coopmap')); if(Q.get('coopjoin')&&cm>=0) return Math.min(cm,MAPS.length-1); let i=parseInt(Q.get('map')); if(!(i>=0)){ try{ i=parseInt(localStorage.getItem('ddMap'))||0; }catch(e){ i=0; } } return Math.max(0,Math.min(i,MAPS_CLEARED,MAPS.length-1)); })();   // a map past the last one cleared is locked
 const MAP=TUTORIAL?TUT_MAP:MAPS[MAPI]; MAP.wbase=MAPS.slice(0,MAPI).reduce((a,m)=>a+m.waves,0);
+// SURVIVAL (build 176). Matt: "we need a mode choice so i can do a map in survival mode" ... "the max waves is 50 for now" ... "the thing
+// that should make it harder and harder is sheer volume of mobs". A map already held in the campaign can be played again in Survival:
+// the same hall, the horde coming on past the map's own count up to SURVIVAL_WAVES. Its first waves ARE the campaign's (nothing harder
+// than the map already was); past them waveComp keeps its own formulas climbing with higher caps and quicker spawns -- volume is the
+// ramp -- while a mob's own hp/damage/speed climb at SURVIVAL_STAT_RATE of the campaign's pace (statWave), and no more than
+// SURVIVAL_LIVE are ever alive at once (updateWave holds the rest in the queue: a laptop or an iPad keeps its frame rate, and the
+// flood comes as fast as the hall kills it). Every tenth wave is a boss wave (a troll boss leads, ogres behind it). Holding the last is
+// SURVIVAL COMPLETE (winMap: build 160's victory lap, nothing unlocked, the campaign untouched); the crystal falling ends it as ever.
+// The title's mode row (95b-survival.js) sets SURVIVAL before PLAY and remembers it (ddMode), honoured only on a map already cleared --
+// never in the tutorial, on a ?silent test page, or on a page that followed a co-op host (a guest takes its host's mode from the world
+// broadcast, 99-network.js). A let, so the title flips it without a reload: nothing reads it before the first wave
+const SURVIVAL_WAVES=50, SURVIVAL_STAT_RATE=.5, SURVIVAL_LIVE=60;
+let SURVIVAL=(()=>{ if(TUTORIAL||SILENT||Q.get('coopjoin')||MAPI>=MAPS_CLEARED) return false; try{ return localStorage.getItem('ddMode')==='survival'; }catch(e){ return false; } })();
+function runWaves(){ return SURVIVAL?SURVIVAL_WAVES:MAP.waves; }   // the waves this run holds: the map's own, or Survival's fifty
+function survivalPast(mw){ return SURVIVAL?Math.max(0,(mw===undefined?S.wave:mw)-MAP.waves):0; }   // how far a Survival wave is past the map's own count (0 = a campaign wave)
 const CELL=2, GW=MAP.gw, GH=MAP.gh, OX=MAP.crystal[0]*CELL+CELL/2, OZ=MAP.crystal[1]*CELL+CELL/2, WALLH=MAP.wallH||7;   // the crystal stands at world (0,0)
 const T={WALL:0,FLOOR:1,CARPET:2,DAIS:3,PILLAR:4,SPAWN:5,CRYSTAL:6,PROP:7,WATER:8};   // WATER: a moat — walkers and the hero stop at the bank, flyers cross it
 const grid=new Uint8Array(GW*GH);
@@ -602,6 +617,7 @@ const DU_CAP=MAP.du||40, SENS=0.0042;   // roots: a bigger map gives more to bui
 const CRYSTAL_MAX=MAP.crystalHp||150;   // the crystal's life: half again what it was, so a leak costs a wave, not the run; a map may set its own (the training ground doubles it)
 const S={mana:MAP.mana||260,du:0,crystal:CRYSTAL_MAX,wave:0,phase:'start',t:0,waveT:0,kills:0,held:false};   // held (build 160): the last wave is held and the hall is on its victory lap -- phase 'build', no more waves, MOVE ON ends the run (winMap/moveOn)
 function effWave(w){ return MAP.wbase+(w===undefined?S.wave:w); }   // map 2 wave 1 is the eighth wave of the campaign: mobs, loot and pay scale with this
+function statWave(){ return effWave()-survivalPast()*(1-SURVIVAL_STAT_RATE); }   // build 176: the wave a mob's own hp/damage/speed scale off -- effWave in the campaign; past a map's own waves in Survival it climbs at half pace (volume is Survival's ramp, not hide). Loot, pay and mana keep effWave
 const hero={x:0,y:0,z:6,vy:0,yaw:PI,hp:100,max:100,swingT:-1,hitDone:false,dead:0,ph:0,moving:false,hurtT:0,grounded:true,reach:2.4};   // reach: how far the swing lands (a whip reaches further than a sword)
 const H=makeHero(); scene.add(H.g); const heroShadow=blob(.5); scene.add(heroShadow);
 const cam={yaw:PI,pitch:.42,dist:8,d:8,x:0,y:5,z:14};
@@ -675,7 +691,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=175;
+const BUILD=176;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -843,7 +859,7 @@ function updateCamera(dt){
 }
 
 // ================= ENEMIES =================
-function spawnEnemy(kind,lane){ const L=LANES[lane]||LANES.N; const m=makeMob(kind); const cfg=MOBS[kind]; const w=Math.max(0,effWave()-1); const hpm=(1+.22*w)*(1+.08*gearScore()/100); /* waves get harder by wave, not by what you wear — good gear should feel good */ const dmm=(1+.08*w)*(S.wave===1?.65:1);   // a map's own wave 1 hits 35% softer — the count and HP still scale off the campaign-wide wave (wbase carries a later map in hard), just not the damage on the wave you're still getting your bearings on
+function spawnEnemy(kind,lane){ const L=LANES[lane]||LANES.N; const m=makeMob(kind); const cfg=MOBS[kind]; const w=Math.max(0,statWave()-1); const hpm=(1+.22*w)*(1+.08*gearScore()/100); /* waves get harder by wave, not by what you wear — good gear should feel good */ const dmm=(1+.08*w)*(S.wave===1?.65:1);   // a map's own wave 1 hits 35% softer — the count and HP still scale off the campaign-wide wave (wbase carries a later map in hard), just not the damage on the wave you're still getting your bearings on
   const e={kind,x:cw(L.cx)+R(-.6,.6),y:0,z:cwz(L.cz)+R(-.6,.6),hp:Math.round(cfg.hp*hpm),max:Math.round(cfg.hp*hpm),spd:cfg.spd*R(.9,1.1)*(1+.02*w),dmg:Math.round(cfg.dmg*dmm),cd:cfg.cd,atk:R(0,.5),r:m.r,h:m.h,mdl:m,sc:m.g.scale.x,ph:rnd()*6,yaw:L.face,dead:0,mana:cfg.mana,ranged:cfg.ranged||0,pop:0,squash:0,swing:-1,walking:false,sx:0,sz:0,shoutT:0,fly:cfg.fly||0}; if(e.fly) e.y=e.fly;
   e.roar=(m.glb&&m.actions.shout)?0:-1;   // a mini-boss roars when it first comes into view (and again, enraged, at half health) — see ogreRoar
   m.g.position.set(e.x,0,e.z); m.g.rotation.y=e.yaw; scene.add(m.g); enemies.push(e); const p=portals.find(p=>p.k===lane); if(p) p.pulse=1; return e; }
@@ -1136,22 +1152,30 @@ function updateGearHUD(){ let h=''; for(const s of SLOTS){ const it=gear[s]; h+=
 loadGear();
 
 // ================= WAVES =================
-function waveComp(w){ const all=Object.keys(LANES); const mw=w-MAP.wbase; const lanes=all.some(k=>LANES[k].from)?all.filter(k=>(LANES[k].from||1)<=mw):(w<2?all.slice(0,1):w<4?all.slice(0,2):all); /* a map can say which of its waves each gate opens on (feeders join as the climb goes on); otherwise the gates open one, two, all */ const q=[]; let t=w===1?2.5:1.5; const n=w===1?5:6+3*w; const gap=w===1?1.1:Math.max(.35,.8-.03*w);   /* wave one is a gentle on-ramp: five goblins, a slower trickle, more time to build first — the climb picks up from wave two */ for(let i=0;i<n;i++){ q.push({t,kind:'goblin',lane:lanes[i%lanes.length]}); t+=gap; }
-  const orcs=w>=2?w-1:0; for(let i=0;i<orcs;i++) q.push({t:3+i*2.2,kind:'orc',lane:lanes[(i+1)%lanes.length]});
-  const arch=w>=3?Math.floor(w/2):0; for(let i=0;i<arch;i++) q.push({t:4+i*1.8,kind:'archer',lane:lanes[i%lanes.length]});
-  const ogres=w>=4&&(w-4)%3===0?(w>=10?2:1):0; for(let i=0;i<ogres;i++) q.push({t:t+2+i*4,kind:'ogre',lane:i?lanes[lanes.length-1]:lanes[0]});
-  const drakes=w>=6?Math.min(12,Math.floor((w-3)/1.5)):0;   /* drakes are frail (32 hp) but come in growing flights: 2 on the sixth wave, 6 by the twelfth, a dozen by the twenty-first */ for(let i=0;i<drakes;i++) q.push({t:6+i*3,kind:'drake',lane:lanes[(i+2)%lanes.length]});   // from the eighth-ish wave the sky joins in
-  const trolls=w>=8?Math.min(4,1+Math.floor((w-8)/3)):0; for(let i=0;i<trolls;i++) q.push({t:5+i*4,kind:'troll',lane:lanes[(i+3)%lanes.length]});   // troll archers: tougher, longer-ranged bowmen, one every third wave from the eighth, capped at four
-  const boss=w>=12&&(w-12)%5===0?1:0; for(let i=0;i<boss;i++) q.push({t:t+7,kind:'trollboss',lane:lanes[0]});   // the lavender healer: rare (every fifth wave from the twelfth), never more than one — mend-the-horde means it has to die first
+function waveComp(w){ const all=Object.keys(LANES); const mw=w-MAP.wbase; const lanes=all.some(k=>LANES[k].from)?all.filter(k=>(LANES[k].from||1)<=mw):(w<2?all.slice(0,1):w<4?all.slice(0,2):all); /* a map can say which of its waves each gate opens on (feeders join as the climb goes on); otherwise the gates open one, two, all */ /* build 176, Survival: past = how far this wave is past the map's own count (0 in the campaign, and on Survival's first waves, which are
+     the campaign's exactly). Past the map every formula below keeps climbing as it always did, its campaign cap lifted to a higher
+     Survival one (cap(): goblins 180, orcs 60, bandits 30, drakes 12 -> 30 and troll archers 4 -> 14 a little more each wave, ogres a
+     few more every sixth), and the spawns come closer together (pace) so a big wave is a flood, not a two-minute trickle. Every tenth
+     wave is a BOSS WAVE: a troll boss leads it out and a guard of ogres (one per ten waves) follows it */
+  const past=survivalPast(mw), cap=(n,c)=>past?Math.min(c,n):n, pace=past?Math.max(.4,1-.015*past):1, bossW=SURVIVAL&&mw>0&&mw%10===0;
+  const q=[]; let t=w===1?2.5:1.5; const n=cap(w===1?5:6+3*w,180); const gap=(w===1?1.1:Math.max(.35,.8-.03*w))*(past?Math.max(.6,1-.01*past):1);   /* wave one is a gentle on-ramp: five goblins, a slower trickle, more time to build first — the climb picks up from wave two */ for(let i=0;i<n;i++){ q.push({t,kind:'goblin',lane:lanes[i%lanes.length]}); t+=gap; }
+  const orcs=cap(w>=2?w-1:0,60); for(let i=0;i<orcs;i++) q.push({t:3+i*2.2*pace,kind:'orc',lane:lanes[(i+1)%lanes.length]});
+  const arch=cap(w>=3?Math.floor(w/2):0,30); for(let i=0;i<arch;i++) q.push({t:4+i*1.8*pace,kind:'archer',lane:lanes[i%lanes.length]});
+  const ogres=Math.min(6,(w>=4&&(w-4)%3===0?(w>=10?2:1):0)+Math.floor(past/6)); for(let i=0;i<ogres;i++) q.push({t:t+2+i*4*pace,kind:'ogre',lane:i===0?lanes[0]:i===1?lanes[lanes.length-1]:lanes[i%lanes.length]});
+  const drakes=w>=6?Math.min(past?Math.min(30,12+Math.floor(past/2)):12,Math.floor((w-3)/1.5)):0;   /* drakes are frail (32 hp) but come in growing flights: 2 on the sixth wave, 6 by the twelfth, a dozen by the twenty-first */ for(let i=0;i<drakes;i++) q.push({t:6+i*3*pace,kind:'drake',lane:lanes[(i+2)%lanes.length]});   // from the eighth-ish wave the sky joins in
+  const trolls=w>=8?Math.min(past?Math.min(14,4+Math.floor(past/4)):4,1+Math.floor((w-8)/3)):0; for(let i=0;i<trolls;i++) q.push({t:5+i*4*pace,kind:'troll',lane:lanes[(i+3)%lanes.length]});   // troll archers: tougher, longer-ranged bowmen, one every third wave from the eighth, capped at four
+  const boss=bossW||(w>=12&&(w-12)%5===0)?1:0; for(let i=0;i<boss;i++) q.push({t:bossW?1:t+7,kind:'trollboss',lane:lanes[0]});   // the lavender healer: rare (every fifth wave from the twelfth), never more than one — mend-the-horde means it has to die first (a Survival boss wave's leads the wave out, first through the gate)
+  const guard=bossW?Math.max(1,Math.floor(mw/10)):0; for(let i=0;i<guard;i++) q.push({t:2.5+i*1.5,kind:'ogre',lane:lanes[i%lanes.length]});   // the boss's guard of ogres, right behind it
   q.sort((a,b)=>a.t-b.t);
-  const parts=['Goblins ×'+n]; if(orcs) parts.push('Orcs ×'+orcs); if(arch) parts.push('Bandits ×'+arch); if(drakes) parts.push('Drakes ×'+drakes); if(trolls) parts.push('Troll Archers ×'+trolls); if(ogres) parts.push(ogres>1?'TWO OGRES':'AN OGRE'); if(boss) parts.push('A TROLL BOSS');
+  const og=ogres+guard, parts=['Goblins ×'+n]; if(orcs) parts.push('Orcs ×'+orcs); if(arch) parts.push('Bandits ×'+arch); if(drakes) parts.push('Drakes ×'+drakes); if(trolls) parts.push('Troll Archers ×'+trolls); if(og) parts.push(og===1?'AN OGRE':og===2?'TWO OGRES':'OGRES ×'+og); if(boss) parts.push('A TROLL BOSS');
   const gates=lanes.map(l=>LANES[l].name||l).join(' + ')+' gate'+(lanes.length>1?'s':'');
-  return {q,desc:parts.join(' · ')+'  —  '+gates}; }
+  return {q,boss:bossW,desc:(bossW?'☠ BOSS WAVE · ':'')+parts.join(' · ')+'  —  '+gates}; }
 function startWave(){ if(S.held){ moveOn(); return; }   /* build 160: on the victory lap the horn is MOVE ON -- the G key, the 📯 button (it reads ▶ MOVE ON then) and anything else that sounds it; by name, so 99-network.js's wrap of moveOn runs */
-  if(S.phase!=='build') return; S.wave++; S.phase='wave'; S.waveT=0; const c=waveComp(effWave()); spawnQ=c.q; banner('WAVE '+S.wave+' OF '+MAP.waves,c.desc); SFX.horn(); setMusic('wave'); cancelPlace(); }
-function updateWave(dt){ if(S.phase!=='wave') return; S.waveT+=dt; while(spawnQ.length&&spawnQ[0].t<=S.waveT){ const s=spawnQ.shift(); spawnEnemy(s.kind,s.lane); }
+  if(S.phase!=='build') return; S.wave++; S.phase='wave'; S.waveT=0; const c=waveComp(effWave()); spawnQ=c.q; banner((SURVIVAL?(c.boss?'☠ BOSS WAVE ':'SURVIVAL · WAVE '):'WAVE ')+S.wave+' OF '+runWaves(),c.desc); SFX.horn(); setMusic('wave'); cancelPlace(); }
+function updateWave(dt){ if(S.phase!=='wave') return; S.waveT+=dt; let live=SURVIVAL?enemies.reduce((a,e)=>a+(e.dead?0:1),0):0;
+  while(spawnQ.length&&spawnQ[0].t<=S.waveT){ if(SURVIVAL&&live>=SURVIVAL_LIVE) break; /* build 176: Survival's cap on the living -- the rest wait at the gate and come out as the hall thins them (the campaign never needs it) */ const s=spawnQ.shift(); spawnEnemy(s.kind,s.lane); live++; }
   if(!spawnQ.length&&!enemies.some(e=>!e.dead)){ const bonus=50+10*effWave(); S.mana+=bonus; dropLoot(rollItem(effWave()%5===0?2:1),R(-1.6,1.6),4.6,true); Meta.onWaveHeld(effWave());
-    if(S.wave>=MAP.waves) winMap(); else { S.phase='build'; banner('HALL HELD','wave '+S.wave+' of '+MAP.waves+' repelled  ·  +'+bonus+' mana  ·  a reward drops by the crystal'); setMusic('build'); SFX.held(); } } }
+    if(S.wave>=runWaves()) winMap(); else { S.phase='build'; banner('HALL HELD','wave '+S.wave+' of '+runWaves()+' repelled  ·  +'+bonus+' mana  ·  a reward drops by the crystal'); setMusic('build'); SFX.held(); } } }
 // the last wave of a map held: the map is cleared, the next one unlocks, the run is paid -- and the hall stays open.
 // Build 160, Matt after his first hall: it said HALL HELD and then "didn't let me walk around or have any control of moving on" --
 // "you should be able to walk around and collect mana, spend your gold on upgrades, maybe even go to the hideout and back and move
@@ -1163,15 +1187,15 @@ function updateWave(dt){ if(S.phase!=='wave') return; S.waveT+=dt; while(spawnQ.
 // button reads ▶ MOVE ON on the lap, and it or G ends the run the way the last wave used to. Nothing else can: hurtCrystal ignores
 // a held hall, and no mob is left to hurt it -- whatever a direct call (a test's __dd.winMap() mid-wave) leaves walking goes quietly
 function winMap(){ if(S.held) return; S.held=true; S.heldAt=performance.now(); S.phase='build'; spawnQ=[]; for(const e of enemies) if(!e.dead){ e.through=true; e.dead=.001; }
-  banner('HALL HELD','the horde broke on wave '+S.wave+'  ·  '+MAP.name+' is yours'); SFX.held(); setTimeout(()=>SFX.horn(),500); setMusic('build'); droneOff();
-  if(!TUTORIAL){ try{ localStorage.setItem('ddMapsCleared',String(Math.max(MAPS_CLEARED,MAPI+1))); }catch(e){}   /* build 166: the tutorial hall is not map one -- holding it unlocks nothing (no heroes, no map two) */
-    Meta.onMapHeld(effWave(),{won:true,map:MAPI,mapName:MAP.name,hasNext:MAPI+1<MAPS.length}); }   // nor pays a campaign win or sets a best wave: its waves pay as they are held, like any other
+  if(SURVIVAL) banner('SURVIVAL COMPLETE','all '+S.wave+' waves held  ·  '+MAP.name+' stands'); else banner('HALL HELD','the horde broke on wave '+S.wave+'  ·  '+MAP.name+' is yours'); SFX.held(); setTimeout(()=>SFX.horn(),500); setMusic('build'); droneOff();
+  if(!TUTORIAL){ if(!SURVIVAL) try{ localStorage.setItem('ddMapsCleared',String(Math.max(MAPS_CLEARED,MAPI+1))); }catch(e){}   /* build 166: the tutorial hall is not map one -- holding it unlocks nothing (no heroes, no map two) */   /* build 176: nor does Survival -- it is played on a map already cleared, and it never moves the campaign */
+    Meta.onMapHeld(effWave(),{won:true,map:MAPI,mapName:MAP.name,hasNext:!SURVIVAL&&MAPI+1<MAPS.length}); }   // nor pays a campaign win or sets a best wave: its waves pay as they are held, like any other
   setTimeout(()=>{ if(S.held&&S.phase==='build'&&!TUTORIAL) toast('The hall is yours — walk it, collect, spend, visit the hideout. '+(TOUCH?'Tap ▶ MOVE ON':'G (or ▶ MOVE ON)')+' when you are ready'); },3600); }   // after the banner has had its moment
 // MOVE ON (build 160): the lap is over when the player says so -- the run ends as the held last wave used to end it: the phase 'won'
 // (update() stops the hall), the mouse freed, and Meta.onRunEnd's tally (it knows the gold went out at HALL HELD and pays nothing twice)
 function moveOn(){ if(!S.held||S.phase!=='build') return; S.phase='won'; cancelPlace(); setMusic('none'); droneOff();
   if(document.pointerLockElement&&document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play');
-  const shown=Meta.onRunEnd(effWave(),{won:true,map:MAPI,mapName:MAP.name,hasNext:MAPI+1<MAPS.length}); if(!shown){ $('deadwave').textContent=S.wave; $('dead').classList.remove('hide'); } }
+  const shown=Meta.onRunEnd(effWave(),{won:true,map:MAPI,mapName:MAP.name,hasNext:!SURVIVAL&&MAPI+1<MAPS.length}); /* build 176: a Survival run offers no NEXT MAP (the next map may not be open, and Survival is a map's own challenge) */ if(!shown){ $('deadwave').textContent=S.wave; $('dead').classList.remove('hide'); } }
 
 // ================= PLACEMENT / REPAIR / SELL =================
 function select(kind){ if(S.phase==='start'||S.phase==='dead'||S.phase==='won'||S.phase==='deathcut') return; if(placing===kind){ cancelPlace(); return; } cancelPlace(); placing=kind; ghost=makeDef(kind,true); scene.add(ghost); const cfg=DEFS[kind]; ghostSector=sectorMesh(cfg.range||0,cfg.arc||360,0x40ff80); scene.add(ghostSector); ghostRot=0; placeStage=0; anchorPos=null; updateGhost(); }
@@ -1226,7 +1250,8 @@ const hud={}; function setT(id,v){ if(hud[id]!==v){ hud[id]=v; $(id).textContent
 function updateHUD(){ const cw_=Math.max(0,S.crystal/CRYSTAL_MAX*100)+'%'; if(hud.cbar!==cw_){ hud.cbar=cw_; $('cbar').style.width=cw_; } const hw=(hero.hp/hero.max*100)+'%'; if(hud.hbar!==hw){ hud.hbar=hw; $('hbar').style.width=hw; }
   setT('mana',Math.floor(S.mana)); setT('du',S.du+'/'+DU_CAP); updateGearHUD();
   const alive=enemies.filter(e=>!e.dead).length+spawnQ.length;
-  if(S.phase==='wave'){ setT('wavet','WAVE '+S.wave+' / '+MAP.waves); setT('phaset',alive+' enem'+(alive===1?'y':'ies')+' left'); } else if(S.phase==='won'){ setT('wavet','HALL HELD — '+MAP.name+' CLEARED'); setT('phaset',''); } else if(S.held){ setT('wavet','HALL HELD — '+MAP.name+' CLEARED'); setT('phaset',TOUCH?'The hall is yours — tap ▶ MOVE ON when ready':'The hall is yours — walk, collect, spend · G moves on when you are ready'); } else if(S.phase==='build'){ setT('wavet',S.wave?'HALL HELD — BUILD PHASE':'BUILD PHASE'); setT('phaset',TOUCH?'Place defenses, then tap 📯':'Place defenses (1–7), then press G to sound the horn'); }
+  const heldT=SURVIVAL?'SURVIVAL COMPLETE — '+MAP.name+' STANDS':'HALL HELD — '+MAP.name+' CLEARED';   // build 176
+  if(S.phase==='wave'){ setT('wavet',(SURVIVAL?'SURVIVAL · WAVE ':'WAVE ')+S.wave+' / '+runWaves()); setT('phaset',alive+' enem'+(alive===1?'y':'ies')+' left'); } else if(S.phase==='won'){ setT('wavet',heldT); setT('phaset',''); } else if(S.held){ setT('wavet',heldT); setT('phaset',TOUCH?'The hall is yours — tap ▶ MOVE ON when ready':'The hall is yours — walk, collect, spend · G moves on when you are ready'); } else if(S.phase==='build'){ setT('wavet',S.wave?'HALL HELD — BUILD PHASE':'BUILD PHASE'); setT('phaset',TOUCH?'Place defenses, then tap 📯':'Place defenses (1–7), then press G to sound the horn'); }
   DEFKEYS.forEach(k=>{ const el=$('slot-'+k), cfg=DEFS[k]; const cls='slot'+(placing===k?' sel':'')+((S.mana<cfg.mana||S.du+cfg.du>DU_CAP)?' poor':''); if(el.className!==cls) el.className=cls; });
   let pr=''; if(placing){ pr=placeStage===1?(ghostOk?(TOUCH?'Drag or ↻ to turn it  ·  tap ✔ to build':'Move the mouse, R or wheel to turn it  ·  click to build  ·  right-click to pick it up'):ghostReason):(ghostOk?(TOUCH?'Tap ✔ to set it down · look to aim':'Click to set it down  ·  look to aim  ·  Esc cancel'):ghostReason); } else { const d=nearestDef(3.4); if(d){ const cost=Math.ceil((d.max-d.hp)/8); pr=DEFS[d.kind].name+(d.lvl>1?' Mk '+MARK[d.lvl]:'')+'  '+Math.ceil(d.hp)+'/'+d.max+(cost?'  ·  E repair ('+cost+' mana)':(d.lvl<MAXLVL?'  ·  E upgrade ('+upCost(d)+' mana)':''))+'  ·  X sell (+'+Math.round(d.spent*.7)+')'; } }
   setT('prompt',pr); const wb=S.phase!=='build'; if(hud.wb!==wb){ hud.wb=wb; $('wavebtn').disabled=wb; }
@@ -1290,6 +1315,7 @@ window.__dd={renders:()=>RENDERS,placeDefAt,upgradeDef,S,hero,cam,renderer,camer
   setHero:(x,z,yaw)=>{ hero.x=x; hero.z=z; if(yaw!==undefined) hero.yaw=yaw; }, setCam:(yaw,pitch,dist)=>{ cam.yaw=yaw; cam.pitch=pitch; cam.dist=dist; cam.d=dist; },
   status:()=>({phase:S.phase,held:S.held,wave:S.wave,mana:S.mana,du:S.du,crystal:S.crystal,heroHp:Math.round(hero.hp),enemies:enemies.filter(e=>!e.dead).length,defs:defs.length,projs:projs.length,orbs:orbs.length,queue:spawnQ.length,kills:S.kills,loot:loot.length,t:+S.t.toFixed(1)}),
   addMana:n=>{ S.mana+=n; }, mute:()=>setSound(false), reflow, flow:()=>flowDef, flowFly:()=>flowFly, worldInfo:()=>Object.assign({duCap:DU_CAP},world.userData),
+  survival:()=>SURVIVAL, runWaves, waveComp:w=>waveComp(w===undefined?effWave():w), statWave,   // build 176 (survival-test.mjs)
   map:()=>({index:MAPI,tutorial:TUTORIAL,id:MAP.id,name:MAP.name,waves:MAP.waves,wbase:MAP.wbase,total:MAPS.length,cleared:MAPS_CLEARED,gw:GW,gh:GH,wallH:WALLH,windows:world.userData.windows|0,style:MAP.style||null}), maps:()=>MAPS.map(m=>({id:m.id,name:m.name,waves:m.waves})), effWave, winMap, lanes:()=>LANES, pathLen:(cx,cz)=>flowFree.dist[idx(cx,cz)], pathLenFly:(cx,cz)=>flowFly.dist[idx(cx,cz)], cellAt:(cx,cz)=>gat(cx,cz), cw, cwz, floorH, baseFloor, hgtAt:(cx,cz)=>hgt[idx(cx,cz)] };
 })();
 

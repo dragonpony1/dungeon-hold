@@ -45,7 +45,7 @@ node familiar-test.mjs                  # the single-file fallback suite reads $
 Suites: feat, loot, glb, place, csp, mob, mobpath, meta, tavern, tavernroom, familiar, familiars2, cone, music, defglb,
 ballista, lootfeel, weapons, towers, paperdoll, casino, ogre, forge, fix-r1, fix-r2, heroes, void, sets, throne, campaign, maps,
 moat, aim, newmobs, trollboss, armory, totem, pause, pwa, share, hideout, loadorder, bagsort, gearlock, coop-rewards,
-voidset, halo-column, ballista-rig, forestset, trainer, menu, crystalalarm, coop-lifecycle, coop-freeze, victorylap, towerpick, tutorial, and the verify-* adversarial suites. Run them one at a
+voidset, halo-column, ballista-rig, forestset, trainer, menu, crystalalarm, coop-lifecycle, coop-freeze, victorylap, towerpick, tutorial, survival, and the verify-* adversarial suites. Run them one at a
 time: ten in parallel time out on page loads (the page is 6.8 MB).
 
 ## Adding Meshy art
@@ -71,6 +71,16 @@ ledge taller than a step, a flight is entered and left at its ends only (never o
 raised tops and stone drops are generated after the walls (pale stone in marble halls), gates, torches, banners and
 windows sit on the floor of the cell they stand at, and `style.rails` adds a balustrade (instanced posts and a gold rail)
 along every drop of a step and a half or more. The ballista pitches (`d.pitch`, the yoke's rotation.x) at its target's height, so it tilts up at a drake or a mob on a landing, and its bolt flies in three dimensions: it dies on a wall, the floor, a landing's face or the ceiling, and hits what it passes through at its own height (`ballista-test.mjs`).
+
+Survival (build 176, `95b-survival.js` + game.js `SURVIVAL`): the title's MODE row under the map picker picks ⚔ CAMPAIGN or ☠ SURVIVAL;
+Survival opens per map once that map is cleared (`ddMapsCleared`), is remembered (`ddMode`, never honoured on `?silent`, in the tutorial
+or on a page following a co-op host) and runs the map to `SURVIVAL_WAVES` (50). Its first waves are the campaign's exactly; past the
+map's own count `waveComp` keeps its formulas climbing with higher caps and quicker spawns (volume is the ramp: map one 39 mobs on
+wave 7, 59 on 10, 116 on 20, 173 on 30, 231 on 40, 286 on 50), a mob's own hp/damage/speed climb at half pace (`statWave`,
+`SURVIVAL_STAT_RATE`), no more than `SURVIVAL_LIVE` (60) are alive at once (the rest wait in the queue), and every tenth wave is a
+boss wave (a troll boss leads, one ogre per ten waves behind it). Wave 50 held is SURVIVAL COMPLETE (the victory lap, no NEXT MAP,
+nothing unlocked); each map's best waves held is `dd_survivalBest {mapId:waves}`, on the mode row and the end screen. Co-op: the
+host's mode rides the world broadcast, `mapHeld`/`runEnd` and the lobby roster. `survival-test.mjs` covers it.
 
 Maps so far: 1 The Gnome Hall (the original), 2 The Throne Room (a 27×54 marble stair hall under an 18-high ceiling with
 arched windows and drapes, five levels high: the horde comes in at the south gate on the floor and climbs twin first

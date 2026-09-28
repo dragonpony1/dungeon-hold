@@ -60,7 +60,9 @@ const isReady=e=>!e.ghost&&!e.moving&&(e.inHall||(e.soon!==null&&e.map===lobbyMa
 // ---- host: keeps the roster, answers every status with the whole lobby, and sends it out whenever it changes
 function hostSelf(){ const id=N.myId()||L.code; R.set(id,clean(mine(),id,true)); }
 function rosterList(){ const a=[...R.values()]; return a.filter(e=>e.host).concat(a.filter(e=>!e.host)).slice(0,MAXROWS); }
-function stateMsg(){ return {code:L.code,map:MAPI,mapName:MAP.name,build:BUILD,started:L.started,roster:rosterList().map(e=>Object.assign(clean(e,e.id,e.host),{seat:''}))}; }   // seats stay with the host: a guest has no business with anyone else's
+// build 176: the host's mode rides along (survival) so every row's map line reads "· SURVIVAL" -- the guests don't reload for it: a
+// guest plays whatever the host's world broadcast says (99-network.js), and the host's mode row is shut while the lobby is open
+function stateMsg(){ return {code:L.code,map:MAPI,mapName:MAP.name,survival:!!SURVIVAL,build:BUILD,started:L.started,roster:rosterList().map(e=>Object.assign(clean(e,e.id,e.host),{seat:''}))}; }   // seats stay with the host: a guest has no business with anyone else's
 function hostBroadcast(force){ if(L.role!=='host') return; const m=stateMsg(), j=JSON.stringify(m), now=Date.now();
   if(!force&&(j===L.bcastJ?now-L.bcastAt<3000:now-L.bcastAt<900)) return; L.bcastJ=j; L.bcastAt=now; N.send('lobby',m); }
 N.onMessage('lobbyMe',(d,from)=>{ if(L.role!=='host'||typeof from!=='string') return;
@@ -78,7 +80,7 @@ function sendMine(force){ if(L.role!=='guest') return; const m=mine(), j=JSON.st
   if(!force&&j===L.sentJ&&now-L.sentAt<(m.soon===null?1000:3000)) return; L.sentJ=j; L.sentAt=now; N.send('lobbyMe',m); }
 N.onMessage('lobby',(d,from)=>{ if(L.role!=='guest'||from!==L.code||!(L.phase==='lobby'||L.phase==='waiting')||!d||typeof d!=='object') return;
   const map=int(d.map,0,99); if(map<0) return;
-  L.gotState=Date.now(); L.hostMap=map; L.hostMapName=txt(d.mapName,40); L.hostBuild=int(d.build,0,1e6); if(d.started) L.started=true;
+  L.gotState=Date.now(); L.hostMap=map; L.hostMapName=txt(d.mapName,40); L.hostSurvival=!!d.survival; L.hostBuild=int(d.build,0,1e6); if(d.started) L.started=true;
   L.roster=(Array.isArray(d.roster)?d.roster:[]).slice(0,MAXROWS).map(r=>clean(r,r&&r.id,r&&r.host));
   if(map!==MAPI){ moveTo(map); return; }
   if(L.started&&L.phase==='lobby') L.phase='waiting';
@@ -140,7 +142,7 @@ function rows(){ if(L.role==='host') return rosterList();
   if(L.gotState&&my&&!a.some(r=>r.id===my)) a.push(clean(mine(),my,false)); return a; }
 function render(){ if(L.phase==='off') return; const host=L.role==='host', guest=L.role==='guest', rs=rows(), n=rs.length, r=rs.filter(isReady).length;
   const html=rs.map(rowHTML).join('')||'<p class="netMsg">Joining the host\'s lobby…</p>'; if(html!==L.rowsHTML){ L.rowsHTML=html; el.roster.innerHTML=html; }
-  const mn=lobbyMapName(); setText(el.map,(host?'':'ROOM '+L.code+(mn?' · ':''))+(mn?'MAP '+(lobbyMap()+1)+' · '+mn:'')+(L.movedFrom!==null&&guest?' (you were moved here from map '+(L.movedFrom+1)+')':''));
+  const mn=lobbyMapName(); setText(el.map,(host?'':'ROOM '+L.code+(mn?' · ':''))+(mn?'MAP '+(lobbyMap()+1)+' · '+mn+((host?SURVIVAL:L.hostSurvival)?' · SURVIVAL':''):'')+(L.movedFrom!==null&&guest?' (you were moved here from map '+(L.movedFrom+1)+')':''));
   show(el.start,host&&!L.started); el.start.disabled=!(n&&r===n); setText(el.start,'▶ START · '+r+'/'+n+' ready');
   show(el.force,host&&!L.started&&r<n&&Date.now()-L.openedAt>=WAIT_MS);
   const noLobby=guest&&L.phase==='lobby'&&!L.gotState&&Date.now()-L.joinedAt>NOLOBBY_MS;
