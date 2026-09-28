@@ -24,8 +24,19 @@ function dmgOf(m){ return Math.max(.1,Math.round(famDmg()*m*10)/10); }
 const FAM_ASKED={};
 function ensureFam(k){ if(!FAM_FILES[k]||FAM_ASKED[k]) return; FAM_ASKED[k]=true; fetchBytes(ASSET(FAM_FILES[k]),'first').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,FAM_H[k]); toonify(root,fit.scale); const w=fit.wrap; w.children[0].position.y-=FAM_H[k]*.5; FAM_GLB[k]=w;
     if(fam&&fam.g.userData.kind===k&&!fam.g.userData.glb) famRemove(); }catch(e){ console.warn('familiar model '+k,e); } },e=>console.warn('familiar model '+k,e))).catch(e=>console.warn('familiar model '+k,e)); }   // the pet respawns next frame with the real model
+// build 215 (Matt: "the wisp in game has been named bramblewhisk when we have an all new model and thumbs for bramblewhisk"): a named pet wears its
+// own body -- the same real model its floor stand shows (93c-weaponstand.js NAMED_REAL) -- instead of the Wisp's it used to borrow (famKind reads
+// words in the name, and neither name has one, so both fell back to 'Wisp'). How it fights doesn't change: kind stays what famKind says
+const NAMED_PET={bramblewhisk:{file:'named-bramblewhisk.glb',h:.8,desc:'thorn shots'},old_lamplight:{file:'named-old_lamplight.glb',h:.85,desc:'lantern sparks'}};
+const NP_GLB={}, NP_ASKED={};
+function namedPet(it){ return it&&it.named&&NAMED_PET[it.named]?it.named:null; }
+function ensureNamedPet(k){ if(NP_ASKED[k]) return; NP_ASKED[k]=true; const c=NAMED_PET[k]; fetchBytes(ASSET(c.file),'soon').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,c.h); toonify(root,fit.scale); const w=fit.wrap; w.children[0].position.y-=c.h*.5; NP_GLB[k]=w;
+    if(fam&&fam.g.userData.named!==k&&namedPet(gear.familiar)===k) famRemove(); }catch(e){ console.warn('named pet '+k,e); } },e=>console.warn('named pet '+k,e))).catch(e=>console.warn('named pet '+k,e)); }   // the pet respawns next frame in its own body
+// the Wisp's own look (its Celestial Projectile and burst, below) is for the Wisp itself, not a named pet that happens to fight like one
+function trueWisp(){ return !!(fam&&fam.g.userData.kind==='Wisp'&&!namedPet(gear.familiar)); }
 const famModelProc=famModel;
-famModel=function(it){ const kind=famKind(it); ensureFam(kind); const T=FAM_GLB[kind]; if(!T) return famModelProc(it); const g=T.clone(); const col=RCOL[it.rarity]||0xcfcfcf; const gl=glow(col,1.0,.4); gl.position.y=-.05; g.add(gl);   // rarity shows as the halo under the pet
+famModel=function(it){ const nk=namedPet(it); if(nk){ ensureNamedPet(nk); const N=NP_GLB[nk]; if(N){ const g=N.clone(); const col=RCOL[it.rarity]||0xcfcfcf; const gl=glow(col,1.0,.4); gl.position.y=-.05; g.add(gl); const root=new THREE.Group(); root.add(g); root.userData={wings:[],motes:[],kind:famKind(it),glb:true,named:nk}; return root; } }   // until its own body lands it wears the stand-in below
+  const kind=famKind(it); ensureFam(kind); const T=FAM_GLB[kind]; if(!T) return famModelProc(it); const g=T.clone(); const col=RCOL[it.rarity]||0xcfcfcf; const gl=glow(col,1.0,.4); gl.position.y=-.05; g.add(gl);   // rarity shows as the halo under the pet
   const root=new THREE.Group(); root.add(g); root.userData={wings:[],motes:[],kind,glb:true}; return root; };
 const famRemoveProc=famRemove;
 famRemove=function(){ if(fam&&fam.g.userData.glb){ scene.remove(fam.g); fam.g.traverse(m=>{ if(m.isSprite&&m.material) m.material.dispose(); }); fam=null; famClearBolts(); } else famRemoveProc(); swoop=null; };   // shared model geometry stays
@@ -86,7 +97,7 @@ function swoopUpdate(dt){ if(!swoop||!fam) return; const w=swoop; w.t+=dt/w.dur;
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(fam){ swoopUpdate(dt); } famShotsUpdate(dt); famFxUpdate(dt); burnUpdate(dt); }; }
 const famClearProc=famClearBolts; famClearBolts=function(){ famClearProc(); for(const s of famShots){ scene.remove(s.mesh); } famShots.length=0; };
 // the bag / sheet says what each familiar does
-const statStrProc=statStr; statStr=function(it){ const s=statStrProc(it); if(it&&it.slot==='familiar'){ const C=FAM_KIND[famKind(it)]; if(C) return s+' · '+C.desc; } return s; };
+const statStrProc=statStr; statStr=function(it){ const s=statStrProc(it); if(it&&it.slot==='familiar'){ const nk=namedPet(it); if(nk) return s+' · '+NAMED_PET[nk].desc; const C=FAM_KIND[famKind(it)]; if(C) return s+' · '+C.desc; } return s; };
 Object.assign(window.__familiar,{build:it=>famModel(it),thornsOn:()=>thornsOn(),   /* late-bound (build 150): 30-familiar.js exported the procedural famModel before this module replaced it, so builds through the hook (a party puppet's pet, the suites) never asked for the Meshy model */ rate:()=>famRate(),dmg:()=>famDmg(),kinds:FAM_KIND,kindMul:()=>K(),glb:()=>Object.keys(FAM_GLB),fx:()=>famFx.length,shots:()=>famShots.length,swoop:()=>swoop?{t:+swoop.t.toFixed(2),bit:swoop.bit}:null,burning:()=>enemies.filter(e=>e.burnT>0&&!e.dead).length,pos:()=>fam?fam.g.position.toArray().map(v=>+v.toFixed(2)):null});
 window.__thorns={on:thornsOn,speed:THORN.speed,col:THORN.col,shots:()=>famShots.map(x=>({thorn:!!x.thorn,vx:x.vx,vy:x.vy,vz:x.vz,g:x.g,t:x.t}))};
 // ---- build 178: BRAMBLEWHISK's thorn patches. Its power (97-mythics.js) always read "your pet's shots leave thorn patches that slow
@@ -139,7 +150,7 @@ window.__bramble={on:brambleOn,sprout:(x,z,dmg)=>brambleSprout(x,z,dmg,false),li
 // lowest priority (no tier argument -- build 201's lesson from the pig bosses: never make a real-gameplay fetch
 // tier wait behind something purely decorative), so an early Wisp hit or two may land silent until it's in.
 let wispBurstGLB=null, wispBurstP=null;
-function loadWispBurst(){ if(wispBurstGLB||wispBurstP) return; wispBurstP=fetchBytes(ASSET('fam-wisp-burst.glb')).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ const root=gltf.scene||gltf.scenes[0]; root.traverse(o=>{ if(o.isMesh&&o.material){ o.material.transparent=true; o.material.depthWrite=false; } }); wispBurstGLB=root; }).catch(e=>console.warn('wisp burst model',e)); }
+function loadWispBurst(){ if(wispBurstGLB||wispBurstP) return; wispBurstP=fetchBytes(ASSET('fam-wisp-burst.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ const root=gltf.scene||gltf.scenes[0]; root.traverse(o=>{ if(o.isMesh&&o.material){ o.material.transparent=true; o.material.depthWrite=false; } }); wispBurstGLB=root; }).catch(e=>console.warn('wisp burst model',e)); }
 // build 204 fix (loadorder-test.mjs/throneload-test.mjs both caught this): calling loadWispBurst() unconditionally at
 // module load fetched it for every single player, whether or not they ever touch a Wisp -- same mistake as the pig
 // bosses' first draft, just smaller. ensureFam('Wisp') (this file, above) already only fetches the base Wisp model
@@ -149,8 +160,8 @@ function wispBurst(x,z){ if(!wispBurstGLB) return; const m=wispBurstGLB.clone(tr
 function wispBurstUpdate(dt){ for(let i=wispBursts.length-1;i>=0;i--){ const b=wispBursts[i]; b.t+=dt; const life=.35, k=b.t/life;
     const s=k<.4?(k/.4)*.55:.55*(1-(k-.4)/.6); b.m.scale.setScalar(Math.max(.001,s)); b.m.rotation.y+=dt*4;
     if(k>=1){ scene.remove(b.m); wispBursts.splice(i,1); } } }
-{ const prevLand=famLand; famLand=function(x,z,dmg){ prevLand(x,z,dmg); if(kindOf()==='Wisp') wispBurst(x,z); }; }
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); wispBurstUpdate(dt); if(fam&&fam.g.userData.kind==='Wisp'){ loadWispBurst(); loadWispProjectile(); } }; }   // kindOf() defaults to 'Wisp' with no pet equipped at all (its own no-familiar fallback) -- checking fam directly avoids re-making the exact eager-fetch mistake this block exists to fix
+{ const prevLand=famLand; famLand=function(x,z,dmg){ prevLand(x,z,dmg); if(trueWisp()) wispBurst(x,z); }; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); wispBurstUpdate(dt); if(trueWisp()){ loadWispBurst(); loadWispProjectile(); } }; }   // kindOf() defaults to 'Wisp' with no pet equipped at all (its own no-familiar fallback) -- checking fam directly avoids re-making the exact eager-fetch mistake this block exists to fix
 window.__wispburst={loaded:()=>!!wispBurstGLB,count:()=>wispBursts.length,ensure:loadWispBurst};
 // ---------------------------------------------------------------- the Wisp's own bolt: Matt's "Celestial Projectile"
 // replaces the generic tiny-sphere-plus-glow every other familiar's shot still uses (famBoltMesh, 30-familiar.js) --
@@ -160,12 +171,12 @@ window.__wispburst={loaded:()=>!!wispBurstGLB,count:()=>wispBursts.length,ensure
 // that stands on a floor but wrong for something meant to fly through the air aimed from its middle (same reasoning
 // 50-defmodels.js's own ballista-bolt loader uses for exactly the same shape of problem)
 let wispProjGLB=null, wispProjP=null;
-function loadWispProjectile(){ if(wispProjGLB||wispProjP) return; wispProjP=fetchBytes(ASSET('fam-wisp-projectile.glb')).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ try{
+function loadWispProjectile(){ if(wispProjGLB||wispProjP) return; wispProjP=fetchBytes(ASSET('fam-wisp-projectile.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ try{
       const root=gltf.scene||gltf.scenes[0]; root.updateMatrixWorld(true);
       const box=new THREE.Box3().setFromObject(root); const size=box.getSize(new THREE.Vector3()), ctr=box.getCenter(new THREE.Vector3());
       const sc=.4/Math.max(size.x,size.y,size.z,1e-6);
       const inner=new THREE.Group(); inner.add(root); inner.scale.setScalar(sc); inner.position.set(-ctr.x*sc,-ctr.y*sc,-ctr.z*sc);
       toonify(root,sc); const w=new THREE.Group(); w.add(inner); wispProjGLB=w;
     }catch(e){ console.warn('wisp projectile model',e); } }).catch(e=>console.warn('wisp projectile model',e)); }
-{ const prevBoltMesh=famBoltMesh; famBoltMesh=function(col){ if(fam&&fam.g.userData.kind==='Wisp'&&wispProjGLB){ const b=new THREE.Group(); const m=wispProjGLB.clone(true); m.userData.noOL=true; b.add(m); b.add(glow(col,.75,.9)); return b; } return prevBoltMesh(col); }; }
+{ const prevBoltMesh=famBoltMesh; famBoltMesh=function(col){ if(trueWisp()&&wispProjGLB){ const b=new THREE.Group(); const m=wispProjGLB.clone(true); m.userData.noOL=true; b.add(m); b.add(glow(col,.75,.9)); return b; } return prevBoltMesh(col); }; }
 })();
