@@ -27,8 +27,9 @@ MOBS.cyclops={hp:430,spd:1.35,dmg:36,cd:2.9,mana:45,ranged:15,splash:2.6,detour:
 // there's no reason to spend that download on a first-time player just clearing the map -- fetch only once Survival is
 // actually the chosen mode here, which is also exactly when there's real time (however long the run takes to reach
 // wave 20) for it to land in the background before he'd ever need to show
-function loadCyclopsModel(){ if(MOBGLB.cyclops||loadCyclopsModel.started) return; loadCyclopsModel.started=true;
-  Promise.all(Object.values(FILES).map(f=>fetchBytes(ASSET(f),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej)))))
+let loadPromise=null;
+function loadCyclopsModel(){ if(MOBGLB.cyclops) return Promise.resolve(); if(loadPromise) return loadPromise;
+  loadPromise=Promise.all(Object.values(FILES).map(f=>fetchBytes(ASSET(f),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej)))))
   .then(([wg,rg,ag])=>{ try{ const root=wg.scene||wg.scenes[0];
     // Matt's Meshy export authors this rig's look almost entirely through an emissiveTexture (emissiveFactor [1,1,1],
     // metallic/roughness left at the glTF default of 1/1) -- a baked-lighting technique that reads fine in Meshy's own
@@ -42,7 +43,8 @@ function loadCyclopsModel(){ if(MOBGLB.cyclops||loadCyclopsModel.started) return
     const fit=fitModel(root,MOBDIM.cyclops.fit); toonify(root,fit.scale);
     const clips=[].concat(wg.animations||[],rg.animations||[],ag.animations||[]);
     MOBGLB.cyclops={wrap:fit.wrap,map:mapClips(clips),scale:fit.scale}; }catch(e){ console.warn('cyclops model',e); } })
-  .catch(e=>console.warn('cyclops model',e)); }
+  .catch(e=>console.warn('cyclops model',e));
+  return loadPromise; }
 // checked every tick (cheap: two property reads) rather than once at page load, since a player can flip the title
 // screen's mode toggle to Survival on the Throne Room after this module has already finished its own top-level run
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(MAP.id==='throne'&&SURVIVAL) loadCyclopsModel(); }; }
@@ -113,5 +115,5 @@ const fillEl=()=>el.querySelector('.fill');
 { const prev=kill; kill=function(e){ const wasCyclops=e.kind==='cyclops'&&!e.dead; prev(e);
     if(wasCyclops){ const bonus=800; S.mana+=bonus; dropLoot(rollItem(4),R(-1.6,1.6),4.6,true); dropLoot(rollItem(4),R(-1.6,1.6),4.6,true);   // 4 is Legendary, rollRarity's own natural ceiling -- 5 is the separate mythic tier 87-mythicdrops.js hands out on its own roll, not something to force here
       toast('☠ THE CYCLOPS FALLS — +'+bonus+' mana, and the hall remembers'); SFX.setBong&&SFX.setBong(); } }; }
-window.__cyclops={loaded:()=>!!MOBGLB.cyclops,spawn:spawnCyclops,alive:()=>{ const e=enemies.find(x=>x.kind==='cyclops'&&!x.dead); return e?{hp:e.hp,max:e.max,stompCd:+e.stompCd.toFixed(2),eyeCd:+e.eyeCd.toFixed(2),eyeCharging:e.eyeCharging,eyeOpenT:+e.eyeOpenT.toFixed(2)}:null; }};
+window.__cyclops={loaded:()=>!!MOBGLB.cyclops,spawn:spawnCyclops,ensure:loadCyclopsModel,alive:()=>{ const e=enemies.find(x=>x.kind==='cyclops'&&!x.dead); return e?{hp:e.hp,max:e.max,stompCd:+e.stompCd.toFixed(2),eyeCd:+e.eyeCd.toFixed(2),eyeCharging:e.eyeCharging,eyeOpenT:+e.eyeOpenT.toFixed(2)}:null; }};
 })();

@@ -75,7 +75,13 @@ function ensure(){ if(el) return; css();
 function jumpWave(n){ n=Math.max(1,n|0); for(const e of enemies) if(!e.dead){ e.through=true; e.dead=.001; } spawnQ.length=0;
   S.phase='build'; S.held=false; S.wave=Math.max(0,n-1); startWave();
   toast('Jumped to wave '+n); }
-function spawnNow(kind){ const k=Object.keys(LANES)[0]; if(!k){ toast('no lane on this map'); return; } spawnEnemy(kind,k); toast('spawned a '+kind); }
+function spawnNow(kind){ const k=Object.keys(LANES)[0]; if(!k){ toast('no lane on this map'); return; }
+  // build 189: the Cyclops's real model only starts loading once Survival is actually chosen on the Throne Room
+  // (95c-cyclops.js, build 188 -- keeps his ~31 MB off every other map/mode); spawning him here before that finishes
+  // used to fall through to the generic block-body placeholder (the same one 'ogre' uses when ITS model isn't ready
+  // yet) -- Matt: "spawned in a cyclops and he came in as one of those wooden dolls". Wait for the real model first.
+  if(kind==='cyclops'&&window.__cyclops&&!window.__cyclops.loaded()){ toast('loading the Cyclops…'); window.__cyclops.ensure().then(()=>{ spawnEnemy(kind,k); toast('spawned a '+kind); }); return; }
+  spawnEnemy(kind,k); toast('spawned a '+kind); }
 function toggle(v){ ensure(); open=v===undefined?!open:v; el.classList.toggle('hide',!open); }
 addEventListener('keydown',e=>{ if(e.code==='F9'){ e.preventDefault(); toggle(); } });
 window.__devpanel={toggle,isOpen:()=>open};
