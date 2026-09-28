@@ -53,13 +53,16 @@ function loadCyclopsModel(){ if(MOBGLB.cyclops) return Promise.resolve(); if(loa
 // held" check (same function, run first), so on the exact frame the hall would otherwise go quiet he's already a
 // living enemy and that check finds one, same as if a player-visible mob were still up
 let doneWave=-1;   // the map-relative wave he's already answered, so a later run (a fresh page) can ask again
-// build 190: Matt's own entrance stinger (40-music.js's SAMPLES/playSample/sampleFetch are bare top-level identifiers,
-// not wrapped in that file, so reachable by name the same way any other game.js function is) -- 3.1 s, too short to
-// loop as ambient combat music, but a perfect one-shot flourish for the moment he arrives, filling the gap left by
-// pulling SFX.roar() (Matt: "take the laugh out" -- that was literally assets/sfx-ogre-laugh.wav, not his own sound)
-SAMPLES.cyclopsHorn='assets/music-cyclops.mp3'; sampleFetch('cyclopsHorn');
+// build 194 (Matt, on the 3.1 s clip: "thats the file i could get" -- "could you just loop or repeat it 7 times then
+// default back to combat phase music"): 40-music.js's TRACKS/setMusic/musFetch are bare top-level identifiers, same as
+// SAMPLES, so a third track slots in next to 'build'/'wave' the same way -- setMusic('boss') on spawn starts it
+// looping (Web Audio's own native loop, same mechanism 'wave' already uses), and a plain timer counted in S.t switches
+// back to 'wave' after exactly 7 repeats, not tied to whether he's still alive
+const BOSS_MUSIC_DUR=3.1227916666666666, BOSS_MUSIC_LOOPS=7; let bossMusicUntil=-1;
+TRACKS.boss='assets/music-cyclops.mp3'; musFetch('boss');
 function spawnCyclops(){ const k=Object.keys(LANES)[0]; if(!k) return; doneWave=S.wave; banner('☠ THE CYCLOPS','the ground shakes — something huge is coming');
-  const e=spawnEnemy('cyclops',k); e.stompCd=5+R(0,2); e.eyeCd=7+R(0,2); e.eyeCharging=false; e.eyeOpenT=0; camShake=1.1; playSample('cyclopsHorn',.8); }
+  const e=spawnEnemy('cyclops',k); e.stompCd=5+R(0,2); e.eyeCd=7+R(0,2); e.eyeCharging=false; e.eyeOpenT=0; camShake=1.1;
+  setMusic('boss'); bossMusicUntil=S.t+BOSS_MUSIC_DUR*BOSS_MUSIC_LOOPS; }
 { const prev=updateWave; updateWave=function(dt){
     if(SURVIVAL&&S.phase==='wave'&&MAP.id==='throne'&&!spawnQ.length&&!enemies.some(e=>!e.dead)){
       const mw=effWave()-MAP.wbase; if(mw===20&&doneWave!==S.wave) spawnCyclops();
@@ -119,7 +122,8 @@ document.head.appendChild(css);
 const el=document.createElement('div'); el.id='cycbar'; el.innerHTML='☠ THE CYCLOPS<div class="track"><i class="fill"></i></div>'; document.body.appendChild(el);
 const fillEl=()=>el.querySelector('.fill');
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); const e=enemies.find(x=>x.kind==='cyclops'&&!x.dead);
-    if(e){ el.style.display='block'; fillEl().style.width=Math.max(0,100*e.hp/e.max)+'%'; } else el.style.display='none'; }; }
+    if(e){ el.style.display='block'; fillEl().style.width=Math.max(0,100*e.hp/e.max)+'%'; } else el.style.display='none';
+    if(bossMusicUntil>=0&&S.t>=bossMusicUntil){ bossMusicUntil=-1; setMusic('wave'); } }; }
 // ---------------------------------------------------------------- the reward: no Gladehart yet (a separate pet-companion
 // entity that isn't built), so a solid one-time payout instead -- a real payoff for the fight today, upgraded to the
 // stag once that system exists
