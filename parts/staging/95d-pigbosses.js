@@ -21,13 +21,17 @@ if(TUTORIAL) return;
 // as the Cyclops's own unused pose file: it was only ever needed for the studio-render check before building.
 const PIGS={
   pigflail:{files:{walk:'pigflail-walk.glb',run:'pigflail-run.glb',attack:'pigflail-attack.glb'},atkName:'Axe_Spin_Attack',
-    dim:{fit:3.1,h:2.85,r:.82,nat:{walk:.85,run:1.9}},
+    // build 199 (Matt: "make the pig bosses bigger" -> "taller"): fit (fitModel's target height) bumped well past a
+    // proportional scale-up; r (hit radius) only nudged, so they read as tall and imposing without their footprint
+    // ballooning to match -- fitModel scales a model uniformly by height, so "taller" in practice means a bigger fit
+    // with r held back, not a true non-uniform stretch (which would distort a rigged character's proportions)
+    dim:{fit:4.3,h:4.0,r:.95,nat:{walk:.85,run:1.9}},
     stats:{hp:380,spd:1.3,dmg:18,cd:2.5,mana:24}},
   pigdagger:{files:{walk:'pigdagger-walk.glb',run:'pigdagger-run.glb',attack:'pigdagger-attack.glb'},atkName:'Double_Blade_Spin',
-    dim:{fit:2.4,h:2.2,r:.58,nat:{walk:1.0,run:2.3}},
+    dim:{fit:3.3,h:3.0,r:.66,nat:{walk:1.0,run:2.3}},
     stats:{hp:230,spd:2.0,dmg:11,cd:1.5,mana:18}},
   pigsling:{files:{walk:'pigsling-walk.glb',run:'pigsling-run.glb',attack:'pigsling-attack.glb'},atkName:'Crouch_Charge_and_Throw',
-    dim:{fit:2.6,h:2.4,r:.68,nat:{walk:.9,run:2.0}},
+    dim:{fit:3.6,h:3.3,r:.78,nat:{walk:.9,run:2.0}},
     stats:{hp:200,spd:1.3,dmg:14,cd:2.4,mana:20,splash:2.3}},   // no `ranged` -- same call the Cyclops made: that field only ever makes the generic AI snipe a TOWER from range (game.js's own ranged-standoff check explicitly skips it for a hero target), so a melee-seeking mob plus Sling's own charge-and-throw special below (mirroring Boulder Toss) covers both a hero and a tower without fighting itself. `splash` stays so fireArrow picks the heavier grenade visual for the throw.
 };
 for(const k in PIGS){ MOBDIM[k]=PIGS[k].dim; MOBS[k]=PIGS[k].stats; }
@@ -58,17 +62,34 @@ function pigsLoaded(){ return Object.keys(PIGS).every(k=>!!MOBGLB[k]); }
 // checked every tick, same reasoning as the Cyclops: a player can reach wave 5 on a page that's been open the whole
 // time, this can't be decided once at load
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(!SURVIVAL&&MAP.id==='throne'&&S.wave>=5) loadAllPigs(); }; }
-// ---------------------------------------------------------------- when they arrive: wave 7 of the Throne Room's own
-// count (its last regular campaign wave), once that wave's usual content is fully cleared -- checked before
-// updateWave's own "wave held" check, same as the Cyclops, so the hall never actually goes quiet on the frame they
-// show up
+// ---------------------------------------------------------------- build 199 (Matt, after playtesting build 198's
+// "arrives after the wave clears" version): "I realized they need to come out in the wave, so wave 7 should have
+// about 100 mobs, bring them out together around 75" -- a bigger wave 7, with the trio bursting in partway through
+// it (roughly 75 of ~100 regular mobs already out) instead of waiting for a quiet, empty room. waveComp's own
+// per-wave mob counts are shared by every map and by Survival's reuse of the same formula, so the extra goblins are
+// appended here, only for Throne's own campaign wave 7, rather than touched in the shared function itself.
+{ const prev=waveComp; waveComp=function(w){ const c=prev(w);
+    if(!SURVIVAL&&MAP.id==='throne'&&(w-MAP.wbase)===MAP.waves){
+      const goblins0=c.q.filter(x=>x.kind==='goblin').length, extra=Math.max(0,100-c.q.length);
+      if(extra){ const lanes=[...new Set(c.q.map(x=>x.lane))]; let t=c.q.length?c.q[c.q.length-1].t+.35:1.5;
+        for(let i=0;i<extra;i++){ c.q.push({t,kind:'goblin',lane:lanes[i%lanes.length]}); t+=.35; }
+        c.q.sort((a,b)=>a.t-b.t); c.desc=c.desc.replace('Goblins ×'+goblins0,'Goblins ×'+(goblins0+extra)); }
+    }
+    return c; }; }
+// captured once at the start of wave 7 specifically -- how many total mobs this wave holds, so the trigger below can
+// tell when "about 75 of them" have come out, not just count down to zero
+let pigWaveTotal=0;
+{ const prev=startWave; startWave=function(){ prev(); if(!SURVIVAL&&MAP.id==='throne'&&S.wave===MAP.waves) pigWaveTotal=spawnQ.length; }; }
+// ---------------------------------------------------------------- when they arrive: partway through wave 7 (not
+// after it clears), once roughly 75 of that wave's ~100 mobs have come out the gate -- the remaining regular mobs
+// keep arriving on their own schedule around them, same as the Cyclops's banner/camera-shake/music entrance either way
 let doneWave=-1;
 function spawnPigBosses(){ const lk=Object.keys(LANES); if(!lk.length) return; doneWave=S.wave;
   banner('🐗 THE PIG BOSSES','three raiders storm the hall'); camShake=1.0; setMusic('pigboss');
   spawnEnemy('pigflail',lk[0]); spawnEnemy('pigdagger',lk[1%lk.length]); spawnEnemy('pigsling',lk[2%lk.length]); }
 { const prev=updateWave; updateWave=function(dt){
-    if(!SURVIVAL&&S.phase==='wave'&&MAP.id==='throne'&&!spawnQ.length&&!enemies.some(e=>!e.dead)){
-      const mw=effWave()-MAP.wbase; if(mw===MAP.waves&&doneWave!==S.wave) spawnPigBosses();
+    if(!SURVIVAL&&S.phase==='wave'&&MAP.id==='throne'&&S.wave===MAP.waves&&doneWave!==S.wave&&pigWaveTotal>0){
+      if(pigWaveTotal-spawnQ.length>=75) spawnPigBosses();
     }
     prev(dt); }; }
 // ---------------------------------------------------------------- SLING'S charge-and-throw: same shape as the
