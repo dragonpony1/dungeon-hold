@@ -114,7 +114,7 @@ function boulderToss(e){ let best=null, bd=14; for(const d of defs){ const dd=Ma
 const css=document.createElement('style'); css.textContent=
  `#cycbar{position:fixed;left:50%;top:66px;transform:translateX(-50%);width:min(520px,70vw);z-index:20;text-align:center;pointer-events:none;display:none;font:bold 13px Georgia,serif;color:#ffd8ec;text-shadow:0 2px 3px #000}
   #cycbar .track{height:14px;background:#1a0e14;border:2px solid #4a1420;border-radius:5px;overflow:hidden;box-shadow:0 3px 8px #000a;margin-top:3px}
-  #cycbar .fill{height:100%;background:linear-gradient(#ff5a8a,#c81a4a);width:100%;transition:width .2s}`;
+  #cycbar .fill{display:block;height:100%;background:linear-gradient(#ff5a8a,#c81a4a);width:100%;transition:width .2s}`;   // build 192 (Matt: "the big one at the top is just black"): an <i> is inline by default, and height/width don't apply to an inline box -- the fill collapsed to nothing, leaving only the dark .track behind it visible
 document.head.appendChild(css);
 const el=document.createElement('div'); el.id='cycbar'; el.innerHTML='☠ THE CYCLOPS<div class="track"><i class="fill"></i></div>'; document.body.appendChild(el);
 const fillEl=()=>el.querySelector('.fill');
