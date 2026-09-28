@@ -31,12 +31,18 @@ const SET_STAT={weapon:['dmg','spd','tow'],armor:['hp','def','regen'],amulet:['m
 const MYTHIC_STAT={dmg:24,spd:45,hp:156,def:24,regen:4.5,tow:41,mana:65,move:20,fdmg:35,frate:63,trate:20,tarea:18};
 const FAM_KINDS=['Wisp','Bat','Sprite','Fire Imp','Crystal Owl','Storm Drake'];
 function weaponLook(){ const hm=window.__weapons.mount&&window.__weapons.mount(); return hm&&hm.staff?'staff':hm&&hm.bow?'bow':'sword'; }
-function setRec(slot,setId,famKind){ const tail=(SETS.find(s=>s[0]===setId)||[,'of a set'])[1]; const stats={}; for(const k of SET_STAT[slot]) stats[k]=MYTHIC_STAT[k];
-  if(slot==='weapon'){ const look=weaponLook(); return {slot,name:'Mythic '+look[0].toUpperCase()+look.slice(1)+' '+tail,setId,look,rarity:5,lvl:20,stats}; }
+function setRec(slot,setId,famKind,lookOverride){ const tail=(SETS.find(s=>s[0]===setId)||[,'of a set'])[1]; const stats={}; for(const k of SET_STAT[slot]) stats[k]=MYTHIC_STAT[k];
+  if(slot==='weapon'){ const look=lookOverride||weaponLook(); const it={slot,name:'Mythic '+look[0].toUpperCase()+look.slice(1)+' '+tail,setId,look,rarity:5,lvl:20,stats};
+    if(lookOverride) it.forceLook=lookOverride;   // build 208 (Matt: "theres not an option to drop a bow it just says weapon"): weaponLook() only ever follows the CURRENT hero's own mount (a Knight always gets a sword no matter what set you pick), and the floor stand itself (93c-weaponstand.js) re-derives the same way, ignoring it.look entirely -- forceLook is a dev-panel-only field real drops never carry, so this never changes how a normal weapon's stand tracks whichever hero you're currently playing
+    return it; }
   const base=slot==='familiar'?(famKind||'Wisp'):SLOT_BASE[slot];
   return {slot,name:base+' '+tail,setId,rarity:5,lvl:20,stats}; }
 function giveIt(rec){ const it=window.__mythic.normalize(rec); if(!it){ toast('could not build that item'); return; } Meta.onPickup(it,{x:hero.x,y:hero.y+1,z:hero.z}); toast('Gave: '+it.name); }
-function dropIt(rec){ const it=window.__mythic.normalize(rec); if(!it){ toast('could not build that item'); return; } const a=Math.random()*6.283; dropLoot(it,hero.x+Math.cos(a)*1.4,hero.z+Math.sin(a)*1.4,true); toast('Dropped: '+it.name); }
+function dropIt(rec){ const it=window.__mythic.normalize(rec); if(!it){ toast('could not build that item'); return; } const a=Math.random()*6.283;
+  // build 208 (Matt: "why i couldnt drop on the floor from dev hud"): 1.4 units was well inside LOOT_HOOK's own 3.2-unit
+  // auto-pickup radius (game.js) -- anything dropped this close gets magnetically pulled back into the bag within about
+  // half a second, before there's ever a real chance to look at it standing on the floor. Clear of the hook now.
+  dropLoot(it,hero.x+Math.cos(a)*4.5,hero.z+Math.sin(a)*4.5,true); toast('Dropped: '+it.name); }
 function ensure(){ if(el) return; css();
   el=document.createElement('div'); el.id='devpanel'; el.className='hide';
   const mobOpts=Object.keys(MOBS).map(k=>`<option value="${k}">${k}</option>`).join('');
@@ -51,7 +57,9 @@ function ensure(){ if(el) return; css();
     <div class="sect"><label>give yourself</label><div class="row"><button data-g="1000">+1000g</button><button data-g="10000">+10000g</button></div><div class="row"><button data-m="500">+500◆</button><button data-m="99999">+99999◆</button></div></div>
     <div class="sect"><label>hero</label><div class="row"><select id="dp-hero">${heroOpts}</select><button id="dp-hero-go">Switch</button></div></div>
     <div class="sect"><label>set piece</label><div class="row"><select id="dp-slot">${slotOpts}</select></div><div class="row"><select id="dp-set">${setOpts}</select></div>
-      <div class="row" id="dp-famrow"><select id="dp-fam">${famOpts}</select></div><div class="row"><button id="dp-set-give">Give</button><button id="dp-set-drop">Drop here</button></div></div>
+      <div class="row" id="dp-famrow"><select id="dp-fam">${famOpts}</select></div>
+      <div class="row" id="dp-lookrow"><select id="dp-look"><option value="sword">Sword</option><option value="staff">Staff</option><option value="bow">Bow</option></select></div>
+      <div class="row"><button id="dp-set-give">Give</button><button id="dp-set-drop">Drop here</button></div></div>
     <div class="sect"><label>named mythic</label><div class="row"><select id="dp-named">${namedOpts}</select></div><div class="row"><button id="dp-named-give">Give</button><button id="dp-named-drop">Drop here</button></div></div>
     <div class="sect"><label>unlock</label><div class="row"><button id="dp-unlock">All maps + heroes (reloads)</button></div></div>
     <div class="note">F9 to hide · a real player never sees this</div>`;
@@ -62,9 +70,15 @@ function ensure(){ if(el) return; css();
   el.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>Meta.addGold(+b.dataset.g));
   el.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ S.mana+=+b.dataset.m; });
   $('dp-hero-go').onclick=()=>{ if(window.__heroes) window.__heroes.select($('dp-hero').value); };
-  const syncFamRow=()=>{ $('dp-famrow').style.display=$('dp-slot').value==='familiar'?'flex':'none'; }; $('dp-slot').onchange=syncFamRow; syncFamRow();
-  $('dp-set-give').onclick=()=>giveIt(setRec($('dp-slot').value,$('dp-set').value,$('dp-fam').value));
-  $('dp-set-drop').onclick=()=>dropIt(setRec($('dp-slot').value,$('dp-set').value,$('dp-fam').value));
+  const syncFamRow=()=>{ const w=$('dp-slot').value==='weapon'; $('dp-famrow').style.display=$('dp-slot').value==='familiar'?'flex':'none'; $('dp-lookrow').style.display=w?'flex':'none'; if(w) $('dp-look').value=weaponLook(); }; $('dp-slot').onchange=syncFamRow; syncFamRow();   // defaults to the current hero's own mount, same as before this control existed -- just now overridable
+  const lookVal=()=>$('dp-slot').value==='weapon'?$('dp-look').value:undefined;
+  // for a weapon, warm whichever real model the floor stand will actually ask for before handing/dropping it -- a
+  // bow (or any set's real .glb) can be a genuine async fetch the first time (86j-realbows.js), and window.__weapons
+  // model()'s own callback already resolves at once for anything already cached or code-built, so this costs nothing
+  // in the common case and just avoids the exact race that showed "Dropped: Mythic Bow of Radiance" with no bow ever appearing
+  const withWeaponReady=(rec,fn)=>{ if(rec.slot!=='weapon'){ fn(); return; } const key=window.__weaponStand&&window.__weaponStand.modelFor(rec); if(!key){ fn(); return; } window.__weapons.model(key,()=>fn()); };
+  $('dp-set-give').onclick=()=>{ const rec=setRec($('dp-slot').value,$('dp-set').value,$('dp-fam').value,lookVal()); withWeaponReady(rec,()=>giveIt(rec)); };
+  $('dp-set-drop').onclick=()=>{ const rec=setRec($('dp-slot').value,$('dp-set').value,$('dp-fam').value,lookVal()); withWeaponReady(rec,()=>dropIt(rec)); };
   $('dp-named-give').onclick=()=>giveIt({tier:'named',named:$('dp-named').value,lvl:20});
   $('dp-named-drop').onclick=()=>dropIt({tier:'named',named:$('dp-named').value,lvl:20});
   $('dp-unlock').onclick=()=>{ try{ localStorage.setItem('ddMapsCleared',String(MAPS.length)); }catch(e){} location.reload(); }; }
