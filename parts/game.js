@@ -644,6 +644,9 @@ const Meta={
 let spawnQ=[], placing=null, ghost=null, ghostRot=0, ghostCell=null, ghostPos=[0,0], ghostOk=false, ghostReason='', ghostYaw=0;
 let placeStage=0, anchorPos=null, anchorYaw=0;   // 0: ghost follows your aim · 1: set down, rotating in place
 let bannerT=0, toastT=0, dmgFlash=0, crystalShake=0, camShake=0, introA=0, locked=false, edgeX=.5, mouseDown=false, deathCut=null;
+// build 182: the right-click charged special (73-specials.js) -- a seam like Meta's, not a real function, so a page
+// with no such module (an old build, a test that never loads it) just gets a right-click that does nothing instead of erroring
+let specialPress=()=>{}, specialRelease=()=>{};
 const joy={x:0,y:0,id:null,ox:0,oy:0}; let lookId=null, lookX=0, lookY=0;
 
 function angDiff(a,b){ let d=(b-a)%TAU; if(d>PI) d-=TAU; if(d<-PI) d+=TAU; return d; }
@@ -670,7 +673,7 @@ function heroUpdate(dt){
   let mx=0,mz=0; if(K.w) mz+=1; if(K.s) mz-=1; if(K.d) mx+=1; if(K.a) mx-=1; if(TOUCH){ mx+=joy.x; mz+=joy.y; }
   const len=Math.hypot(mx,mz); hero.moving=len>.05; hero.slow=len<.5;
   if(hero.moving){ mx/=Math.max(len,1); mz/=Math.max(len,1); const fx=Math.sin(cam.yaw), fz=Math.cos(cam.yaw), rx=-Math.cos(cam.yaw), rz=Math.sin(cam.yaw);
-    const vx=fx*mz+rx*mx, vz=fz*mz+rz*mx; const mul=(K.shift?11:7.5)/7.5*(1+heroStat('move')/100)*heroMult('move'); hero.spdMul=mul; const spd=7.5*mul*(hero.aimSlow||1); moveCircle(hero,vx*spd*dt,vz*spd*dt,.42,true);
+    const vx=fx*mz+rx*mx, vz=fz*mz+rz*mx; const mul=(K.shift?11:7.5)/7.5*(1+heroStat('move')/100)*heroMult('move'); hero.spdMul=mul; const spd=7.5*mul*(hero.aimSlow||1)*(hero.specialSlow||1); moveCircle(hero,vx*spd*dt,vz*spd*dt,.42,true);   /* build 182: specialSlow is its own multiplier (73-specials.js), separate from aim.js's aimSlow -- both are blanket-assigned every tick by their own Meta.update hook, so a shared slot would have one clobber the other */
     hero.yaw=angLerp(hero.yaw,Math.atan2(vx,vz),1-Math.exp(-12*dt)); hero.ph+=dt*10*mul; }
   const fl=floorAt(hero.x,hero.z,hero.y); hero.vy-=20*dt; hero.y+=hero.vy*dt; if(hero.y<=fl){ if(!hero.grounded&&hero.vy<-3) SFX.land(); hero.y=fl; hero.vy=0; hero.grounded=true; } else hero.grounded=false;
   const stp=Math.floor(hero.ph/PI); if(stp!==hero.lastStep){ hero.lastStep=stp; if(hero.moving&&hero.grounded) SFX.step(); }
@@ -700,7 +703,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=181;
+const BUILD=182;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1125,8 +1128,8 @@ function updateDefs(dt){ const trampled=[];
     else if(d.kind==='zap'||d.kind==='venom'||d.kind==='ember'||d.kind==='dazzle'){ const rr=stat(d,'range'); const near=[]; for(const e of enemies){ if(!e.dead&&!e.fly&&Math.hypot(e.x-d.x,e.z-d.z)<rr+e.r*.5) near.push(e); }
       const col=d.kind==='zap'?0x7fd8ff:d.kind==='venom'?0x8ef05a:d.kind==='ember'?0xff6a2a:0xffd060;
       auraRing(d,rr,col,near.length,s);
-      if(d.kind==='dazzle'){ for(const e of near) e.confuseT=Math.max(e.confuseT||0,cfg.confuseDur); }
-      else if(d.kind==='venom'){ if(near.length&&d.cd<=0){ d.cd=stat(d,'cd'); for(const e of near){ e.poisonT=cfg.poisonDur; e.poisonDmg=stat(d,'dmg'); } } }
+      if(d.kind==='dazzle'){ for(const e of near) e.confuseT=Math.max(e.confuseT||0,stat(d,'confuseDur')); }   /* build 182: routed through stat() (its own fallback already returned cfg.confuseDur unchanged) so a Halo Surge can double it same as dmg/poisonDur, below */
+      else if(d.kind==='venom'){ if(near.length&&d.cd<=0){ d.cd=stat(d,'cd'); for(const e of near){ e.poisonT=stat(d,'poisonDur'); e.poisonDmg=stat(d,'dmg'); } } }   /* build 182: same stat() routing as confuseDur above */
       else if(near.length&&d.cd<=0){ d.cd=stat(d,'cd'); for(const e of near) hurt(e,stat(d,'dmg'),0,0); SFX.hit(); } } }
   for(const d of trampled){ removeDef(d); SFX.destroy(); toast(DEFS[d.kind].name+' trampled flat!'); }
 }
@@ -1355,8 +1358,8 @@ addEventListener('keyup',e=>{ const c=e.code; if(c==='KeyW'||c==='ArrowUp') K.w=
 addEventListener('blur',()=>{ for(const k in K) K[k]=0; });
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('mousedown',e=>{ if(TOUCH||S.phase==='start'||S.phase==='dead'||S.phase==='won'||S.phase==='deathcut'||Meta.isOpen()) return; mouseDown=true; if(!locked&&canvas.requestPointerLock) canvas.requestPointerLock();
-  if(e.button===0){ if(placing) confirmPlace(); else swing(); } else if(e.button===2){ if(placing){ if(placeStage===1) unstick(); else cancelPlace(); } else swing(); } });
-addEventListener('mouseup',()=>{ mouseDown=false; });
+  if(e.button===0){ if(placing) confirmPlace(); else swing(); } else if(e.button===2){ if(placing){ if(placeStage===1) unstick(); else cancelPlace(); } else specialPress(); } });   /* build 182: right-click starts charging the special instead of swinging (placement-cancel is unchanged) */
+addEventListener('mouseup',e=>{ mouseDown=false; if(e.button===2) specialRelease(); });
 addEventListener('mousemove',e=>{ if(TOUCH||S.phase==='start'||Meta.isOpen()) return; edgeX=e.clientX/innerWidth; const dx=e.movementX||0, dy=e.movementY||0; if(placing&&placeStage===1){ anchorYaw-=dx*SENS*1.6; return; } cam.yaw-=dx*SENS; cam.pitch=clamp(cam.pitch+dy*SENS,.1,1.15); });
 addEventListener('wheel',e=>{ if(S.phase==='start'||Meta.isOpen()) return; const s=Math.sign(e.deltaY); if(placing) rotateGhost(s*PI/12); else cam.dist=clamp(cam.dist+s*.8,4,12); },{passive:true});
 document.addEventListener('pointerlockchange',()=>{ locked=document.pointerLockElement===canvas; document.body.classList.toggle('play',locked); });

@@ -282,6 +282,32 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   stops it the moment a steep downward look would put it underground, landing it on the floor nearby instead of
   projecting a point far away and buried — without that clip a steep-down aim swung the reticle the wrong way on screen.
 
+- `73-specials.js` (build 182): right-click charged specials, one per hero. Matt: "start thinking about special charged
+  attacks, when right clicking. an attack that takes longer but clears mobs." Right-click no longer swings — game.js's
+  mousedown handler calls a new `specialPress()` seam instead (declared next to `mouseDown`, placement-cancel is
+  unchanged) — holding it, or a new ✦ touch button, for 1.2s charges it up (auto-fires the instant it's full; letting
+  go early cancels for free, not even the cooldown), at half move speed the whole time (`hero.specialSlow`, its own
+  multiplier next to `hero.aimSlow` so the two blanket-assigned-every-tick hooks can't clobber each other) and fully
+  exposed to being hit. A cast starts a flat 10s cooldown, never mana; a cooldown ring (a conic-gradient mask) shows on
+  a new small `#specialIcon` by the hotbar (desktop) and on the ✦ button (touch). One per hero, each scaled off the
+  caster's own `heroDmg()`/`stat()` like an ordinary hit: Gnome Knight WHIRLWIND CLEAVE (a 360° spin, radius 4, 3x
+  heroDmg(), outward knockback); Gnome Battle Witch STARFALL (aims a spot up to 12 units via 84-aim.js's own
+  reticle/ray, radius 5, 3x heroDmg(), slows — the Mycelium Cage's own `e.slowT` flag, not a new one); Gnome Fighter
+  HALO SURGE (a ring rolling out to 8 units over .6s for 2x heroDmg(), hitting only what it's just reached each tick,
+  plus a hall-wide 6s pulse doubling every halo tower's — zap/venom/ember/dazzle — `stat()` dmg/poisonDur/confuseDur,
+  keyed by wrapping `stat()` itself so it composes with a Rune Totem's own buff rather than special-casing it; two
+  tiny game.js routings, venom's `poisonT` and dazzle's `confuseT`, now read `stat(d,'poisonDur'/'confuseDur')`
+  instead of `cfg.poisonDur`/`cfg.confuseDur` directly so the double applies there too, byte-identical otherwise);
+  Troll Archer VOLLEY (aims a spot up to 16 units, 3x heroDmg() split across 5 waves a fifth of a second apart, each
+  hitting a 2.5-radius zone). Co-op: relayed like a swing/shot but entirely from this module, over `window.__net`'s
+  already-public surface (`send`/`onMessage`/`peers`/`role`) — 99-network.js needed no changes at all. A guest computes
+  its own numbers off its own gear and sends a `'specialCast'`; only the host applies it, to its REAL enemies/defs; the
+  caster's own screen plays the flourish at once regardless of role, and the host re-broadcasts a `'specialFx'` to
+  every OTHER connected guest so they see it too (a second guest watching a first guest's cast is the one gap left,
+  same as a guest's own bolt/arrow). `specials-test.mjs` covers every hero's mechanics plus the cooldown/charge/refusal
+  machinery (dead, a menu open, the wrong phase, already mid-swing or mid-draw) and the co-op relay both ways (a
+  guest's Cleave landing on a real host enemy, a guest's Halo Surge doubling a real host tower's `stat()`).
+
 - Mobs: a bandit archer (`archer`, ranged 11) throws rocks from wave 3; a troll archer (`troll`, ranged 13, 65 hp, a
   Meshy rig merged the same way as the hero pipeline — `meshy/trollmob/merge.html`, no weapon mount needed since mob
   ranged attacks are a separate tween-based projectile system, `fireArrow(e,x,y,z,hit)` in the core engine, unrelated to
