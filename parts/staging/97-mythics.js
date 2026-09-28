@@ -45,7 +45,7 @@ function returnGear(){ let list=[]; try{ const a=JSON.parse(localStorage.getItem
   try{ if(left.length) localStorage.setItem(RETURN_KEY,JSON.stringify(left)); else localStorage.removeItem(RETURN_KEY); }catch(e){}
   if(n) toast(n+' piece'+(n>1?'s':'')+' came back from the hideout — in your bag'); return n; }
 // ---- the powers
-const W={wave:-1,swings:0,mantle:false,tear:false,hour:false,oath:{},idleT:0,healT:0};
+const W={wave:-1,swings:0,mantle:false,tear:false,hour:false,oath:{},idleT:0,healT:0,healAcc:0};
 function newWave(){ W.mantle=false; W.tear=false; W.hour=false; W.oath={}; }
 function near(x,z,r){ return Math.hypot(x-hero.x,z-hero.z)<=r; }
 // ---- build 159 (5/7): a co-op GUEST's named mythics. has() reads this page's gear, and a guest's page has no real mobs, so a guest's
@@ -88,25 +88,76 @@ addEventListener('keydown',e=>{ if(e.code!=='KeyT'||e.repeat||Meta.isOpen()) ret
 function hallWave(){ const n=window.__net; if(n&&n.role&&n.role()==='guest'){ const w=n.world&&n.world(); if(w&&Number.isFinite(w.wave)) return w.wave; } return S.wave; }
 // build 162 (Matt: "maybe a little particulate animation when it's working"): a tower the Mossheart is mending sheds soft green motes
 // that drift up off it and fade -- a few a second while its health is actually climbing, none once it's full
-const MOTES=[];
-function mossHeal(d,dt){ if(d.hp>=d.max) return; d.hp=Math.min(d.max,d.hp+2*dt); d.mossMote=(d.mossMote||0)-dt; if(d.mossMote>0) return; d.mossMote=.22;
-  const top=(DEFS[d.kind]&&DEFS[d.kind].top)||1; const m=glow(0x8ef4c0,.5,.8); m.position.set(d.x+R(-.55,.55),baseFloor(d.x,d.z)+R(.2,Math.max(.6,top*.8)),d.z+R(-.55,.55)); m.name='mossMote'; m.userData.noOL=true; scene.add(m); MOTES.push({m,t:0}); }
-function motesTick(dt){ for(let i=MOTES.length-1;i>=0;i--){ const o=MOTES[i]; o.t+=dt; const k=o.t/.9; o.m.position.y+=dt*1.1; o.m.material.opacity=.8*(1-k)*Math.min(1,o.t*6); o.m.scale.setScalar(.5*(1-k*.4)); if(k>=1){ scene.remove(o.m); o.m.material.dispose(); MOTES.splice(i,1); } } }
+// build 172 (Matt: "the healing armor needs to be more pronounced"): a tower now mends 3% of ITS max a second (a flat 2/s was nothing on a
+// 400-hp tower), the motes are bigger and brighter, and each healed tower and the wearer float a green "+N" about once a second. The
+// motes are pooled -- a spent one waits in MOTE_FREE for the next instead of a new sprite and material each time
+const MOTES=[], MOTE_FREE=[], MOSS=0x6ef0a0, MOSS_DEEP=0x2fd86a, MOSS_CSS='#6dff9e';
+function mossHeal(d,dt){ if(d.hp>=d.max) return false; const add=Math.min(d.max-d.hp,d.max*.03*dt); d.hp+=add;
+  const top=(DEFS[d.kind]&&DEFS[d.kind].top)||1, fy=baseFloor(d.x,d.z);
+  d.mossAcc=(d.mossAcc||0)+add; d.mossNum=(d.mossNum||0)+dt; if(d.mossNum>=1){ d.mossNum=0; if(d.mossAcc>=1) floatText(d.x,fy+top+.5,d.z,'+'+Math.round(d.mossAcc),MOSS_CSS); d.mossAcc=0; }
+  d.mossMote=(d.mossMote||0)-dt; if(d.mossMote>0) return true; d.mossMote=.15;
+  mote(d.x+R(-.6,.6),fy+R(.2,Math.max(.7,top*.85)),d.z+R(-.6,.6)); return true; }
+function mote(x,y,z){ const m=MOTE_FREE.pop()||mossGlow(.8,1); m.visible=true; m.position.set(x,y,z); m.name='mossMote'; m.userData.noOL=true; scene.add(m); MOTES.push({m,t:0}); }
+function motesTick(dt){ for(let i=MOTES.length-1;i>=0;i--){ const o=MOTES[i]; o.t+=dt; const k=o.t/1.1; o.m.position.y+=dt*1.2; o.m.material.opacity=(1-k)*Math.min(1,o.t*6); o.m.scale.setScalar(.8*(1-k*.4)); if(k>=1){ scene.remove(o.m); MOTES.splice(i,1); if(MOTE_FREE.length<48) MOTE_FREE.push(o.m); else o.m.material.dispose(); } } }
+// build 172: while the Mossheart is working, its wearer shows it -- a soft green ring on the floor at the 6-unit reach, a gentle glow on
+// the wearer, and a thin beam of light to each tower it is actually mending (full ones get none). One AURA per wearer (the local hero,
+// or on the host each guest who wears it -- the guest's own screen draws none, it has no defenses to mend). The ring's quad, its soft
+// texture and the beam tube are shared; an aura makes its four materials once when it starts, and it all fades in, fades out, and is
+// removed and disposed when it stops. Nothing below allocates per frame: the beams are a pool per aura, the vectors are scratch
+const AURAS=new Map(); let AURA_GEO=null;
+function auraGeo(){ if(AURA_GEO) return AURA_GEO;
+  const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d'); const r=g.createRadialGradient(64,64,0,64,64,64);
+  r.addColorStop(0,'rgba(255,255,255,.05)'); r.addColorStop(.74,'rgba(255,255,255,.05)'); r.addColorStop(.9,'rgba(255,255,255,.32)'); r.addColorStop(.965,'rgba(255,255,255,1)'); r.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=r; g.fillRect(0,0,128,128); const ring=new THREE.PlaneGeometry(12,12); ring.rotateX(-Math.PI/2);   // 12 across: the ring's bright edge sits at the 6-unit reach
+  const beam=new THREE.CylinderGeometry(1,1,1,6,1,true);   // a unit tube, scaled per beam: its radius on x/z, its length on y
+  return AURA_GEO={tex:new THREE.CanvasTexture(c),ring,beam,UP:new THREE.Vector3(0,1,0),A:new THREE.Vector3(),B:new THREE.Vector3()}; }
+// toneMapped:false and a deeper green (C: sRGB in, as every colour here): through ACES an additive pale green on the lit floor reads white
+function mossMat(op){ return new THREE.MeshBasicMaterial({color:C(MOSS_DEEP),transparent:true,opacity:op,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}); }
+function mossGlow(scale,op){ const s=glow(MOSS,scale,op); s.material.toneMapped=false; return s; }
+function auraOf(key){ let a=AURAS.get(key); if(a) return a; const G=auraGeo();
+  const rm=mossMat(0); rm.map=G.tex; rm.side=THREE.DoubleSide; rm.polygonOffset=true; rm.polygonOffsetFactor=-2; const ring=new THREE.Mesh(G.ring,rm); ring.userData.noOL=true; ring.renderOrder=2;
+  const halo=mossGlow(2.6,0); halo.material.depthTest=false; halo.renderOrder=4; a={key,x:0,y:0,z:0,a:0,on:false,seen:false,t:R(0,6),ring,halo,core:mossMat(0),soft:mossMat(0),beams:[],list:[]};
+  AURAS.set(key,a); return a; }
+function auraDrop(a){ scene.remove(a.ring); scene.remove(a.halo); for(const b of a.beams){ scene.remove(b.c); scene.remove(b.s); }
+  a.ring.material.dispose(); a.halo.material.dispose(); a.core.dispose(); a.soft.dispose(); AURAS.delete(a.key); }
+// this frame's wearer: where it stands, whether it is mending now, and which towers it mended (mossHeal's true). Merely wearing it
+// makes nothing; the aura is born the moment it starts mending
+function auraMark(key,x,y,z,on){ if(!on&&!AURAS.has(key)) return null; const a=auraOf(key); a.x=x; a.y=y; a.z=z; a.on=on; a.seen=true; a.list.length=0; return a; }
+function beamAim(m,r,len){ const G=AURA_GEO; if(m.parent!==scene) scene.add(m); m.visible=true; m.quaternion.setFromUnitVectors(G.UP,G.B); m.scale.set(r,len,r); m.position.copy(G.A).addScaledVector(G.B,len/2); }   // G.A the wearer's chest, G.B the unit way to the tower
+function aurasTick(dt){ const G=AURA_GEO; if(!G) return;
+  for(const a of AURAS.values()){ if(!a.seen) a.on=false; a.seen=false; a.t+=dt;   // a wearer gone this frame (unequipped, a guest left) just fades where it stood
+    a.a=a.on?Math.min(1,a.a+dt*2):Math.max(0,a.a-dt*1.6); if(a.a<=0&&!a.on){ auraDrop(a); continue; }
+    const pulse=.85+.15*Math.sin(a.t*2.4), fy=baseFloor(a.x,a.z);
+    if(a.ring.parent!==scene) scene.add(a.ring); if(a.halo.parent!==scene) scene.add(a.halo);   // re-added if a level load cleared the scene under it
+    a.ring.position.set(a.x,fy+.06,a.z); a.ring.rotation.y=a.t*.15; a.ring.material.opacity=.5*a.a*pulse;
+    a.halo.position.set(a.x,a.y+1,a.z); a.halo.material.opacity=.5*a.a*pulse; a.halo.scale.setScalar(2.4+.2*Math.sin(a.t*2.4));   // drawn over the wearer (depthTest off) so the glow washes the model, not just the air behind it
+    if(a.on&&(a.mt=(a.mt||0)-dt)<=0){ a.mt=.1; const ang=R(0,6.283), rr=R(.3,.65); mote(a.x+Math.cos(ang)*rr,a.y+R(.1,1.3),a.z+Math.sin(ang)*rr); }   // and the same motes rise off the wearer: a big soft sprite alone read as a faint wash over the whole view, not a glow ON someone
+    a.core.opacity=.75*a.a*pulse; a.soft.opacity=.22*a.a*pulse;
+    const n=a.on?a.list.length:0; G.A.set(a.x,a.y+.85,a.z);
+    for(let i=0;i<n;i++){ let b=a.beams[i]; if(!b){ b={c:new THREE.Mesh(G.beam,a.core),s:new THREE.Mesh(G.beam,a.soft)}; b.c.userData.noOL=b.s.userData.noOL=true; b.c.renderOrder=b.s.renderOrder=3; a.beams.push(b); }
+      const d=a.list[i], top=(DEFS[d.kind]&&DEFS[d.kind].top)||1; G.B.set(d.x,baseFloor(d.x,d.z)+Math.max(.6,top*.6),d.z).sub(G.A); const len=G.B.length(); if(len<.05){ b.c.visible=b.s.visible=false; continue; }
+      G.B.multiplyScalar(1/len); beamAim(b.c,.028,len); beamAim(b.s,.075,len); }
+    for(let i=n;i<a.beams.length;i++){ a.beams[i].c.visible=a.beams[i].s.visible=false; } } }
 function tick(dt){ const wv=hallWave(); if(wv!==W.wave){ W.wave=wv; newWave(); } motesTick(dt);
   GW=(Meta.coopWear&&netRole()==='host')?Meta.coopWear():null; if(GW&&!GW.length) GW=null;   // the guests who wear named mythics, this frame (see GW above)
   if(anyWears('last_lantern')) for(const e of enemies){ if(e.dead) continue; const lit=nearWearer('last_lantern',e.x,e.z,5); if(lit){ e.lanternT=.35; if(!e.lanternFx&&e.mdl&&e.mdl.g){ const g=glow(0xffd27a,1.7,.35); g.position.y=(e.h||1.2)*.6; e.mdl.g.add(g); e.lanternFx=g; } } if(e.lanternFx) e.lanternFx.visible=e.lanternT>0; }
-  if(has('mossheart_aegis')){ if(!hero.moving&&hero.swingT<0&&hero.dead<=0) W.idleT+=dt; else W.idleT=0; if(W.idleT>=2){ hero.hp=Math.min(hero.max,hero.hp+hero.max*.03*dt); for(const d of defs) if(near(d.x,d.z,6)) mossHeal(d,dt); W.healT+=dt; if(W.healT>=1){ W.healT=0; floatText(hero.x,hero.y+1.6,hero.z,'✚','#8ef4c0'); } } } else W.idleT=0;
+  if(has('mossheart_aegis')){ if(!hero.moving&&hero.swingT<0&&hero.dead<=0) W.idleT+=dt; else W.idleT=0; const on=W.idleT>=2, a=auraMark('me',hero.x,hero.y,hero.z,on);
+    if(on){ const h0=hero.hp; hero.hp=Math.min(hero.max,hero.hp+hero.max*.03*dt); W.healAcc+=hero.hp-h0; for(const d of defs) if(near(d.x,d.z,6)&&mossHeal(d,dt)) a.list.push(d);
+      W.healT+=dt; if(W.healT>=1){ W.healT=0; if(W.healAcc>=1) floatText(hero.x,hero.y+1.8,hero.z,'+'+Math.round(W.healAcc),MOSS_CSS); W.healAcc=0; } } } else W.idleT=0;   // build 172: "+N", what it actually mended this second (was a bare ✚ even at full health)
   // a guest's Mossheart, on the host: the same heal on the host's copy of that guest (its idle flag rides the input) and the defenses
   // near it. The guest's own page heals its own bar by the same rule, side by side, as passive regen always has -- the copy used to stay
   // put, so the bar showed health the guest didn't have and the next hit took it all back at once
   for(const w of guestsWith('mossheart_aegis')){ const g=w.g; if(w.idle&&!(g.dead>0)) g.mossT=(g.mossT||0)+dt; else g.mossT=0;
-    if(g.mossT>=2){ g.hp=Math.min(g.max,g.hp+g.max*.03*dt); for(const d of defs) if(Math.hypot(d.x-g.x,d.z-g.z)<=6) mossHeal(d,dt); g.mossFx=(g.mossFx||0)+dt; if(g.mossFx>=1){ g.mossFx=0; floatText(g.x,g.y+1.6,g.z,'✚','#8ef4c0'); } } }
+    const on=g.mossT>=2, a=auraMark('g:'+w.id,g.x,g.y||0,g.z,on);
+    if(on){ const h0=g.hp; g.hp=Math.min(g.max,g.hp+g.max*.03*dt); g.mossAcc=(g.mossAcc||0)+g.hp-h0; for(const d of defs) if(Math.hypot(d.x-g.x,d.z-g.z)<=6&&mossHeal(d,dt)) a.list.push(d);
+      g.mossFx=(g.mossFx||0)+dt; if(g.mossFx>=1){ g.mossFx=0; if(g.mossAcc>=1) floatText(g.x,(g.y||0)+1.8,g.z,'+'+Math.round(g.mossAcc),MOSS_CSS); g.mossAcc=0; } } }
+  aurasTick(dt);   // after both: this frame's wearers are marked, and any not marked fade out
   if(anyWears('gloomcap_censer')) for(const d of defs){ if(d.pop<1&&nearWearer('gloomcap_censer',d.x,d.z,6)) d.pop=Math.min(1,d.pop+dt*2); }
   if(anyWears('hourglass_of_hollow_sand')&&!W.hour&&S.phase==='wave'&&S.crystal<CRYSTAL_MAX*.3){ W.hour=true; for(const e of enemies) if(!e.dead) e.crawlT=4; toast('The sand runs out — the horde crawls'); if(SFX.rift) SFX.rift(); if(netRole()==='host') window.__net.send('toast','The sand runs out — the horde crawls'); } }   // co-op: every guest hears it too, whoever wears the Hourglass
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); tick(dt); }; }
 // ---- the return: at load, when the hideout closes, when a title-screen visit ends (both show as open -> closed)
 let wasOpen=false; setInterval(()=>{ const open=!!(window.__hideout&&window.__hideout.isOpen()); if(wasOpen&&!open) returnGear(); wasOpen=open; },400);
 setTimeout(returnGear,1500);
-window.__mythic={NAMED,has,id:mythicId,normalize,returnGear,KEY:RETURN_KEY,hurt:(e,d)=>hurt(e,d,0,0),hurtHero:d=>hurtHero(d),tear,state:()=>({wave:W.wave,swings:W.swings,mantle:W.mantle,tear:W.tear,hour:W.hour,oath:Object.keys(W.oath),idleT:+W.idleT.toFixed(2)}),
+window.__mythic={NAMED,has,id:mythicId,normalize,returnGear,KEY:RETURN_KEY,hurt:(e,d)=>hurt(e,d,0,0),hurtHero:d=>hurtHero(d),tear,state:()=>({wave:W.wave,swings:W.swings,mantle:W.mantle,tear:W.tear,hour:W.hour,oath:Object.keys(W.oath),idleT:+W.idleT.toFixed(2),auras:[...AURAS.values()].map(a=>({key:a.key,a:+a.a.toFixed(2),on:a.on,beams:a.beams.filter(b=>b.c.visible&&b.c.parent).length}))}),
   worn:wornIds,roots,asHero,wearers:()=>GW?GW.map(w=>({id:w.id,myth:w.myth.slice(),idle:!!w.idle})):[]};   // build 159 (5/7): for 99-network.js (a guest's input, a guest's roots and sword) and the suites
 })();
