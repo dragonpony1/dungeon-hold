@@ -150,10 +150,18 @@ function buildLook(root,style){
   const fwd=forwardOf(B), back=fwd.clone().negate();
   const outL=lp.clone().sub(sp); outL.y=0; if(outL.lengthSq()<1e-6) outL.set(-1,0,0); outL.normalize();
   const outR=rp.clone().sub(sp); outR.y=0; if(outR.lengthSq()<1e-6) outR.set(1,0,0); outR.normalize();
-  const ls=padMesh(style), rs=padMesh(style); placeRadial(ls,B.lsh,outL,shoulderW*.36); placeRadial(rs,B.rsh,outR,shoulderW*.36);
+  // build 181 fix (main session, before publishing): the first pass sized the pad's own radius at .36 of the FULL
+  // shoulder-to-shoulder span, then pushed it out another .55 of that already-huge radius -- a pauldron nearly as wide
+  // as both shoulders together, floating well clear of the arm. A real pauldron caps the joint; it reads right at
+  // roughly a sixth of the shoulder span, sitting close in (placeRadial's own outward push is relative to worldRadius,
+  // so shrinking the radius alone pulls it back in to scale). Same story on the chest emblem: .56 of the shoulder span
+  // as its OWN scale, on a shape that already spans 2 local units tall, stood taller than the torso and floated a good
+  // way out in front of it on a .42 forward offset; a badge-sized emblem sitting close to the chest reads as armor
+  // instead of a hovering sign
+  const ls=padMesh(style), rs=padMesh(style); placeRadial(ls,B.lsh,outL,shoulderW*.16); placeRadial(rs,B.rsh,outR,shoulderW*.16);
   const chest=chestMesh(style); const chestBone=B.spineTop||B.collar; chestBone.updateWorldMatrix(true,false);
-  const cbp=new THREE.Vector3(); chestBone.getWorldPosition(cbp); const chestWorld=cbp.clone().addScaledVector(fwd,shoulderW*.42).addScaledVector(UPV,shoulderW*.08);
-  placeFacing(chest,chestBone,chestWorld,fwd,shoulderW*.56);
+  const cbp=new THREE.Vector3(); chestBone.getWorldPosition(cbp); const chestWorld=cbp.clone().addScaledVector(fwd,shoulderW*.2).addScaledVector(UPV,shoulderW*.02);
+  placeFacing(chest,chestBone,chestWorld,fwd,shoulderW*.28);
   const cape=capeMesh(style); const capeBone=B.collar; capeBone.updateWorldMatrix(true,false);
   const capeAnchor=new THREE.Vector3(); capeBone.getWorldPosition(capeAnchor); capeAnchor.addScaledVector(back,shoulderW*.14).addScaledVector(UPV,-shoulderW*.05);
   placeFacing(cape,capeBone,capeAnchor,back,shoulderW*1.15);
