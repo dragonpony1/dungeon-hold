@@ -131,4 +131,22 @@ function brambleUpdate(dt){ if(!BRAM.list.length) return; if(S.phase!=='build'&&
     e.thornCd=(e.thornCd||0)-dt; if(e.thornCd<=0){ e.thornCd=BRAM.tick; hurt(e,Math.max(.1,Math.round(best.dmg*BRAM.prick*10)/10),0,0); } } }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); brambleUpdate(dt); }; }
 window.__bramble={on:brambleOn,sprout:(x,z,dmg)=>brambleSprout(x,z,dmg,false),list:()=>BRAM.list.map(p=>({x:+p.x.toFixed(2),z:+p.z.toFixed(2),dmg:p.dmg,t:+p.t.toFixed(2),looks:p.looks})),max:BRAM.max,life:BRAM.life,r:BRAM.r,clear:brambleClear};   // sprout: 99-network.js grows a guest's patch on the host
+// ---------------------------------------------------------------- build 203: Matt sent a matching "Celestial Impact
+// Burst" model from Meshy for the new Wisp ("see if we can do something with these they go with the new wisp") -- a
+// static decorative mesh, no rig or animation, so it's animated in code instead: pops up to size then shrinks back
+// down over a third of a second wherever a Wisp's bolt actually lands. famLand (30-familiar.js) already fires for
+// every familiar's hit -- this just layers a visual on top of it, gated to the Wisp specifically. Fetched at the
+// lowest priority (no tier argument -- build 201's lesson from the pig bosses: never make a real-gameplay fetch
+// tier wait behind something purely decorative), so an early Wisp hit or two may land silent until it's in.
+let wispBurstGLB=null, wispBurstP=null;
+function loadWispBurst(){ if(wispBurstGLB||wispBurstP) return; wispBurstP=fetchBytes(ASSET('fam-wisp-burst.glb')).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ const root=gltf.scene||gltf.scenes[0]; root.traverse(o=>{ if(o.isMesh&&o.material){ o.material.transparent=true; o.material.depthWrite=false; } }); wispBurstGLB=root; }).catch(e=>console.warn('wisp burst model',e)); }
+loadWispBurst();
+const wispBursts=[];
+function wispBurst(x,z){ if(!wispBurstGLB) return; const m=wispBurstGLB.clone(true); m.position.set(x,1.1,z); m.rotation.y=rnd()*TAU; m.scale.setScalar(.001); m.userData.noOL=true; scene.add(m); wispBursts.push({m,t:0}); }
+function wispBurstUpdate(dt){ for(let i=wispBursts.length-1;i>=0;i--){ const b=wispBursts[i]; b.t+=dt; const life=.35, k=b.t/life;
+    const s=k<.4?(k/.4)*.55:.55*(1-(k-.4)/.6); b.m.scale.setScalar(Math.max(.001,s)); b.m.rotation.y+=dt*4;
+    if(k>=1){ scene.remove(b.m); wispBursts.splice(i,1); } } }
+{ const prevLand=famLand; famLand=function(x,z,dmg){ prevLand(x,z,dmg); if(kindOf()==='Wisp') wispBurst(x,z); }; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); wispBurstUpdate(dt); }; }
+window.__wispburst={loaded:()=>!!wispBurstGLB,count:()=>wispBursts.length,ensure:loadWispBurst};
 })();
