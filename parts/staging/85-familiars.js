@@ -63,14 +63,14 @@ famFire=function(e){ const n=heroStat('fproj')|0; fireOne(e,n); const k=kindOf()
 function fireOne(e,extra){ const k=kindOf(), C=FAM_KIND[k]; fam.kick=1;
   if(k==='Bat'){ const [x,y,z]=[fam.x,fam.y,fam.z]; swoop={e,t:0,dur:.6,bit:false,x0:x,y0:y,z0:z}; return; }
   if(k==='Sprite'){ const [x,y,z]=muzzle(); const th=thornsOn(); const T=th?.62/THORN.speed:.62, g=th?9:14; const tx=e.x+(e.walking?Math.sin(e.yaw)*mobSpd(e)*T*.6:0), tz=e.z+(e.walking?Math.cos(e.yaw)*mobSpd(e)*T*.6:0); const mesh=th?thornMesh():shotMesh(0x9be36a,.8,.11); mesh.position.set(x,y,z); scene.add(mesh);   /* thorns: under half the flight time and lighter gravity, so the arc tops out near 0.1 m instead of 0.7 -- a skim, not a lob */
-    famShots.push({x,y,z,vx:(tx-x)/T,vy:(e.y+.3-y)/T+.5*g*T,vz:(tz-z)/T,g,t:0,mesh,thorn:th,land:(s,h)=>{ const d=dmgOf(C.dmg); for(const m of nearMobs(s.x,s.z,C.r,null)){ famHurt(m,d,0,0,{slow:C.slow}); m.slowT=Math.max(m.slowT||0,C.slow); } SFX.spore();   /* {slow} (build 159, 5/7): a co-op guest's spores reach the host's mob too (famHurt's famHit), not only this page's proxy of it */
+    famShots.push({x,y,z,vx:(tx-x)/T,vy:(e.y+.3-y)/T+.5*g*T,vz:(tz-z)/T,g,t:0,mesh,thorn:th,land:(s,h)=>{ const d=dmgOf(C.dmg); for(const m of nearMobs(s.x,s.z,C.r,null)){ famHurt(m,d,0,0,{slow:C.slow}); m.slowT=Math.max(m.slowT||0,C.slow); } SFX.spore(); famLand(s.x,s.z,d);   /* {slow} (build 159, 5/7): a co-op guest's spores reach the host's mob too (famHurt's famHit), not only this page's proxy of it */
       fx((g,mt)=>{ mt.color.set(0x9be36a); for(let i=0;i<7;i++){ const p=glow(0x9be36a,.9+rnd()*.5,.55); const a=rnd()*TAU, r=rnd()*C.r*.8; p.position.set(s.x+Math.cos(a)*r,.25+rnd()*.5,s.z+Math.sin(a)*r); g.add(p); } },.9); }}); SFX.acorn(); return; }
   if(k==='Fire Imp'){ const [x,y,z]=muzzle(); const tx=e.x, ty=e.y+e.h*.5, tz=e.z; const dx=tx-x, dy=ty-y, dz=tz-z, d=Math.hypot(dx,dy,dz)||1, sp=thornsOn()?13*THORN.speed:13; const mesh=shotMesh(0xff7a20,1.3,.1); mesh.position.set(x,y,z); scene.add(mesh);
-    famShots.push({x,y,z,vx:dx/d*sp,vy:dy/d*sp,vz:dz/d*sp,g:0,t:0,mesh,trail:true,land:(s,h)=>{ const d1=dmgOf(C.dmg), d2=dmgOf(C.dmg*.5), bx={burn:C.burn,burnDmg:dmgOf(C.burnDmg)}; if(h){ famHurt(h,d1,s.vx/sp*.4,s.vz/sp*.4,bx); burn(h,C); } for(const m of nearMobs(s.x,s.z,C.splash,h)){ famHurt(m,d2,0,0,bx); burn(m,C); } SFX.hit();   /* bx (build 159, 5/7): the burn rides a co-op guest's famHit to the host's mob, whose own burnUpdate ticks it -- it used to be set on the guest's proxy alone and never tick anywhere, a third of the Imp's damage */
+    famShots.push({x,y,z,vx:dx/d*sp,vy:dy/d*sp,vz:dz/d*sp,g:0,t:0,mesh,trail:true,land:(s,h)=>{ const d1=dmgOf(C.dmg), d2=dmgOf(C.dmg*.5), bx={burn:C.burn,burnDmg:dmgOf(C.burnDmg)}; if(h){ famHurt(h,d1,s.vx/sp*.4,s.vz/sp*.4,bx); burn(h,C); } for(const m of nearMobs(s.x,s.z,C.splash,h)){ famHurt(m,d2,0,0,bx); burn(m,C); } SFX.hit(); famLand(h?h.x:s.x,h?h.z:s.z,d1);   /* bx (build 159, 5/7): the burn rides a co-op guest's famHit to the host's mob, whose own burnUpdate ticks it -- it used to be set on the guest's proxy alone and never tick anywhere, a third of the Imp's damage */
       fx((g,mt)=>{ mt.color.set(0xff7a20); const p=glow(0xffb040,2.2,.9); p.position.set(s.x,s.y,s.z); g.add(p); const q=glow(0xff4a10,1.4,.9); q.position.set(s.x,s.y,s.z); g.add(q); },.35); }}); SFX.harpoon(); return; }
-  if(k==='Crystal Owl'){ const from=new THREE.Vector3(...muzzle()); let cur=e, prev=from, d=dmgOf(C.dmg); const hitList=[]; for(let hop=0;hop<=C.hops+extra&&cur;hop++){ const to=new THREE.Vector3(cur.x,cur.y+cur.h*.55,cur.z); bolt(prev,to,0x9ee8ff,.03+.01*(hop===0),false); famHurt(cur,d,0,0); hitList.push(cur); prev=to; d=dmgOf(C.dmg*Math.pow(C.chain,hop+1));
+  if(k==='Crystal Owl'){ famLand(e.x,e.z,dmgOf(C.dmg)); const from=new THREE.Vector3(...muzzle()); let cur=e, prev=from, d=dmgOf(C.dmg);   /* build 178: the beam's first mob is where it lands (the chain hops don't each sprout one) */ const hitList=[]; for(let hop=0;hop<=C.hops+extra&&cur;hop++){ const to=new THREE.Vector3(cur.x,cur.y+cur.h*.55,cur.z); bolt(prev,to,0x9ee8ff,.03+.01*(hop===0),false); famHurt(cur,d,0,0); hitList.push(cur); prev=to; d=dmgOf(C.dmg*Math.pow(C.chain,hop+1));
       let nx=null, nd=C.reach; for(const m of famFoes()){ if(m.dead||hitList.includes(m)) continue; const dd=Math.hypot(m.x-cur.x,m.z-cur.z); if(dd<nd&&los(cur.x,cur.z,m.x,m.z)){ nd=dd; nx=m; } } cur=nx; } beep(1400,.14,'sine',.04,900); noise(.06,.03,6000); return; }
-  if(k==='Storm Drake'){ const from=new THREE.Vector3(...muzzle()); const to=new THREE.Vector3(e.x,e.y+e.h*.6,e.z); bolt(from,to,0xd8ecff,.045,true); famHurt(e,dmgOf(C.dmg),0,0); for(const m of nearMobs(e.x,e.z,C.r+.6*extra,e)){ bolt(to,new THREE.Vector3(m.x,m.y+m.h*.6,m.z),0xd8ecff,.03,true); famHurt(m,dmgOf(C.fork),0,0); }
+  if(k==='Storm Drake'){ const from=new THREE.Vector3(...muzzle()); const to=new THREE.Vector3(e.x,e.y+e.h*.6,e.z); bolt(from,to,0xd8ecff,.045,true); famHurt(e,dmgOf(C.dmg),0,0); famLand(e.x,e.z,dmgOf(C.dmg)); for(const m of nearMobs(e.x,e.z,C.r+.6*extra,e)){ bolt(to,new THREE.Vector3(m.x,m.y+m.h*.6,m.z),0xd8ecff,.03,true); famHurt(m,dmgOf(C.fork),0,0); }
     fx((g,mt)=>{ const p=glow(0xffffff,2.6,.8); p.position.set(e.x,e.y+e.h*.5,e.z); g.add(p); },.18); noise(.18,.14,2600); beep(90,.22,'sawtooth',.05,-40); return; }
   const n0=famBolts.length; famFireProc(e); if(thornsOn()&&famBolts.length>n0) thornify(famBolts[famBolts.length-1]); }   // Wisp: the spark bolt (a Forest thorn with the boon)
 function burn(e,C){ e.burnT=C.burn; e.burnDmg=dmgOf(C.burnDmg); e.burnTick=e.burnTick||0; }
@@ -81,7 +81,7 @@ function swoopUpdate(dt){ if(!swoop||!fam) return; const w=swoop; w.t+=dt/w.dur;
   const k=Math.sin(Math.min(1,w.t)*PI);   // 0 → 1 (at the mob) → 0 (back on the shoulder)
   const tx=e.dead?w.x0:e.x, ty=e.dead?w.y0:e.y+e.h*.7, tz=e.dead?w.z0:e.z; const px=lerp(fam.x,tx,k), py=lerp(fam.y,ty,k)+Math.sin(w.t*PI)*.3, pz=lerp(fam.z,tz,k);
   fam.g.position.set(px,py,pz); fam.g.rotation.y=Math.atan2((w.t<.5?tx:fam.x)-px,(w.t<.5?tz:fam.z)-pz); fam.g.rotation.x=(w.t<.5?.5:-.35)*k;
-  if(!w.bit&&w.t>=.5&&!e.dead){ w.bit=true; famHurt(e,dmgOf(K().dmg),Math.sin(fam.g.rotation.y)*.6,Math.cos(fam.g.rotation.y)*.6); const nb=heroStat('fproj')|0; if(nb>0) for(const m of nearMobs(e.x,e.z,1.6,e).slice(0,nb)) famHurt(m,dmgOf(K().dmg*.7),0,0); SFX.hit(); fx((g,mt)=>{ const p=glow(0xffe0a0,1.2,.8); p.position.set(e.x,e.y+e.h*.7,e.z); g.add(p); },.2); }
+  if(!w.bit&&w.t>=.5&&!e.dead){ w.bit=true; famHurt(e,dmgOf(K().dmg),Math.sin(fam.g.rotation.y)*.6,Math.cos(fam.g.rotation.y)*.6); famLand(e.x,e.z,dmgOf(K().dmg)); const nb=heroStat('fproj')|0; if(nb>0) for(const m of nearMobs(e.x,e.z,1.6,e).slice(0,nb)) famHurt(m,dmgOf(K().dmg*.7),0,0); SFX.hit(); fx((g,mt)=>{ const p=glow(0xffe0a0,1.2,.8); p.position.set(e.x,e.y+e.h*.7,e.z); g.add(p); },.2); }
   if(w.t>=1){ swoop=null; fam.g.rotation.x=0; } }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(fam){ swoopUpdate(dt); } famShotsUpdate(dt); famFxUpdate(dt); burnUpdate(dt); }; }
 const famClearProc=famClearBolts; famClearBolts=function(){ famClearProc(); for(const s of famShots){ scene.remove(s.mesh); } famShots.length=0; };
@@ -89,4 +89,46 @@ const famClearProc=famClearBolts; famClearBolts=function(){ famClearProc(); for(
 const statStrProc=statStr; statStr=function(it){ const s=statStrProc(it); if(it&&it.slot==='familiar'){ const C=FAM_KIND[famKind(it)]; if(C) return s+' · '+C.desc; } return s; };
 Object.assign(window.__familiar,{build:it=>famModel(it),thornsOn:()=>thornsOn(),   /* late-bound (build 150): 30-familiar.js exported the procedural famModel before this module replaced it, so builds through the hook (a party puppet's pet, the suites) never asked for the Meshy model */ rate:()=>famRate(),dmg:()=>famDmg(),kinds:FAM_KIND,kindMul:()=>K(),glb:()=>Object.keys(FAM_GLB),fx:()=>famFx.length,shots:()=>famShots.length,swoop:()=>swoop?{t:+swoop.t.toFixed(2),bit:swoop.bit}:null,burning:()=>enemies.filter(e=>e.burnT>0&&!e.dead).length,pos:()=>fam?fam.g.position.toArray().map(v=>+v.toFixed(2)):null});
 window.__thorns={on:thornsOn,speed:THORN.speed,col:THORN.col,shots:()=>famShots.map(x=>({thorn:!!x.thorn,vx:x.vx,vy:x.vy,vz:x.vz,g:x.g,t:x.t}))};
+// ---- build 178: BRAMBLEWHISK's thorn patches. Its power (97-mythics.js) always read "your pet's shots leave thorn patches that slow
+// and prick enemies", but all it did was dress the shots as thorns. Now wherever the wearer's pet shot lands (famLand: the Wisp's
+// bolt, the Sprite's pod, the Imp's fireball, the Owl's beam and the Drake's bolt on their first mob, the Bat's bite) a patch of dark
+// thorny vines sprouts on the floor: 1.4 across the radius, 4 s, sinking back into the stone over its last 0.8 s. A walking mob in
+// one crawls at 60% (the Frost Spire's chill: chillT/chillK, so the deepest cold or thorn wins and nothing stacks) and is pricked
+// for 15% of the shot that grew it every half second. Patches may overlap, but a mob is pricked by one of them at a time (the
+// strongest) -- a pack of them on one choke is a thicket, not twelve times the damage. At most 12 live (the oldest withers early).
+// The painted vine mat is one canvas texture; the thorns and arched runners share one geometry and one material each; only the
+// mat's material is per patch (12 at most, disposed with it), so each can fade on its own.
+// CO-OP: a guest's page has no real mobs, so a guest wearing it draws its patch on its own screen (looks only) and sends 'bramble'
+// to the host (99-network.js), which grows the real one -- slow, pricks and all -- where the host sees it. Other guests don't see a
+// guest's patches, and a guest doesn't see the host's: the patch is short-lived floor dressing, not worth a message to every page
+const BRAM={max:12,life:4,r:1.4,tick:.5,prick:.15,slow:.6,list:[],tex:null,thornGeo:null,vineGeo:null,thornMat:null,vineMat:null};
+function brambleOn(){ return !!(window.__mythic&&window.__mythic.has('bramblewhisk')); }
+function brambleTex(){ const c=document.createElement('canvas'); c.width=c.height=256; const g=c.getContext('2d'); const R=128;
+  const bg=g.createRadialGradient(R,R,0,R,R,R); bg.addColorStop(0,'rgba(18,26,10,.75)'); bg.addColorStop(.7,'rgba(22,34,12,.5)'); bg.addColorStop(1,'rgba(22,34,12,0)'); g.fillStyle=bg; g.fillRect(0,0,256,256);   // the trampled, shaded earth under the tangle
+  g.lineCap='round'; for(let i=0;i<16;i++){ let a=rnd()*TAU, r=rnd()*R*.35; let x=R+Math.cos(a)*r, y=R+Math.sin(a)*r; let h=rnd()*TAU; const w=3+rnd()*4; g.strokeStyle=i%3?'#2a4f17':'#3f7424'; g.lineWidth=w; g.beginPath(); g.moveTo(x,y);   // a curling runner, turning as it creeps outward
+    for(let k=0;k<9;k++){ h+=(rnd()-.5)*1.4; const nx=x+Math.cos(h)*14, ny=y+Math.sin(h)*14; if(Math.hypot(nx-R,ny-R)>R*.9) break; g.quadraticCurveTo(x+Math.cos(h+.6)*9,y+Math.sin(h+.6)*9,nx,ny);
+      const t=(k%2?1:-1), px=-Math.sin(h)*t, py=Math.cos(h)*t; g.save(); g.fillStyle='#8c7a3e'; g.beginPath(); g.moveTo(nx+px*w*.4,ny+py*w*.4); g.lineTo(nx+px*(w+7)+Math.cos(h)*3,ny+py*(w+7)+Math.sin(h)*3); g.lineTo(nx+px*w*.4+Math.cos(h)*5,ny+py*w*.4+Math.sin(h)*5); g.fill(); g.restore();   // a thorn off alternate sides
+      x=nx; y=ny; } g.stroke(); }
+  const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; return t; }
+function brambleParts(){ if(BRAM.tex) return; BRAM.tex=brambleTex(); BRAM.discGeo=new THREE.CircleGeometry(BRAM.r,24); BRAM.thornGeo=G.cone(.06,.42,5); BRAM.vineGeo=new THREE.TorusGeometry(.3,.045,5,10,PI); BRAM.thornMat=mat(0x8a7038); BRAM.vineMat=mat(0x3a6420); }
+function brambleSprout(x,z,dmg,looks){ brambleParts(); while(BRAM.list.length>=BRAM.max) brambleDrop(0);
+  const g=new THREE.Group(), y=baseFloor(x,z); g.position.set(x,y+.03,z); g.rotation.y=rnd()*TAU;
+  const disc=new THREE.Mesh(BRAM.discGeo,new THREE.MeshBasicMaterial({map:BRAM.tex,transparent:true,opacity:1,depthWrite:false})); disc.rotation.x=-PI/2; disc.userData.noOL=true; g.add(disc);
+  const up=new THREE.Group(); g.add(up);   // what stands up off the mat: it grows in and sinks away
+  for(let i=0;i<9;i++){ const a=rnd()*TAU, r=Math.sqrt(rnd())*BRAM.r*.85; const th=new THREE.Mesh(BRAM.thornGeo,BRAM.thornMat); th.position.set(Math.cos(a)*r,.16,Math.sin(a)*r); th.rotation.set((rnd()-.5)*.8,0,(rnd()-.5)*.8); th.scale.setScalar(.7+rnd()*.6); th.userData.noOL=true; up.add(th); }
+  for(let i=0;i<4;i++){ const a=rnd()*TAU, r=.3+rnd()*BRAM.r*.55; const v=new THREE.Mesh(BRAM.vineGeo,BRAM.vineMat); v.position.set(Math.cos(a)*r,0,Math.sin(a)*r); v.rotation.y=rnd()*TAU; v.scale.set(1,.7+rnd()*.5,1); v.userData.noOL=true; up.add(v); }
+  up.scale.set(1,.01,1); scene.add(g);
+  const p={x,z,dmg:Math.max(.1,+dmg||0),t:0,g,up,disc,looks:!!looks}; BRAM.list.push(p); return p; }
+function brambleDrop(i){ const p=BRAM.list[i]; scene.remove(p.g); p.disc.material.dispose(); BRAM.list.splice(i,1); }
+function brambleClear(){ while(BRAM.list.length) brambleDrop(0); }
+famLand=function(x,z,dmg){ if(!brambleOn()||!Number.isFinite(x)||!Number.isFinite(z)) return; const n=window.__net, guest=!!(n&&n.role&&n.role()==='guest');
+  brambleSprout(x,z,dmg,guest); if(guest) n.send('bramble',{x:+x.toFixed(2),z:+z.toFixed(2),dmg:+(+dmg||0).toFixed(2)}); };
+function brambleUpdate(dt){ if(!BRAM.list.length) return; if(S.phase!=='build'&&S.phase!=='wave'){ brambleClear(); return; }
+  for(let i=BRAM.list.length-1;i>=0;i--){ const p=BRAM.list[i]; p.t+=dt; if(p.t>=BRAM.life){ brambleDrop(i); continue; }
+    const grow=Math.min(1,p.t/.25), sink=Math.max(0,(p.t-(BRAM.life-.8))/.8); p.up.scale.set(1,Math.max(.01,easeOutBack(grow)*(1-sink)),1); p.up.position.y=-.1*sink; p.disc.material.opacity=Math.min(1,p.t/.15)*(1-sink); }
+  for(const e of enemies){ if(e.dead||e.fly) continue; let best=null; for(const p of BRAM.list){ if(p.looks) continue; if(Math.hypot(e.x-p.x,e.z-p.z)<BRAM.r+e.r*.5&&(!best||p.dmg>best.dmg)) best=p; } if(!best) continue;
+    e.chillT=Math.max(e.chillT||0,.25); e.chillK=Math.min(e.chillK||1,BRAM.slow);
+    e.thornCd=(e.thornCd||0)-dt; if(e.thornCd<=0){ e.thornCd=BRAM.tick; hurt(e,Math.max(.1,Math.round(best.dmg*BRAM.prick*10)/10),0,0); } } }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); brambleUpdate(dt); }; }
+window.__bramble={on:brambleOn,sprout:(x,z,dmg)=>brambleSprout(x,z,dmg,false),list:()=>BRAM.list.map(p=>({x:+p.x.toFixed(2),z:+p.z.toFixed(2),dmg:p.dmg,t:+p.t.toFixed(2),looks:p.looks})),max:BRAM.max,life:BRAM.life,r:BRAM.r,clear:brambleClear};   // sprout: 99-network.js grows a guest's patch on the host
 })();

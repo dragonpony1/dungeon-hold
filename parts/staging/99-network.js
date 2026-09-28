@@ -792,6 +792,13 @@ onMessage('roots',(d,fromId)=>{ if(role!=='host'||!d) return; const g=guestHero.
   const now=performance.now(); if(now-(g.rootsAt||-1e9)<300) return; g.rootsAt=now;   // four swings can't come quicker than this
   const ok=typeof d.x==='number'&&typeof d.z==='number'&&Math.hypot(d.x-g.x,d.z-g.z)<6, x=ok?d.x:g.x, z=ok?d.z:g.z, yaw=Number.isFinite(+d.yaw)?+d.yaw:g.yaw;
   if(M.roots(x,g.y,z,yaw,Math.max(0,Math.min(27,+d.reach||0)))) send('powerFx',{k:'roots',x:+x.toFixed(2),z:+z.toFixed(2),yaw:+yaw.toFixed(3)},fromId); });
+// build 178: a guest's Bramblewhisk. Its pet's shot landed on its own screen, which drew the thorn patch there (85-familiars.js famLand,
+// looks only: that page has no real mobs); the host grows the real one -- the slow and the pricks -- on its own floor. Only for a guest
+// that wears it, alive, near where its pet could reach, at no more than a pet's pace, and never a patch that pricks harder than a shot
+onMessage('bramble',(d,fromId)=>{ if(role!=='host'||!d) return; const g=guestHero.get(fromId), s=guestStats.get(fromId), B=window.__bramble; if(!g||g.dead>0||!(s&&s.myth.includes('bramblewhisk'))||!(B&&B.sprout)) return;
+  const x=+d.x, z=+d.z; if(!Number.isFinite(x)||!Number.isFinite(z)||Math.hypot(x-g.x,z-g.z)>FAM_RANGE+6) return;
+  const now=performance.now(); if(now-(g.brambleAt||-1e9)>500){ g.brambleAt=now; g.brambleN=0; } if(++g.brambleN>6) return;   /* a volley (twin shot, extra projectiles) lands together: six a half second is well over any pet's pace */
+  B.sprout(x,z,Math.max(0,Math.min(200,+d.dmg||0))); });
 // what the host says a guest's power just did, drawn on that guest's own screen: the Void rift's rings, the ROOTS shout
 onMessage('powerFx',d=>{ if(role!=='guest'||!d) return;
   if(d.k==='rift'&&Array.isArray(d.at)){ const P=Meta.packs; d.at.slice(0,24).forEach(p=>{ if(P&&P.ring&&p&&Number.isFinite(+p.x)&&Number.isFinite(+p.z)) P.ring(+p.x,+p.y||0,+p.z,+p.c||0x8a3dff); }); if(SFX.rift) SFX.rift(); }

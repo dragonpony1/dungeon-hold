@@ -40,9 +40,12 @@ function famBoltMesh(col){ const F=FAM_BOLT; if(!F.geo){ F.geo=G.sph(.08,8,6); F
 function famFire(e){ const it=gear.familiar, col=RCOL[it.rarity]||0xffffff; const b=famBoltMesh(col);
   const fx=Math.sin(fam.yaw), fz=Math.cos(fam.yaw); const x=fam.x+fx*.25, y=fam.y-.02, z=fam.z+fz*.25; const tx=e.x, ty=e.y+e.h*.55, tz=e.z; const dx=tx-x, dy=ty-y, dz=tz-z, d=Math.hypot(dx,dy,dz)||1;
   b.position.set(x,y,z); scene.add(b); famBolts.push({x,y,z,vx:dx/d*FAM_BOLT_SPD,vy:dy/d*FAM_BOLT_SPD,vz:dz/d*FAM_BOLT_SPD,t:0,mesh:b,col}); fam.kick=1; }
+// build 178: where a pet's shot lands -- the Wisp's bolt here, every other kind in 85-familiars.js -- with that shot's damage. Nothing
+// by default; 85-familiars.js grows the Bramblewhisk's thorn patch from it
+function famLand(x,z,dmg){}
 function famBoltsUpdate(dt){ for(let i=famBolts.length-1;i>=0;i--){ const b=famBolts[i]; b.t+=dt; b.x+=b.vx*dt; b.y+=b.vy*dt; b.z+=b.vz*dt; b.mesh.position.set(b.x,b.y,b.z); let hit=null;
     for(const e of famFoes()){ if(e.dead) continue; if(Math.hypot(e.x-b.x,e.z-b.z)<e.r+.4&&b.y>e.y-.3&&b.y<e.y+e.h+.5){ hit=e; break; } }
-    if(hit){ const d=Math.hypot(b.vx,b.vz)||1; famHurt(hit,famDmg(),b.vx/d*.5,b.vz/d*.5); SFX.hit(); }
+    if(hit){ const d=Math.hypot(b.vx,b.vz)||1; famHurt(hit,famDmg(),b.vx/d*.5,b.vz/d*.5); SFX.hit(); famLand(hit.x,hit.z,famDmg()); }
     if(hit||b.t>FAM_BOLT_LIFE||b.y<-2){ scene.remove(b.mesh); famBolts.splice(i,1); } } }
 function famUpdate(dt){ const it=gear.familiar;
   if(!famActive()){ if(fam) famRemove(); else if(famBolts.length) famClearBolts(); return; }

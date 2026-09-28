@@ -599,7 +599,7 @@ const DEFS={
   ball:{name:'Turnip Trebuchet',ic:'🥔',du:5,mana:80,hp:120,top:2.4,range:25,arc:100,cd:2.8,dmg:10,splash:3.8,splashUp:.35},   // lobs a turnip that splats for area damage: a wide splash (+.35 a mark) with a gentle falloff -- the trebuchet is the crowd-breaker. Build 161 (Matt: "the turnip trebuchet needs the longest range and big splash damage"): reach 17 → 25, the longest of any tower (the ballista's is 22); damage 7 → 10; splash 3.2 → 3.8; still the slowest arm
   slice:{name:'Mycelium Cage',ic:'🍄',du:6,mana:90,hp:140,top:.05,range:2.6,rangeUp:.6,arc:360,cd:.45,dmg:2,slow:.55,charge:[1.3,2.9],burst:5,cloud:3},     // a cage of glowing roots: mobs inside are slowed, and at a random interval the cage implodes on them (a spore vortex, a violet flash of burst x dmg, a lingering cloud that poisons for cloud s); heavy traffic tramples it
   spike:{name:'Bramble Hedge',ic:'🌿',du:3,mana:50,hp:220,top:1.0,thorns:2,regrow:3},                                       // a thorn wall that hurts attackers and regrows when left alone
-  totem:{name:'Rune Totem',ic:'🗿',du:4,mana:70,hp:155,top:2.8,range:7,rangeUp:1,arc:360,buff:.15,buffUp:.05},           // a runed pillar: every other defense in its ring hits 15% harder and faster (+5% a mark); totems never stack
+  totem:{name:'Rune Totem',ic:'🗿',du:4,mana:70,hp:155,top:2.8,range:7,rangeUp:1,arc:360,buff:.15,buffUp:.05},           // a runed pillar: every other defense in its ring hits 15% harder and fires 15% faster (+5% a mark each), plus half its placer's defense damage / defense attack speed points (build 178, stat buffD/buffS); totems never stack
   frost:{name:'Frost Spire',ic:'❄',du:4,mana:60,hp:130,top:2.8,range:6,rangeUp:.8,arc:360,chill:.6,chillUp:.06,cd:.9,dmg:2},   // a cold tower: mobs in its ring crawl at 60% (6 points slower a mark) AND take a bite of cold every .9 s (build 150: 'they need to do cold/slowing damage'); the deepest cold wins, it never stacks                                       // a thorn wall that hurts attackers and regrows when left alone
   snare:{name:'Snare Tower',ic:'🕸',du:4,mana:65,hp:130,top:2.6,range:9,rangeUp:1,arc:360,cd:6,dmg:0},                    // a net-winch tower for flying mobs only: on cooldown it nets the nearest flyer in range and takes it off the field outright — no damage stat, it doesn't hurt what it doesn't catch
   // four elemental halo rings — flat glowing sigils on the floor, like the mushroom ring but each doing its own thing
@@ -700,7 +700,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=177;
+const BUILD=178;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1002,7 +1002,7 @@ function healPulse(e){ SFX.mana(); const fl=baseFloor(e.x,e.z); const fx=glow(0x
 // as long as they're actually in the game
 function oStat(d,k){ const v=d.ownerId?Meta.defOwnerStat(d.ownerId,k):undefined; return v!==undefined?v:heroStat(k); }
 function oMult(d,k){ const v=d.ownerId?Meta.defOwnerMult(d.ownerId,k):undefined; return v!==undefined?v:heroMult(k); }
-function stat(d,k){ const cfg=DEFS[d.kind], l=d.lvl||1; if(k==='dmg') return Math.max(1,Math.round(cfg.dmg*(1+.5*(l-1))*(1+oStat(d,'tow')/100)*oMult(d,'tow')*(1+(d.buff||0))*10)/10); if(k==='cd') return cfg.cd*Math.pow(.8,l-1)/oMult(d,'tcd')/(1+oStat(d,'trate')/100)/(1+(d.buff||0)); if(k==='buff') return (cfg.buff||0)+(cfg.buffUp||0)*(l-1); if(k==='chill') return Math.max(.2,(cfg.chill||1)-(cfg.chillUp||0)*(l-1)); if(k==='range') return ((cfg.range||0)+(cfg.rangeUp!==undefined?cfg.rangeUp:2)*(l-1))*(cfg.arc===360?oMult(d,'aoe'):1)*(1+oStat(d,'tarea')/100); return cfg[k]; }
+function stat(d,k){ const cfg=DEFS[d.kind], l=d.lvl||1; if(k==='dmg') return Math.max(1,Math.round(cfg.dmg*(1+.5*(l-1))*(1+oStat(d,'tow')/100)*oMult(d,'tow')*(1+(d.buffD||0))*10)/10); if(k==='cd') return cfg.cd*Math.pow(.8,l-1)/oMult(d,'tcd')/(1+oStat(d,'trate')/100)/(1+(d.buffS||0)); if(k==='buff') return (cfg.buff||0)+(cfg.buffUp||0)*(l-1); if(k==='buffD') return cfg.buff?stat(d,'buff')+oStat(d,'tow')/100*.5:0; if(k==='buffS') return cfg.buff?stat(d,'buff')+oStat(d,'trate')/100*.5:0;   /* build 178: a totem's two auras -- see updateDefs */ if(k==='chill') return Math.max(.2,(cfg.chill||1)-(cfg.chillUp||0)*(l-1)); if(k==='range') return ((cfg.range||0)+(cfg.rangeUp!==undefined?cfg.rangeUp:2)*(l-1))*(cfg.arc===360?oMult(d,'aoe'):1)*(1+oStat(d,'tarea')/100); return cfg[k]; }
 // build 177: the chevron marks cost half again more for every chevron already worn -- IV→V 400 as always, V→VI 750, VI→VII 1200
 // (2950 all told from Mark I), so a Mark VII is a real investment and not just the next 100 up
 function upCost(d){ const l=d.lvl||1; return Math.round(100*l*(1+.5*chevCount(l))); }
@@ -1054,9 +1054,56 @@ function cageAnim(mdl,fx,dt,n){ const u=mdl.userData; const cage=u.cage; const t
   const disc=u.disc; if(disc){ const q=fx.phase==='boom'?fx.t/.45:0; disc.material.opacity=fx.phase==='boom'?.1+.55*Math.max(0,1-q):.1+.12*(fx.phase==='charge'?fx.k:0); disc.material.color.setHex(fx.phase==='boom'&&q>.3?0x7ff6ff:0xb04ad0); }   // the floor disc flares with the flash (it shows through the roots where the sprite cannot)
   const cl=u.cloud; if(cl){ const on=fx.cloud>0; cl.visible=on; if(on){ const a=Math.min(1,fx.cloud/.6)*Math.min(1,(DEFS.slice.cloud-fx.cloud)/.25+.2); cl.rotation.y+=dt*.6; for(const pf of cl.children){ const ud=pf.userData; pf.position.y=ud.y+.12*Math.sin(t*1.3+ud.ph); pf.material.opacity=a*ud.op; } } } }
 function easeOut(k){ return 1-(1-k)*(1-k); }
+// ---- build 178: the rune-light, so a player can SEE which towers a totem is feeding. Every totem->tower link is a faint gold arc from
+// the totem's crown down to the tower -- a fine thread (ONE LineSegments for every link on the map) strung with beads of light (ONE
+// Points cloud on the soft glow texture, so a bead reads from any angle; a 1 px line alone was too faint to find), both rewritten in
+// place each frame with a brighter pulse and a mote running down it toward the tower; every boosted tower stands in a slowly turning
+// gold circle of runes (one canvas texture) with a small glow above it. Rings, glows and motes are pooled scene objects on
+// shared geometry/materials, placed each frame by position (not parented to d.mdl, which a mark-up re-skin can swap), so nothing is
+// allocated per frame and a sold tower's glow simply goes back to the pool. Host and solo only: a co-op guest's towers are puppets
+const RUNE={n:0,max:48,seg:10,beads:14,links:[],line:null,motes:[],rings:[],glows:[],col:0xffd27a};
+function runeTex(){ const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d'); g.translate(64,64); g.strokeStyle='#fff'; g.fillStyle='#fff'; g.lineCap='round';
+  g.lineWidth=3; g.beginPath(); g.arc(0,0,58,0,TAU); g.stroke(); g.lineWidth=1.5; g.beginPath(); g.arc(0,0,44,0,TAU); g.stroke();   // two rims, and eight little runes of strokes between them
+  const RN=[[[-4,-6,-4,6],[-4,-6,4,-1]],[[0,-6,0,6],[-4,-2,4,2]],[[-4,6,0,-6],[0,-6,4,6]],[[-4,-6,4,6],[4,-6,-4,6]],[[-4,-6,-4,6],[-4,0,4,-5],[-4,0,4,5]],[[0,-6,0,6],[0,-6,4,-3]],[[-4,-5,4,-5],[0,-5,0,6]],[[-4,6,-4,-6],[-4,-6,4,6],[4,6,4,-6]]];
+  g.lineWidth=2.2; for(let i=0;i<8;i++){ g.save(); g.rotate(i*TAU/8); g.translate(0,-51); for(const [x0,y0,x1,y1] of RN[i]){ g.beginPath(); g.moveTo(x0*.9,y0*.9); g.lineTo(x1*.9,y1*.9); g.stroke(); } g.restore(); }
+  const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; return t; }
+function runeTakes(d){ const c=DEFS[d.kind]; return c.dmg>0||c.cd!==undefined; }
+function runePool(arr,i,make){ let o=arr[i]; if(!o){ o=make(); arr[i]=o; } if(o.parent!==scene) scene.add(o); o.visible=true; return o; }
+function runeDraw(dt){ const R=RUNE;
+  if(!R.line){ const n=R.max*R.seg*2, g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(n*3),3)); g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(n*3),3));
+    R.line=new THREE.LineSegments(g,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false})); R.line.frustumCulled=false; R.line.userData.noOL=true; R.lc=C(R.col);
+    const nb=R.max*R.beads, pg=new THREE.BufferGeometry(); pg.setAttribute('position',new THREE.BufferAttribute(new Float32Array(nb*3),3)); pg.setAttribute('color',new THREE.BufferAttribute(new Float32Array(nb*3),3));
+    R.pts=new THREE.Points(pg,new THREE.PointsMaterial({size:.34,map:GLOWT,vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true})); R.pts.frustumCulled=false; R.pts.userData.noOL=true;
+    R.moteMat=new THREE.SpriteMaterial({map:GLOWT,color:C(R.col),blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:.9});
+    R.glowMat=new THREE.SpriteMaterial({map:GLOWT,color:C(R.col),blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:.5});
+    R.ringGeo=new THREE.PlaneGeometry(2.1,2.1); R.ringMat=new THREE.MeshBasicMaterial({map:runeTex(),color:C(R.col),transparent:true,opacity:.5,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending}); }   /* a circle of runes: reads as a sigil, not another range ring */
+  if(R.line.parent!==scene) scene.add(R.line); if(R.pts.parent!==scene) scene.add(R.pts);
+  const pos=R.line.geometry.attributes.position, col=R.line.geometry.attributes.color, P=pos.array, Cc=col.array, lc=R.lc, N=R.seg; let v=0;
+  const bpos=R.pts.geometry.attributes.position, bcol=R.pts.geometry.attributes.color, BP=bpos.array, BC=bcol.array, NB=R.beads; let w=0;
+  for(let i=0;i<R.n;i++){ const t=R.links[i].t, d=R.links[i].d; const ax=t.x, ay=t.base+DEFS.totem.top*.95*markGrow(t.lvl), az=t.z, bx=d.x, by=d.base+Math.max(.3,DEFS[d.kind].top*.55*markGrow(d.lvl)), bz=d.z;
+    const lift=.6+.08*Math.hypot(bx-ax,bz-az), ph=(S.t*.7+i*.37)%1;   /* a gentle arch, higher for a longer link; each link's pulse runs out of step with its neighbours */
+    const at=u=>{ const w=1-u; return [ax*w+bx*u, ay*w+by*u+lift*4*u*w, az*w+bz*u]; };
+    for(let k=0;k<N;k++){ for(const u of [k/N,(k+1)/N]){ const p=at(u); P[v*3]=p[0]; P[v*3+1]=p[1]; P[v*3+2]=p[2]; const q=u-ph, b=.22+.78*Math.exp(-q*q/.012); Cc[v*3]=lc.r*b; Cc[v*3+1]=lc.g*b; Cc[v*3+2]=lc.b*b; v++; } }
+    for(let k=0;k<NB;k++){ const u=(k+.5)/NB, p=at(u); BP[w*3]=p[0]; BP[w*3+1]=p[1]; BP[w*3+2]=p[2]; const q=u-ph, b=.3+.9*Math.exp(-q*q/.012); BC[w*3]=lc.r*b; BC[w*3+1]=lc.g*b; BC[w*3+2]=lc.b*b; w++; }
+    const m=runePool(R.motes,i,()=>{ const s=new THREE.Sprite(R.moteMat); s.scale.set(.42,.42,1); s.userData.noOL=true; return s; }); const p=at(ph); m.position.set(p[0],p[1],p[2]); }
+  for(let i=R.n;i<R.motes.length;i++) R.motes[i].visible=false;
+  pos.needsUpdate=true; col.needsUpdate=true; R.line.geometry.setDrawRange(0,v); bpos.needsUpdate=true; bcol.needsUpdate=true; R.pts.geometry.setDrawRange(0,w);
+  let j=0; for(const d of defs){ if(!(d.buffD>0||d.buffS>0)) continue; const k=markGrow(d.lvl);
+    const r=runePool(R.rings,j,()=>{ const m=new THREE.Mesh(R.ringGeo,R.ringMat); m.rotation.x=-PI/2; m.userData.noOL=true; return m; }); r.position.set(d.x,d.base+.05,d.z); r.rotation.z=S.t*.5+j; r.scale.setScalar(k*(d.kind==='ball'?1.3:1.1));
+    const g=runePool(R.glows,j,()=>{ const s=new THREE.Sprite(R.glowMat); s.scale.set(.9,.9,1); s.userData.noOL=true; return s; }); g.position.set(d.x,d.base+DEFS[d.kind].top*k+.35,d.z); j++; }
+  for(let i=j;i<R.rings.length;i++){ R.rings[i].visible=false; R.glows[i].visible=false; }
+  R.ringMat.opacity=.5+.15*Math.sin(S.t*2.2); R.glowMat.opacity=.42+.14*Math.sin(S.t*3.1); }
 function updateDefs(dt){ const trampled=[];
-  // the totems' rings: every other defense inside one hits harder and faster by the strongest ring it stands in
-  for(const d of defs) d.buff=0; for(const t of defs){ if(t.kind!=='totem'||t.pop<1) continue; const r=stat(t,'range'), b=stat(t,'buff'); for(const d of defs){ if(d===t||d.kind==='totem') continue; if(Math.hypot(d.x-t.x,d.z-t.z)<=r) d.buff=Math.max(d.buff,b); } }
+  // the totems' rings. Build 178 (Matt: "they were supposed to be buff towers, like any tower in proximity is faster or does more
+  // damage based on what points you put into your buff towers"): a totem lends two auras now, split so the placer's points show --
+  // DAMAGE (buffD) = 15% +5% a mark + half its placer's 🏹 defense damage; SPEED (buffS) = 15% +5% a mark + half their 🔁 defense
+  // attack speed (oStat: the placer's own stats in co-op, the local hero's solo); the ring still grows with ◎ defense range. A tower
+  // in several rings takes the strongest damage aura and, separately, the strongest speed aura -- never a sum, so totems don't stack.
+  // Only a tower with a damage or a firing cooldown takes one (runeTakes: the hedge and the Dazzling Halo have nothing to boost).
+  // Each totem->tower pair is kept for the rune-light drawn after (runeDraw)
+  for(const d of defs){ d.buffD=0; d.buffS=0; } RUNE.n=0;
+  for(const t of defs){ if(t.kind!=='totem'||t.pop<1) continue; const r=stat(t,'range'), bd=stat(t,'buffD'), bs=stat(t,'buffS'); for(const d of defs){ if(d===t||d.kind==='totem'||!runeTakes(d)) continue; if(Math.hypot(d.x-t.x,d.z-t.z)<=r){ d.buffD=Math.max(d.buffD,bd); d.buffS=Math.max(d.buffS,bs); if(RUNE.n<RUNE.max){ const L=RUNE.links[RUNE.n]||(RUNE.links[RUNE.n]={}); L.t=t; L.d=d; RUNE.n++; } } } }
+  runeDraw(dt);
   for(const d of defs){ const cfg=DEFS[d.kind]; d.pop=Math.min(1,d.pop+dt*4); const s=(d.pop<1?easeOutBack(d.pop):1)*(d.kind==='slice'?stat(d,'range')/cfg.range:markGrow(d.lvl)); d.mdl.scale.set(s,s,s); d.cd-=dt; d.shake=Math.max(0,d.shake-dt); d.recoil=Math.max(0,d.recoil-dt*4);
     d.mdl.position.set(d.x+(d.shake>0?(rnd()-.5)*.12:0),d.base,d.z+(d.shake>0?(rnd()-.5)*.12:0));
     if(d.kind==='harpoon'||d.kind==='ball'||d.kind==='acorn'){ const half=arcOf(d)*PI/360, range=stat(d,'range'); let best=null, bestProg=1e18;   // among everything in range/arc/sight, engage whoever is furthest along toward the crystal (path distance, not raw distance to this tower) — a tower otherwise happily plinks the mob that wandered nearest to IT while one about to breach sits in range ignored
@@ -1335,7 +1382,7 @@ requestAnimationFrame(frame);
 
 // ================= TEST HOOK =================
 window.__loadtime=()=>Object.assign({},LOADT);
-window.__dd={renders:()=>RENDERS,placeDefAt,upgradeDef,marks:()=>({max:MAXLVL,names:MARK.slice(),chevFrom:CHEV_FROM}),upCost,towerHit,chevrons:d=>{ const g=d&&d.chev; return g&&g.parent===d.mdl&&g.parent.parent?g.userData.n:0; },   /* build 177: chevron-test.mjs */ S,hero,cam,renderer,camera,enemies,defs,projs,orbs,loot,grid,DEFS,MOBS,stat,mobSpd,gear:()=>gear,rollItem,dropLoot,resetGear,heroStat,heroMult,heroDmg,kill,Meta,SLOTS,applyGear,saveGear,pickup,tierOf,statStr,RNAME,RCSS,loadHeroGLB,toggleHero,ghost:()=>placing?{x:ghostPos[0],z:ghostPos[1],yaw:ghostYaw,ok:ghostOk,why:ghostReason,stage:placeStage,dist:Math.hypot(ghostPos[0]-hero.x,ghostPos[1]-hero.z),sector:!!ghostSector&&ghostSector.children.length>0}:null,rotateGhost,unstick,music:()=>({on:musicOn,mode:musicMode,step:mStep}),hoverSector:()=>!!hoverSector,heroModel:()=>GLBH?{label:GLBH.label,useGLB,clips:Object.keys(GLBH.map),cur:GLBH.cur?GLBH.cur.getClip().name:null,scale:GLBH.scale,height:GLBH.height,visible:GLBH.wrap.visible}:null,mobTemplate:k=>MOBGLB[k],scene,mobModel:k=>MOBGLB[k]?{clips:Object.keys(MOBGLB[k].map),scale:MOBGLB[k].scale}:null,mobState:e=>e&&e.mdl&&e.mdl.glb?{cur:e.mdl.cur?e.mdl.cur.getClip().name:null,time:e.mdl.cur?e.mdl.cur.time:0}:null,setHeroYaw:d=>{ heroYawOff=d; },deathCut:()=>deathCut,camPos:()=>({x:camera.position.x,y:camera.position.y,z:camera.position.z}),hurtCrystal,SFX,rails:()=>RAILBOXES.map(b=>({x0:+b.x0.toFixed(2),x1:+b.x1.toFixed(2),z0:+b.z0.toFixed(2),z1:+b.z1.toFixed(2),top:+b.top.toFixed(2)})),
+window.__dd={renders:()=>RENDERS,placeDefAt,upgradeDef,marks:()=>({max:MAXLVL,names:MARK.slice(),chevFrom:CHEV_FROM}),upCost,towerHit,chevrons:d=>{ const g=d&&d.chev; return g&&g.parent===d.mdl&&g.parent.parent?g.userData.n:0; },   /* build 177: chevron-test.mjs */ rune:()=>({links:RUNE.n,drawn:RUNE.line?RUNE.line.geometry.drawRange.count:0,rings:RUNE.rings.filter(o=>o.visible&&o.parent).length,glows:RUNE.glows.filter(o=>o.visible&&o.parent).length,motes:RUNE.motes.filter(o=>o.visible&&o.parent).length,pairs:RUNE.links.slice(0,RUNE.n).map(L=>[defs.indexOf(L.t),defs.indexOf(L.d)])}),   /* build 178: totem-bramble-test.mjs */ S,hero,cam,renderer,camera,enemies,defs,projs,orbs,loot,grid,DEFS,MOBS,stat,mobSpd,gear:()=>gear,rollItem,dropLoot,resetGear,heroStat,heroMult,heroDmg,kill,Meta,SLOTS,applyGear,saveGear,pickup,tierOf,statStr,RNAME,RCSS,loadHeroGLB,toggleHero,ghost:()=>placing?{x:ghostPos[0],z:ghostPos[1],yaw:ghostYaw,ok:ghostOk,why:ghostReason,stage:placeStage,dist:Math.hypot(ghostPos[0]-hero.x,ghostPos[1]-hero.z),sector:!!ghostSector&&ghostSector.children.length>0}:null,rotateGhost,unstick,music:()=>({on:musicOn,mode:musicMode,step:mStep}),hoverSector:()=>!!hoverSector,heroModel:()=>GLBH?{label:GLBH.label,useGLB,clips:Object.keys(GLBH.map),cur:GLBH.cur?GLBH.cur.getClip().name:null,scale:GLBH.scale,height:GLBH.height,visible:GLBH.wrap.visible}:null,mobTemplate:k=>MOBGLB[k],scene,mobModel:k=>MOBGLB[k]?{clips:Object.keys(MOBGLB[k].map),scale:MOBGLB[k].scale}:null,mobState:e=>e&&e.mdl&&e.mdl.glb?{cur:e.mdl.cur?e.mdl.cur.getClip().name:null,time:e.mdl.cur?e.mdl.cur.time:0}:null,setHeroYaw:d=>{ heroYawOff=d; },deathCut:()=>deathCut,camPos:()=>({x:camera.position.x,y:camera.position.y,z:camera.position.z}),hurtCrystal,SFX,rails:()=>RAILBOXES.map(b=>({x0:+b.x0.toFixed(2),x1:+b.x1.toFixed(2),z0:+b.z0.toFixed(2),z1:+b.z1.toFixed(2),top:+b.top.toFixed(2)})),
   start:()=>{ if(S.phase==='start'){ S.phase='build'; $('start').classList.add('hide'); cam.x=hero.x; cam.y=hero.y+5; cam.z=hero.z+8; cam.d=cam.dist; } },
   startWave, winMap, moveOn, place:(k,cx,cz,rot)=>placeDef(k,cx,cz,rot||0), spawn:spawnEnemy, select, confirmPlace, swing, repair, upgrade, sell, jump, setKeys:(o)=>Object.assign(K,o), r:renderer,
   step:(dt,n)=>{ for(let i=0;i<(n||1);i++) update(dt||1/60); },

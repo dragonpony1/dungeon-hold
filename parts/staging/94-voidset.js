@@ -40,7 +40,7 @@ function defKindBonus(d){ if(d.ownerId&&Meta.defOwnerKind){ const v=Meta.defOwne
 { const prev=stat; stat=function(d,k){ const v=prev(d,k); if(k!=='dmg'||!DEFS[d.kind]||DEFS[d.kind].dmg===undefined) return v; const b=defKindBonus(d); return b?Math.max(1,Math.round(v*(1+b)*10)/10):v; }; }
 Meta.defKindMap=defKindMap;
 function ownerTow(d){ if(d.ownerId&&Meta.defOwnerStat){ const st=Meta.defOwnerStat(d.ownerId,'tow'); if(st!==undefined) return {s:st,m:Meta.defOwnerMult(d.ownerId,'tow')||1}; } return {s:heroStat('tow'),m:heroMult('tow')}; }
-function lashDmg(d,frac){ const l=d.lvl||1, t=ownerTow(d); return Math.max(1,Math.round(DEFS.zap.dmg*frac*(1+.5*(l-1))*(1+t.s/100)*t.m*(1+(d.buff||0))*10)/10); }
+function lashDmg(d,frac){ const l=d.lvl||1, t=ownerTow(d); return Math.max(1,Math.round(DEFS.zap.dmg*frac*(1+.5*(l-1))*(1+t.s/100)*t.m*(1+(d.buffD||0))*10)/10); }   /* buffD: a Rune Totem's damage aura (build 178) */
 function lashCd(d){ const l=d.lvl||1; return DEFS.zap.cd*Math.pow(.8,l-1); }
 const PULSES=[];
 function pulse(x,z,col){ const m=new THREE.Mesh(new THREE.RingGeometry(.6,1,32),new THREE.MeshBasicMaterial({color:C(col),transparent:true,opacity:.8,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); m.rotation.x=-PI/2; m.position.set(x,.1,z); m.userData.noOL=true; scene.add(m); PULSES.push({m,t:0}); }
