@@ -221,6 +221,7 @@ const LANES=MAP.lanes;
 const walk=t=>t===T.FLOOR||t===T.CARPET||t===T.DAIS||t===T.SPAWN;
 const heroSolid=t=>t===T.WALL||t===T.PILLAR||t===T.CRYSTAL||t===T.PROP||t===T.WATER;
 const defAt=new Array(GW*GH).fill(null);
+const NOWALK_DEF={slice:1};   // kinds mobs (and the hero's generic def-collision) treat as if they aren't there at all -- the Mycelium Cage today; a staging module can add its own kind here rather than this list being touched per feature
 
 // flow fields: 'free' ignores defenses, 'def' respects them
 let flowFree=null, flowDef=null, flowFly=null;
@@ -229,7 +230,7 @@ function bfs(respect,fly){
   dist[GOAL]=0; const q=[GOAL]; let qi=0;
   while(qi<q.length){ const i=q[qi++]; const x=i%GW, z=(i/GW)|0;
     for(let k=0;k<4;k++){ const nx=x+[1,-1,0,0][k], nz=z+[0,0,1,-1][k]; if(!inb(nx,nz)) continue; const j=idx(nx,nz); if(!fly){ if(Math.abs(hgt[j]-hgt[i])>.8) continue; /* no path over a ledge: stairs only (flyers ignore it) */ const ai=rampA[i], aj=rampA[j], alongZ=k>=2; if((ai&&((ai<=2)!==alongZ))||(aj&&((aj<=2)!==alongZ))) continue; } /* a flight is entered and left at its ends, never over its side (the side of a stair is a ledge the steps can't climb) */
-      if(dist[j]>=0||!(walk(grid[j])||(fly&&grid[j]===T.WATER))) continue; if(respect&&defAt[j]&&defAt[j].kind!=='slice') continue;
+      if(dist[j]>=0||!(walk(grid[j])||(fly&&grid[j]===T.WATER))) continue; if(respect&&defAt[j]&&!NOWALK_DEF[defAt[j].kind]) continue;
       dist[j]=dist[i]+1; nxt[j]=i; q.push(j); } }
   return {nxt,dist};
 }
@@ -665,7 +666,7 @@ const DEF_HERO_R=.62, DEF_HERO_HEDGE_LEN=2.2, DEF_HERO_HEDGE_HALF=.5;
 function defBlocksHero(d,x,z){ const dx=x-d.x, dz=z-d.z;
   if(d.kind==='spike'){ const c=Math.cos(d.rot||0), s=Math.sin(d.rot||0); return Math.abs(dx*c-dz*s)<=DEF_HERO_HEDGE_LEN&&Math.abs(dx*s+dz*c)<=DEF_HERO_HEDGE_HALF; }
   return dx*dx+dz*dz<=DEF_HERO_R*DEF_HERO_R; }
-function solidAt(x,z,y,forHero){ const cx=wc(x),cz=wcz(z); const t=gat(cx,cz); if(forHero?heroSolid(t):!(walk(t)||(y>=1e5&&t===T.WATER))) return true; /* a flyer (y far above) may cross the moat */ if(baseFloor(x,z)>y+.62) return true; /* a ledge taller than a step: no climbing it (a jumping hero clears what it can) */ if(forHero) for(let i=0;i<RAILBOXES.length;i++){ const b=RAILBOXES[i]; if(x>=b.x0&&x<=b.x1&&z>=b.z0&&z<=b.z1&&y<b.top-.25) return true; } /* hero only, and only below its guard height: a jump can clear the rail and land on it (floorAt), same "stand on top" rule as a short defense — a mob's pathing already avoids these edges via the height-diff check above, and a box that's fine for the hero's own width can still clip a mob's path along a narrow stair */ const d=inb(cx,cz)?defAt[idx(cx,cz)]:null; if(d){ if(d.kind==='slice'||y>d.top+.3) return false; if(forHero) return defBlocksHero(d,x,z)&&y<d.top-.25; return true; } return false; }
+function solidAt(x,z,y,forHero){ const cx=wc(x),cz=wcz(z); const t=gat(cx,cz); if(forHero?heroSolid(t):!(walk(t)||(y>=1e5&&t===T.WATER))) return true; /* a flyer (y far above) may cross the moat */ if(baseFloor(x,z)>y+.62) return true; /* a ledge taller than a step: no climbing it (a jumping hero clears what it can) */ if(forHero) for(let i=0;i<RAILBOXES.length;i++){ const b=RAILBOXES[i]; if(x>=b.x0&&x<=b.x1&&z>=b.z0&&z<=b.z1&&y<b.top-.25) return true; } /* hero only, and only below its guard height: a jump can clear the rail and land on it (floorAt), same "stand on top" rule as a short defense — a mob's pathing already avoids these edges via the height-diff check above, and a box that's fine for the hero's own width can still clip a mob's path along a narrow stair */ const d=inb(cx,cz)?defAt[idx(cx,cz)]:null; if(d){ if(NOWALK_DEF[d.kind]||y>d.top+.3) return false; if(forHero) return defBlocksHero(d,x,z)&&y<d.top-.25; return true; } return false; }
 const ARC=[[1,0],[-1,0],[0,1],[0,-1],[.71,.71],[-.71,.71],[.71,-.71],[-.71,-.71]];
 function moveCircle(e,dx,dz,r,forHero){ const y=e.fly?1e6:(e.y||0); let nx=e.x+dx, ok=true; for(const a of ARC){ if(solidAt(nx+a[0]*r,e.z+a[1]*r,y,forHero)){ ok=false; break; } } if(ok) e.x=nx;
   let nz=e.z+dz; ok=true; for(const a of ARC){ if(solidAt(e.x+a[0]*r,nz+a[1]*r,y,forHero)){ ok=false; break; } } if(ok) e.z=nz; }
@@ -715,7 +716,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=199;
+const BUILD=200;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -938,7 +939,7 @@ function updateEnemies(dt){
       // (in grid squares — ogres have none, goblins a little), follow the straight path and break whatever blocks it
       const dD=flowDef.dist[ci], dF=flowFree.dist[ci]; const patience=MOBS[e.kind].detour!==undefined?MOBS[e.kind].detour:3; const smash=dD<0||(dF>=0&&dD-dF>patience);
       if(ci===GOAL||n===GOAL) target=cr; else if(n>=0&&!smash) target={kind:'move',x:cw(n%GW),z:cwz((n/GW)|0)};
-      else { n=flowFree.nxt[ci]; if(n===GOAL) target=cr; else if(n>=0){ const d=defAt[n]; target=(d&&d.kind!=='slice')?{kind:'def',obj:d,x:d.x,z:d.z,reach:1.35+e.r}:{kind:'move',x:cw(n%GW),z:cwz((n/GW)|0)}; } } }
+      else { n=flowFree.nxt[ci]; if(n===GOAL) target=cr; else if(n>=0){ const d=defAt[n]; target=(d&&!NOWALK_DEF[d.kind])?{kind:'def',obj:d,x:d.x,z:d.z,reach:1.35+e.r}:{kind:'move',x:cw(n%GW),z:cwz((n/GW)|0)}; } } }
     const onStairs=e.ranged&&!e.fly&&(Math.abs(baseFloor(e.x+.9,e.z)-baseFloor(e.x-.9,e.z))+Math.abs(baseFloor(e.x,e.z+.9)-baseFloor(e.x,e.z-.9))>.25);   /* build 180: an archer or troll on a staircase keeps climbing to flat ground before it stops to shoot -- parked on the Throne Room's top flight they plugged it, and the orcs and ogres behind were shoved off its side and jammed ("these 2 enemies keep getting stuck") */
     if(e.ranged&&target&&target.kind!=='hero'&&!onStairs){ let best=null, bd=e.ranged; for(const d of defs){ if(d.kind==="spike"||d.kind==="slice") continue; const dd=Math.hypot(d.x-e.x,d.z-e.z); if(dd<bd&&los(e.x,e.z,d.x,d.z)){ bd=dd; best={kind:"def",obj:d,x:d.x,z:d.z}; } } const cd=Math.hypot(e.x,e.z); if(cd<e.ranged&&los(e.x,e.z,0,0)) best={kind:'crystal',x:0,z:0}; if(best){ best.reach=e.ranged-1; if(best.kind==='def'&&DEF_HITS_BACK[best.obj.kind]) best.reach=Math.min(best.reach,Math.max(1.6,stat(best.obj,'range')-.8)); best.ranged=true; target=best; } }   /* build 161 (Matt: "a ranged mob is allowed to stand just outside their range and poke at them"): an archer (11) or troll (13) shooting a TOWER comes inside that tower's own reach first -- a halo's 5, the frost's 6, the cannon's 12 -- so it can always answer; the crystal and heroes are still shot from full range, and a tower that can't hit a walker (totem, snare) is shot from anywhere */
     e.tgtDef=target&&target.kind==='def'?target.obj:null;   // which tower this mob is attacking right now (updateDefs: that tower answers it first)

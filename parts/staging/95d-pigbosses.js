@@ -21,18 +21,19 @@ if(TUTORIAL) return;
 // as the Cyclops's own unused pose file: it was only ever needed for the studio-render check before building.
 const PIGS={
   pigflail:{files:{walk:'pigflail-walk.glb',run:'pigflail-run.glb',attack:'pigflail-attack.glb'},atkName:'Axe_Spin_Attack',
-    // build 199 (Matt: "make the pig bosses bigger" -> "taller"): fit (fitModel's target height) bumped well past a
-    // proportional scale-up; r (hit radius) only nudged, so they read as tall and imposing without their footprint
-    // ballooning to match -- fitModel scales a model uniformly by height, so "taller" in practice means a bigger fit
-    // with r held back, not a true non-uniform stretch (which would distort a rigged character's proportions)
-    dim:{fit:4.3,h:4.0,r:.95,nat:{walk:.85,run:1.9}},
-    stats:{hp:380,spd:1.3,dmg:18,cd:2.5,mana:24}},
+    // build 200 (Matt: "make them 20% bigger again" -- on top of build 199's own height bump; "let them walk as fast
+    // as the other mobs" -- they were visibly lagging behind the wave's own goblins/orcs at 1.3-2.0 speed; "they dye
+    // easy" -- a wave-7 hall's already-built, already-marked-up towers were dropping them before Matt could even see
+    // them, hp raised well past a token bump): fit/h/r all scaled ×1.2 together this time (no "taller not bulkier"
+    // qualifier this round), spd brought up near the wave's own goblin pace (3.4), hp roughly doubled
+    dim:{fit:5.16,h:4.8,r:1.14,nat:{walk:.85,run:1.9}},
+    stats:{hp:520,spd:2.6,dmg:18,cd:2.5,mana:24}},
   pigdagger:{files:{walk:'pigdagger-walk.glb',run:'pigdagger-run.glb',attack:'pigdagger-attack.glb'},atkName:'Double_Blade_Spin',
-    dim:{fit:3.3,h:3.0,r:.66,nat:{walk:1.0,run:2.3}},
-    stats:{hp:230,spd:2.0,dmg:11,cd:1.5,mana:18}},
+    dim:{fit:3.96,h:3.6,r:.79,nat:{walk:1.0,run:2.3}},
+    stats:{hp:340,spd:2.6,dmg:11,cd:1.5,mana:18}},
   pigsling:{files:{walk:'pigsling-walk.glb',run:'pigsling-run.glb',attack:'pigsling-attack.glb'},atkName:'Crouch_Charge_and_Throw',
-    dim:{fit:3.6,h:3.3,r:.78,nat:{walk:.9,run:2.0}},
-    stats:{hp:200,spd:1.3,dmg:14,cd:2.4,mana:20,splash:2.3}},   // no `ranged` -- same call the Cyclops made: that field only ever makes the generic AI snipe a TOWER from range (game.js's own ranged-standoff check explicitly skips it for a hero target), so a melee-seeking mob plus Sling's own charge-and-throw special below (mirroring Boulder Toss) covers both a hero and a tower without fighting itself. `splash` stays so fireArrow picks the heavier grenade visual for the throw.
+    dim:{fit:4.32,h:3.96,r:.94,nat:{walk:.9,run:2.0}},
+    stats:{hp:480,spd:2.6,dmg:14,cd:2.4,mana:20,splash:2.3}},   // hp was the lowest of the three (200) and the one Matt kept losing to focus fire before ever seeing him -- now the highest, since he's also the one standing still the longest (charging a throw) with nothing else drawing tower attention his way. No `ranged` -- same call the Cyclops made: that field only ever makes the generic AI snipe a TOWER from range (game.js's own ranged-standoff check explicitly skips it for a hero target), so a melee-seeking mob plus Sling's own charge-and-throw special below (mirroring Boulder Toss) covers both a hero and a tower without fighting itself. `splash` stays so fireArrow picks the heavier grenade visual for the throw.
 };
 for(const k in PIGS){ MOBDIM[k]=PIGS[k].dim; MOBS[k]=PIGS[k].stats; }
 // build 187's emissiveTexture fix, confirmed present on all three of these too (checked each one's raw materials
@@ -84,8 +85,15 @@ let pigWaveTotal=0;
 // after it clears), once roughly 75 of that wave's ~100 mobs have come out the gate -- the remaining regular mobs
 // keep arriving on their own schedule around them, same as the Cyclops's banner/camera-shake/music entrance either way
 let doneWave=-1;
+// build 200 (Matt: "see if the towers are allowed to focus on them alone they dye easy lets bring them in with an
+// instant bolus of 30 mobs"): a wall's worth of already-marked-up towers had nothing else to shoot at the instant
+// the trio appeared and dropped them before they were even on screen. 30 goblins land in the SAME instant (t at or
+// just before "now", not scheduled forward like the wave's own queue), spread across every lane, so every tower in
+// the hall suddenly has two dozen other things demanding its attention too
+function pigEscort(){ const lk=Object.keys(LANES); if(!lk.length) return; const now=S.waveT;
+  for(let i=0;i<30;i++) spawnQ.push({t:now-.01,kind:'goblin',lane:lk[i%lk.length]}); spawnQ.sort((a,b)=>a.t-b.t); }
 function spawnPigBosses(){ const lk=Object.keys(LANES); if(!lk.length) return; doneWave=S.wave;
-  banner('🐗 THE PIG BOSSES','three raiders storm the hall'); camShake=1.0; setMusic('pigboss');
+  banner('🐗 THE PIG BOSSES','three raiders storm the hall'); camShake=1.0; setMusic('pigboss'); pigEscort();
   spawnEnemy('pigflail',lk[0]); spawnEnemy('pigdagger',lk[1%lk.length]); spawnEnemy('pigsling',lk[2%lk.length]); }
 { const prev=updateWave; updateWave=function(dt){
     if(!SURVIVAL&&S.phase==='wave'&&MAP.id==='throne'&&S.wave===MAP.waves&&doneWave!==S.wave&&pigWaveTotal>0){
