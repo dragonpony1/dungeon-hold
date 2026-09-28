@@ -140,13 +140,16 @@ window.__bramble={on:brambleOn,sprout:(x,z,dmg)=>brambleSprout(x,z,dmg,false),li
 // tier wait behind something purely decorative), so an early Wisp hit or two may land silent until it's in.
 let wispBurstGLB=null, wispBurstP=null;
 function loadWispBurst(){ if(wispBurstGLB||wispBurstP) return; wispBurstP=fetchBytes(ASSET('fam-wisp-burst.glb')).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ const root=gltf.scene||gltf.scenes[0]; root.traverse(o=>{ if(o.isMesh&&o.material){ o.material.transparent=true; o.material.depthWrite=false; } }); wispBurstGLB=root; }).catch(e=>console.warn('wisp burst model',e)); }
-loadWispBurst();
+// build 204 fix (loadorder-test.mjs/throneload-test.mjs both caught this): calling loadWispBurst() unconditionally at
+// module load fetched it for every single player, whether or not they ever touch a Wisp -- same mistake as the pig
+// bosses' first draft, just smaller. ensureFam('Wisp') (this file, above) already only fetches the base Wisp model
+// once a Wisp is actually equipped; the burst now rides the same real trigger instead of its own eager one.
 const wispBursts=[];
 function wispBurst(x,z){ if(!wispBurstGLB) return; const m=wispBurstGLB.clone(true); m.position.set(x,1.1,z); m.rotation.y=rnd()*TAU; m.scale.setScalar(.001); m.userData.noOL=true; scene.add(m); wispBursts.push({m,t:0}); }
 function wispBurstUpdate(dt){ for(let i=wispBursts.length-1;i>=0;i--){ const b=wispBursts[i]; b.t+=dt; const life=.35, k=b.t/life;
     const s=k<.4?(k/.4)*.55:.55*(1-(k-.4)/.6); b.m.scale.setScalar(Math.max(.001,s)); b.m.rotation.y+=dt*4;
     if(k>=1){ scene.remove(b.m); wispBursts.splice(i,1); } } }
 { const prevLand=famLand; famLand=function(x,z,dmg){ prevLand(x,z,dmg); if(kindOf()==='Wisp') wispBurst(x,z); }; }
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); wispBurstUpdate(dt); }; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); wispBurstUpdate(dt); if(fam&&fam.g.userData.kind==='Wisp') loadWispBurst(); }; }   // kindOf() defaults to 'Wisp' with no pet equipped at all (its own no-familiar fallback) -- checking fam directly avoids re-making the exact eager-fetch mistake this block exists to fix
 window.__wispburst={loaded:()=>!!wispBurstGLB,count:()=>wispBursts.length,ensure:loadWispBurst};
 })();
