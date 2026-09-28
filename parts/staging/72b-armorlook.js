@@ -107,9 +107,9 @@ function forwardOf(B){ if(B.head&&B.headfront){ const a=new THREE.Vector3(), b=n
 function setWorldTransform(piece,bone,worldMatrix){ bone.add(piece); bone.updateWorldMatrix(true,false);
   const inv=new THREE.Matrix4().copy(bone.matrixWorld).invert(); const local=new THREE.Matrix4().multiplyMatrices(inv,worldMatrix);
   local.decompose(piece.position,piece.quaternion,piece.scale); }
-function placeRadial(piece,bone,outward,worldRadius){ bone.updateWorldMatrix(true,false);
+function placeRadial(piece,bone,outward,worldRadius,outFrac){ bone.updateWorldMatrix(true,false);
   const bp=new THREE.Vector3(); bone.getWorldPosition(bp);
-  const wp=bp.clone().addScaledVector(outward,worldRadius*.55).addScaledVector(UPV,-worldRadius*.15);
+  const wp=bp.clone().addScaledVector(outward,worldRadius*(outFrac!=null?outFrac:.55)).addScaledVector(UPV,-worldRadius*.15);
   const q=new THREE.Quaternion().setFromUnitVectors(UPV,outward);
   setWorldTransform(piece,bone,new THREE.Matrix4().compose(wp,q,new THREE.Vector3(worldRadius,worldRadius,worldRadius))); }
 function facingQuat(dir){ const m=new THREE.Matrix4(); m.lookAt(ZERO,dir.clone().negate(),UPV); return new THREE.Quaternion().setFromRotationMatrix(m); }
@@ -118,16 +118,16 @@ function placeFacing(piece,bone,worldPos,dir,worldSize){
 
 // ---------------------------------------------------------------- the pieces themselves
 function padMesh(style){ const g=new THREE.Group(); g.name='armorPad';
-  g.add(new THREE.Mesh(PAD_GEO,mat(style.primary,style.emissive?{emissive:C(style.emissive),emissiveIntensity:.3}:undefined)));
-  if(style.family==='plate'){ const r=new THREE.Mesh(RIM_GEO,mat(style.accent,{emissive:C(style.accent),emissiveIntensity:.45})); r.rotation.x=Math.PI/2; r.scale.set(.92,.92,.2); r.position.y=-.06; g.add(r); }
-  else if(style.family==='crystal'){ const s=new THREE.Mesh(SHARD_GEO,mat(style.accent,{emissive:C(style.accent),emissiveIntensity:.8})); s.scale.set(.4,.68,.4); s.position.y=.5; g.add(s); }
+  g.add(new THREE.Mesh(PAD_GEO,mat(style.primary,style.emissive?{emissive:C(style.emissive),emissiveIntensity:.5}:undefined)));
+  if(style.family==='plate'){ const r=new THREE.Mesh(RIM_GEO,mat(style.accent,{emissive:C(style.accent),emissiveIntensity:.6})); r.rotation.x=Math.PI/2; r.scale.set(.92,.92,.2); r.position.y=-.06; g.add(r); }
+  else if(style.family==='crystal'){ const s=new THREE.Mesh(SHARD_GEO,mat(style.accent,{emissive:C(style.accent),emissiveIntensity:1.1})); s.scale.set(.4,.68,.4); s.position.y=.5; g.add(s); }
   else if(style.family==='spiked'){ const col=style.bone?0xd8c8a0:style.primary; for(let i=0;i<3;i++){ const a=(i-1)*.62; const sp=new THREE.Mesh(SPIKE_GEO,mat(col,{emissive:C(style.accent),emissiveIntensity:.35})); sp.position.set(Math.sin(a)*.48,.28,Math.cos(a)*.2); sp.rotation.z=-a*.7; sp.scale.set(.32,.62,.32); g.add(sp); } }
   else if(style.family==='organic'){ const geo=style.feather?FEATHER_GEO:LEAF_GEO; for(let i=0;i<3;i++){ const l=new THREE.Mesh(geo,mat(style.accent,{emissive:C(style.emissive||style.accent),emissiveIntensity:.22})); l.scale.setScalar(.5); l.position.set((i-1)*.24,.1,.3); l.rotation.x=-Math.PI/2.3; l.rotation.z=(i-1)*.3; g.add(l); } }
   if(style.crack) for(const x of [-.16,.16]){ const c=new THREE.Mesh(CRACK_GEO,basic(style.accent)); c.scale.set(1,.55,1); c.position.set(x,.32,.6); g.add(c); }
   return g; }
 function chestMesh(style){ const g=new THREE.Group(); g.name='armorChest';
-  g.add(new THREE.Mesh(CHEST_GEO,mat(style.primary,style.emissive?{emissive:C(style.emissive),emissiveIntensity:.28}:undefined)));
-  const gem=new THREE.Mesh(SHARD_GEO,mat(style.accent,{emissive:C(style.accent),emissiveIntensity:.85})); gem.scale.set(.26,.38,.15); gem.position.z=.14; g.add(gem);
+  g.add(new THREE.Mesh(CHEST_GEO,mat(style.primary,style.emissive?{emissive:C(style.emissive),emissiveIntensity:.45}:undefined)));
+  const gem=new THREE.Mesh(SHARD_GEO,mat(style.accent,{emissive:C(style.accent),emissiveIntensity:1.1})); gem.scale.set(.26,.38,.15); gem.position.z=.14; g.add(gem);
   if(style.heal){ const hg=glow(style.accent,.85,0); hg.name='healGlow'; hg.position.z=.22; g.add(hg); }
   return g; }
 function capeMesh(style){ const g=new THREE.Group(); g.name='armorCape';
@@ -158,13 +158,20 @@ function buildLook(root,style){
   // as its OWN scale, on a shape that already spans 2 local units tall, stood taller than the torso and floated a good
   // way out in front of it on a .42 forward offset; a badge-sized emblem sitting close to the chest reads as armor
   // instead of a hovering sign
-  const ls=padMesh(style), rs=padMesh(style); placeRadial(ls,B.lsh,outL,shoulderW*.16); placeRadial(rs,B.rsh,outR,shoulderW*.16);
+  // build 186 (Matt: "id be curious to see what you could do with it" -- the pieces were technically building fine,
+  // confirmed with __armorlook.raw()/debug(), but got lost under the heroes' own baked-in scarves/cloaks/hats: the
+  // Knight's red scarf alone covered most of a shoulder pad and the whole cape). Rather than re-inflate back toward
+  // build-181's original (rejected) oversized pass, these push the SAME pieces further clear of the body -- more
+  // outward on the pauldrons, more forward on the chest emblem, more back-and-down on the cape so its hem shows past
+  // a shorter base scarf -- and brighten the glow so a piece reads as lit armor even where fabric still overlaps it.
+  const PAD_R=shoulderW*.20, PAD_OUT=.85;   // was .16 / (placeRadial's own fixed .55) -- bigger dome, pushed further off the joint
+  const ls=padMesh(style), rs=padMesh(style); placeRadial(ls,B.lsh,outL,PAD_R,PAD_OUT); placeRadial(rs,B.rsh,outR,PAD_R,PAD_OUT);
   const chest=chestMesh(style); const chestBone=B.spineTop||B.collar; chestBone.updateWorldMatrix(true,false);
-  const cbp=new THREE.Vector3(); chestBone.getWorldPosition(cbp); const chestWorld=cbp.clone().addScaledVector(fwd,shoulderW*.2).addScaledVector(UPV,shoulderW*.02);
-  placeFacing(chest,chestBone,chestWorld,fwd,shoulderW*.28);
+  const cbp=new THREE.Vector3(); chestBone.getWorldPosition(cbp); const chestWorld=cbp.clone().addScaledVector(fwd,shoulderW*.32).addScaledVector(UPV,shoulderW*.02);   // was .2
+  placeFacing(chest,chestBone,chestWorld,fwd,shoulderW*.34);   // was .28
   const cape=capeMesh(style); const capeBone=B.collar; capeBone.updateWorldMatrix(true,false);
-  const capeAnchor=new THREE.Vector3(); capeBone.getWorldPosition(capeAnchor); capeAnchor.addScaledVector(back,shoulderW*.14).addScaledVector(UPV,-shoulderW*.05);
-  placeFacing(cape,capeBone,capeAnchor,back,shoulderW*1.15);
+  const capeAnchor=new THREE.Vector3(); capeBone.getWorldPosition(capeAnchor); capeAnchor.addScaledVector(back,shoulderW*.24).addScaledVector(UPV,-shoulderW*.14);   // was .14 back / -.05 down -- sits further back and lower, hem clears a shorter scarf
+  placeFacing(cape,capeBone,capeAnchor,back,shoulderW*1.35);   // was 1.15
   const all=[ls,rs,chest,cape]; for(const p of all) outline(p);
   return {all,ls,rs,chest,cape}; }
 function computeStyleKey(){ const a=gear.armor; if(!a) return null;
