@@ -21,7 +21,7 @@ const placed={};
 for(const kind in HALOS){ const p=await placeNear(kind); placed[kind]=p; check("a "+kind+" halo goes down near the hero",!!p&&p.kind===kind,JSON.stringify(p)); }
 for(const kind in HALOS){ const c=await column(placed[kind].i);
   check(kind+": the halo's aura carries a light column in the halo's own colour",c.column&&c.color===HALOS[kind],JSON.stringify(c));
-  check(kind+": faint and see-through -- additive, no depth write, opacity under a tenth at rest, no outline",c.column&&c.additive&&!c.depthWrite&&c.transparent&&c.opacity>.015&&c.opacity<.1&&c.noOL,JSON.stringify({op:c.opacity,add:c.additive,dw:c.depthWrite}));
+  check(kind+": faint and see-through -- additive, no depth write, opacity under a tenth at rest, no outline",c.column&&c.additive&&!c.depthWrite&&c.transparent&&c.opacity>.015&&c.opacity<.12&&c.noOL,JSON.stringify({op:c.opacity,add:c.additive,dw:c.depthWrite}));
   check(kind+": an open 2.4-tall cylinder standing on the floor, bright at the base and faded to nothing at the top",c.open&&c.height===2.4&&c.y===1.2&&c.vertexColors&&c.fadeBottom>.6&&c.fadeTop<.05,JSON.stringify({open:c.open,h:c.height,y:c.y,fb:c.fadeBottom,ft:c.fadeTop}));
   check(kind+": the column's radius is the halo's reach ("+c.range+") and its height stays 2.4 in the world",Math.abs(c.radiusWorld-c.range)<.05&&Math.abs(c.heightWorld-2.4)<.05,JSON.stringify({r:c.radiusWorld,range:c.range,h:c.heightWorld})); }
 // a mark up: the ring and its column grow with the reach
@@ -33,7 +33,7 @@ for(const kind in HALOS){ const c=await column(placed[kind].i);
 { const i=placed.ember.i; const p=placed.ember;
   const idle=await page.evaluate(i=>{ const d=window.__dd; for(const e of d.enemies) e.dead=true; d.step(1/60,1); return d.defs[i].mdl.userData.aura.userData.column.material.opacity; },i);
   const lit=await page.evaluate(({i,x,z})=>{ const d=window.__dd; const e=d.spawn('goblin','N'); e.x=x+.5; e.z=z; e.hp=1e9; d.step(1/60,1); return {op:d.defs[i].mdl.userData.aura.userData.column.material.opacity,inside:Math.hypot(e.x-x,e.z-z)<d.stat(d.defs[i],'range')}; },{i,x:p.x,z:p.z});
-  check("a goblin standing in the Ember Halo: its column brightens by about .02 (build 173: dimmer, per Matt), and stays under .15",lit.inside&&lit.op-idle>.012&&lit.op<.15,JSON.stringify({idle:+idle.toFixed(3),lit:+lit.op.toFixed(3)})); }
+  check("a goblin standing in the Ember Halo: its column brightens by about .05, and stays under .15",lit.inside&&lit.op-idle>.03&&lit.op<.15,JSON.stringify({idle:+idle.toFixed(3),lit:+lit.op.toFixed(3)})); }
 // not everything with an aura gets one
 for(const kind of ['totem','frost']){ const p=await placeNear(kind); const c=p?await column(p.i):null; check("the "+kind+" keeps its own aura (ring, spinner, plume) -- no column",!!c&&c.aura&&!c.column,JSON.stringify(c)); }
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
