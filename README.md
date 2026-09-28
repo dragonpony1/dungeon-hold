@@ -45,7 +45,7 @@ node familiar-test.mjs                  # the single-file fallback suite reads $
 Suites: feat, loot, glb, place, csp, mob, mobpath, meta, tavern, tavernroom, familiar, familiars2, cone, music, defglb,
 ballista, lootfeel, weapons, towers, paperdoll, casino, ogre, forge, fix-r1, fix-r2, heroes, void, sets, throne, campaign, maps,
 moat, aim, newmobs, trollboss, armory, totem, pause, pwa, share, hideout, loadorder, bagsort, gearlock, coop-rewards,
-voidset, halo-column, ballista-rig, forestset, trainer, menu, crystalalarm, coop-lifecycle, coop-freeze, victorylap, towerpick, tutorial, survival, and the verify-* adversarial suites. Run them one at a
+voidset, halo-column, ballista-rig, forestset, trainer, menu, crystalalarm, coop-lifecycle, coop-freeze, victorylap, towerpick, tutorial, survival, chevron, and the verify-* adversarial suites. Run them one at a
 time: ten in parallel time out on page loads (the page is 6.8 MB).
 
 ## Adding Meshy art
@@ -81,6 +81,15 @@ wave 7, 59 on 10, 116 on 20, 173 on 30, 231 on 40, 286 on 50), a mob's own hp/da
 boss wave (a troll boss leads, one ogre per ten waves behind it). Wave 50 held is SURVIVAL COMPLETE (the victory lap, no NEXT MAP,
 nothing unlocked); each map's best waves held is `dd_survivalBest {mapId:waves}`, on the mode row and the end screen. Co-op: the
 host's mode rides the world broadcast, `mapHeld`/`runEnd` and the lobby roster. `survival-test.mjs` covers it.
+
+Tower marks (build 177, game.js `MAXLVL` / `CHEV_FROM` / `towerChevrons`): a tower climbs to Mark VII (`MAXLVL`, the one knob -- the
+roman `MARK` names, the "Already Mark VII" toast, the card and the chevrons follow it). Marks I-IV are the four models; from Mark V
+a tower keeps the Mark IV look and wears one gold chevron per mark past IV (V 1, VI 2, VII 3), floating over its model, bobbing,
+turned to the camera, hung on `d.mdl` (or a guest's puppet `mdl`, 99-network.js) so a sale or reskin takes them with it. Every mark
+still adds what marks always did (hp +40%, damage +50%, fire 20% faster, reach, 8% armour -- capped at `TOWER_ARMOR_MAX` 60%); the
+model's 7%-a-mark growth stops at V (`markGrow`) and the gold base ring marks only II-IV. `upCost` is 100 x mark, and half again
+per chevron already worn: 100 / 200 / 300 / 400 / 750 / 1200 (2950 from Mark I). The tower card shows the chevrons beside
+"Mark VI" and what the next one gives; `chevron-test.mjs` covers it, the co-op puppets and a guest refused at VII included.
 
 Maps so far: 1 The Gnome Hall (the original), 2 The Throne Room (a 27×54 marble stair hall under an 18-high ceiling with
 arched windows and drapes, five levels high: the horde comes in at the south gate on the floor and climbs twin first

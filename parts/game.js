@@ -607,7 +607,16 @@ const DEFS={
   venom:{name:'Venom Halo',ic:'☠',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,cd:.5,dmg:1.4,poisonDur:3},      // poison: a DOT that keeps ticking for a few seconds after a mob leaves the ring, unlike the others
   ember:{name:'Ember Halo',ic:'🔥',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,cd:.5,dmg:2.2},                 // fire: burns everything standing in the ring, same tick pattern as the mushroom ring
   dazzle:{name:'Dazzling Halo',ic:'🌀',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,confuseDur:1.2}};           // confusion: no damage — a mob in the ring wanders instead of advancing, for as long as it stays in range plus a little after
-const DEFKEYS=['harpoon','acorn','ball','slice','spike','totem','frost','snare','zap','venom','ember','dazzle']; const DEFKEY_LABELS=['1','2','3','4','5','6','7','8','9','0','-','=']; const MAXLVL=5, MARK=['','I','II','III','IV','V'];
+const DEFKEYS=['harpoon','acorn','ball','slice','spike','totem','frost','snare','zap','venom','ember','dazzle']; const DEFKEY_LABELS=['1','2','3','4','5','6','7','8','9','0','-','='];
+// build 177 (Matt: "add more upgrades but just like chevrons once its a level 4" / "shouldn't need to get to 10 upgrades"): a tower
+// now climbs to Mark VII. MAXLVL is the one knob -- the roman names, the upgrade toast, the card and the chevrons all follow it.
+// There are four tower models (Marks I..IV); from CHEV_FROM (Mark V) up a tower keeps the Mark IV look and wears one gold chevron
+// per mark past IV instead (towerChevrons, below)
+const MAXLVL=7, CHEV_FROM=5;
+function roman(n){ let s=''; for(const [v,r] of [[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']]) while(n>=v){ s+=r; n-=v; } return s; }
+const MARK=['',...Array.from({length:MAXLVL},(_,i)=>roman(i+1))];
+function chevCount(lvl){ return Math.max(0,(lvl||1)-CHEV_FROM+1); }   // V=1, VI=2, VII=3
+function markGrow(lvl){ return 1+.07*(Math.min(lvl||1,CHEV_FROM)-1); }   // a mark makes a tower 7% bigger -- through Mark V only (the old top); past that the chevrons say it, so a Mark VII model isn't 42% oversize and poking into the next cell
 // a defense's sector of fire at its current mark
 function arcOf(d){ const cfg=DEFS[d.kind]; if(cfg.arcs) return cfg.arcs[Math.min(cfg.arcs.length-1,(d.lvl||1)-1)]; return cfg.arc||360; }
 function mobSpd(e){ return e.spd*(e.slowT>0?DEFS.slice.slow:1)*(e.chillT>0?(e.chillK||DEFS.frost.chill):1)*(e.holdT>0?0:1)*(e.crawlT>0?.15:1); }   // holdT: Rootsplitter's roots; crawlT: the Hourglass (97-mythics.js)   // spored mobs crawl; chilled ones too
@@ -691,7 +700,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=176;
+const BUILD=177;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -952,9 +961,26 @@ function placeDef(kind,cx,cz,rot){ const t=gat(cx,cz); if(!(t===T.FLOOR||t===T.C
 function removeDef(d){ scene.remove(d.mdl); if(hoverFor===d){ if(hoverSector) scene.remove(hoverSector); hoverSector=null; hoverFor=null; } for(const i of (d.cells||[idx(d.cx,d.cz)])) if(defAt[i]===d) defAt[i]=null; const i=defs.indexOf(d); if(i>=0) defs.splice(i,1); S.du-=DEFS[d.kind].du; reflow(); }
 // build 175 (Matt: "the campaign shouldn't be sooo hard, especially if your towers are leveled up, but they keep taking damage so fast and
 // easy, we need to back off on the mob damage to towers"): a tower takes TOWER_TAKES of every blow, and each mark above I hardens it
-// TOWER_MARK_ARMOR more (Mark V: about 60% less than before). Crystal and heroes are untouched
-const TOWER_TAKES=.6, TOWER_MARK_ARMOR=.08;
-function towerHit(d,dmg){ return Math.max(.5,dmg*TOWER_TAKES*(1-TOWER_MARK_ARMOR*Math.max(0,(d.lvl||1)-1))); }
+// TOWER_MARK_ARMOR more (Mark V: about 60% less than before). Crystal and heroes are untouched. Build 177: Mark VII hardens 48%
+// (about 69% less than before build 175); TOWER_ARMOR_MAX caps the hardening so a later, higher MAXLVL can't make a tower immune
+const TOWER_TAKES=.6, TOWER_MARK_ARMOR=.08, TOWER_ARMOR_MAX=.6;
+function towerHit(d,dmg){ return Math.max(.5,dmg*TOWER_TAKES*(1-Math.min(TOWER_ARMOR_MAX,TOWER_MARK_ARMOR*Math.max(0,(d.lvl||1)-1)))); }
+// the chevrons (build 177): gold rank stripes floating over a Mark V+ tower, one per mark past IV, stacked upward, bobbing gently and
+// always turned to the camera. They hang off the tower's own model (a host's d.mdl, a guest's puppet mdl -- 99-network.js), so a sale,
+// a trample or a reskin takes them down with it and the next tick hangs them on the new model; the model's scale (the pop, the mark
+// growth, the cage's reach) and its turn are undone on them, so every chevron is the same size and faces you the same way
+let CHEV_GEO=null, CHEV_MAT=null, CHEV_RIM=null;
+function chevGroup(n){ if(!CHEV_GEO){ const w=.3,h=.17,t=.1,c=(h+t)/2, s=new THREE.Shape(); s.moveTo(-w,c-h); s.lineTo(0,c); s.lineTo(w,c-h); s.lineTo(w,c-h-t); s.lineTo(0,c-t); s.lineTo(-w,c-h-t); s.closePath();   /* a ^ of even thickness, centred so the dark rim can scale about the middle */
+    CHEV_GEO=new THREE.ShapeGeometry(s); CHEV_MAT=new THREE.MeshBasicMaterial({color:C(0xffc83a),side:THREE.DoubleSide}); CHEV_RIM=new THREE.MeshBasicMaterial({color:C(0x2a1606),side:THREE.DoubleSide}); }   // unlit: the same bright gold in a dark hall as under a torch
+  const g=new THREE.Group(); g.name='chevrons'; g.userData.n=n; g.userData.noOL=true;
+  for(let k=0;k<n;k++){ const y=k*.21; const rim=new THREE.Mesh(CHEV_GEO,CHEV_RIM); rim.scale.set(1.18,1.45,1); rim.position.set(0,y,-.012); const gold=new THREE.Mesh(CHEV_GEO,CHEV_MAT); gold.position.set(0,y,0); for(const m of [rim,gold]){ m.userData.noOL=true; m.raycast=()=>{}; g.add(m); } }   // a dark rim behind each so it reads over a bright wall or a torch
+  return g; }
+function towerChevrons(h,mdl,kind,lvl){ const n=chevCount(lvl); let g=h.chev;
+  if(g&&g.userData.n!==n){ if(g.parent) g.parent.remove(g); g=h.chev=null; }
+  if(!n||!mdl) return; if(!g) g=h.chev=chevGroup(n); if(g.parent!==mdl) mdl.add(g);
+  const T=mdl.userData.tpl; let H=DEFS[kind].top||0; if(T){ if(T.chevH===undefined){ T.wrap.updateMatrixWorld(true); const b=new THREE.Box3().setFromObject(T.wrap); T.chevH=b.isEmpty()?H:b.max.y; } H=T.chevH; }   // a Meshy model's own height (measured once per model: the trebuchet's arm and the cage's roots stand well over their DEFS top)
+  H=Math.max(H,1); const s=mdl.scale.y||1, p=mdl.position, bob=.07*Math.sin(performance.now()/1000*2.2+(p.x+p.z)*.7);   // flat halos and the cage get a 1-unit floor so the stripes don't sit in the roots
+  g.position.set(0,H+(.5+bob)/s,0); g.scale.setScalar(1/s); g.quaternion.copy(mdl.quaternion).invert().multiply(camera.quaternion); }
 function hurtDef(d,dmg){ dmg=Math.round(towerHit(d,dmg)*10)/10; d.hp-=dmg; d.shake=.25; d.calm=0; floatText(d.x,d.top+.6,d.z,String(Math.round(dmg)||dmg),'#ff6a5a'); if(d.hp<=0){ removeDef(d); SFX.destroy(); toast(DEFS[d.kind].name+' destroyed!'); } }
 function fire(d,e){ const cfg=DEFS[d.kind]; const fx=Math.sin(d.yaw), fz=Math.cos(d.yaw); d.recoil=1;
   if(d.kind==='harpoon'){ const m=harpoonMesh(); const pt=d.pitch||0, cp=Math.cos(pt), sp=Math.sin(pt); m.rotation.set(-pt,d.yaw,0,'YXZ'); scene.add(m); projs.push({kind:'harpoon',x:d.x+fx*cp*.9,y:d.base+1.35*BALLISTA_UP+sp*.9,z:d.z+fz*cp*.9,fx:fx*cp,fz:fz*cp,vy:26*sp,spd:26,life:stat(d,'range')/26,hit:new Set(),dmg:stat(d,'dmg'),mesh:m}); SFX.harpoon(); }   // the bolt leaves along the yoke's tilt
@@ -977,7 +1003,9 @@ function healPulse(e){ SFX.mana(); const fl=baseFloor(e.x,e.z); const fx=glow(0x
 function oStat(d,k){ const v=d.ownerId?Meta.defOwnerStat(d.ownerId,k):undefined; return v!==undefined?v:heroStat(k); }
 function oMult(d,k){ const v=d.ownerId?Meta.defOwnerMult(d.ownerId,k):undefined; return v!==undefined?v:heroMult(k); }
 function stat(d,k){ const cfg=DEFS[d.kind], l=d.lvl||1; if(k==='dmg') return Math.max(1,Math.round(cfg.dmg*(1+.5*(l-1))*(1+oStat(d,'tow')/100)*oMult(d,'tow')*(1+(d.buff||0))*10)/10); if(k==='cd') return cfg.cd*Math.pow(.8,l-1)/oMult(d,'tcd')/(1+oStat(d,'trate')/100)/(1+(d.buff||0)); if(k==='buff') return (cfg.buff||0)+(cfg.buffUp||0)*(l-1); if(k==='chill') return Math.max(.2,(cfg.chill||1)-(cfg.chillUp||0)*(l-1)); if(k==='range') return ((cfg.range||0)+(cfg.rangeUp!==undefined?cfg.rangeUp:2)*(l-1))*(cfg.arc===360?oMult(d,'aoe'):1)*(1+oStat(d,'tarea')/100); return cfg[k]; }
-function upCost(d){ return 100*(d.lvl||1); }
+// build 177: the chevron marks cost half again more for every chevron already worn -- IV→V 400 as always, V→VI 750, VI→VII 1200
+// (2950 all told from Mark I), so a Mark VII is a real investment and not just the next 100 up
+function upCost(d){ const l=d.lvl||1; return Math.round(100*l*(1+.5*chevCount(l))); }
 // upgrade's own top-level binding gets wrapped by other modules too (tavern stations, the raven's hero-doll panel
 // both intercept the 'E' key's call to it, opening their own UI instead when the player's standing by one of
 // those) -- those wrappers take no arguments and don't forward any, so a co-op caller reaching `upgrade` through
@@ -985,7 +1013,7 @@ function upCost(d){ return 100*(d.lvl||1); }
 // wraps, so a host-side guest request can call it directly and skip those (purely single-player-local) UI checks.
 function upgrade(pos){ return upgradeDef(pos); }
 function upgradeDef(pos){ const d=pickDef(pos); if(!d) return; if(d.hp<d.max){ repair(pos); return; } if(d.lvl>=MAXLVL){ toast('Already Mark '+MARK[MAXLVL]+' — that is as good as it gets'); return; } const cost=upCost(d); if(S.mana<cost){ toast('Need '+cost+' mana to upgrade'); return; }
-  S.mana-=cost; d.spent+=cost; d.lvl++; d.max=Math.round(DEFS[d.kind].hp*(1+.4*(d.lvl-1))); d.hp=d.max; d.pop=0; const ring=M(new THREE.TorusGeometry(d.kind==='spike'?1.1:.98,.045,6,18),mat(d.lvl>=MAXLVL?0xd8322c:0xe0b040),0,.16+.1*(d.lvl-2),0); ring.rotation.x=PI/2; d.mdl.add(ring); SFX.place(); floatText(d.x,d.top+.9,d.z,'MARK '+MARK[d.lvl]+(DEFS[d.kind].arcs?'  ·  '+arcOf(d)+'° cone':''),'#e8b94a'); floatText(d.x,d.top+1.7,d.z,'-'+cost+' ◆ mana','#5ee9ff'); toast(DEFS[d.kind].name+' → Mark '+MARK[d.lvl]+'  ·  '+cost+' mana spent'); if(hoverFor===d){ if(hoverSector) scene.remove(hoverSector); hoverSector=null; hoverFor=null; } }
+  S.mana-=cost; d.spent+=cost; d.lvl++; d.max=Math.round(DEFS[d.kind].hp*(1+.4*(d.lvl-1))); d.hp=d.max; d.pop=0; if(d.lvl<CHEV_FROM){ const ring=M(new THREE.TorusGeometry(d.kind==='spike'?1.1:.98,.045,6,18),mat(0xe0b040),0,.16+.1*(d.lvl-2),0); ring.rotation.x=PI/2; d.mdl.add(ring); }   /* build 177: the gold base ring marks II-IV; from V the chevrons do (towerChevrons) -- no more red "top mark" ring */ SFX.place(); floatText(d.x,d.top+.9,d.z,'MARK '+MARK[d.lvl]+(DEFS[d.kind].arcs?'  ·  '+arcOf(d)+'° cone':''),'#e8b94a'); floatText(d.x,d.top+1.7,d.z,'-'+cost+' ◆ mana','#5ee9ff'); toast(DEFS[d.kind].name+' → Mark '+MARK[d.lvl]+'  ·  '+cost+' mana spent'); if(hoverFor===d){ if(hoverSector) scene.remove(hoverSector); hoverSector=null; hoverFor=null; } }
 function fireArrow(e,x,y,z,hit){ const splash=MOBS[e.kind]&&MOBS[e.kind].splash||0; const m=splash?grenadeMesh():arrowMesh(); scene.add(m); const x0=e.x, y0=e.y+1.2*e.sc, z0=e.z; const dur=Math.hypot(x-x0,z-z0)/(splash?13:18); projs.push({kind:'arrow',x0,y0,z0,x1:x,y1:y,z1:z,t:0,dur:Math.max(.2,dur),dmg:e.dmg,hit,mesh:m,splash,owner:e}); }   // a splash-tagged mob throws a grenade, slower and heavier than a plain shot
 // the floor ring the four elemental halos share: a glow ring at the reach, a small inner spinner — same idea as the
 // totem/frost aura but flatter and lower, since these stand barely off the ground (top .08) instead of being a spire
@@ -1029,7 +1057,7 @@ function easeOut(k){ return 1-(1-k)*(1-k); }
 function updateDefs(dt){ const trampled=[];
   // the totems' rings: every other defense inside one hits harder and faster by the strongest ring it stands in
   for(const d of defs) d.buff=0; for(const t of defs){ if(t.kind!=='totem'||t.pop<1) continue; const r=stat(t,'range'), b=stat(t,'buff'); for(const d of defs){ if(d===t||d.kind==='totem') continue; if(Math.hypot(d.x-t.x,d.z-t.z)<=r) d.buff=Math.max(d.buff,b); } }
-  for(const d of defs){ const cfg=DEFS[d.kind]; d.pop=Math.min(1,d.pop+dt*4); const s=(d.pop<1?easeOutBack(d.pop):1)*(d.kind==='slice'?stat(d,'range')/cfg.range:(1+.07*(d.lvl-1))); d.mdl.scale.set(s,s,s); d.cd-=dt; d.shake=Math.max(0,d.shake-dt); d.recoil=Math.max(0,d.recoil-dt*4);
+  for(const d of defs){ const cfg=DEFS[d.kind]; d.pop=Math.min(1,d.pop+dt*4); const s=(d.pop<1?easeOutBack(d.pop):1)*(d.kind==='slice'?stat(d,'range')/cfg.range:markGrow(d.lvl)); d.mdl.scale.set(s,s,s); d.cd-=dt; d.shake=Math.max(0,d.shake-dt); d.recoil=Math.max(0,d.recoil-dt*4);
     d.mdl.position.set(d.x+(d.shake>0?(rnd()-.5)*.12:0),d.base,d.z+(d.shake>0?(rnd()-.5)*.12:0));
     if(d.kind==='harpoon'||d.kind==='ball'||d.kind==='acorn'){ const half=arcOf(d)*PI/360, range=stat(d,'range'); let best=null, bestProg=1e18;   // among everything in range/arc/sight, engage whoever is furthest along toward the crystal (path distance, not raw distance to this tower) — a tower otherwise happily plinks the mob that wandered nearest to IT while one about to breach sits in range ignored
       for(const e of enemies){ if(e.dead) continue; const dd=Math.hypot(e.x-d.x,e.z-d.z); if(dd>range||Math.abs(angDiff(d.rot,Math.atan2(e.x-d.x,e.z-d.z)))>half||!los(d.x,d.z,e.x,e.z)) continue;
@@ -1300,14 +1328,14 @@ function update(dt){ if(S.phase==='start'){ updateFx(dt); updateCamera(dt); retu
   if(S.phase==='deathcut'){ updateFx(dt); updateDeathCut(dt); updateHUD(); return; }
   if(S.phase!=='dead'&&S.phase!=='won'&&(!Meta.isOpen()||Meta.sharedHall())){ /* the tavern pauses the hall: nothing walks, swings or fires behind the overlay -- except a co-op host's with guests in it (build 159): their hall runs on, and the host's gnome just stands (99-network.js clears its keys) */ if(!Meta.isOpen()){ if(!TOUCH&&!locked&&S.phase!=='start'){ if(edgeX<.1) cam.yaw+=1.6*dt; else if(edgeX>.9) cam.yaw-=1.6*dt; } if(K.tl) cam.yaw+=2.2*dt; if(K.tr) cam.yaw-=2.2*dt; }   /* no camera pan from under a menu: the mouse's last spot (edgeX) is stale there */
     heroUpdate(dt); updateDefs(dt); updateEnemies(dt); updateProj(dt); updateOrbs(dt); updateLoot(dt); updateWave(dt); updateGhost(); updateHoverSector(); Meta.update(dt); }
-  updateFx(dt); updateCamera(dt); updateHUD(); Meta.hud(); if(S.phase!=='build'&&S.phase!=='wave') pickRing(null); }
+  updateFx(dt); updateCamera(dt); for(const d of defs) towerChevrons(d,d.mdl,d.kind,d.lvl); /* build 177: after the camera moves, so they face this frame's view */ updateHUD(); Meta.hud(); if(S.phase!=='build'&&S.phase!=='wave') pickRing(null); }
 let lastT=performance.now();
 function frame(now){ requestAnimationFrame(frame); const dt=Math.min(.05,(now-lastT)/1000); lastT=now; if(!window.__freeze) update(dt); if(!Meta.isOpen()&&!HIDEOUT_SHOWN){ renderer.render(scene,camera); drawOverlay(); RENDERS++; } }   /* __freeze: tests step the hall themselves and still see it drawn */   // the tavern is opaque: no GPU work behind it
 requestAnimationFrame(frame);
 
 // ================= TEST HOOK =================
 window.__loadtime=()=>Object.assign({},LOADT);
-window.__dd={renders:()=>RENDERS,placeDefAt,upgradeDef,S,hero,cam,renderer,camera,enemies,defs,projs,orbs,loot,grid,DEFS,MOBS,stat,mobSpd,gear:()=>gear,rollItem,dropLoot,resetGear,heroStat,heroMult,heroDmg,kill,Meta,SLOTS,applyGear,saveGear,pickup,tierOf,statStr,RNAME,RCSS,loadHeroGLB,toggleHero,ghost:()=>placing?{x:ghostPos[0],z:ghostPos[1],yaw:ghostYaw,ok:ghostOk,why:ghostReason,stage:placeStage,dist:Math.hypot(ghostPos[0]-hero.x,ghostPos[1]-hero.z),sector:!!ghostSector&&ghostSector.children.length>0}:null,rotateGhost,unstick,music:()=>({on:musicOn,mode:musicMode,step:mStep}),hoverSector:()=>!!hoverSector,heroModel:()=>GLBH?{label:GLBH.label,useGLB,clips:Object.keys(GLBH.map),cur:GLBH.cur?GLBH.cur.getClip().name:null,scale:GLBH.scale,height:GLBH.height,visible:GLBH.wrap.visible}:null,mobTemplate:k=>MOBGLB[k],scene,mobModel:k=>MOBGLB[k]?{clips:Object.keys(MOBGLB[k].map),scale:MOBGLB[k].scale}:null,mobState:e=>e&&e.mdl&&e.mdl.glb?{cur:e.mdl.cur?e.mdl.cur.getClip().name:null,time:e.mdl.cur?e.mdl.cur.time:0}:null,setHeroYaw:d=>{ heroYawOff=d; },deathCut:()=>deathCut,camPos:()=>({x:camera.position.x,y:camera.position.y,z:camera.position.z}),hurtCrystal,SFX,rails:()=>RAILBOXES.map(b=>({x0:+b.x0.toFixed(2),x1:+b.x1.toFixed(2),z0:+b.z0.toFixed(2),z1:+b.z1.toFixed(2),top:+b.top.toFixed(2)})),
+window.__dd={renders:()=>RENDERS,placeDefAt,upgradeDef,marks:()=>({max:MAXLVL,names:MARK.slice(),chevFrom:CHEV_FROM}),upCost,towerHit,chevrons:d=>{ const g=d&&d.chev; return g&&g.parent===d.mdl&&g.parent.parent?g.userData.n:0; },   /* build 177: chevron-test.mjs */ S,hero,cam,renderer,camera,enemies,defs,projs,orbs,loot,grid,DEFS,MOBS,stat,mobSpd,gear:()=>gear,rollItem,dropLoot,resetGear,heroStat,heroMult,heroDmg,kill,Meta,SLOTS,applyGear,saveGear,pickup,tierOf,statStr,RNAME,RCSS,loadHeroGLB,toggleHero,ghost:()=>placing?{x:ghostPos[0],z:ghostPos[1],yaw:ghostYaw,ok:ghostOk,why:ghostReason,stage:placeStage,dist:Math.hypot(ghostPos[0]-hero.x,ghostPos[1]-hero.z),sector:!!ghostSector&&ghostSector.children.length>0}:null,rotateGhost,unstick,music:()=>({on:musicOn,mode:musicMode,step:mStep}),hoverSector:()=>!!hoverSector,heroModel:()=>GLBH?{label:GLBH.label,useGLB,clips:Object.keys(GLBH.map),cur:GLBH.cur?GLBH.cur.getClip().name:null,scale:GLBH.scale,height:GLBH.height,visible:GLBH.wrap.visible}:null,mobTemplate:k=>MOBGLB[k],scene,mobModel:k=>MOBGLB[k]?{clips:Object.keys(MOBGLB[k].map),scale:MOBGLB[k].scale}:null,mobState:e=>e&&e.mdl&&e.mdl.glb?{cur:e.mdl.cur?e.mdl.cur.getClip().name:null,time:e.mdl.cur?e.mdl.cur.time:0}:null,setHeroYaw:d=>{ heroYawOff=d; },deathCut:()=>deathCut,camPos:()=>({x:camera.position.x,y:camera.position.y,z:camera.position.z}),hurtCrystal,SFX,rails:()=>RAILBOXES.map(b=>({x0:+b.x0.toFixed(2),x1:+b.x1.toFixed(2),z0:+b.z0.toFixed(2),z1:+b.z1.toFixed(2),top:+b.top.toFixed(2)})),
   start:()=>{ if(S.phase==='start'){ S.phase='build'; $('start').classList.add('hide'); cam.x=hero.x; cam.y=hero.y+5; cam.z=hero.z+8; cam.d=cam.dist; } },
   startWave, winMap, moveOn, place:(k,cx,cz,rot)=>placeDef(k,cx,cz,rot||0), spawn:spawnEnemy, select, confirmPlace, swing, repair, upgrade, sell, jump, setKeys:(o)=>Object.assign(K,o), r:renderer,
   step:(dt,n)=>{ for(let i=0;i<(n||1);i++) update(dt||1/60); },

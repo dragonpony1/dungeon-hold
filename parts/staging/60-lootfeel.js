@@ -10,7 +10,7 @@ const css=`#pickcard{position:absolute;right:14px;top:112px;width:272px;max-widt
 #herostats{margin-top:6px;font-size:11.5px;line-height:1.45;text-shadow:0 1px 2px #000;display:grid;grid-template-columns:1fr 1fr;gap:0 8px}
 #herostats .hs{display:flex;justify-content:space-between;gap:6px;padding:0 4px;border-radius:3px;transition:background .8s}#herostats .hs b{color:#f1e6d0;font-weight:bold}#herostats .hs i{font-style:normal;color:#bfae90}
 #herostats .hs.up{background:#5ad05a66;transition:none}#herostats .hs.dn{background:#ff6a5a66;transition:none}
-#defcard{margin-top:6px;font-size:11.5px;line-height:1.45;text-shadow:0 1px 2px #000;background:#0006;border:1px solid #6b5a3c66;border-radius:6px;padding:4px 6px;display:none}#defcard.show{display:block}#defcard .dc-n{font-weight:bold;color:#e8b94a}#defcard .dc-r{display:flex;justify-content:space-between;gap:8px}#defcard .dc-r i{font-style:normal;color:#bfae90}#defcard .dc-r b{color:#f1e6d0}#defcard .dc-hp{color:#5ad05a}#defcard .dc-note{color:#5ee9ff;font-style:italic}#hud .res .mana.spend{color:#fff;text-shadow:0 0 12px var(--cyan)}
+#defcard{margin-top:6px;font-size:11.5px;line-height:1.45;text-shadow:0 1px 2px #000;background:#0006;border:1px solid #6b5a3c66;border-radius:6px;padding:4px 6px;display:none}#defcard.show{display:block}#defcard .dc-n{font-weight:bold;color:#e8b94a}#defcard .dc-r{display:flex;justify-content:space-between;gap:8px}#defcard .dc-r i{font-style:normal;color:#bfae90}#defcard .dc-r b{color:#f1e6d0}#defcard .dc-hp{color:#5ad05a}#defcard .dc-note{color:#5ee9ff;font-style:italic}#defcard .dc-chevs{display:inline-flex;flex-direction:column-reverse;align-items:center;vertical-align:middle;margin:-3px 0 0 6px}#defcard .dc-cv{display:block;width:6px;height:6px;border:solid #ffc83a;border-width:2.5px 0 0 2.5px;transform:rotate(45deg);margin:0 0 -1.5px;box-shadow:-1px -1px 0 #2a1606}#hud .res .mana.spend{color:#fff;text-shadow:0 0 12px var(--cyan)}
 @media (max-width:700px){#pickcard{width:250px;top:auto;bottom:150px;right:auto;left:50%;transform:translate(-50%,140%);font-size:12px}#pickcard.show{transform:translate(-50%,0)}#pickcard .pc-ic{font-size:20px}#herostats{font-size:10.5px;grid-template-columns:1fr}}`;
 const st=document.createElement('style'); st.textContent=css; document.head.appendChild(st);
 const card=document.createElement('div'); card.id='pickcard'; $('hud').appendChild(card);
@@ -67,6 +67,7 @@ function statsUpdate(){ ensureStats(); manaWatch(); if(!hsEl) return; const s=he
 
 // ---- the defense you are standing at: its numbers ----
 let dcEl=null, dcKey='';
+function chevHtml(l){ const n=chevCount(l); return n?'<span class="dc-chevs" title="'+n+' chevron'+(n>1?'s':'')+'">'+'<span class="dc-cv"></span>'.repeat(n)+'</span>':''; }   // build 177: the Mark V+ tower's gold chevrons (game.js towerChevrons), drawn small on the card too
 function defCard(){ if(!dcEl){ const anchor=$('herostats')||$('xpline')||$('gear'); if(!anchor) return; dcEl=document.createElement('div'); dcEl.id='defcard'; anchor.insertAdjacentElement('afterend',dcEl); }
   const d=(S.phase==='build'||S.phase==='wave')&&!placing?pickDef():null;   /* build 165: the same tower E will act on (game.js pickDef) */ if(!d){ if(dcKey){ dcKey=''; dcEl.classList.remove('show'); } return; }
   const cfg=DEFS[d.kind]; const rows=[]; const R=(l,v)=>rows.push('<div class="dc-r"><i>'+l+'</i><b>'+v+'</b></div>');
@@ -75,12 +76,13 @@ function defCard(){ if(!dcEl){ const anchor=$('herostats')||$('xpline')||$('gear
   // what E and X do here, and what they cost — the numbers the player asked for
   if(d.hp<d.max){ R('🔧 Repair · E',Math.ceil((d.max-d.hp)/8)+' ◆ mana'); }
   if(d.lvl<MAXLVL){ const l0=d.lvl; d.lvl=l0+1; const nd=cfg.dmg!==undefined?stat(d,'dmg'):null, nr=cfg.range?Math.round(stat(d,'range')*10)/10:null, na=cfg.arcs?arcOf(d):null; d.lvl=l0;
-    const gains=[]; if(nd!==null) gains.push('dmg '+nd); if(nr!==null) gains.push((cfg.arc===360?'radius ':'range ')+nr); if(na!==null) gains.push(na+'°'); if(cfg.thorns||cfg.regrow) gains.push('hp '+Math.round(cfg.hp*(1+.4*l0)));
-    R((d.hp<d.max?'⬆ Upgrade (after repair)':'⬆ Upgrade · E'),upCost(d)+' ◆ mana → Mk '+MARK[l0+1]+(gains.length?' ('+gains.join(', ')+')':'')); }
+    const gains=[]; if(nd!==null) gains.push('dmg '+nd); if(nr!==null) gains.push((cfg.arc===360?'radius ':'range ')+nr); if(na!==null&&na!==arcOf(d)) gains.push(na+'°');   /* build 177: the cone stops at 40° after Mark V -- only say it when it grows */ if(cfg.thorns||cfg.regrow) gains.push('hp '+Math.round(cfg.hp*(1+.4*l0)));
+    R((d.hp<d.max?'⬆ Upgrade (after repair)':'⬆ Upgrade · E'),upCost(d)+' ◆ mana → Mk '+MARK[l0+1]+chevHtml(l0+1)+(gains.length?' ('+gains.join(', ')+')':'')); }
+  else R('⬆ Upgrade','Mark '+MARK[MAXLVL]+' — the top mark');
   R('✖ Sell · X','+'+Math.round(d.spent*.7)+' ◆ mana');
   R('','<span class="dc-note">you have '+Math.floor(S.mana)+' ◆</span>');
   const key=d.kind+d.lvl+'|'+Math.ceil(d.hp)+'|'+rows.join(''); if(key===dcKey) return; dcKey=key;
-  dcEl.innerHTML='<div class="dc-n">'+cfg.ic+' '+cfg.name+' · Mark '+MARK[d.lvl]+'</div>'+rows.join(''); dcEl.classList.add('show'); }
+  dcEl.innerHTML='<div class="dc-n">'+cfg.ic+' '+cfg.name+' · Mark '+MARK[d.lvl]+chevHtml(d.lvl)+'</div>'+rows.join(''); dcEl.classList.add('show'); }
 { const prevU=Meta.update; Meta.update=dt=>{ prevU(dt); visualsUpdate(dt); }; const prevH=Meta.hud; Meta.hud=()=>{ prevH(); statsUpdate(); defCard(); }; }
 window.__feel={defcard:()=>dcEl&&dcEl.classList.contains('show')?dcEl.textContent:null,card:()=>CS.it?{name:CS.it.name,id:CS.it.id,outcome:CS.outcome,canEquip:CS.canEquip,keep:CS.keep||null,shown:card.classList.contains('show'),html:card.innerHTML}:null,stats:heroStats,visuals:()=>({weapon:!!V.weapon,weaponColor:V.weapon?'#'+V.weapon.material.color.getHexString():null,hostIsBone:!!(V.host&&V.host.isBone),charm:!!V.charm,amulet:!!V.amulet}),equipFromCard};
 })();

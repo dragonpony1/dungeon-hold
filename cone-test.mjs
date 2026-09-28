@@ -9,9 +9,9 @@ const r=await page.evaluate(()=>{ const d=window.__dd; d.resetGear(); d.start();
   const trial=()=>{ for(const e of d.enemies) d.kill(e); d.step(1/60,90); d.projs.length=0; t.cd=0; const e=d.spawn("goblin","N"); e.hp=e.max=99999; e.x=t.x+Math.sin(Math.PI+off)*15; e.z=t.z+Math.cos(Math.PI+off)*15; let fired=0; for(let i=0;i<150;i++){ e.x=t.x+Math.sin(Math.PI+off)*15; e.z=t.z+Math.cos(Math.PI+off)*15; const b=d.projs.length; d.step(1/60,1); if(d.projs.length>b) fired++; } return fired; };
   const out={}; out.mk1={lvl:t.lvl,arc:d.DEFS.harpoon.arcs[t.lvl-1],shots:trial()};
   d.setHero(t.x,t.z+2,0); d.upgrade(); d.upgrade(); out.mk3={lvl:t.lvl,arc:d.DEFS.harpoon.arcs[t.lvl-1],shots:trial()};
-  d.upgrade(); d.upgrade(); out.mk5={lvl:t.lvl,arc:d.DEFS.harpoon.arcs[t.lvl-1],shots:trial()}; d.upgrade(); out.capped=t.lvl; out.hp=t.max; return out; });
+  d.upgrade(); d.upgrade(); out.mk5={lvl:t.lvl,arc:d.DEFS.harpoon.arcs[t.lvl-1],shots:trial()}; for(let i=0;i<9;i++) d.upgrade(); out.capped=t.lvl; out.max=d.marks().max; out.mkMax={lvl:t.lvl,shots:trial()}; out.hp=t.max; return out; });   // build 177: marks go on to VII (MAXLVL), the cone stays 40° past V
 check("Mark I cone is 16° and ignores an enemy 12° off-axis",r.mk1.lvl===1&&r.mk1.arc===16&&r.mk1.shots===0,JSON.stringify(r.mk1));
 check("Mark III cone is 28° and fires at it",r.mk3.lvl===3&&r.mk3.arc===28&&r.mk3.shots>0,JSON.stringify(r.mk3));
-check("Mark V cone is the old 40° and it stops there",r.mk5.lvl===5&&r.mk5.arc===40&&r.mk5.shots>0&&r.capped===5,JSON.stringify(r.mk5)+" capped "+r.capped);
+check("Mark V cone is the old 40° and it stops there (the marks go on to the top one, still firing)",r.mk5.lvl===5&&r.mk5.arc===40&&r.mk5.shots>0&&r.max===7&&r.capped===r.max&&r.mkMax.shots>0,JSON.stringify(r.mk5)+" capped "+r.capped+" of "+r.max);
 check("no errors",errors.length===0,errors.join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");
