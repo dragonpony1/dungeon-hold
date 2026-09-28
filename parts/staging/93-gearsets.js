@@ -128,7 +128,11 @@ function fullPack(){ const w=worn().find(x=>x.tier>=5&&x.pack.col); return w?w.p
 function auraDress(root,col,sc){ const t=.05/(sc||1), out=[]; root.traverse(m=>{ if(!m.isMesh||m.userData.isOL||m.userData.noOL||m.isSprite||m.userData.setGlow) return; if(/lash|handle/.test(m.parent&&m.parent.name||'')) return; let g; if(m.isSkinnedMesh){ g=new THREE.SkinnedMesh(m.geometry,auraMat(col,true,t)); g.bind(m.skeleton,m.bindMatrix); } else g=new THREE.Mesh(m.geometry,auraMat(col,false,t)); g.userData.isOL=true; g.userData.setGlow=true; g.frustumCulled=false; g.renderOrder=2; out.push(g); });
   root.traverse(m=>{ if(m.isMesh&&!m.userData.isOL&&!m.userData.setGlow){ const g=out.find(x=>x.geometry===m.geometry&&!x.parent); if(g) m.add(g); } }); return out; }
 function auraUndress(list){ for(const g of list||[]){ if(g.parent) g.parent.remove(g); g.material.dispose(); } }
-window.__setglow={dress:auraDress,undress:auraUndress,pulse:(list,t)=>{ const op=.26+.08*Math.sin(t*2.2); for(const g of list||[]) g.material.uniforms.op.value=op; }};
+// pulse's optional third argument (build 181): 3 draws the dimmer three-piece tier (72b-armorlook.js's own shell, and a
+// puppet's tint at 72b-armorlook.js's widened tier field); omitted or 5 keeps this file's own full-set strength exactly
+// as before, so every existing caller (this file's own auraUpdate never calls pulse -- it sets its shell's opacity
+// directly -- and 98-party.js's puppet glow) is unaffected unless it opts in
+window.__setglow={dress:auraDress,undress:auraUndress,pulse:(list,t,tier)=>{ const op=tier===3?(.12+.05*Math.sin(t*2.2)):(.26+.08*Math.sin(t*2.2)); for(const g of list||[]) g.material.uniforms.op.value=op; }};
 function auraUpdate(){ const pk=fullPack(); const root=(useGLB&&GLBH)?GLBH.root:(typeof H!=='undefined'?H.g:null); const col=pk?pk.col:null;
   if(!col||!root){ if(AURA.meshes.length) auraClear(); return; }
   if(AURA.root!==root||AURA.col!==col){ auraClear(); const sc=(useGLB&&GLBH&&GLBH.scale)||1; AURA.meshes=auraDress(root,col,sc); AURA.root=root; AURA.col=col; }
