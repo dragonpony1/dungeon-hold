@@ -12,34 +12,37 @@
 const MOTES=14, RISE=2.0, LIFE=2.6, LIFT=.18, SPIN=.8;   // motes per drop; how high they drift and how long it takes; the gap under the weapon; its turn (radians a second)
 const GOLD=0xffc84a;
 const STANDS=[]; let PM=null;
-// ---------------------------------------------------------------- build 206: the first non-weapon named mythic with
-// real art. Matt confirmed the rule for all eight of them going forward: "the named mythics even non weapons will
-// have floor art". Bramblewhisk (familiar slot) is the first -- a real Meshy model ("Thornwood Briar Fox"), not one
-// of the code-built weapon kit's shapes, so it needs its own load path rather than window.__weapons.model's. Fetched
-// only once a Bramblewhisk actually drops (the same moment a weapon's own stand() call already fires), not eagerly --
-// a rare-drop item has no earlier natural trigger the way an equippable familiar does. Matt: "sit tall within your
-// column of light not on the floor directly" -- BW_LIFT well above the normal LIFT every weapon stand uses.
-const BW_LIFT=.55, BW_H=.85;
-let BW_GLB=null, BW_P=null; const BW_PENDING=[];
-function loadBramblewhisk(){ if(BW_GLB||BW_P) return; BW_P=fetchBytes(ASSET('named-bramblewhisk.glb')).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ try{
-      const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,BW_H); toonify(root,fit.scale); BW_GLB=fit.wrap;
-    }catch(e){ console.warn('bramblewhisk model',e); } }).catch(e=>console.warn('bramblewhisk model',e)); }
+// ---------------------------------------------------------------- build 206+: non-weapon named mythics with real art.
+// Matt confirmed the rule for all eight of them going forward: "the named mythics even non weapons will have floor
+// art" -- Bramblewhisk (familiar) first, Gloomcap Censer (charm) second, more to come. Each is a real Meshy model,
+// not one of the code-built weapon kit's shapes, so they share one generic load/cache/retry path keyed by named id
+// instead of window.__weapons.model's. Fetched only once that specific item actually drops (a rare-drop item has no
+// earlier natural trigger the way an equippable familiar has). Matt: "sit tall within your column of light not on
+// the floor directly" -- NAMED_REAL's own `lift` sits well above the normal LIFT every weapon stand uses.
+const NAMED_REAL={
+  bramblewhisk:{file:'named-bramblewhisk.glb',h:.85,lift:.55},
+  gloomcap_censer:{file:'named-gloomcap_censer.glb',h:.9,lift:.6},
+};
+const NR_GLB={}, NR_P={}, NR_PENDING=[];
+function loadNamedReal(k){ const cfg=NAMED_REAL[k]; if(!cfg||NR_GLB[k]||NR_P[k]) return; NR_P[k]=fetchBytes(ASSET(cfg.file)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ try{
+      const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,cfg.h); toonify(root,fit.scale); NR_GLB[k]=fit.wrap;
+    }catch(e){ console.warn('named model '+k,e); } }).catch(e=>console.warn('named model '+k,e)); }
 function pmat(){ if(!PM) PM=new THREE.PointsMaterial({map:GLOWT,size:.3,vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true}); return PM; }   // shared by every drop: each mote's colour (and fade) is its vertex colour
 // the model this page's hero would hold for the item, or null for anything without its own (a plain sword, a Forest piece)
-function modelFor(it){ if(!it) return null; if(it.named==='bramblewhisk') return 'named-bramblewhisk';   // window.__named.id() only ever resolves weapon-slot named items by design (86h-named.js's namedId guards on it.slot==='weapon') -- it.named itself is set regardless of slot (97-mythics.js), so that's the real check for anything non-weapon
+function modelFor(it){ if(!it) return null; if(it.named&&NAMED_REAL[it.named]) return 'named-'+it.named;   // window.__named.id() only ever resolves weapon-slot named items by design (86h-named.js's namedId guards on it.slot==='weapon') -- it.named itself is set regardless of slot (97-mythics.js), so that's the real check for anything non-weapon
   if(it.slot!=='weapon') return null; const named=window.__named&&window.__named.id(it), set=window.__setweapons&&window.__setweapons.setOf(it); if(!named&&!set) return null;
   if(named&&window.__named.own&&window.__named.own(named)==='bow') return 'bow-'+named;   // build 170: a named BOW stands as itself for every hero (the Knight's stand-in for Subterfuge is a loaded .glb sword, which can't stand here)
   const W=window.__weapons, hm=W.mount&&W.mount(); return hm&&hm.staff&&window.__staff?window.__staff.staffFor(it):hm&&hm.bow&&window.__bow?window.__bow.bowFor(it):W.swordFor(it); }
 function colours(it){ const named=it.named||(window.__named&&window.__named.id(it)); if(named==='subterfuge') return [0x4aa8ff,GOLD]; if(named) return [GOLD,named==='rootsplitter'?0x7aff3a:0xfff2c0];   // named: a gold column; Rootsplitter's motes half green; Subterfuge a storm-blue column with gold motes (build 170). it.named itself (set regardless of slot) catches Bramblewhisk and future non-weapon named mythics that window.__named.id() never will
   const k=window.__setweapons.setOf(it), K=k&&window.__staff&&window.__staff.info(k); const c=K&&K.glow!=null?K.glow:RCOL[Math.max(0,Math.min(5,it.rarity|0))]; return [c,K&&K.gem!=null?K.gem:0xffffff]; }
-function heightFor(name){ return name==='named-bramblewhisk'?BW_H:/^bow-/.test(name)?1.4:/^(polearm-|staff-|named-last)/.test(name)?1.75:1.4; }   // world units, foot to tip (the Knight is 1.7): a sword or a bow a bit under his height, a polearm or staff just over it -- the pictures from the game's camera read small any shorter
+function heightFor(name){ const nr=name.startsWith('named-')&&NAMED_REAL[name.slice(6)]; return nr?nr.h:/^bow-/.test(name)?1.4:/^(polearm-|staff-|named-last)/.test(name)?1.75:1.4; }   // world units, foot to tip (the Knight is 1.7): a sword or a bow a bit under his height, a polearm or staff just over it -- the pictures from the game's camera read small any shorter
 function stand(l,it){ const name=modelFor(it); if(!name) return null;
-  const bw=name==='named-bramblewhisk'; let obj;
-  if(bw){ if(!BW_GLB){ loadBramblewhisk(); if(!BW_PENDING.some(p=>p.l===l)) BW_PENDING.push({l,it}); return null; } obj=BW_GLB.clone(true); obj.position.y=BW_LIFT; }   // already sized+bottom-pivoted by fitModel at load, and toonify already gave it its own outline shells -- neither of the code-built path's two steps below apply here
+  const nrKey=name.startsWith('named-')&&NAMED_REAL[name.slice(6)]?name.slice(6):null; let obj;
+  if(nrKey){ if(!NR_GLB[nrKey]){ loadNamedReal(nrKey); if(!NR_PENDING.some(p=>p.l===l)) NR_PENDING.push({l,it}); return null; } obj=NR_GLB[nrKey].clone(true); obj.position.y=NAMED_REAL[nrKey].lift; }   // already sized+bottom-pivoted by fitModel at load, and toonify already gave it its own outline shells -- neither of the code-built path's two steps below apply here
   else{ obj=null; window.__weapons.model(name,o=>{ obj=o; }); if(!obj) return null;   // (code-built models come back at once)
     const b=obj.userData.box, y0=b?b.min.y:0, H=b?b.max.y-b.min.y:1, s=heightFor(name)/H; obj.scale.setScalar(s); obj.position.y=LIFT-y0*s; outline(obj); }
   const [col,col2]=colours(it); const root=new THREE.Group(); root.name='weaponStand'; const spin=new THREE.Group(); spin.add(obj); root.add(spin);
-  const halo=glow(col,1.9,.3); halo.position.y=(bw?BW_LIFT:LIFT)+heightFor(name)*.55; root.add(halo);   // the soft halo about it
+  const halo=glow(col,1.9,.3); halo.position.y=(nrKey?NAMED_REAL[nrKey].lift:LIFT)+heightFor(name)*.55; root.add(halo);   // the soft halo about it
   const foot=glow(col,1.3,.45); foot.position.y=.12; root.add(foot);
   const pos=new Float32Array(MOTES*3), cols=new Float32Array(MOTES*3), m=[]; const c1=C(col), c2=C(col2), m1=c1.clone().lerp(new THREE.Color(1,1,1),.3), m2=c2.clone().lerp(new THREE.Color(1,1,1),.3);   // motes a shade brighter than the column, so they read against it
   for(let i=0;i<MOTES;i++) m.push({ph:i/MOTES*LIFE+rnd()*.2,a:rnd()*TAU,r:.2+rnd()*.25,c:i%3===2?m2:m1});
@@ -61,7 +64,7 @@ function tickOne(S,dt){ const l=S.l; S.t+=dt; S.root.position.copy(l.mesh.positi
   S.pts.geometry.attributes.position.needsUpdate=true; S.pts.geometry.attributes.color.needsUpdate=true; }
 function drop(S){ scene.remove(S.root); S.pts.geometry.dispose(); S.halo.material.dispose(); S.foot.material.dispose(); if(S.l.mesh.userData.stand===S) delete S.l.mesh.userData.stand; }
 function tick(dt){ for(let i=STANDS.length-1;i>=0;i--){ const S=STANDS[i]; if(!S.l.mesh.parent){ drop(S); STANDS.splice(i,1); continue; } tickOne(S,dt); }
-  if(BW_PENDING.length&&BW_GLB) for(let i=BW_PENDING.length-1;i>=0;i--){ const {l,it}=BW_PENDING[i]; if(!l.mesh.parent||l.mesh.userData.stand){ BW_PENDING.splice(i,1); continue; } try{ if(stand(l,it)) BW_PENDING.splice(i,1); }catch(e){ console.warn('bramblewhisk stand',e); BW_PENDING.splice(i,1); } } }   // picked up, grabbed in co-op, or swept away: gone with it (also drops a still-loading Bramblewhisk from the retry list the same way)
+  if(NR_PENDING.length) for(let i=NR_PENDING.length-1;i>=0;i--){ const {l,it}=NR_PENDING[i]; if(!l.mesh.parent||l.mesh.userData.stand){ NR_PENDING.splice(i,1); continue; } try{ if(stand(l,it)) NR_PENDING.splice(i,1); }catch(e){ console.warn('named-real stand',e); NR_PENDING.splice(i,1); } } }   // picked up, grabbed in co-op, or swept away: gone with it (also drops a still-loading named-real item from the retry list the same way)
 { const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); if(l&&l.mesh&&it&&(it.slot==='weapon'||modelFor(it))){ try{ stand(l,it); }catch(e){ console.warn('weapon stand',e); } } return l; }; }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); tick(dt); }; }
 window.__weaponStand={count:()=>STANDS.length,modelFor,
