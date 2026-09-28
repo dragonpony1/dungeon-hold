@@ -12,9 +12,15 @@
 // the sim loop, so it works on the title screen too, before any game state exists.
 (function(){
 const el=document.createElement('div'); el.id='loadctr';
-el.style.cssText='position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:50;pointer-events:none;text-align:center;font-family:"Cinzel Decorative",Georgia,serif;font-weight:700;font-size:26px;color:#e8b94a;text-shadow:0 0 14px #000,0 3px 0 #000;letter-spacing:1px;display:none;white-space:nowrap;';
+// build 205 (Matt: "its counting up instead of down. the idea is it serves as a tell to the gamer... they can look up
+// and see how many files, assets are left" -- and separately, "its superimposed over the part that says build
+// phase, bring it down a little"): LOADT.inflight is already a real countdown -- however many fetches are actually
+// in the air right now, ticking to 0 as each lands (and back up if a fresh batch starts, which is just as honest:
+// more really did just get queued). Moved below #topC's BUILD PHASE / wave text (top:10px, ~50px tall) instead of
+// sitting on top of it.
+el.style.cssText='position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:50;pointer-events:none;text-align:center;font-family:"Cinzel Decorative",Georgia,serif;font-weight:700;font-size:26px;color:#e8b94a;text-shadow:0 0 14px #000,0 3px 0 #000;letter-spacing:1px;display:none;white-space:nowrap;';
 document.body.appendChild(el);
-function fmt(){ const L=LOADT, mb=(L.bytes/1048576).toFixed(1); return '⏳ LOADING · '+mb+' MB · '+L.files+' file'+(L.files===1?'':'s'); }
+function fmt(){ const n=LOADT.inflight; return '⏳ '+n+' ASSET'+(n===1?'':'S')+' LEFT'; }
 setInterval(()=>{ const on=LOADT.inflight>0; el.style.display=on?'block':'none'; if(on) el.textContent=fmt(); },150);
 window.__loadctr={el:()=>el,visible:()=>el.style.display==='block',text:()=>el.textContent};
 })();
