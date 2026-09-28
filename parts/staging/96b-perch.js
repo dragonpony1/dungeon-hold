@@ -24,7 +24,7 @@ const CAP=2;
 // steps, stone-topped platform) -- climbing collision comes entirely from the three RAILBOXES pushed on placement
 // below, not from this defense's own generic hp/collision (bypassed via NOWALK_DEF), so the visual just has to
 // roughly match those box sizes/heights for it to look right underfoot
-{ const prevMakeDef=makeDef; makeDef=function(kind,ghost){ if(kind!=='perch') return prevMakeDef(kind,ghost);
+{ const prevMakeDef=makeDef; makeDef=function(kind,ghost,lvl){ if(kind!=='perch') return prevMakeDef(kind,ghost,lvl);
     const g=new THREE.Group(); const wood=mat(0x7a4f2c), stone=mat(0x8a8698), dark=mat(0x4a3320);
     g.add(M(G.box(1.4,1.0,1.4),wood,0,.5,0));
     g.add(M(G.box(.84,.85,.84),wood,0,1.425,0));
