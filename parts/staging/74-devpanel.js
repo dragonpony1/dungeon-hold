@@ -85,6 +85,10 @@ function spawnNow(kind){ const k=Object.keys(LANES)[0]; if(!k){ toast('no lane o
   // entirely -- the banner, camera shake and entrance sound all live THERE, not in the generic spawn path every other
   // dev-panel mob uses. Call his own spawn function instead so a dev-panel Cyclops arrives exactly like a real one.
   if(kind==='cyclops'&&window.__cyclops){ if(!window.__cyclops.loaded()){ toast('loading the Cyclops…'); window.__cyclops.ensure().then(()=>window.__cyclops.spawn()); } else window.__cyclops.spawn(); return; }
+  // build 198: same reasoning as the Cyclops above -- the pig trio's real entrance (banner, camera shake, their
+  // music) lives in spawnPigBosses(), not the generic path, and picking any one of the three should bring in all
+  // three the way the real wave-7 trigger does, not just that one alone
+  if((kind==='pigflail'||kind==='pigdagger'||kind==='pigsling')&&window.__pigbosses){ if(!window.__pigbosses.loaded()){ toast('loading the pig bosses…'); window.__pigbosses.ensure().then(()=>window.__pigbosses.spawn()); } else window.__pigbosses.spawn(); return; }
   spawnEnemy(kind,k); toast('spawned a '+kind); }
 function toggle(v){ ensure(); open=v===undefined?!open:v; el.classList.toggle('hide',!open); }
 addEventListener('keydown',e=>{ if(e.code==='F9'){ e.preventDefault(); toggle(); } });
