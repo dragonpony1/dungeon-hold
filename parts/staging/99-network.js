@@ -773,7 +773,7 @@ function hostGuestShot(data,fromId){
   const y0=typeof data.y==='number'&&Math.abs(data.y-g.y)<4?data.y:g.y;
   const from=new THREE.Vector3(g.x,y0+(data.wtype==='bolt'?1.3:1.1),g.z);   // an approximate hand/head height -- the host has no bone-accurate rig for a guest's puppet to read the real one from, same "good enough to read as real" tradeoff the mob/def puppets already make
   const dir=new THREE.Vector3(data.dir.x,data.dir.y,data.dir.z);
-  const opts={dmg:data.dmg,life:data.life,size:data.size,splash:data.splash,pierce:data.pierce};
+  const opts={dmg:data.dmg,life:data.life,size:data.size,splash:data.splash,pierce:data.pierce,owner:fromId};   // owner (build 170): whose arrow -- Subterfuge sends that guest the chain lightning it throws (86i-subterfuge.js)
   if(data.wtype==='bolt') window.__staff.fireBolt(data.kind,from,dir,data.spd,opts);
   else window.__bow.fireArrow(data.kind,from,dir,data.spd,opts);
 }
@@ -795,7 +795,8 @@ onMessage('roots',(d,fromId)=>{ if(role!=='host'||!d) return; const g=guestHero.
 // what the host says a guest's power just did, drawn on that guest's own screen: the Void rift's rings, the ROOTS shout
 onMessage('powerFx',d=>{ if(role!=='guest'||!d) return;
   if(d.k==='rift'&&Array.isArray(d.at)){ const P=Meta.packs; d.at.slice(0,24).forEach(p=>{ if(P&&P.ring&&p&&Number.isFinite(+p.x)&&Number.isFinite(+p.z)) P.ring(+p.x,+p.y||0,+p.z,+p.c||0x8a3dff); }); if(SFX.rift) SFX.rift(); }
-  else if(d.k==='roots'&&Number.isFinite(+d.x)&&Number.isFinite(+d.z)){ const fx=Math.sin(+d.yaw||0), fz=Math.cos(+d.yaw||0); floatText(+d.x+fx*1.5,hero.y+1.4,+d.z+fz*1.5,'ROOTS','#5ad05a'); } });
+  else if(d.k==='roots'&&Number.isFinite(+d.x)&&Number.isFinite(+d.z)){ const fx=Math.sin(+d.yaw||0), fz=Math.cos(+d.yaw||0); floatText(+d.x+fx*1.5,hero.y+1.4,+d.z+fz*1.5,'ROOTS','#5ad05a'); }
+  else if(d.k==='chain'&&Array.isArray(d.s)&&window.__subterfuge){ const segs=d.s.slice(0,4).filter(s=>Array.isArray(s)&&s.length===6&&s.every(v=>Number.isFinite(+v))).map(s=>s.map(Number)); if(segs.length) window.__subterfuge.draw(segs); } });   // build 170: the chain lightning this guest's Subterfuge arrow threw across the host's mobs
 Meta.defOwnerStat=(id,k)=>{ const s=guestStats.get(id); return s?s.stat[k]:undefined; };
 Meta.defOwnerMult=(id,k)=>{ const s=guestStats.get(id); return s?s.mult[k]:undefined; };
 Meta.defOwnerKind=(id,kind)=>{ const s=guestStats.get(id); return s?(s.kind&&s.kind[kind])||0:undefined; };   // that guest's own full-set power for this defense kind (94-voidset.js)

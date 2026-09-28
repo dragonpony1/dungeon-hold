@@ -8,7 +8,7 @@
 //    on its card and over it on the floor (mythicArt, cardOnFloor), a weapon in the kind YOUR
 //    hero holds (the Knight a sword or now and then a polearm, the Witch and Fighter a staff, the Troll a bow — so it shows
 //    as that set's weapon, 86-setweapons.js), its stats re-rolled at rarity 5 on the item's own level (rollStat).
-//  • each wave held has NAMED_DROP to drop one of the ten named mythics (97-mythics.js's table, favouring one you don't
+//  • each wave held has NAMED_DROP to drop one of the named mythics (eleven since build 170; 97-mythics.js's table, favouring one you don't
 //    have) by the crystal with the wave's reward. In co-op every player rolls their own 5% (build 159, 3/7, which corrected
 //    "host-side only" here): it isn't a rollItem roll, so the lootDrop relay doesn't carry it, but 99-network.js's waveHeld
 //    relay runs this same Meta.onWaveHeld on a guest's page -- now at the hall's wave (atHallWave), so a guest's named mythic
@@ -23,8 +23,8 @@ const GOLDC='#ffcf3a';
 // a mythic's card picture: Matt's art, which ships inside the game with the embedded hideout (dist/hideout/…). it.art is
 // the game's own per-item picture override (93-gearsets.js itemArt → the bag, the shop, the sheet); the weapon's kind
 // rides in it.look (sword/staff/polearm/bow). No bow pictures yet, no familiar ones: those keep the slot's emoji.
-const PICS='hideout/assets/hideout/items/', NAMED_PIC={hourglass_of_hollow_sand:'hourglass_hollow_sand'};
-function mythicArt(it){ if(!it) return null; if(it.named) return PICS+'named/'+(NAMED_PIC[it.named]||it.named)+'.jpg'; if(!it.setId) return null;
+const PICS='hideout/assets/hideout/items/', NAMED_PIC={hourglass_of_hollow_sand:'hourglass_hollow_sand',subterfuge:null};   // null: no picture yet (build 170's Subterfuge) -- its card keeps the weapon emoji, its floor shows the bow
+function mythicArt(it){ if(!it) return null; if(it.named){ const f=NAMED_PIC[it.named]; return f===null?null:PICS+'named/'+(f||it.named)+'.jpg'; } if(!it.setId) return null;
   const piece=it.slot==='weapon'?(it.look==='bow'?null:(it.look||'sword')):{armor:'armor',amulet:'amulet',charm:'trinket'}[it.slot];
   return piece?PICS+'sets/'+it.setId+'-'+piece+'.jpg':null; }
 function eligible(it){ return !!(it&&typeof it==='object'&&SLOTS.includes(it.slot)&&!it.mythic&&!it.named&&(it.rarity|0)<5&&it.stats&&!(Meta.packs&&Meta.packs.of(it))); }

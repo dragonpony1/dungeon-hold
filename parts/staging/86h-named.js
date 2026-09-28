@@ -14,7 +14,8 @@
 // (bow-war). The choice is namedModel below, asked before the sets' setModel by swordFor / staffFor / bowFor (80, 82, 83).
 (function(){
 const {V,lit,slab,tube,helix,spike,toward,noOL,pulseGlow,finish}=window.__setweapons.kit;
-const NAMED_WEAPONS=['rootsplitter','last_lantern'];
+const NAMED_WEAPONS=['rootsplitter','last_lantern','subterfuge'];   // build 170: + Subterfuge, a bow (its model and power are 86i-subterfuge.js's)
+const OWN={rootsplitter:'sword',last_lantern:'sword',subterfuge:'bow'}, TOP={sword:'holy',staff:'staff-battle',bow:'bow-war'};   // the hand each is made for; what any other hand holds instead
 const jitter=(a,b,n,amp,seed)=>{ const pts=[]; for(let i=0;i<=n;i++){ const f=i/n; pts.push([a[0]+(b[0]-a[0])*f+Math.sin(i*2.7+seed)*amp,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f+Math.cos(i*1.9+seed)*amp]); } return pts; }
 function leaf(m,x,y,z,rz,s){ const l=new THREE.Mesh(new THREE.OctahedronGeometry(.016*(s||1),0),m); l.scale.set(.5,1.5,.25); l.position.set(x,y,z); l.rotation.z=rz; return noOL(l); }
 function shard(m,r,x,y,z,rz,sy){ const c=new THREE.Mesh(new THREE.OctahedronGeometry(r,0),m); c.scale.set(1,sy||1.8,.7); c.position.set(x,y,z); c.rotation.set(0,.4,rz||0); return c; }
@@ -90,9 +91,11 @@ function lastLantern(){ const g=new THREE.Group(); g.name='named-last_lantern'; 
 
 window.__weapons.register('named-rootsplitter',rootsplitter); window.__weapons.register('named-last_lantern',lastLantern);
 // which model a named weapon shows, by the hand it's in: the Knight's sword mount holds its own model, a staff hand the top staff,
-// a bow hand the top bow (see the head of this file). Asked first; anything that isn't a named weapon goes on to the sets' setModel
+// a bow hand the top bow (see the head of this file). Asked first; anything that isn't a named weapon goes on to the sets' setModel.
+// Build 170, the same rule in reverse for the bow: the Troll draws Subterfuge (bow-subterfuge), the Knight holds the top sword and the
+// Witch and Fighter the top staff -- they get its stats, not its wedge (86i-subterfuge.js)
 function namedId(it){ if(!it||it.slot!=='weapon'||!it.named) return null; const M=window.__mythic; const k=M&&M.id?M.id(it):String(it.named); return NAMED_WEAPONS.includes(k)?k:null; }
-function namedModel(it,mount){ const k=namedId(it); if(!k) return null; return mount==='staff'?'staff-battle':mount==='bow'?'bow-war':'named-'+k; }
+function namedModel(it,mount){ const k=namedId(it); if(!k) return null; const m=mount==='staff'||mount==='bow'?mount:'sword'; return m!==OWN[k]?TOP[m]:m==='bow'?'bow-'+k:'named-'+k; }
 { const setModel=window.__weapons.setModel; window.__weapons.setModel=(it,mount)=>namedModel(it,mount)||(setModel?setModel(it,mount):null); }
-window.__named={ids:()=>NAMED_WEAPONS.slice(),id:namedId,model:namedModel};
+window.__named={ids:()=>NAMED_WEAPONS.slice(),id:namedId,model:namedModel,own:k=>OWN[k]||null};
 })();

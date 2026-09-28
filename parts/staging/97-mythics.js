@@ -1,5 +1,5 @@
 // ===== MYTHIC GEAR (build 152): the hideout's forge makes a tier one step above legendary -- rarity 5 -- and the game wears it.
-// Two kinds, both Matt's: NAMED mythics (ten, a forge proc; fixed stats and a signature power; up to two worn at once, each
+// Two kinds, both Matt's: NAMED mythics (ten from the forge, a proc, and since build 170 Subterfuge, a drop only; fixed stats and a signature power; up to two worn at once, each
 // counting toward any set bonus, 92-sets.js) and mythic SET pieces ("Mythic Staff of the Void", ordinary set pieces at the
 // top rarity). They reach the hall through dd_gear_return: a localStorage array the hideout appends to when the player
 // sends gear back; every record is moved into the bag (Meta.onPickup) when the hideout closes, when a title-screen visit
@@ -19,6 +19,7 @@ const NAMED={
   old_lamplight:{name:'Old Lamplight',slot:'familiar',stats:{fdmg:30,frate:60,fproj:1},power:'+1 pet projectile, and your pet fires at whatever is being hit'},
   gloomcap_censer:{name:'Gloomcap Censer',slot:'charm',stats:{trate:20,tarea:18,regen:3},power:'defenses near you build 50% faster and fire 15% faster'},
   hourglass_of_hollow_sand:{name:'Hourglass of Hollow Sand',slot:'charm',stats:{spd:35,move:18,mana:40},power:'once a wave, when the crystal is about to fall, the horde crawls for 4 s'},
+  subterfuge:{name:'Subterfuge',slot:'weapon',stats:{dmg:26,spd:18,move:12},power:'a bow: every shot is five lightning arrows in a 40° wedge, each half an arrow, and each one that hits jumps to 3 more enemies (60%, 35%, 20%)'},   // build 170, Matt's; the eleventh, a game-made one (the hideout's forge doesn't know it). Its power is 86i-subterfuge.js's
 };
 const slug=str=>String(str||'').toLowerCase().replace(/^the /,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
 const BY_NAME={}; for(const k in NAMED){ BY_NAME[slug(NAMED[k].name)]=k; BY_NAME[k]=k; }

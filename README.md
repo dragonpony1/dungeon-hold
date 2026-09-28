@@ -1045,6 +1045,20 @@ dozen by the twenty-first) — the difficulty is in their numbers, not their hid
   throws at the shop). campaign-test,
   coop-rewards, coop-feedback and coop-loot hold the lap and then MOVE ON (the same checks, plus "no tally by itself" and
   "paid once").
+- Build 170: SUBTERFUGE, the eleventh named mythic -- a bow. Matt: "this bow shoots out 5 projectiles in a wedge shape",
+  "electric damage", "yes chain lightning". `97-mythics.js` NAMED gains `subterfuge` (weapon; dmg 26, spd 18, move 12);
+  it joins the 5%-a-wave named drop pool (87-mythicdrops.js) by being in the table; no picture exists, so its card keeps
+  the weapon emoji (`NAMED_PIC` null). `86i-subterfuge.js` (new) builds `bow-subterfuge` (dark wood, black leather,
+  blackened steel, storm-blue crystals and string, lightning veins and flickering sparks along the limbs) and hangs the
+  power on three new hooks in `83-bow.js`'s fireArrow: `K.wedge` (every loose is 5 arrows fanned across 40°, each half
+  the shot; a full draw's pierce carries to all five), `K.arrow`/`K.arrowTick` (they fly as crackling blue-white
+  lightning bolts), `K.onHit` (the first mob each arrow hits throws chain lightning to up to 3 more within 4.5, for 60%,
+  35%, 20% of that arrow's hit, a bolt drawn between each). Only the Troll draws it: `86h-named.js` namedModel gives the
+  Knight the top sword (`holy`) and the Witch and Fighter `staff-battle` -- the stats, not the wedge. On the floor it
+  always stands as the bow, in a storm-blue column with gold motes (93c-weaponstand.js). Co-op: a guest's shot reaches
+  the host as its bow kind, so the wedge and chains run on the host's real mobs; `hostGuestShot` tags the arrows with
+  their owner and the host sends that guest its chains to draw (`powerFx` k:'chain', 99-network.js).
+  `subterfuge-test.mjs` (new, 20 checks; ports 8813/9713). `named-drop-test.mjs` expects the third named weapon id.
 - Build 169: THE NAMED WEAPONS in code, and WEAPONS STAND ON THE FLOOR. Matt: "lets have you do the two named weapons. lets
   hit go on have the drop, i am envisioning a tall standing weapon with glow and particulate. then when its equipped it
   shows in your hand." `86h-named.js` (new) builds Rootsplitter (`named-rootsplitter`: a bark-and-vine axe with a green
