@@ -53,8 +53,13 @@ function loadCyclopsModel(){ if(MOBGLB.cyclops) return Promise.resolve(); if(loa
 // held" check (same function, run first), so on the exact frame the hall would otherwise go quiet he's already a
 // living enemy and that check finds one, same as if a player-visible mob were still up
 let doneWave=-1;   // the map-relative wave he's already answered, so a later run (a fresh page) can ask again
+// build 190: Matt's own entrance stinger (40-music.js's SAMPLES/playSample/sampleFetch are bare top-level identifiers,
+// not wrapped in that file, so reachable by name the same way any other game.js function is) -- 3.1 s, too short to
+// loop as ambient combat music, but a perfect one-shot flourish for the moment he arrives, filling the gap left by
+// pulling SFX.roar() (Matt: "take the laugh out" -- that was literally assets/sfx-ogre-laugh.wav, not his own sound)
+SAMPLES.cyclopsHorn='assets/music-cyclops.mp3'; sampleFetch('cyclopsHorn');
 function spawnCyclops(){ const k=Object.keys(LANES)[0]; if(!k) return; doneWave=S.wave; banner('☠ THE CYCLOPS','the ground shakes — something huge is coming');
-  const e=spawnEnemy('cyclops',k); e.stompCd=5+R(0,2); e.eyeCd=7+R(0,2); e.eyeCharging=false; e.eyeOpenT=0; camShake=1.1; }   // build 190 (Matt: "take the laugh out"): no SFX.roar() here -- it's the same growl ogreRoar() uses, which read as an ogre's laugh, not the Cyclops's own moment
+  const e=spawnEnemy('cyclops',k); e.stompCd=5+R(0,2); e.eyeCd=7+R(0,2); e.eyeCharging=false; e.eyeOpenT=0; camShake=1.1; playSample('cyclopsHorn',.8); }
 { const prev=updateWave; updateWave=function(dt){
     if(SURVIVAL&&S.phase==='wave'&&MAP.id==='throne'&&!spawnQ.length&&!enemies.some(e=>!e.dead)){
       const mw=effWave()-MAP.wbase; if(mw===20&&doneWave!==S.wave) spawnCyclops();
