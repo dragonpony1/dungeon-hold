@@ -22,6 +22,7 @@ const STANDS=[]; let PM=null;
 const NAMED_REAL={
   bramblewhisk:{file:'named-bramblewhisk.glb',h:.85,lift:.55},
   gloomcap_censer:{file:'named-gloomcap_censer.glb',h:.9,lift:.6},
+  mossheart_aegis:{file:'named-mossheart_aegis.glb',h:.95,lift:.5},
 };
 const NR_GLB={}, NR_P={}, NR_PENDING=[];
 function loadNamedReal(k){ const cfg=NAMED_REAL[k]; if(!cfg||NR_GLB[k]||NR_P[k]) return; NR_P[k]=fetchBytes(ASSET(cfg.file)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ try{
