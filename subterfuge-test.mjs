@@ -25,8 +25,8 @@ check("the Troll's bow hand holds bow-subterfuge; the Knight holds the top sword
 await P.evaluate(()=>window.__heroes.select("troll")); await P.waitForFunction(()=>/Troll/.test(window.__dd.heroModel().label),null,{timeout:90000});
 const eq=await P.evaluate(async()=>{ const it=window.__mythic.normalize({tier:"named",named:"subterfuge"}); window.__meta.giveItem(it); window.__meta.equip(it.id);
   for(let i=0;i<200;i++){ window.__dd.step(1/60,1); const s=window.__weapons.state(); if(s.mounted&&/^bow-subterfuge/.test(s.key)&&window.__aim.kind()==="bow") break; await new Promise(r=>setTimeout(r,25)); }
-  const wo=window.__weapons.mounted(); let sparks=0; if(wo) wo.traverse(o=>{ if(/^spark\d/.test(o.name)) sparks++; }); return {key:window.__weapons.state().key,kind:window.__aim.kind(),has:window.__mythic.has("subterfuge"),sparks,nocked:!!(wo&&wo.getObjectByName("nocked")&&wo.getObjectByName("nocked").getObjectByName("zc0"))}; });
-check("the Troll wearing it mounts the Subterfuge bow (sparks on the limbs, a lightning bolt on the string)",/^bow-subterfuge/.test(eq.key)&&eq.kind==="bow"&&eq.has&&eq.sparks>=6&&eq.nocked,JSON.stringify(eq));
+  const wo=window.__weapons.mounted(); let sparks=0; if(wo) wo.traverse(o=>{ if(/^spark\d/.test(o.name)) sparks++; }); return {key:window.__weapons.state().key,kind:window.__aim.kind(),has:window.__mythic.has("subterfuge"),sparks,nocked:!!(wo&&wo.getObjectByName("nocked")&&(wo.getObjectByName("nocked").getObjectByName("zc0")||wo.getObjectByName("nocked").getObjectByName("subArrow")))}; });
+check("the Troll wearing it mounts the Subterfuge bow (sparks on the limbs, an arrow on the string: the lightning stand-in or Matt's real one)",/^bow-subterfuge/.test(eq.key)&&eq.kind==="bow"&&eq.has&&eq.sparks>=6&&eq.nocked,JSON.stringify(eq));
 
 const pack=()=>P.evaluate(()=>{ const d=window.__dd; d.enemies.slice().forEach(e=>{ e.dead=1; }); d.enemies.length=0; d.setHero(0,5,0); d.setCam(0,.42,4); d.step(1/60,5);
   for(const [x,z] of [[0,11.2],[-1.4,11.8],[1.4,11.6],[-2.8,12.2],[2.8,12.1],[-.7,13],[.8,13.2],[0,14.4],[-2,13.9],[2.1,14]]){ const e=d.spawn("goblin","N"); e.x=x; e.z=z; e.y=0; e.hp=e.max=9999; e.dmg=0; e.atk=999; e.holdT=1e9; e.__t=1; } d.step(1/60,5); });
@@ -42,6 +42,13 @@ check("...each half a tap arrow's damage (heroDmg × 0.6 × 0.5), none piercing"
 const L=tap.last; const ratios=L?L.hits.map(h=>+(h/L.dmg).toFixed(2)):[];
 check("an arrow's hit throws chain lightning: 3 more jumps for ~60% → 35% → 20% of that arrow's hit",tap.chains>=1&&L&&L.hits.length===3&&Math.abs(ratios[0]-.6)<.02&&Math.abs(ratios[1]-.35)<.02&&Math.abs(ratios[2]-.2)<.02,JSON.stringify({chains:tap.chains,last:L,ratios}));
 check("...and bolts are drawn between them; more goblins are hurt than arrows fired",tap.fx>0&&tap.hurt>5,JSON.stringify({fx:tap.fx,hurt:tap.hurt}));
+// build 214: Matt's Electric Arrow model (subterfuge-arrow.glb) takes over from the code-built bolt once it lands -- on the string and in the air
+await pack();
+const real=await P.evaluate(async()=>{ const d=window.__dd; for(let i=0;i<300&&!window.__subterfuge.arrowModel();i++){ d.step(1/60,1); await new Promise(r=>setTimeout(r,25)); } d.step(1/60,3);
+  const n=window.__weapons.mounted()&&window.__weapons.mounted().getObjectByName("nocked"); const onString=!!(n&&n.getObjectByName("subArrow")), boltLeft=!!(n&&n.getObjectByName("zc0"));
+  d.swing(); let fl=[]; for(let i=0;i<120;i++){ d.step(1/60,1); fl=window.__bow.flying().filter(a=>a.kind==="subterfuge"); if(fl.length>=5) break; } const parts=fl.map(a=>a.part);
+  for(let i=0;i<90;i++){ d.step(1/60,1); if(window.__bow.flying().length===0) break; } return {loaded:window.__subterfuge.arrowModel(),onString,boltLeft,n:fl.length,parts}; });
+check("once Matt's Electric Arrow model lands, it's the arrow on the string and all five in the air (the lightning bolt was only the stand-in)",real.loaded&&real.onString&&!real.boltLeft&&real.n===5&&real.parts.every(p=>p==="subArrow"),JSON.stringify(real));
 // ---- a chain jumps only to mobs within reach: a lone goblin chains to nothing
 const lone=await P.evaluate(()=>{ const d=window.__dd, S=window.__subterfuge; d.enemies.slice().forEach(e=>{ e.dead=1; }); d.enemies.length=0; const e=d.spawn("goblin","N"); e.x=0; e.z=12; e.y=0; e.hp=e.max=9999; e.dmg=0; e.atk=999; e.holdT=1e9; d.step(1/60,20);
   const c0=S.chains(); d.swing(); for(let i=0;i<150;i++){ d.step(1/60,1); if(S.chains()>c0&&window.__bow.flying().length===0) break; } return {chains:S.chains()-c0,last:S.last(),lost:+(e.max-e.hp).toFixed(1)}; });
