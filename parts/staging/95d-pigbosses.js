@@ -45,7 +45,15 @@ function fixMats(root){ root.traverse(o=>{ if(o.isMesh&&o.material){ o.material.
 const pigLoadP={};
 function loadPigModel(kind){ if(MOBGLB[kind]) return Promise.resolve(); if(pigLoadP[kind]) return pigLoadP[kind];
   const cfg=PIGS[kind], F=cfg.files;
-  pigLoadP[kind]=Promise.all([F.walk,F.run,F.attack].map(f=>fetchBytes(ASSET(f),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej)))))
+  // build 201 (Matt: "everything works except the art" -- game logic fine, nothing visual finishing): these were on
+  // 'soon', game.js's OWN time-critical tier ("what getting in and placing needs -- mark-I defenses and their shots,
+  // the wave-one goblin, the raven..."), same as the Cyclops's own fetch. The Cyclops's ~31 MB only ever competes
+  // with that tier in the rare Survival mode; this trio's ~87 MB was competing with it on every ordinary campaign
+  // wave 5+ -- any real gear/weapon/mob fetch mid-fight (switching heroes, new loot, a new mob kind showing up) queued
+  // behind it and never finished, which reads as "nothing new is loading" even though the game itself keeps running.
+  // fetchBytes with no priority at all falls into game.js's own third, lowest tier: it waits for 'soon' to fully
+  // drain before even starting, so this heavy download never competes with anything time-sensitive again.
+  pigLoadP[kind]=Promise.all([F.walk,F.run,F.attack].map(f=>fetchBytes(ASSET(f)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej)))))
     .then(([wg,rg,ag])=>{ try{ const root=wg.scene||wg.scenes[0]; fixMats(root);
       const fit=fitModel(root,cfg.dim.fit); toonify(root,fit.scale);
       const clips=[].concat(wg.animations||[],rg.animations||[],ag.animations||[]);
