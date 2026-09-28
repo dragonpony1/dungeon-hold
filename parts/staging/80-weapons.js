@@ -51,7 +51,7 @@ function attachWeapon(node,name,tier,setName,cb){ loadSword(name,root=>{ const l
     const mountKind=/^weapon/.test(node.name)?'weapon':/^staff/.test(node.name)?'staff':/^bow/.test(node.name)?'bow':null, fixZ=KNIGHT_GRIP_FIX[mountKind]||0;
     obj.position.set(0,-gripY*s,fixZ);   // the grip point sits on the mount (in the fist); the blade runs up the mount's +Y
     node.updateWorldMatrix(true,false); const worldPerUnit=s*node.getWorldScale(new THREE.Vector3()).x; if(root.userData.proc) outlineScaled(obj,worldPerUnit); else toonify(obj,worldPerUnit);
-    const pk=setName&&Meta.packs&&Meta.packs.get(setName); if(pk){ if(root.userData.proc){ obj.userData.void=true; obj.userData.set=pk.name; } else setTint(obj,pk); }   // a set's own staff already wears its colours; a stand-in sword is tinted
+    const pk=setName&&Meta.packs&&Meta.packs.get(setName); if(pk){ if(root.userData.proc||REAL_OVERRIDE[name]){ obj.userData.void=true; obj.userData.set=pk.name; } else setTint(obj,pk); }   // a set's own staff already wears its colours; a stand-in sword is tinted. Build 211: so does Matt's own real art (registerReal) -- tinting it darkened a real Fire bow to a flat orange cutout in the hand
     obj.userData.sword={name,tier,scale:s,gripY,tipY,len:L}; node.add(obj); if(cb) cb(obj); }); }
 function mountSword(name,tier,key){ const hm=heroMount(); if(!hm) return; const m=/\|set:(.+)$/.exec(key); attachWeapon(hm.node,name,tier,m?m[1]:null,obj=>{ if(W.key!==key){ if(obj.parent) obj.parent.remove(obj); return; }   // a newer request won
     unmount(); W.obj=obj; W.hand=hm.node.parent; W.tier=tier; }); }
