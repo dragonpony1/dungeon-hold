@@ -80,7 +80,11 @@ function spawnNow(kind){ const k=Object.keys(LANES)[0]; if(!k){ toast('no lane o
   // (95c-cyclops.js, build 188 -- keeps his ~31 MB off every other map/mode); spawning him here before that finishes
   // used to fall through to the generic block-body placeholder (the same one 'ogre' uses when ITS model isn't ready
   // yet) -- Matt: "spawned in a cyclops and he came in as one of those wooden dolls". Wait for the real model first.
-  if(kind==='cyclops'&&window.__cyclops&&!window.__cyclops.loaded()){ toast('loading the Cyclops…'); window.__cyclops.ensure().then(()=>{ spawnEnemy(kind,k); toast('spawned a '+kind); }); return; }
+  // build 193 (Matt: "the music stayed the same, and in fact it was the building music" -- his entrance stinger never
+  // played from here): a plain spawnEnemy('cyclops',...) makes a live Cyclops, but skips window.__cyclops.spawn()
+  // entirely -- the banner, camera shake and entrance sound all live THERE, not in the generic spawn path every other
+  // dev-panel mob uses. Call his own spawn function instead so a dev-panel Cyclops arrives exactly like a real one.
+  if(kind==='cyclops'&&window.__cyclops){ if(!window.__cyclops.loaded()){ toast('loading the Cyclops…'); window.__cyclops.ensure().then(()=>window.__cyclops.spawn()); } else window.__cyclops.spawn(); return; }
   spawnEnemy(kind,k); toast('spawned a '+kind); }
 function toggle(v){ ensure(); open=v===undefined?!open:v; el.classList.toggle('hide',!open); }
 addEventListener('keydown',e=>{ if(e.code==='F9'){ e.preventDefault(); toggle(); } });
