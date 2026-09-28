@@ -61,7 +61,7 @@ check("of the Wind, five worn: a goblin 3.1 away is hit (out of reach without th
 // Earth: a defense beside you takes half, one far away takes it all
 w=await wearFull('of the Earth');
 const earth=await page.evaluate(()=>{ const d=window.__dd; d.S.mana=999; d.setHero(0,10,0); let nearD=null, farD=null; for(let dx=-4;dx<=4&&!nearD;dx++){ try{ nearD=d.placeDefAt('harpoon',d.hero.x+dx,d.hero.z+2,0); }catch(e){} } for(let dx=-4;dx<=4&&!farD;dx++){ try{ farD=d.placeDefAt('harpoon',d.hero.x+dx,d.hero.z-14,0); }catch(e){} } const out={}; if(nearD){ nearD.hp=nearD.max; window.__sets8.hurtDef(nearD,10); out.near=nearD.max-nearD.hp; out.nd=+Math.hypot(nearD.x-d.hero.x,nearD.z-d.hero.z).toFixed(1); } if(farD){ farD.hp=farD.max; window.__sets8.hurtDef(farD,10); out.far=farD.max-farD.hp; out.fd=+Math.hypot(farD.x-d.hero.x,farD.z-d.hero.z).toFixed(1); } return out; });
-check("of the Earth, five worn: a 10 hit on a defense within 8 of you costs it 5; one 14 away loses all 10",w.full&&earth.near===5&&earth.far===10,JSON.stringify(earth));
+check("of the Earth, five worn: a hit on a defense within 8 of you costs it half what the same hit costs one 14 away (build 175: towers take 60% of a blow, so a 10 costs 3 near and 6 far)",w.full&&earth.near===3&&earth.far===6,JSON.stringify(earth));
 // the bonuses ride the multiplier hook, not flat points
 const mult=await page.evaluate(()=>{ const d=window.__dd; return {hpMult:+d.Meta.mult('hp').toFixed(3),max:d.hero.max}; });
 check("of the Earth worn: +22% health reads on the multiplier hook (hero max above 120)",Math.abs(mult.hpMult-.22)<.001&&mult.max>=122,JSON.stringify(mult));

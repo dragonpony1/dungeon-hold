@@ -675,7 +675,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=174;
+const BUILD=175;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -934,7 +934,12 @@ function placeDefAt(kind,x,z,rot){ const cfg=DEFS[kind]; const cx=wc(x), cz=wcz(
   d.mdl.position.set(d.x,base,d.z); d.mdl.rotation.y=d.rot; scene.add(d.mdl); defs.push(d); for(const i of cells) defAt[i]=d; S.du+=cfg.du; S.mana-=cfg.mana; reflow(); SFX.place(); return d; }
 function placeDef(kind,cx,cz,rot){ const t=gat(cx,cz); if(!(t===T.FLOOR||t===T.CARPET)||footprintCells(kind,cw(cx),cwz(cz),rot||0).some(i=>!walk(grid[i]))) return null; /* the same 'can't build there' as the ghost: floor or carpet, stairs included */ return placeDefAt(kind,cw(cx),cwz(cz),rot||0); }
 function removeDef(d){ scene.remove(d.mdl); if(hoverFor===d){ if(hoverSector) scene.remove(hoverSector); hoverSector=null; hoverFor=null; } for(const i of (d.cells||[idx(d.cx,d.cz)])) if(defAt[i]===d) defAt[i]=null; const i=defs.indexOf(d); if(i>=0) defs.splice(i,1); S.du-=DEFS[d.kind].du; reflow(); }
-function hurtDef(d,dmg){ d.hp-=dmg; d.shake=.25; d.calm=0; floatText(d.x,d.top+.6,d.z,String(dmg),'#ff6a5a'); if(d.hp<=0){ removeDef(d); SFX.destroy(); toast(DEFS[d.kind].name+' destroyed!'); } }
+// build 175 (Matt: "the campaign shouldn't be sooo hard, especially if your towers are leveled up, but they keep taking damage so fast and
+// easy, we need to back off on the mob damage to towers"): a tower takes TOWER_TAKES of every blow, and each mark above I hardens it
+// TOWER_MARK_ARMOR more (Mark V: about 60% less than before). Crystal and heroes are untouched
+const TOWER_TAKES=.6, TOWER_MARK_ARMOR=.08;
+function towerHit(d,dmg){ return Math.max(.5,dmg*TOWER_TAKES*(1-TOWER_MARK_ARMOR*Math.max(0,(d.lvl||1)-1))); }
+function hurtDef(d,dmg){ dmg=Math.round(towerHit(d,dmg)*10)/10; d.hp-=dmg; d.shake=.25; d.calm=0; floatText(d.x,d.top+.6,d.z,String(Math.round(dmg)||dmg),'#ff6a5a'); if(d.hp<=0){ removeDef(d); SFX.destroy(); toast(DEFS[d.kind].name+' destroyed!'); } }
 function fire(d,e){ const cfg=DEFS[d.kind]; const fx=Math.sin(d.yaw), fz=Math.cos(d.yaw); d.recoil=1;
   if(d.kind==='harpoon'){ const m=harpoonMesh(); const pt=d.pitch||0, cp=Math.cos(pt), sp=Math.sin(pt); m.rotation.set(-pt,d.yaw,0,'YXZ'); scene.add(m); projs.push({kind:'harpoon',x:d.x+fx*cp*.9,y:d.base+1.35*BALLISTA_UP+sp*.9,z:d.z+fz*cp*.9,fx:fx*cp,fz:fz*cp,vy:26*sp,spd:26,life:stat(d,'range')/26,hit:new Set(),dmg:stat(d,'dmg'),mesh:m}); SFX.harpoon(); }   // the bolt leaves along the yoke's tilt
   else if(d.kind==='acorn'){ for(let k=0;k<(cfg.shots||3);k++){ const a=d.yaw+(k-1)*.21+R(-.05,.05); const ax=Math.sin(a), az=Math.cos(a); const m=acornMesh(); scene.add(m); projs.push({kind:'acorn',x:d.x+ax*.9,y:d.base+1.25,z:d.z+az*.9,vx:ax*15,vy:2.2,vz:az*15,life:1.3,bounces:0,dmg:stat(d,'dmg'),mesh:m}); } SFX.acorn(); }
