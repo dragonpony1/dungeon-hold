@@ -150,6 +150,22 @@ function wispBurstUpdate(dt){ for(let i=wispBursts.length-1;i>=0;i--){ const b=w
     const s=k<.4?(k/.4)*.55:.55*(1-(k-.4)/.6); b.m.scale.setScalar(Math.max(.001,s)); b.m.rotation.y+=dt*4;
     if(k>=1){ scene.remove(b.m); wispBursts.splice(i,1); } } }
 { const prevLand=famLand; famLand=function(x,z,dmg){ prevLand(x,z,dmg); if(kindOf()==='Wisp') wispBurst(x,z); }; }
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); wispBurstUpdate(dt); if(fam&&fam.g.userData.kind==='Wisp') loadWispBurst(); }; }   // kindOf() defaults to 'Wisp' with no pet equipped at all (its own no-familiar fallback) -- checking fam directly avoids re-making the exact eager-fetch mistake this block exists to fix
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); wispBurstUpdate(dt); if(fam&&fam.g.userData.kind==='Wisp'){ loadWispBurst(); loadWispProjectile(); } }; }   // kindOf() defaults to 'Wisp' with no pet equipped at all (its own no-familiar fallback) -- checking fam directly avoids re-making the exact eager-fetch mistake this block exists to fix
 window.__wispburst={loaded:()=>!!wispBurstGLB,count:()=>wispBursts.length,ensure:loadWispBurst};
+// ---------------------------------------------------------------- the Wisp's own bolt: Matt's "Celestial Projectile"
+// replaces the generic tiny-sphere-plus-glow every other familiar's shot still uses (famBoltMesh, 30-familiar.js) --
+// same lazy trigger and fetch priority as the burst above. Keeps the rarity-colour glow sprite from the original so
+// a Wisp's bolt still reads its item rarity at a glance, just built around the real model instead of a bare sphere.
+// centred, not bottom-pivoted: fitModel scales to a target height and stands the result on y=0, right for anything
+// that stands on a floor but wrong for something meant to fly through the air aimed from its middle (same reasoning
+// 50-defmodels.js's own ballista-bolt loader uses for exactly the same shape of problem)
+let wispProjGLB=null, wispProjP=null;
+function loadWispProjectile(){ if(wispProjGLB||wispProjP) return; wispProjP=fetchBytes(ASSET('fam-wisp-projectile.glb')).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ try{
+      const root=gltf.scene||gltf.scenes[0]; root.updateMatrixWorld(true);
+      const box=new THREE.Box3().setFromObject(root); const size=box.getSize(new THREE.Vector3()), ctr=box.getCenter(new THREE.Vector3());
+      const sc=.4/Math.max(size.x,size.y,size.z,1e-6);
+      const inner=new THREE.Group(); inner.add(root); inner.scale.setScalar(sc); inner.position.set(-ctr.x*sc,-ctr.y*sc,-ctr.z*sc);
+      toonify(root,sc); const w=new THREE.Group(); w.add(inner); wispProjGLB=w;
+    }catch(e){ console.warn('wisp projectile model',e); } }).catch(e=>console.warn('wisp projectile model',e)); }
+{ const prevBoltMesh=famBoltMesh; famBoltMesh=function(col){ if(fam&&fam.g.userData.kind==='Wisp'&&wispProjGLB){ const b=new THREE.Group(); const m=wispProjGLB.clone(true); m.userData.noOL=true; b.add(m); b.add(glow(col,.75,.9)); return b; } return prevBoltMesh(col); }; }
 })();

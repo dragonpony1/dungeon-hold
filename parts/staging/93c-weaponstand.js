@@ -12,18 +12,34 @@
 const MOTES=14, RISE=2.0, LIFE=2.6, LIFT=.18, SPIN=.8;   // motes per drop; how high they drift and how long it takes; the gap under the weapon; its turn (radians a second)
 const GOLD=0xffc84a;
 const STANDS=[]; let PM=null;
+// ---------------------------------------------------------------- build 206: the first non-weapon named mythic with
+// real art. Matt confirmed the rule for all eight of them going forward: "the named mythics even non weapons will
+// have floor art". Bramblewhisk (familiar slot) is the first -- a real Meshy model ("Thornwood Briar Fox"), not one
+// of the code-built weapon kit's shapes, so it needs its own load path rather than window.__weapons.model's. Fetched
+// only once a Bramblewhisk actually drops (the same moment a weapon's own stand() call already fires), not eagerly --
+// a rare-drop item has no earlier natural trigger the way an equippable familiar does. Matt: "sit tall within your
+// column of light not on the floor directly" -- BW_LIFT well above the normal LIFT every weapon stand uses.
+const BW_LIFT=.55, BW_H=.85;
+let BW_GLB=null, BW_P=null; const BW_PENDING=[];
+function loadBramblewhisk(){ if(BW_GLB||BW_P) return; BW_P=fetchBytes(ASSET('named-bramblewhisk.glb')).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ try{
+      const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,BW_H); toonify(root,fit.scale); BW_GLB=fit.wrap;
+    }catch(e){ console.warn('bramblewhisk model',e); } }).catch(e=>console.warn('bramblewhisk model',e)); }
 function pmat(){ if(!PM) PM=new THREE.PointsMaterial({map:GLOWT,size:.3,vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true}); return PM; }   // shared by every drop: each mote's colour (and fade) is its vertex colour
 // the model this page's hero would hold for the item, or null for anything without its own (a plain sword, a Forest piece)
-function modelFor(it){ if(!it||it.slot!=='weapon') return null; const named=window.__named&&window.__named.id(it), set=window.__setweapons&&window.__setweapons.setOf(it); if(!named&&!set) return null;
+function modelFor(it){ if(!it) return null; if(it.named==='bramblewhisk') return 'named-bramblewhisk';   // window.__named.id() only ever resolves weapon-slot named items by design (86h-named.js's namedId guards on it.slot==='weapon') -- it.named itself is set regardless of slot (97-mythics.js), so that's the real check for anything non-weapon
+  if(it.slot!=='weapon') return null; const named=window.__named&&window.__named.id(it), set=window.__setweapons&&window.__setweapons.setOf(it); if(!named&&!set) return null;
   if(named&&window.__named.own&&window.__named.own(named)==='bow') return 'bow-'+named;   // build 170: a named BOW stands as itself for every hero (the Knight's stand-in for Subterfuge is a loaded .glb sword, which can't stand here)
   const W=window.__weapons, hm=W.mount&&W.mount(); return hm&&hm.staff&&window.__staff?window.__staff.staffFor(it):hm&&hm.bow&&window.__bow?window.__bow.bowFor(it):W.swordFor(it); }
-function colours(it){ const named=window.__named&&window.__named.id(it); if(named==='subterfuge') return [0x4aa8ff,GOLD]; if(named) return [GOLD,named==='rootsplitter'?0x7aff3a:0xfff2c0];   // named: a gold column; Rootsplitter's motes half green; Subterfuge a storm-blue column with gold motes (build 170)
+function colours(it){ const named=it.named||(window.__named&&window.__named.id(it)); if(named==='subterfuge') return [0x4aa8ff,GOLD]; if(named) return [GOLD,named==='rootsplitter'?0x7aff3a:0xfff2c0];   // named: a gold column; Rootsplitter's motes half green; Subterfuge a storm-blue column with gold motes (build 170). it.named itself (set regardless of slot) catches Bramblewhisk and future non-weapon named mythics that window.__named.id() never will
   const k=window.__setweapons.setOf(it), K=k&&window.__staff&&window.__staff.info(k); const c=K&&K.glow!=null?K.glow:RCOL[Math.max(0,Math.min(5,it.rarity|0))]; return [c,K&&K.gem!=null?K.gem:0xffffff]; }
-function heightFor(name){ return /^bow-/.test(name)?1.4:/^(polearm-|staff-|named-last)/.test(name)?1.75:1.4; }   // world units, foot to tip (the Knight is 1.7): a sword or a bow a bit under his height, a polearm or staff just over it -- the pictures from the game's camera read small any shorter
-function stand(l,it){ const name=modelFor(it); if(!name) return null; let obj=null; window.__weapons.model(name,o=>{ obj=o; }); if(!obj) return null;   // (code-built models come back at once)
-  const b=obj.userData.box, y0=b?b.min.y:0, H=b?b.max.y-b.min.y:1, s=heightFor(name)/H; obj.scale.setScalar(s); obj.position.y=LIFT-y0*s; outline(obj);
+function heightFor(name){ return name==='named-bramblewhisk'?BW_H:/^bow-/.test(name)?1.4:/^(polearm-|staff-|named-last)/.test(name)?1.75:1.4; }   // world units, foot to tip (the Knight is 1.7): a sword or a bow a bit under his height, a polearm or staff just over it -- the pictures from the game's camera read small any shorter
+function stand(l,it){ const name=modelFor(it); if(!name) return null;
+  const bw=name==='named-bramblewhisk'; let obj;
+  if(bw){ if(!BW_GLB){ loadBramblewhisk(); if(!BW_PENDING.some(p=>p.l===l)) BW_PENDING.push({l,it}); return null; } obj=BW_GLB.clone(true); obj.position.y=BW_LIFT; }   // already sized+bottom-pivoted by fitModel at load, and toonify already gave it its own outline shells -- neither of the code-built path's two steps below apply here
+  else{ obj=null; window.__weapons.model(name,o=>{ obj=o; }); if(!obj) return null;   // (code-built models come back at once)
+    const b=obj.userData.box, y0=b?b.min.y:0, H=b?b.max.y-b.min.y:1, s=heightFor(name)/H; obj.scale.setScalar(s); obj.position.y=LIFT-y0*s; outline(obj); }
   const [col,col2]=colours(it); const root=new THREE.Group(); root.name='weaponStand'; const spin=new THREE.Group(); spin.add(obj); root.add(spin);
-  const halo=glow(col,1.9,.3); halo.position.y=LIFT+heightFor(name)*.55; root.add(halo);   // the soft halo about it
+  const halo=glow(col,1.9,.3); halo.position.y=(bw?BW_LIFT:LIFT)+heightFor(name)*.55; root.add(halo);   // the soft halo about it
   const foot=glow(col,1.3,.45); foot.position.y=.12; root.add(foot);
   const pos=new Float32Array(MOTES*3), cols=new Float32Array(MOTES*3), m=[]; const c1=C(col), c2=C(col2), m1=c1.clone().lerp(new THREE.Color(1,1,1),.3), m2=c2.clone().lerp(new THREE.Color(1,1,1),.3);   // motes a shade brighter than the column, so they read against it
   for(let i=0;i<MOTES;i++) m.push({ph:i/MOTES*LIFE+rnd()*.2,a:rnd()*TAU,r:.2+rnd()*.25,c:i%3===2?m2:m1});
@@ -44,8 +60,9 @@ function tickOne(S,dt){ const l=S.l; S.t+=dt; S.root.position.copy(l.mesh.positi
     P[i*3]=Math.cos(a)*r; P[i*3+1]=.1+f*RISE; P[i*3+2]=Math.sin(a)*r; Cc[i*3]=o.c.r*k; Cc[i*3+1]=o.c.g*k; Cc[i*3+2]=o.c.b*k; }   // rising, curling in, fading in and out (additive: dark is gone)
   S.pts.geometry.attributes.position.needsUpdate=true; S.pts.geometry.attributes.color.needsUpdate=true; }
 function drop(S){ scene.remove(S.root); S.pts.geometry.dispose(); S.halo.material.dispose(); S.foot.material.dispose(); if(S.l.mesh.userData.stand===S) delete S.l.mesh.userData.stand; }
-function tick(dt){ for(let i=STANDS.length-1;i>=0;i--){ const S=STANDS[i]; if(!S.l.mesh.parent){ drop(S); STANDS.splice(i,1); continue; } tickOne(S,dt); } }   // picked up, grabbed in co-op, or swept away: gone with it
-{ const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); if(l&&l.mesh&&it&&it.slot==='weapon'){ try{ stand(l,it); }catch(e){ console.warn('weapon stand',e); } } return l; }; }
+function tick(dt){ for(let i=STANDS.length-1;i>=0;i--){ const S=STANDS[i]; if(!S.l.mesh.parent){ drop(S); STANDS.splice(i,1); continue; } tickOne(S,dt); }
+  if(BW_PENDING.length&&BW_GLB) for(let i=BW_PENDING.length-1;i>=0;i--){ const {l,it}=BW_PENDING[i]; if(!l.mesh.parent||l.mesh.userData.stand){ BW_PENDING.splice(i,1); continue; } try{ if(stand(l,it)) BW_PENDING.splice(i,1); }catch(e){ console.warn('bramblewhisk stand',e); BW_PENDING.splice(i,1); } } }   // picked up, grabbed in co-op, or swept away: gone with it (also drops a still-loading Bramblewhisk from the retry list the same way)
+{ const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); if(l&&l.mesh&&it&&(it.slot==='weapon'||modelFor(it))){ try{ stand(l,it); }catch(e){ console.warn('weapon stand',e); } } return l; }; }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); tick(dt); }; }
 window.__weaponStand={count:()=>STANDS.length,modelFor,
   list:()=>STANDS.map(S=>({name:S.name,x:+S.root.position.x.toFixed(2),y:+S.root.position.y.toFixed(2),z:+S.root.position.z.toFixed(2),spin:+S.spin.rotation.y.toFixed(3),motes:S.m.length,inScene:!!S.root.parent,height:+(heightFor(S.name)).toFixed(2),card:!!S.l.mesh.userData.artSprite,placeholder:S.l.mesh.userData.item.visible}))};
