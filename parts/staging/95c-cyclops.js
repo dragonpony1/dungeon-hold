@@ -126,6 +126,6 @@ const fillEl=()=>el.querySelector('.fill');
 // stag once that system exists
 { const prev=kill; kill=function(e){ const wasCyclops=e.kind==='cyclops'&&!e.dead; prev(e);
     if(wasCyclops){ const bonus=800; S.mana+=bonus; dropLoot(rollItem(4),R(-1.6,1.6),4.6,true); dropLoot(rollItem(4),R(-1.6,1.6),4.6,true);   // 4 is Legendary, rollRarity's own natural ceiling -- 5 is the separate mythic tier 87-mythicdrops.js hands out on its own roll, not something to force here
-      toast('☠ THE CYCLOPS FALLS — +'+bonus+' mana, and the hall remembers'); SFX.setBong&&SFX.setBong(); } }; }
+      toast('☠ THE CYCLOPS FALLS — +'+bonus+' mana, and the hall remembers'); SFX.setBong&&SFX.setBong(); if(window.__gladehart) window.__gladehart.reward(); } }; }   // build 221: and Gladehart, once
 window.__cyclops={loaded:()=>!!MOBGLB.cyclops,spawn:spawnCyclops,ensure:loadCyclopsModel,alive:()=>{ const e=enemies.find(x=>x.kind==='cyclops'&&!x.dead); return e?{hp:e.hp,max:e.max,stompCd:+e.stompCd.toFixed(2),eyeCd:+e.eyeCd.toFixed(2),eyeCharging:e.eyeCharging,eyeOpenT:+e.eyeOpenT.toFixed(2)}:null; }};
 })();

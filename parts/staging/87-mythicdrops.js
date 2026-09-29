@@ -36,7 +36,7 @@ function mythicize(it){ const [id,tail]=SETS[Math.floor(LR()*SETS.length)]; cons
   for(const k in it.stats){ const v=rollStat(k,L,5); it.stats[k]=Number.isFinite(v)?v:Math.round((+it.stats[k]||0)*1.6*10)/10; }   // rarity 5 on its own level
   let sc=0; for(const k in it.stats) sc+=(it.stats[k]||0)*(STATW[k]||1); it.score=Math.round(sc*10)/10; it.value=Math.max(+it.value||0,250);
   return it; }
-function namedItem(){ const M=window.__mythic; if(!M||!M.NAMED) return null; const ids=Object.keys(M.NAMED);
+function namedItem(){ const M=window.__mythic; if(!M||!M.NAMED) return null; const ids=Object.keys(M.NAMED).filter(k=>!M.NAMED[k].reward);   // reward pets (Gladehart) are earned, not rolled
   const owned=k=>M.has(k)||Meta.bag().some(b=>b&&M.id(b)===k); const fresh=ids.filter(k=>!owned(k)); const pool=fresh.length?fresh:ids;
   const it=M.normalize({tier:'named',named:pool[Math.floor(LR()*pool.length)],lvl:Math.max(1,effWave())}); if(it){ it.from='dungeon-hold'; const pic=mythicArt(it); if(pic) it.art=pic; } return it; }
 // a mythic lying on the floor shows its card picture over the loot shape (93-gearsets.js does this for its sets' pieces —

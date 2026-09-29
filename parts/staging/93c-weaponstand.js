@@ -26,6 +26,7 @@ const NAMED_REAL={
   old_lamplight:{file:'named-old_lamplight.glb',h:.85,lift:.55},
   tear_of_the_rootgate:{file:'named-tear_of_the_rootgate.glb',h:.8,lift:.65},
   voidwoven_mantle:{file:'named-voidwoven_mantle.glb',h:.95,lift:.5},
+  gladehart:{file:'named-gladehart.glb',h:.95,lift:.55},
   wardens_oath:{file:'named-wardens_oath.glb',h:.8,lift:.65},
   hourglass_of_hollow_sand:{file:'named-hourglass_of_hollow_sand.glb',h:.9,lift:.6},
 };

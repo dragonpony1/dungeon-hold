@@ -16,6 +16,7 @@ const NAMED={
   tear_of_the_rootgate:{name:'Tear of the Rootgate',slot:'amulet',stats:{mana:70,move:15,tow:25},power:'once a wave, face a gate and press T to step through a portal to it'},
   wardens_oath:{name:"The Warden's Oath",slot:'amulet',stats:{tow:42,def:12,hp:80},power:'the first enemy through each gate each wave is slowed and marked; defenses focus it'},
   bramblewhisk:{name:'Bramblewhisk',slot:'familiar',stats:{fdmg:36,frate:45,move:10},power:"your pet's shots leave thorn patches that slow and prick enemies"},
+  gladehart:{name:'Gladehart',slot:'familiar',reward:true,stats:{fdmg:34,frate:40,move:12},power:'every 8 s a bright pink spirit stag charges through the thickest pack, hitting everything for six pet shots and throwing it way back'},   // reward:true -- earned by felling the Cyclops, never in the random named drop pool (87-mythicdrops.js namedItem)
   old_lamplight:{name:'Old Lamplight',slot:'familiar',stats:{fdmg:30,frate:60,fproj:1},power:'+1 pet projectile, and your pet fires at whatever is being hit'},
   gloomcap_censer:{name:'Gloomcap Censer',slot:'charm',stats:{trate:20,tarea:18,regen:3},power:'defenses near you build 50% faster and fire 15% faster'},
   hourglass_of_hollow_sand:{name:'Hourglass of Hollow Sand',slot:'charm',stats:{spd:35,move:18,mana:40},power:'once a wave, when the crystal is about to fall, the horde crawls for 4 s'},

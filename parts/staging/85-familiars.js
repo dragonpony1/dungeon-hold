@@ -27,7 +27,7 @@ function ensureFam(k){ if(!FAM_FILES[k]||FAM_ASKED[k]) return; FAM_ASKED[k]=true
 // build 215 (Matt: "the wisp in game has been named bramblewhisk when we have an all new model and thumbs for bramblewhisk"): a named pet wears its
 // own body -- the same real model its floor stand shows (93c-weaponstand.js NAMED_REAL) -- instead of the Wisp's it used to borrow (famKind reads
 // words in the name, and neither name has one, so both fell back to 'Wisp'). How it fights doesn't change: kind stays what famKind says
-const NAMED_PET={bramblewhisk:{file:'named-bramblewhisk.glb',h:.8,desc:'thorn shots'},old_lamplight:{file:'named-old_lamplight.glb',h:.85,desc:'lantern sparks'}};
+const NAMED_PET={bramblewhisk:{file:'named-bramblewhisk.glb',h:.8,desc:'thorn shots'},old_lamplight:{file:'named-old_lamplight.glb',h:.85,desc:'lantern sparks'},gladehart:{file:'named-gladehart.glb',h:.9,desc:'spirit stag charge'}};
 const NP_GLB={}, NP_ASKED={};
 function namedPet(it){ return it&&it.named&&NAMED_PET[it.named]?it.named:null; }
 function ensureNamedPet(k){ if(NP_ASKED[k]) return; NP_ASKED[k]=true; const c=NAMED_PET[k]; fetchBytes(ASSET(c.file),'soon').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,c.h); toonify(root,fit.scale); const w=fit.wrap; w.children[0].position.y-=c.h*.5; NP_GLB[k]=w;
@@ -181,4 +181,39 @@ function loadWispProjectile(){ if(wispProjGLB||wispProjP) return; wispProjP=fetc
       const w=new THREE.Group(); w.add(inner); wispProjGLB=w;
     }catch(e){ console.warn('wisp projectile model',e); } }).catch(e=>console.warn('wisp projectile model',e)); }
 { const prevBoltMesh=famBoltMesh; famBoltMesh=function(col){ if(trueWisp()&&wispProjGLB){ const b=new THREE.Group(); const m=wispProjGLB.clone(true); m.userData.noOL=true; b.add(m); b.add(glow(col,.75,.9)); return b; } return prevBoltMesh(col); }; }
+// ---------------------------------------------------------------- GLADEHART's SPIRIT CHARGE (build 221)
+// Matt: "gladehart will do a charge attack or send out some kind of ghost or patronus, that knocks mobs way back" / "and does tons of damage" /
+// "but make the patronus bright pink". Every SC.every seconds of a wave a see-through hot-pink copy of the stag charges through the THICKEST
+// group in range (my call, so it always hits something and needs no aiming), hitting every mob it passes once for SC.mult pet shots and
+// throwing it back SC.knock/2 units; bosses take the full damage but only a nudge. Runs where the mobs are real (solo, or the host).
+const SC={every:8,speed:24,hitR:1.4,mult:6,knock:9,bossKnock:.12,pink:0xff3fae,t:3,ghosts:[],pops:[],count:0,hits:0};
+const SC_BOSS=new Set(['cyclops','pigflail','pigdagger','pigsling','trollboss']);
+const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
+function gladeWorn(){ return !!fam&&namedPet(gear.familiar)==='gladehart'; }
+function thickest(){ const fx0=fam?fam.x:hero.x, fz0=fam?fam.z:hero.z; let best=null, bn=0, bd=1e9; const live=enemies.filter(e=>!e.dead&&!e.puppet&&Math.hypot(e.x-hero.x,e.z-hero.z)<18);
+  for(const c of live){ let n=0, sx=0, sz=0; for(const m of live) if(Math.hypot(m.x-c.x,m.z-c.z)<2.6){ n++; sx+=m.x; sz+=m.z; } const d=Math.hypot(c.x-fx0,c.z-fz0); if(n>bn||(n===bn&&d<bd)){ best={x:sx/n,z:sz/n,n,y:c.y||0}; bn=n; bd=d; } }
+  return best; }
+function scPop(x,y,z,size,life,grow){ const s=glow(SC.pink,size,.9); s.position.set(x,y,z); scene.add(s); if(SC.pops.length>240){ const o=SC.pops.shift(); scene.remove(o.s); o.s.material.dispose(); } SC.pops.push({s,t:0,life,size,grow}); }
+function ghostMesh(){ const g=new THREE.Group(), mats=[]; const T=NP_GLB.gladehart;
+  if(T){ const m=T.clone(true); m.scale.setScalar(1.7); const ol=[]; m.traverse(o=>{ if(o.userData.isOL) ol.push(o); }); ol.forEach(o=>o.parent.remove(o));
+    m.traverse(o=>{ if(o.isMesh){ const old=Array.isArray(o.material)?o.material[0]:o.material; o.material=new THREE.MeshBasicMaterial({color:0xff2fa8,transparent:true,opacity:.82,depthWrite:false});   /* flat hot pink, normal blending: the stag's brown texture turned it dull red, and additive washed it to white over the pink light */ mats.push(o.material); } }); g.add(m); }
+  const gl=glow(SC.pink,3.4,.6); gl.position.y=.7; g.add(gl); mats.push(gl.material); return {g,mats}; }
+function scLaunch(t){ const sx=fam?fam.x:hero.x, sz=fam?fam.z:hero.z; let dx=t.x-sx, dz=t.z-sz; const d=Math.hypot(dx,dz)||1; dx/=d; dz/=d; const run=Math.max(8,Math.min(15,d+5)); const {g,mats}=ghostMesh();
+  g.rotation.y=Math.atan2(dx,dz); g.position.set(sx,(t.y||0)+.35,sz); scene.add(g); SC.ghosts.push({g,mats,x:sx,z:sz,y:t.y||0,dx,dz,run,age:0,tr:0,hit:new Set(),dying:0}); SC.count++;
+  scPop(sx,(t.y||0)+.9,sz,2.6,.4,1.6); if(SFX.rift) SFX.rift(); }
+function scTick(dt){
+  for(let i=SC.ghosts.length-1;i>=0;i--){ const G=SC.ghosts[i]; G.age+=dt;
+    if(!G.dying){ const step=SC.speed*dt; G.x+=G.dx*step; G.z+=G.dz*step; G.run-=step; G.g.position.set(G.x,G.y+.35+Math.sin(G.age*14)*.07,G.z);
+      for(const e of enemies){ if(e.dead||e.puppet||G.hit.has(e)) continue; if(Math.hypot(e.x-G.x,e.z-G.z)<SC.hitR+(e.r||.5)*.6&&Math.abs((e.y||0)-G.y)<3){ G.hit.add(e); const k=SC_BOSS.has(e.kind)?SC.knock*SC.bossKnock:SC.knock; hurt(e,dmgOf(SC.mult),G.dx*k,G.dz*k); scPop(e.x,(e.y||0)+(e.h||1.2)*.6,e.z,2.2,.32,1.9); SC.hits++; } }
+      G.tr-=dt; if(G.tr<=0){ G.tr=.03; scPop(G.x-G.dx*.4+R(-.2,.2),G.y+.5+R(0,.5),G.z-G.dz*.4+R(-.2,.2),R(.5,1.1),.5,.2); }
+      if(G.run<=0||wallAt(G.x,G.z)) G.dying=.001; }
+    else { G.dying+=dt; const k=1-G.dying/.35; if(k<=0){ scene.remove(G.g); G.mats.forEach(m=>m.dispose()); SC.ghosts.splice(i,1); continue; } G.mats.forEach(m=>{ m.opacity=(m.isSpriteMaterial?.6:.85)*k; }); G.g.scale.setScalar(1+(1-k)*.25); } }
+  for(let i=SC.pops.length-1;i>=0;i--){ const p=SC.pops[i]; p.t+=dt; const k=1-p.t/p.life; if(k<=0){ scene.remove(p.s); p.s.material.dispose(); SC.pops.splice(i,1); continue; } p.s.material.opacity=.9*k; p.s.scale.setScalar(p.size*(1+(1-k)*p.grow)); }
+  if(!gladeWorn()||S.phase!=='wave'||hero.dead>0||isGuest()) return; SC.t-=dt; if(SC.t>0) return; const t=thickest(); if(!t){ SC.t=.6; return; } SC.t=SC.every; scLaunch(t); }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); scTick(dt); }; }
+// the reward: felling the Cyclops (95c-cyclops.js) drops Gladehart by the crystal like a named mythic, once -- never if you already own it
+function gladeReward(){ const M=window.__mythic; if(!M||!M.NAMED||!M.NAMED.gladehart||isGuest()) return false; const has=M.has('gladehart')||Meta.bag().some(b=>b&&M.id(b)==='gladehart')||((Meta.armory&&Meta.armory())||[]).some(b=>b&&M.id(b)==='gladehart'); if(has) return false;
+  const it=M.normalize({tier:'named',named:'gladehart',lvl:Math.max(1,effWave())}); if(!it) return false; it.from='dungeon-hold'; const pic=window.__mythicDrops&&window.__mythicDrops.art&&window.__mythicDrops.art(it); if(pic) it.art=pic;
+  dropLoot(it,R(-1.6,1.6),4.6,true); floatText(0,2.6,4.6,'✦ GLADEHART ✦ the spirit stag','#ff7ade'); toast('Gladehart, the spirit stag, fell by the crystal — pick it up'); return true; }
+window.__gladehart={worn:gladeWorn,charges:()=>SC.count,ghosts:()=>SC.ghosts.length,hits:()=>SC.hits,cd:()=>+SC.t.toFixed(2),fire:()=>{ const t=thickest(); if(!t) return false; scLaunch(t); return true; },thickest,reward:gladeReward,cfg:SC,ghostPos:()=>{ const G=SC.ghosts[0]; return G?{x:G.x,y:G.y,z:G.z}:null; }};
 })();

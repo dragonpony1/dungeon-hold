@@ -14,7 +14,7 @@ const P=await open(await browser.newContext());
 // ---- the table entry, the card, the hands
 const t=await P.evaluate(()=>{ const M=window.__mythic, N=M.NAMED.subterfuge; const it=M.normalize({tier:"named",named:"subterfuge"}), byName=M.normalize({tier:"named",name:"Subterfuge",slot:"weapon"});
   return {N:N&&{name:N.name,slot:N.slot,stats:N.stats,power:N.power},it:it&&{name:it.name,slot:it.slot,rarity:it.rarity,named:it.named,stats:it.stats,power:!!it.power,art:it.art||null,value:it.value},byName:byName&&byName.named,id:M.id({name:"Subterfuge"}),
-    pool:Object.keys(M.NAMED).length, inPool:Object.keys(M.NAMED).includes("subterfuge"), card:window.__meta&&window.__dd.Meta.packs?window.__dd.Meta.packs.artHtml(it):null,
+    pool:Object.keys(M.NAMED).filter(k=>!M.NAMED[k].reward).length, inPool:Object.keys(M.NAMED).includes("subterfuge"), card:window.__meta&&window.__dd.Meta.packs?window.__dd.Meta.packs.artHtml(it):null,
     hands:{bow:window.__named.model(it,"bow"),sword:window.__named.model(it,"sword"),staff:window.__named.model(it,"staff")}}; });
 check("Subterfuge is in the named table: a weapon with mythic stats and a power",!!(t.N&&t.N.slot==="weapon"&&t.N.stats.dmg>0&&/five|5/.test(t.N.power)),JSON.stringify(t.N));
 check("it normalizes (from its id and from its name) to a rarity-5 named weapon with the table's stats",t.it&&t.it.name==="Subterfuge"&&t.it.rarity===5&&t.it.named==="subterfuge"&&t.it.stats.dmg===t.N.stats.dmg&&t.it.power&&t.byName==="subterfuge"&&t.id==="subterfuge",JSON.stringify(t));
