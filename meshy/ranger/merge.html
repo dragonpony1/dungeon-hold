@@ -8,7 +8,7 @@ const PI=Math.PI;
 const load=url=>fetch(url).then(r=>r.arrayBuffer()).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej)));
 window.build=async()=>{
   const Q=new URLSearchParams(location.search);
-  const ch=await load('rig.glb'), walk=await load('walk.glb'), run=await load('run.glb'), atk=await load('attack.glb'); let idleG=null, deathG=null; try{ idleG=await load('idle.glb'); }catch(e){} try{ deathG=await load('death.glb'); }catch(e){}
+  const ch=await load('rig.glb'), walk=await load('walk.glb'), run=await load('run.glb'), atk=await load('attack.glb'); let idleG=null, deathG=null; try{ idleG=await load('idle.glb'); }catch(e){} try{ deathG=await load('death.glb'); }catch(e){} let jumpG=null; try{ jumpG=await load('jump.glb'); }catch(e){}
   const scene=ch.scene; scene.updateMatrixWorld(true); const bone=n=>scene.getObjectByName(n);
   for(const n of ['Hips','Spine','Head','LeftArm','RightArm','LeftForeArm','RightForeArm','LeftHand','RightHand','LeftFoot','RightFoot','LeftToeBase','RightToeBase']) if(!bone(n)) throw new Error('missing bone '+n);
   let skinned=null; scene.traverse(o=>{ if(o.isSkinnedMesh) skinned=o; });
@@ -53,7 +53,12 @@ window.build=async()=>{
   // --- Death: Meshy's fall (the hips keep their drop, lose their drift), or a hand-made one ---
   let Death; if(deathG&&deathG.animations[0]) Death=fix(deathG.animations[0],'Death'); else { const keys=[[0,[],0,0],[.28,[['Hips',X,45],['LeftArm',Z,-45],['RightArm',Z,45],['Head',X,-20]],-.05,-.08],[.6,[['Hips',X,85],['LeftArm',Z,-80],['RightArm',Z,80],['Head',X,-30]],-.12,-.18],[.85,[['Hips',X,88],['LeftArm',Z,-82],['RightArm',Z,82],['Head',X,-30]],-.14,-.2]]; const hipsH=hips.getWorldPosition(new THREE.Vector3()).y; const unit=hipsRest.y/Math.max(hipsH,1e-6); const times=[], poses=[]; for(const [t,ops,dy,dz] of keys){ times.push(t); resetAll(); for(const [b,ax,d] of ops) rot(b,ax,d); hips.position.y=hipsRest.y+dy*6*hipsH*unit; hips.position.z=hipsRest.z+dz*unit*hipsH; poses.push(record()); } Death=clipFrom('Death',times,poses); }
   // --- Jump: crouch, tuck, arms up, land (Meshy's jump is six seconds of run-up; this one fits a hop) ---
-  let Jump; { const keys=[[0,[]],[.18,[['LeftUpLeg',X,-55],['RightUpLeg',X,-45],['LeftLeg',X,80],['RightLeg',X,70],['LeftArm',X,-120],['RightArm',X,-120],['Spine',X,15]]],[.45,[['LeftUpLeg',X,-35],['RightUpLeg',X,-30],['LeftLeg',X,50],['RightLeg',X,45],['LeftArm',X,-90],['RightArm',X,-90]]],[.7,[]]]; const times=[], poses=[]; for(const [t,ops] of keys){ times.push(t); resetAll(); for(const [b,ax,d] of ops) rot(b,ax,d); poses.push(record()); } Jump=clipFrom('Jump',times,poses); }
+  let Jump=null; if(jumpG&&jumpG.animations[0]){ const JC=jumpG.animations[0]; const ht=JC.tracks.find(t=>/Hips\.position$/.test(t.name));
+    let peak=JC.duration/2; if(ht){ let best=-1e9; for(let i=0;i<ht.times.length;i++){ const y=ht.values[i*3+1]; if(y>best){ best=y; peak=ht.times[i]; } } }
+    window.__jumpPeak=+peak.toFixed(2); if(peak>.2&&peak<JC.duration-.2){ const ta=Math.max(0,peak-.34), tb=Math.min(JC.duration,peak+.36); Jump=sample(JC,ta,tb,14,'Jump');
+    for(const t of Jump.tracks) if(/Hips\.position$/.test(t.name)){ const v=t.values; for(let i=0;i<v.length;i+=3){ v[i]=hipsRest.x; v[i+1]=hipsRest.y; v[i+2]=hipsRest.z; } }
+    window.__jumpWindow=[+ta.toFixed(2),+tb.toFixed(2)]; } resetAll(); }   // a clip whose highest point is at an end (Meshy's Jump_Run starts at the apex and lands into a run) has no takeoff to use: the hop below stands in
+  if(!Jump){ const keys=[[0,[]],[.18,[['LeftUpLeg',X,-55],['RightUpLeg',X,-45],['LeftLeg',X,80],['RightLeg',X,70],['LeftArm',X,-120],['RightArm',X,-120],['Spine',X,15]]],[.45,[['LeftUpLeg',X,-35],['RightUpLeg',X,-30],['LeftLeg',X,50],['RightLeg',X,45],['LeftArm',X,-90],['RightArm',X,-90]]],[.7,[]]]; const times=[], poses=[]; for(const [t,ops] of keys){ times.push(t); resetAll(); for(const [b,ax,d] of ops) rot(b,ax,d); poses.push(record()); } Jump=clipFrom('Jump',times,poses); }
   resetAll();
   // --- the staff mount: in the grip hand, at the fist, its +Y the way the fist's grip axis points — which is straight up
   // when the arm hangs in the idle pose, so a staff stands upright at rest and follows the fist through the thrust ---

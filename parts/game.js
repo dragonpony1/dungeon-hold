@@ -716,7 +716,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=219;
+const BUILD=220;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -784,7 +784,7 @@ function heroModelUpdate(dt){ if(!GLBH) return; if(!useGLB){ GLBH.wrap.visible=f
   if(st==='attack'){ if(!GLBH.actions.attack) playHero(hero.moving?'walk':'idle',{fade:.1}); }
   else if(st==='death'){ if(GLBH.actions.death){ if(GLBH.cur!==GLBH.actions.death) playHero('death',{restart:true,fade:.08}); } else playHero('idle',{fade:.1}); }
   else playHero(st,{fade:.15});
-  GLBH.mixer.update(dt); GLBH.wrap.position.set(hero.x,hero.y,hero.z); GLBH.wrap.rotation.y=hero.yaw+heroYawOff; GLBH.wrap.visible=!dead||hero.dead>2.6; }
+  GLBH.mixer.update(dt); GLBH.wrap.position.set(hero.x,hero.y,hero.z); GLBH.wrap.rotation.y=hero.yaw+heroYawOff; GLBH.wrap.visible=!dead||(4-hero.dead)<Math.max(1.4,(GLBH.actions.death?GLBH.actions.death.getClip().duration:0)+.4); }   // build 220: the body stays through the hero's own death clip, then a beat on the ground (hurtHero's timer is 4 s; the Ranger's Meshy fall is 3.5 s, the made-up ones fit the old 1.4)
 function loadHeroGLB(buf,label,quiet){ if(!THREE.GLTFLoader){ heroLoadError='model loader missing'; heroStatus('hero model: loader missing — old gnome in use'); toast('Model loader missing'); return; }
   const bad=err=>{ const why=(err&&err.message)?String(err.message).slice(0,80):'unreadable file'; heroLoadError=why; heroStatus('hero model failed ('+why+') — old gnome in use'); toast('Not a valid GLB file ('+why+')'); };
   try{ new THREE.GLTFLoader().parse(buf,'',g=>{ try{ setHeroGLB(g,label,quiet); heroLoadError=''; heroStatus('hero: '+label+' · '+Object.keys(GLBH.map).length+' clips'); }catch(err){ heroLoadError=err.message; heroStatus('hero model failed ('+err.message+') — old gnome in use'); toast('That model could not be used: '+err.message); } },bad); }catch(err){ bad(err); } }
