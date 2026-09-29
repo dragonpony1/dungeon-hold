@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="46">
+<meta name="hideout-build" content="47">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -262,7 +262,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 46;
+const HIDEOUT_BUILD = 47;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -375,7 +375,7 @@ const COOP = new URLSearchParams(location.search).get('coop');   // 'host' | 'gu
 const VISITOR = COOP === 'guest';
 const HERO_COL = { knight: 0x7aa0d8, witch: 0xa070e0, troll: 0x6ea86a, fighter: 0xd8803a };
 const HD = {
-  visiting: false, hostName: '', me: null, peers: new Map(), lastSent: 0, sent: '', layoutResolve: null, layoutP: null, savedT: null,
+  visiting: false, hostName: '', me: null, heroUrls: {}, heroBytesP: {}, peers: new Map(), lastSent: 0, sent: '', layoutResolve: null, layoutP: null, savedT: null,
   post(msg) { try { if (window.parent && window.parent !== window) window.parent.postMessage(msg, '*'); } catch (e) {} },
   init() {
     if (!COOP || window.parent === window) return;
@@ -396,7 +396,9 @@ const HD = {
   },
   onParent(d) {
     switch (d.type) {
-      case 'hd:me': this.me = { id: String(d.id || ''), name: String(d.name || ''), hero: String(d.hero || '') }; break;
+      case 'hd:me': this.me = { id: String(d.id || ''), name: String(d.name || ''), hero: String(d.hero || '') };
+        this.heroUrls = {}; if (d.heroUrls && typeof d.heroUrls === 'object') for (const [k, u] of Object.entries(d.heroUrls)) if (typeof u === 'string' && /^assets\/[\w.\-]+\.glb\.txt$/.test(u)) this.heroUrls[k] = new URL('../' + u, location.href).href;
+        break;
       case 'hd:layout':
         if (this.layoutResolve) { this.layoutResolve(d); this.layoutResolve = null; }
         else if (this.visiting && Array.isArray(d.placed)) { this.hostName = String(d.host || this.hostName).slice(0, 24); applyLayout(d.placed); this.bar(); }
@@ -432,7 +434,7 @@ const HD = {
     for (const sx of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), mat(0x222222)); eye.position.set(sx * 0.12, headY + 0.04, -0.31); g.add(eye); }   // the face looks toward -Z, the way the camera does at yaw 0
     const beard = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.4, 10), mat(0xf4f0e8)); beard.position.set(0, headY - 0.28, -0.22); beard.rotation.x = -0.35; g.add(beard);
     const tag = labelSprite(a.name || 'Friend', '#ffffff'); tag.scale.multiplyScalar(0.95); tag.position.y = headY + 1.7; g.add(tag);
-    g.userData.avatar = true; return g;
+    g.userData.body = g.children.filter(c => !c.isSprite); g.userData.avatar = true; return g;
   },
   tick(now, dt) {
     if (!COOP || window.parent === window) return;
@@ -442,10 +444,12 @@ const HD = {
     }
     const f = 1 - Math.pow(0.001, dt);   // eases toward the latest report: smooth at 8 reports a second
     for (const a of this.peers.values()) {
-      if (!a.group) { a.group = this.makeAvatar(a); a.x = a.tx; a.y = a.ty; a.z = a.tz; a.ry = a.tr; scene.add(a.group); }
+      if (!a.group) { a.group = this.makeAvatar(a); a.model = false; a.mixer = null; a.actions = null; a.lx = undefined; a.x = a.tx; a.y = a.ty; a.z = a.tz; a.ry = a.tr; scene.add(a.group); this.loadHero(a); }
       a.x += (a.tx - a.x) * f; a.y += (a.ty - a.y) * f; a.z += (a.tz - a.z) * f;
       let dr = a.tr - a.ry; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); a.ry += dr * f;
       a.group.position.set(a.x, GROUND_Y + Math.max(0, a.y - (GROUND_Y + EYE_HEIGHT)), a.z); a.group.rotation.y = a.ry;
+      const sp = Math.hypot(a.x - (a.lx === undefined ? a.x : a.lx), a.z - (a.lz === undefined ? a.z : a.lz)) / Math.max(dt, 0.001); a.lx = a.x; a.lz = a.z;
+      if (a.mixer) { a.mixer.update(dt); const walking = sp > 0.5; if (walking !== a.walking && a.actions) { a.walking = walking; const to = walking ? a.actions.walk : a.actions.idle, from = walking ? a.actions.idle : a.actions.walk; if (to) { to.reset().fadeIn(0.2).play(); if (from && from !== to) from.fadeOut(0.2); } } }
     }
   },
   saved() { if (COOP !== 'host' || window.parent === window) return; clearTimeout(this.savedT); this.savedT = setTimeout(() => this.post({ type: 'hd:saved' }), 350); },
@@ -594,6 +598,36 @@ tradeEl('tradeLock').onclick = tradeLockPress;
 tradeEl('tradeCancel').onclick = tradeCancel;
 tradeEl('tradeClose').onclick = tradeCancel;
 tradeEl('tradeWrap').addEventListener('click', e => { if (e.target.id === 'tradeWrap') tradeCancel(); });
+// avatars in the player's own hero: the game hands us each hero's file (base64 text, same origin); every avatar parses its own copy (a skinned model cannot be cloned), swaps it in for the stand-in gnome
+// the hero rigs are authored large: measure the SKINNED vertices (copied from the game's skinnedBounds), not the bind-pose box
+function skinnedBoundsHD(root){ root.updateMatrixWorld(true); const box=new THREE.Box3(); let any=false; const v=new THREE.Vector3(), acc=new THREE.Vector3(), t=new THREE.Vector3(), m4=new THREE.Matrix4();
+  root.traverse(o=>{ if(!o.isMesh||o.userData.isOL) return; if(!o.isSkinnedMesh){ box.union(new THREE.Box3().setFromObject(o)); any=true; return; }
+    const g=o.geometry, pos=g.attributes.position, si=g.attributes.skinIndex, sw=g.attributes.skinWeight; if(!si||!sw){ box.union(new THREE.Box3().setFromObject(o)); any=true; return; }
+    o.skeleton.update(); const bm=o.skeleton.boneMatrices;
+    for(let i=0;i<pos.count;i++){ v.fromBufferAttribute(pos,i).applyMatrix4(o.bindMatrix); acc.set(0,0,0); const idx=[si.getX(i),si.getY(i),si.getZ(i),si.getW(i)], w=[sw.getX(i),sw.getY(i),sw.getZ(i),sw.getW(i)];
+      for(let k=0;k<4;k++){ if(!w[k]) continue; m4.fromArray(bm,idx[k]*16); t.copy(v).applyMatrix4(m4); acc.addScaledVector(t,w[k]); }
+      acc.applyMatrix4(o.bindMatrixInverse).applyMatrix4(o.matrixWorld); box.expandByPoint(acc); any=true; } });
+  return any?box:null; }
+HD.heroBytes = function (hero) {
+  const u = this.heroUrls[hero]; if (!u) return null;
+  return this.heroBytesP[hero] || (this.heroBytesP[hero] = fetch(u).then(r => r.ok ? r.text() : Promise.reject(r.status)).then(t => { const bin = atob(t.trim()); const b = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i); return b.buffer; }).catch(e => { delete this.heroBytesP[hero]; throw e; }));
+};
+HD.loadHero = function (a) {
+  const p = this.heroBytes(a.hero); if (!p) return; const grp = a.group;
+  p.then(buf => new Promise((res, rej) => new THREE.GLTFLoader().parse(buf.slice(0), '', res, rej))).then(gltf => {
+    if (a.group !== grp || !this.peers.has(a.id)) return;   // the avatar was rebuilt or the player left while it loaded
+    const root = gltf.scene || gltf.scenes[0]; root.traverse(o => { o.frustumCulled = false; });
+    root.updateMatrixWorld(true); const box = skinnedBoundsHD(root) || new THREE.Box3().setFromObject(root), h = Math.max(0.01, box.max.y - box.min.y), sc = (EYE_HEIGHT * 1.12) / h;
+    const cx = (box.min.x + box.max.x) / 2, cz = (box.min.z + box.max.z) / 2;
+    root.scale.setScalar(sc); root.position.set(-cx * sc, -box.min.y * sc, -cz * sc);
+    const wrap = new THREE.Group(); wrap.add(root); wrap.rotation.y = Math.PI;   // the hero files face +Z; avatars face -Z at yaw 0, like the camera
+    (grp.userData.body || []).forEach(m => grp.remove(m)); grp.add(wrap);
+    const clips = gltf.animations || [], pick = re => clips.find(c => re.test(c.name));
+    const idle = pick(/idle|breath|stand/i) || clips[0], walk = pick(/walk/i) || pick(/run|sprint|jog/i);
+    if (clips.length) { const mixer = new THREE.AnimationMixer(root); a.mixer = mixer; a.actions = { idle: idle && mixer.clipAction(idle), walk: walk && mixer.clipAction(walk) }; a.walking = false; if (a.actions.idle) a.actions.idle.play(); }
+    a.model = true;
+  }).catch(e => console.warn('hero model for the avatar', a.hero, e));
+};
 HD.init();
 // puts an item in the first free slot — new things (bought, rewards) go to the bag, picked-up furniture back to the
 // hotbar so moving things stays quick; false when both are full
@@ -2798,7 +2832,7 @@ function animate(now) {
   renderer.render(scene, camera);
 }
 window.__hd = { coop: COOP, build: HIDEOUT_BUILD, visiting: () => HD.visiting, host: () => HD.hostName, me: () => HD.me,
-  peers: () => [...HD.peers.values()].map(a => ({ id: a.id, name: a.name, hero: a.hero, x: +a.x.toFixed(2), z: +a.z.toFixed(2), shown: !!a.group })),
+  peers: () => [...HD.peers.values()].map(a => ({ id: a.id, name: a.name, hero: a.hero, x: +a.x.toFixed(2), z: +a.z.toFixed(2), shown: !!a.group, model: !!a.model, clips: a.actions ? Object.keys(a.actions).filter(k => a.actions[k]) : [] })),
   entries: () => pickupables.filter(p => !p.isSharedGear).map(p => ({ gid: p.gid, pid: p.pid, x: p.x, z: p.z, ry: p.ry })),
   trade: { state: () => ({ open: TRADE.open, peer: TRADE.peerId, mine: tradeVals(TRADE.mine), theirs: TRADE.theirs, myLock: TRADE.myLock, theirLock: TRADE.theirLock, incoming: !!TRADE.incoming, last: TRADE.lastDone || null }),
     ask: () => HD.tradeKey(), toggle: tradeToggle, lock: tradeLockPress, cancel: tradeCancel, nearest: () => { const a = tradeNearest(); return a ? a.id : null; }, inv: () => ({ bag: SAVE.bag.slice(), hotbar: SAVE.hotbar.slice() }) },
