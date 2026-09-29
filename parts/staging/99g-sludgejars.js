@@ -30,8 +30,16 @@ function waveW(){ const key=S.wave+'|'+effWave(); if(key!==wWave){ wWave=key; wW
 function chance(kind){ const K=KIND[kind], w=waveW(); if(!K||w<=0) return 0; return Math.min(1,BUDGET*K.w/(w*VK[kind])); }
 function jarRoll(kind){ const b=BOSS[kind]; if(b) return new Array(b).fill(3); const K=KIND[kind]; if(!K||LR()>=chance(kind)) return [];
   let x=LR(), r=0; while(r<3&&x>=K.r[r]){ x-=K.r[r]; r++; } return [r]; }
-// ---- the jar: glass, the rarity's sludge glowing inside, a cork and a band (after the hideout's jar thumbnails); a gold band and a red gem on a Legendary
+// ---- build 297: MATT'S OWN JARS (his Meshy set: the grey-green sludge jar = Common, the teal brew = Uncommon, the purple slime = Rare, the red-and-gold elixir with the crowned lid = Legendary). Asked for when
+// the first wave starts (never on the loading screen); until one lands its jar is the code-built one below, and any code-built jar still on the floor is swapped for the real one the moment it arrives
+// (updateJars). Each stands a little taller the rarer it is. The glow, the floor ring and the Rare/Legendary light beam stay the game's.
+const JAR_FILES=['jar-common.glb','jar-uncommon.glb','jar-rare.glb','jar-legendary.glb'], JAR_H=[.62,.66,.72,.8], TPL=[];
+let jarsAsked=false;
+function askJars(){ if(jarsAsked||TUT) return; jarsAsked=true; JAR_FILES.forEach((f,r)=>{ fetchBytes(ASSET(f),'first').then(buf=>new THREE.GLTFLoader().parse(buf,'',gl=>{ try{ const root=gl.scene||gl.scenes[0]; const fit=fitModel(root,JAR_H[r]); toonify(root,fit.scale); TPL[r]=fit.wrap; }catch(e){ console.warn('jar model '+f,e); } },e=>console.warn('jar model '+f,e))).catch(e=>console.warn('jar model '+f,e)); }); }
+function realJar(item,r){ const m=TPL[r].clone(); m.position.y=-.3; item.add(m); item.scale.setScalar(1); }
+// ---- the code-built jar: glass, the rarity's sludge glowing inside, a cork and a band (after the hideout's jar thumbnails); a gold band and a red gem on a Legendary
 function jarMesh(r){ const J=JR[r], g=new THREE.Group(), item=new THREE.Group(); item.position.y=.45; const gold=r===3;
+  if(TPL[r]){ realJar(item,r); g.add(item); g.userData.item=item; g.userData.real=true; jarFx(g,r); return g; }
   const glassP=[[0,-.2],[.17,-.2],[.23,-.15],[.25,-.02],[.23,.1],[.17,.16],[.14,.17],[.14,.21]].map(([x,y])=>new THREE.Vector2(x,y));
   const glass=new THREE.Mesh(new THREE.LatheGeometry(glassP,14),new THREE.MeshToonMaterial({color:C(0xdff4ff),gradientMap:GRAD,transparent:true,opacity:.16,depthWrite:false})); item.add(glass);   // thin glass: the sludge is the colour you read
   const goo=[[0,-.18],[.15,-.18],[.205,-.13],[.225,-.02],[.21,.07],[0,.07]].map(([x,y])=>new THREE.Vector2(x,y));
@@ -41,10 +49,12 @@ function jarMesh(r){ const J=JR[r], g=new THREE.Group(), item=new THREE.Group();
   const base=new THREE.Mesh(new THREE.TorusGeometry(.22,.035,6,18),mat(gold?0xffc84a:0x8a5a2a)); base.rotation.x=PI/2; base.position.y=-.16; item.add(base);
   if(gold){ const gem=new THREE.Mesh(new THREE.OctahedronGeometry(.06,0),mat(0xff3048,{emissive:C(0xff3048),emissiveIntensity:.5})); gem.position.y=.33; item.add(gem); }
   outline(item); item.scale.setScalar(1.15); g.add(item); g.userData.item=item;
+  jarFx(g,r); return g; }
+// the glow, the floor ring, and a light beam over a Rare or Legendary -- the same around the code-built jar and Matt's
+function jarFx(g,r){ const J=JR[r];
   const gl=glow(J.col,1.0+r*.35,.55); gl.position.y=.45; g.add(gl);
   const ring=new THREE.Mesh(new THREE.RingGeometry(.22,.36,18),new THREE.MeshBasicMaterial({color:C(J.col),transparent:true,opacity:.6,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide})); ring.rotation.x=-PI/2; ring.position.y=.05; ring.userData.noOL=true; g.add(ring); g.userData.ring=ring;
-  if(r>=2){ const beam=new THREE.Mesh(new THREE.CylinderGeometry(.08,.2,2.4,10,1,true),new THREE.MeshBasicMaterial({color:C(J.col),transparent:true,opacity:.16+(r-2)*.08,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide})); beam.position.y=1.2; beam.userData.noOL=true; g.add(beam); }
-  return g; }
+  if(r>=2){ const beam=new THREE.Mesh(new THREE.CylinderGeometry(.08,.2,2.4,10,1,true),new THREE.MeshBasicMaterial({color:C(J.col),transparent:true,opacity:.16+(r-2)*.08,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide})); beam.position.y=1.2; beam.userData.noOL=true; g.add(beam); } }
 function spawnJar(r,x,z){ r=Math.max(0,Math.min(3,r|0)); const a=LR()*TAU, sp=1.4+LR()*1.2; const j={r,x,y:.6,z,vx:Math.cos(a)*sp,vy:4.2+LR()*1.6,vz:Math.sin(a)*sp,t:0,mesh:jarMesh(r)}; j.mesh.position.set(x,.6,z); scene.add(j.mesh); JARS.push(j); return j; }
 function clearJars(){ while(JARS.length){ scene.remove(JARS.pop().mesh); } }
 // ---- banking: straight into the hideout's hand-off, the moment it is taken
@@ -56,7 +66,9 @@ function bank(r,x,y,z){ const b=readIn(); b[JR[r].k]++; try{ localStorage.setIte
 let CLINKS=0;
 function clink(){ CLINKS++; try{ beep(4186,.1,'sine',.15,0); beep(8372,.06,'sine',.045,0); setTimeout(()=>{ beep(5588,.16,'sine',.13,0); beep(11175,.07,'sine',.035,0); },55); }catch(e){} }   // build 276 (Matt: "that sound could be higher and louder"): C8 then F8 (was G7, C8), about twice as loud
 function updateJars(dt){
+  if(S.phase==='wave') askJars();
   for(let i=JARS.length-1;i>=0;i--){ const j=JARS[i]; j.t+=dt; const it=j.mesh.userData.item;
+    if(!j.mesh.userData.real&&TPL[j.r]){ while(it.children.length) it.remove(it.children[0]); realJar(it,j.r); j.mesh.userData.real=true; }   // build 297: Matt's jar has landed -- this one on the floor becomes it
     // build 272 (Matt: "these jars wont allow me to pick them up"): a jar at rest keeps a tiny bounce, so its vy was never under .01 at this check -- only a jar still falling as you came near ever flew to you; landed once is landed
     if(hero.dead<=0&&j.t>.45&&(j.landed||j.vy<=.01)){ const hd=Math.hypot(hero.x-j.x,hero.z-j.z), hy=Math.abs(hero.y-j.y);
       if(window.__autoMana||(hd<HOOK&&hy<4)){ const dx=hero.x-j.x, dy=hero.y+.9-j.y, dz=hero.z-j.z, dd=Math.hypot(dx,dy,dz);
@@ -86,5 +98,5 @@ if(window.__net&&window.__net.onMessage) window.__net.onMessage('jarDrop',d=>{ c
 let lastWave=S.wave;
 { const prev=updateLoot; updateLoot=function(dt){ prev.apply(this,arguments); try{ if(S.wave===1&&lastWave!==1){ RUN.fill(0); drawHud(); } lastWave=S.wave; updateJars(dt); }catch(err){} }; }
 window.__jars={ list:()=>JARS.map(j=>({r:j.r,x:+j.x.toFixed(2),y:+j.y.toFixed(2),z:+j.z.toFixed(2)})), spawn:(r,x,z)=>spawnJar(r,x,z), roll:k=>jarRoll(k), chance:k=>chance(k), waveW:()=>waveW(),
-  run:()=>RUN.slice(), clinks:()=>CLINKS, banked:()=>readIn(), clear:clearJars, sweep, budget:BUDGET, kinds:()=>Object.keys(KIND), bosses:()=>Object.assign({},BOSS), tut:TUT };
+  run:()=>RUN.slice(), clinks:()=>CLINKS, real:()=>TPL.map(Boolean), asked:()=>jarsAsked, ask:askJars, realOnFloor:()=>JARS.map(j=>!!j.mesh.userData.real), banked:()=>readIn(), clear:clearJars, sweep, budget:BUDGET, kinds:()=>Object.keys(KIND), bosses:()=>Object.assign({},BOSS), tut:TUT };
 })();
