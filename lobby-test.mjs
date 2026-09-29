@@ -100,7 +100,7 @@ check("the lobby fits a phone-width (400 px) screen: the panel and everything in
 // ==== a hero change shows up live: the host picks a card, a guest switches hero ====
 await H.page.evaluate(()=>window.__heroes.select('troll'));   /* build 151: the cards sit behind the multiplayer screen; the screen's own 'change hero' cycles through __heroes.next, the same call */
 await A.page.evaluate(()=>window.__heroes.select('fighter'));   // a fresh guest's own cards are knight-only; the programmatic pick (the one the raven's H key uses) is how its hero changes here
-const heroA=await until(A.page,()=>{ const r=window.__lobby.roster(); return r[0]&&/TROLL ARCHER/.test(r[0].hero)&&/hero-troll\.png$/.test(r[0].img||'')?r[0]:null; },null,120000,'A sees host troll');
+const heroA=await until(A.page,()=>{ const r=window.__lobby.roster(); return r[0]&&/GNOME RANGER/.test(r[0].hero)&&/hero-troll\.png$/.test(r[0].img||'')?r[0]:null; },null,120000,'A sees host troll');
 const heroH=await until(H.page,()=>{ const r=window.__lobby.roster(); return r[1]&&/GNOME FIGHTER/.test(r[1].hero)&&/hero-fighter\.png$/.test(r[1].img||'')?r[1]:null; },null,120000,'host sees A fighter');
 check("a hero change on the title screen shows up in everyone's roster, portrait and name (host -> guests, guest -> host)",!!heroA&&!!heroH,JSON.stringify({onA:heroA,onH:heroH}));
 

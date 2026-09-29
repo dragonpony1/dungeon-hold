@@ -82,7 +82,7 @@ check("Fighter: Halo Surge doubles a halo tower's stat('dmg') hall-wide (even on
   r3.dmgDuring>r3.dmgBefore*1.9&&r3.dmgDuring<r3.dmgBefore*2.1&&r3.dmgAfter===r3.dmgBefore,JSON.stringify(r3));
 
 // ---- 4) the Troll Archer: VOLLEY -- an aimed spot (up to 16 units), 3x heroDmg() split over ~1s, not all at once ----
-await pick("troll","Troll"); await clear();
+await pick("troll","Ranger"); await clear();
 const r4=await page.evaluate(async()=>{
   const d=window.__dd; d.setHero(0,10,0); d.setCam(0,.42,8); d.step(1/60,10);
   const target=d.spawn("goblin","N"); target.x=0; target.z=20; target.hp=target.max=9999; target.spd=0;

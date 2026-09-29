@@ -11,7 +11,7 @@ const pick=async(id,re,key)=>{ await page.evaluate(i=>window.__heroes.select(i),
 // the mouse, as the page sees it: a press on the canvas, a release on the window
 const down=()=>page.evaluate(()=>document.getElementById("c").dispatchEvent(new MouseEvent("mousedown",{button:0,bubbles:true})));
 const up=()=>page.evaluate(()=>window.dispatchEvent(new MouseEvent("mouseup",{button:0,bubbles:true})));
-await pick("troll","Troll","bow");
+await pick("troll","Ranger","bow");
 // 1) the reticle locks on a goblin eight units down the aim, and shows a crosshair when nothing is there
 const raf=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
 const r1=await page.evaluate(async()=>{ const raf=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))); const d=window.__dd; for(const e of d.enemies) d.kill(e); d.setHero(0,10,0); d.hero.y=0; d.setCam(0,.42,6); d.step(1/60,60); await raf(); const free=window.__aim.reticle(); const e=d.spawn("goblin","N"); e.x=0; e.z=18; e.spd=0; e.hp=e.max=500; d.step(1/60,3); await raf(); const r=window.__aim.reticle(); const off=d.spawn("goblin","N"); off.x=7; off.z=12; off.spd=0; d.step(1/60,2); const t=window.__aim.pick(); return {free,locked:r,pickIsFront:t===e,kind:window.__aim.kind(),shoulder:+(d.cam.shoulder||0).toFixed(2)}; });

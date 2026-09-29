@@ -22,7 +22,7 @@ check("it's in the named drop pool (eleven now) and, with no picture, its card i
 check("the Troll's bow hand holds bow-subterfuge; the Knight holds the top sword (holy), a staff hand the top staff (staff-battle)",t.hands.bow==="bow-subterfuge"&&t.hands.sword==="holy"&&t.hands.staff==="staff-battle",JSON.stringify(t.hands));
 
 // ---- the Troll wearing it
-await P.evaluate(()=>window.__heroes.select("troll")); await P.waitForFunction(()=>/Troll/.test(window.__dd.heroModel().label),null,{timeout:90000});
+await P.evaluate(()=>window.__heroes.select("troll")); await P.waitForFunction(()=>/Ranger/.test(window.__dd.heroModel().label),null,{timeout:90000});
 const eq=await P.evaluate(async()=>{ const it=window.__mythic.normalize({tier:"named",named:"subterfuge"}); window.__meta.giveItem(it); window.__meta.equip(it.id);
   for(let i=0;i<200;i++){ window.__dd.step(1/60,1); const s=window.__weapons.state(); if(s.mounted&&/^bow-subterfuge/.test(s.key)&&window.__aim.kind()==="bow") break; await new Promise(r=>setTimeout(r,25)); }
   const wo=window.__weapons.mounted(); let sparks=0; if(wo) wo.traverse(o=>{ if(/^spark\d/.test(o.name)) sparks++; }); return {key:window.__weapons.state().key,kind:window.__aim.kind(),has:window.__mythic.has("subterfuge"),sparks,nocked:!!(wo&&wo.getObjectByName("nocked")&&(wo.getObjectByName("nocked").getObjectByName("zc0")||wo.getObjectByName("nocked").getObjectByName("subArrow")))}; });
