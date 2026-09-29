@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="55">
+<meta name="hideout-build" content="56">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -268,7 +268,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 55;
+const HIDEOUT_BUILD = 56;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -2421,7 +2421,10 @@ document.addEventListener('keydown', e => {
 // Each use costs FORGE_COST Legendary Sludge. First the proc: NAMED_PROC_CHANCE of all uses come out a named mythic
 // (Matt's number, "start at about 6%" — tune freely). Otherwise FORGE_SUCCESS_CHANCE makes a mythic set piece, and
 // the rest fail and lose the sludge.
-const FORGE_COST = 5, FORGE_SUCCESS_CHANCE = 0.35, NAMED_PROC_CHANCE = 0.06;
+// build 56 (Matt: "i am finding that i am not making enough sludge per round, 5 maybe too many on some of the sludge jars", "my barometer is that i should be able to do the loot gamble 2-3 times per round"): a forge try costs 3 Legendary Sludge
+// (was 5) and every Refine step takes 3 of a sludge for one of the next (REFINE_COST, was 5). A simulated room (real drop table and rarity roll, salvaged 2 pieces to 1) made about 1.1 Legendary Sludge in room one and 5.3 in room two: a try every
+// five rooms and one a room. At 3 and 3 it is 0.6 tries in room one and 2.4 in room two. Picking a set is still +3 a try (PICK_EXTRA), so 6.
+const FORGE_COST = 3, FORGE_SUCCESS_CHANCE = 0.35, NAMED_PROC_CHANCE = 0.06;
 // build 52 (Matt: "make picking cost 3 extra"): rolling for ONE set (instead of a random one of nine) costs PICK_EXTRA more Legendary Sludge a try. The odds are the same (35% a set piece, 6% a named mythic that ignores the pick);
 // only the set is chosen. A random set piece of one particular set averages ~130 sludge; a picked one ~23 (8 a try at 35%).
 const PICK_EXTRA = 3;
@@ -2590,6 +2593,7 @@ document.getElementById('forgeCraftBtn').onclick = () => {
 // the next. Because every salvage row shares one cost, common/uncommon/rare/epic keep their x5 value steps whatever
 // it's set to; only legendary (fixed at 1) moves relative to epic.
 const SALVAGE_COST = 2; // Matt is trying 2 to see how it feels (was 5)
+const REFINE_COST = 3; // build 56: three of a sludge make one of the next (was five)
 const SLUDGE = {
   common:    { name:'Common Sludge',    icon: ITEMS_DIR+'common_sludge.png',    get:()=>SAVE.commonSludge,    add:n=>SAVE.commonSludge+=n },
   uncommon:  { name:'Uncommon Sludge',  icon: ITEMS_DIR+'uncommon_sludge.png',  get:()=>SAVE.uncommonSludge,  add:n=>SAVE.uncommonSludge+=n },
@@ -2602,9 +2606,9 @@ const RECIPES = [
   { id:'sv_rare',      kind:'salvage', gear:'rare',      cost:SALVAGE_COST, out:'rare' },
   { id:'sv_epic',      kind:'salvage', gear:'epic',      cost:SALVAGE_COST, out:'legendary' },
   { id:'sv_legendary', kind:'salvage', gear:'legendary', cost:1, out:'legendary' },
-  { id:'rf_uncommon',  kind:'refine',  sludge:'common',   cost:5, out:'uncommon' },
-  { id:'rf_rare',      kind:'refine',  sludge:'uncommon', cost:5, out:'rare' },
-  { id:'rf_legendary', kind:'refine',  sludge:'rare',     cost:5, out:'legendary' },
+  { id:'rf_uncommon',  kind:'refine',  sludge:'common',   cost:REFINE_COST, out:'uncommon' },
+  { id:'rf_rare',      kind:'refine',  sludge:'uncommon', cost:REFINE_COST, out:'rare' },
+  { id:'rf_legendary', kind:'refine',  sludge:'rare',     cost:REFINE_COST, out:'legendary' },
 ];
 function recipeById(id) { return RECIPES.find(r => r.id === id); }
 function recipeInput(r) {
@@ -2634,7 +2638,7 @@ function buildCauldronRows() {
   const wrap = document.getElementById('cauldronRows');
   wrap.innerHTML = '';
   renderBagStrip();
-  [['salvage', 'Salvage — turn the gear you carried in into sludge'], ['refine', 'Refine — five of a sludge make one of the next']].forEach(([kind, label]) => {
+  [['salvage', 'Salvage — turn the gear you carried in into sludge'], ['refine', 'Refine — ' + (REFINE_COST === 3 ? 'three' : REFINE_COST) + ' of a sludge make one of the next']].forEach(([kind, label]) => {
     const h = document.createElement('div'); h.className = 'csection'; h.textContent = label; wrap.appendChild(h);
     RECIPES.filter(r => r.kind === kind).forEach(r => {
       const inp = recipeInput(r), out = SLUDGE[r.out];
