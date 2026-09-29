@@ -204,7 +204,7 @@ function loadWispProjectile(){ if(wispProjGLB||wispProjP) return; wispProjP=fetc
 // "but make the patronus bright pink". Every SC.every seconds of a wave a see-through hot-pink copy of the stag charges through the THICKEST
 // group in range (my call, so it always hits something and needs no aiming), hitting every mob it passes once for SC.mult pet shots and
 // throwing it back SC.knock/2 units; bosses take the full damage but only a nudge. Runs where the mobs are real (solo, or the host).
-const SC={every:8,speed:24,hitR:1.4,mult:6,knock:9,bossKnock:.12,pink:0xff3fae,t:3,ghosts:[],pops:[],count:0,hits:0};
+const SC={every:8,speed:12,hitR:1.4,mult:6,knock:9,bossKnock:.12,pink:0xff3fae,t:3,ghosts:[],pops:[],count:0,hits:0};
 const SC_BOSS=new Set(['cyclops','pigflail','pigdagger','pigsling','trollboss']);
 const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
 function gladeWorn(){ return !!fam&&namedPet(gear.familiar)==='gladehart'; }
@@ -212,10 +212,15 @@ function thickest(){ const fx0=fam?fam.x:hero.x, fz0=fam?fam.z:hero.z; let best=
   for(const c of live){ let n=0, sx=0, sz=0; for(const m of live) if(Math.hypot(m.x-c.x,m.z-c.z)<2.6){ n++; sx+=m.x; sz+=m.z; } const d=Math.hypot(c.x-fx0,c.z-fz0); if(n>bn||(n===bn&&d<bd)){ best={x:sx/n,z:sz/n,n,y:c.y||0}; bn=n; bd=d; } }
   return best; }
 function scPop(x,y,z,size,life,grow){ const s=glow(SC.pink,size,.9); s.position.set(x,y,z); scene.add(s); if(SC.pops.length>240){ const o=SC.pops.shift(); scene.remove(o.s); o.s.material.dispose(); } SC.pops.push({s,t:0,life,size,grow}); }
+// the patronus look: a see-through pink body with a bright pink rim where its surface turns away from you, so the shoulders, legs and antlers read (one flat colour lost the body entirely)
+function glowMat(){ const m=new THREE.MeshBasicMaterial({color:C(0xff2fa8),transparent:true,opacity:.85,depthWrite:false}); m.customProgramCacheKey=()=>'gladeghost';
+  m.onBeforeCompile=sh=>{ sh.vertexShader=sh.vertexShader.replace('void main() {','varying vec3 gN; varying vec3 gV;\nvoid main() {').replace('#include <project_vertex>','#include <project_vertex>\n gN=normalize(normalMatrix*normal); gV=normalize(-mvPosition.xyz);');
+    sh.fragmentShader=sh.fragmentShader.replace('void main() {','varying vec3 gN; varying vec3 gV;\nvoid main() {').replace('#include <dithering_fragment>','#include <dithering_fragment>\n float gr=pow(1.0-abs(dot(normalize(gN),normalize(gV))),1.7); gl_FragColor.rgb=mix(gl_FragColor.rgb*.8,vec3(1.0,.62,.9),gr); gl_FragColor.a=opacity*mix(.45,1.0,gr);'); };
+  return m; }
 function ghostMesh(){ const g=new THREE.Group(), mats=[]; const T=NP_GLB.gladehart;
-  if(T){ const m=T.clone(true); m.scale.setScalar(1.7); const ol=[]; m.traverse(o=>{ if(o.userData.isOL) ol.push(o); }); ol.forEach(o=>o.parent.remove(o));
-    m.traverse(o=>{ if(o.isMesh){ const old=Array.isArray(o.material)?o.material[0]:o.material; o.material=new THREE.MeshBasicMaterial({color:C(0xff2fa8),transparent:true,opacity:.82,depthWrite:false});   /* flat hot pink, normal blending: the stag's brown texture turned it dull red, and additive washed it to white over the pink light */ mats.push(o.material); } }); g.add(m); }
-  const gl=glow(SC.pink,3.4,.6); gl.position.y=.7; g.add(gl); mats.push(gl.material); return {g,mats}; }
+  if(T){ const m=T.clone(true); m.scale.setScalar(2); const ol=[]; m.traverse(o=>{ if(o.userData.isOL) ol.push(o); }); ol.forEach(o=>o.parent.remove(o));
+    m.traverse(o=>{ if(o.isMesh){ const old=Array.isArray(o.material)?o.material[0]:o.material; o.material=glowMat();   /* flat hot pink, normal blending: the stag's brown texture turned it dull red, and additive washed it to white over the pink light */ mats.push(o.material); } }); g.add(m); }
+  const gl=glow(SC.pink,2.6,.4); gl.position.y=.7; g.add(gl); mats.push(gl.material); return {g,mats}; }
 function scLaunch(t){ const sx=fam?fam.x:hero.x, sz=fam?fam.z:hero.z; let dx=t.x-sx, dz=t.z-sz; const d=Math.hypot(dx,dz)||1; dx/=d; dz/=d; const run=Math.max(8,Math.min(15,d+5)); const {g,mats}=ghostMesh();
   g.rotation.y=Math.atan2(dx,dz); g.position.set(sx,(t.y||0)+.35,sz); scene.add(g); SC.ghosts.push({g,mats,x:sx,z:sz,y:t.y||0,dx,dz,run,age:0,tr:0,hit:new Set(),dying:0}); SC.count++;
   scPop(sx,(t.y||0)+.9,sz,2.6,.4,1.6); if(SFX.rift) SFX.rift(); }
@@ -223,7 +228,7 @@ function scTick(dt){
   for(let i=SC.ghosts.length-1;i>=0;i--){ const G=SC.ghosts[i]; G.age+=dt;
     if(!G.dying){ const step=SC.speed*dt; G.x+=G.dx*step; G.z+=G.dz*step; G.run-=step; G.g.position.set(G.x,G.y+.35+Math.sin(G.age*14)*.07,G.z);
       for(const e of enemies){ if(e.dead||e.puppet||G.hit.has(e)) continue; if(Math.hypot(e.x-G.x,e.z-G.z)<SC.hitR+(e.r||.5)*.6&&Math.abs((e.y||0)-G.y)<3){ G.hit.add(e); const k=SC_BOSS.has(e.kind)?SC.knock*SC.bossKnock:SC.knock; hurt(e,dmgOf(SC.mult),G.dx*k,G.dz*k); scPop(e.x,(e.y||0)+(e.h||1.2)*.6,e.z,2.2,.32,1.9); SC.hits++; } }
-      G.tr-=dt; if(G.tr<=0){ G.tr=.03; scPop(G.x-G.dx*.4+R(-.2,.2),G.y+.5+R(0,.5),G.z-G.dz*.4+R(-.2,.2),R(.5,1.1),.5,.2); }
+      G.tr-=dt; if(G.tr<=0){ G.tr=.04; scPop(G.x-G.dx*.4+R(-.2,.2),G.y+.5+R(0,.5),G.z-G.dz*.4+R(-.2,.2),R(.6,1.3),.9,.2); }
       if(G.run<=0||wallAt(G.x,G.z)) G.dying=.001; }
     else { G.dying+=dt; const k=1-G.dying/.35; if(k<=0){ scene.remove(G.g); G.mats.forEach(m=>m.dispose()); SC.ghosts.splice(i,1); continue; } G.mats.forEach(m=>{ m.opacity=(m.isSpriteMaterial?.6:.85)*k; }); G.g.scale.setScalar(1+(1-k)*.25); } }
   for(let i=SC.pops.length-1;i>=0;i--){ const p=SC.pops[i]; p.t+=dt; const k=1-p.t/p.life; if(k<=0){ scene.remove(p.s); p.s.material.dispose(); SC.pops.splice(i,1); continue; } p.s.material.opacity=.9*k; p.s.scale.setScalar(p.size*(1+(1-k)*p.grow)); }
