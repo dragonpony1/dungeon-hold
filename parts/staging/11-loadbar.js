@@ -23,8 +23,11 @@ document.body.appendChild(el);
 function fmt(){ const n=LOADT.inflight; return '⏳ '+n+' ASSET'+(n===1?'':'S')+' LEFT'; }
 // build 226 (Matt, equipping the new bat: "the top didn't say there were assets either"): a ~1 MB pet model can land between two 150 ms checks and never show. Any change in the
 // file count now counts as activity, and once everything has landed the counter says so for a moment instead of vanishing
+// build 251 (Matt: "asset count and tooltip overlap in tutorial"): the tutorial's big tooltip (#tut, 89-tutorial.js) starts at top 46 and runs to ~157, right over the counter's top 64. While that tooltip is up the
+// counter sits just under it instead (place(), run with every poll, so it follows the tooltip's height as its text changes); with no tooltip it is back at 64, under BUILD PHASE.
+function place(){ const t=document.getElementById('tut'); let top=64; if(t&&t.classList.contains('on')){ const r=t.getBoundingClientRect(); if(r.height>0) top=Math.max(64,Math.round(r.bottom+8)); } const v=top+'px'; if(el.style.top!==v) el.style.top=v; }
 let lastFiles=LOADT.files, lastAct=-1e9;
-setInterval(()=>{ const now=performance.now(); const busy=LOADT.inflight>0; if(busy||LOADT.files!==lastFiles) lastAct=now; lastFiles=LOADT.files;
+setInterval(()=>{ place(); const now=performance.now(); const busy=LOADT.inflight>0; if(busy||LOADT.files!==lastFiles) lastAct=now; lastFiles=LOADT.files;
   if(busy){ el.style.display='block'; el.style.color='#e8b94a'; el.textContent=fmt(); } else if(now-lastAct<1500&&lastAct>0){ el.style.display='block'; el.style.color='#8fe07a'; el.textContent='✓ ASSETS LOADED'; } else el.style.display='none'; },150);
-window.__loadctr={el:()=>el,visible:()=>el.style.display==='block',text:()=>el.textContent,busy:()=>LOADT.inflight>0};
+window.__loadctr={place,el:()=>el,visible:()=>el.style.display==='block',text:()=>el.textContent,busy:()=>LOADT.inflight>0};
 })();
