@@ -425,7 +425,7 @@ function makeTorch(){ const g=new THREE.Group(); g.add(M(G.box(.14,.14,.34),mat(
     else if(inHall&&i%4===3){ const b=new THREE.Mesh(new THREE.PlaneGeometry(1.3,2.6),new THREE.MeshToonMaterial({map:BANNERTEX,gradientMap:GRAD,color:C(0xffffff),transparent:true,side:THREE.DoubleSide,alphaTest:.5})); b.position.set(f.x+f.nx*.12,fy+4.2,f.z+f.nz*.12); b.rotation.y=yaw; world.add(b); const rod=M(G.cyl(.05,.05,1.7,6),mat(0xe0b040),f.x+f.nx*.12,fy+5.5,f.z+f.nz*.12); rod.rotation.y=yaw; rod.rotation.z=PI/2; world.add(rod); bannerMeshes.push(b); bannerRods.push(rod); } });
   world.userData.torchProcs=torchProcs; world.userData.bannerMeshes=bannerMeshes; world.userData.bannerRods=bannerRods;   // a handle so a map can swap the painted banners for real art (56-thronedecor.js), same idea as railMeshes/floorMesh
   (MAP.roofs||[]).forEach(([x0,x1,z0,z1])=>{ const y=(MAP.pillarH||6)+1.0; const w=(x1-x0+1)*CELL, d=(z1-z0+1)*CELL; const r=M(G.box(w,.45,d),mat(0x2a1f2c),(cw(x0)+cw(x1))/2,y,(cwz(z0)+cwz(z1))/2); world.add(r); world.add(M(G.box(w,.12,d),mat(0x4a4262),(cw(x0)+cw(x1))/2,y+.28,(cwz(z0)+cwz(z1))/2)); });   // covered walkways: a slab on the colonnade
-  (MAP.trees||[]).forEach(([x,z])=>{ const g=new THREE.Group(); g.position.set(cw(x),hgt[idx(x,z)]||0,cwz(z)); g.add(M(G.cyl(.22,.3,2.2,7),mat(0x5a3a22),0,1.1,0)); [[0,2.6,0,1.5],[.7,2.2,.4,1.0],[-.6,2.3,-.5,1.0],[0,3.5,0,1.1]].forEach(([ox,oy,oz,r])=>g.add(M(G.sph(r,8,6),mat(0x2f6a2a),ox,oy,oz))); world.add(outline(g)); });   // trees in the court
+  (MAP.trees||[]).forEach(([x,z])=>{ const g=new THREE.Group(); g.position.set(cw(x),hgt[idx(x,z)]||0,cwz(z)); g.add(M(G.cyl(.22,.3,2.2,7),mat(0x5a3a22),0,1.1,0)); [[0,2.6,0,1.5],[.7,2.2,.4,1.0],[-.6,2.3,-.5,1.0],[0,3.5,0,1.1]].forEach(([ox,oy,oz,r])=>g.add(M(G.sph(r,8,6),mat(0x2f6a2a),ox,oy,oz))); world.add(outline(g)); (world.userData.treeProcs=world.userData.treeProcs||[]).push(g); });   // trees in the court (kept in treeProcs so a real model can stand in: 56d-courtdecor.js)
   // a castle's outside: battlements on every wall, towers with pennants, the keep rising behind the ward, the gate arch with its
   // portcullis raised, the drawbridge on its chains, lamp posts, stone kings on plinths and braziers
   if(MAP.castle){ const CS=MAP.castle, stone=mat(0x5a5276), dark=mat(0x2b2540), gold=mat(0xe0b040), wood=mat(0x6b4a2a), plank=mat(0x8a5e34), iron=mat(0x3a3348), roofm=mat(0x5a1e2a), grey=mat(0x8a8898), TD=MAP.tavern||{dx:0,dz:0};
@@ -716,7 +716,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=268;
+const BUILD=269;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
