@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="47">
+<meta name="hideout-build" content="48">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -262,7 +262,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 47;
+const HIDEOUT_BUILD = 48;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -391,8 +391,8 @@ const HD = {
   async enterVisit(own) {
     if (!VISITOR || !this.layoutP) return own;
     const L = await this.layoutP;
-    if (L && Array.isArray(L.placed)) { this.visiting = true; this.hostName = String(L.host || '').slice(0, 24); this.bar(); syncSelection(); renderInv(); flashMsg("You're visiting " + (this.hostName || "the host") + "'s hideout — only they can move the furniture"); return L.placed; }
-    flashMsg("Couldn't reach the host's hideout — showing yours"); this.bar(); return own;
+    if (L && Array.isArray(L.placed) && L.placed.length) { this.visiting = true; this.hostName = String(L.host || '').slice(0, 24); this.bar(); syncSelection(); renderInv(); flashMsg("You're visiting " + (this.hostName || "the host") + "'s hideout — only they can move the furniture"); return L.placed; }
+    flashMsg(L && Array.isArray(L.placed) ? "The host hasn't set up a hideout yet — showing yours" : "Couldn't reach the host's hideout — showing yours"); this.bar(); return own;
   },
   onParent(d) {
     switch (d.type) {
