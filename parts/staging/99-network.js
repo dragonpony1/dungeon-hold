@@ -855,7 +855,7 @@ function guestSendInput(dt){
   syncTIn+=dt; if(syncTIn<1/15) return; syncTIn=0;
   send('input',{w:K.w?1:0,s:K.s?1:0,a:K.a?1:0,d:K.d?1:0,shift:K.shift?1:0,yaw:+cam.yaw.toFixed(3),pick:window.__heroes.pick(),x:+hero.x.toFixed(2),z:+hero.z.toFixed(2),hyaw:+hero.yaw.toFixed(3),   /* build 147: where this guest's own hero really is -- the host follows it instead of re-simulating the keys (see guestInputTick) */
     stat:{tow:heroStat('tow'),trate:heroStat('trate'),tarea:heroStat('tarea'),move:heroStat('move'),def:heroStat('def'),hp:heroStat('hp'),regen:heroStat('regen'),mana:heroStat('mana')},
-    mult:{tow:heroMult('tow'),tcd:heroMult('tcd'),aoe:heroMult('aoe'),move:heroMult('move'),hp:heroMult('hp'),mana:heroMult('mana')},
+    mult:{tow:heroMult('tow'),tcd:heroMult('tcd'),aoe:heroMult('aoe'),move:heroMult('move'),hp:heroMult('hp'),mana:heroMult('mana'),thp:heroMult('thp')},
     kind:Meta.defKindMap?Meta.defKindMap():{},   // a full set's per-defense-kind power (94-voidset.js), for the halos this guest places
     seat:window.__lobby&&window.__lobby.seat?window.__lobby.seat():undefined,   // build 159 (3/7): this tab's lobby seat, so the host can keep this player's mana and defenses for them across a drop (seatJoin)
     myth:window.__mythic&&window.__mythic.worn?window.__mythic.worn():[], five:Meta.sets&&Meta.sets.active?Meta.sets.active().filter(a=>a.tier>=5).map(a=>a.name):[], idle:(!hero.moving&&hero.swingT<0&&hero.dead<=0)?1:0,   // build 159 (5/7): what the host needs to run this guest's named mythics and five-piece powers (the 'input' handler), and Mossheart's "stand still"

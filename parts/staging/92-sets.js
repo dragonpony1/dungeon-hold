@@ -18,7 +18,7 @@ function setFlat(k){ let v=0; for(const a of active()) if(!PCT[k]&&a.bonus[k]) v
 let seen={}; function announce(){ const c=counts(); for(const n of NAMES){ const k=c[n]|0; const lvl=k>=5?5:k>=3?3:0; if(lvl&&seen[n]!==lvl){ const S_=SETS[n]; toast(S_.ic+' SET BONUS · '+n+' ('+k+'/5): '+S_.text[lvl===5?1:0]); SFX.held(); } seen[n]=lvl; } }
 { const prev=Meta.equip; Meta.equip=id=>{ const ok=prev(id); if(ok){ applyGear(); announce(); } return ok; }; const pu=Meta.unequip; Meta.unequip=s=>{ const ok=pu(s); if(ok){ applyGear(); seen=Object.fromEntries(Object.entries(counts()).map(([n,k])=>[n,k>=5?5:k>=3?3:0])); } return ok; }; }
 { const c=counts(); for(const n in c) seen[n]=c[n]>=5?5:c[n]>=3?3:0; }
-// the name says the set; the stat line says the count
-const statStrSets=statStr; statStr=function(it){ const s=statStrSets(it); const n=setOf(it); if(!n) return s; const k=counts()[n]|0; return s+' · '+SETS[n].ic+' '+n.replace('of the ','')+' set'+(k?' '+k+'/5':''); };
+// the name says the set; the stat line says the count. Build 290 (Matt: "does the tavern card show that i am getting credit for named mythics?"): a named mythic's own card says it counts too (counts() below)
+const statStrSets=statStr; statStr=function(it){ const s=statStrSets(it); const n=setOf(it); if(!n) return it&&it.named?s+' · ✦ counts for every set':s; const k=counts()[n]|0; return s+' · '+SETS[n].ic+' '+n.replace('of the ','')+' set'+(k?' '+k+'/5':''); };
 Meta.sets={SETS,names:NAMES,setOf,counts,active,text:(n,lvl)=>SETS[n].text[lvl>=5?1:0]}; window.__sets=Meta.sets;
 })();

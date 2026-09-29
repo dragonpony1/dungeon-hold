@@ -7,6 +7,7 @@ const SKILLS=[
   {id:'fleet',   name:'Fleet',    per:.03, keys:['move','spd'], what:'Move speed and swing speed',fmt:v=>'+'+Math.round(v*100)+'% speed & swing'},
   {id:'overseer',name:'Overseer', per:.08, keys:['tow'],        what:'Defense damage',           fmt:v=>'+'+Math.round(v*100)+'% defense damage'},
   {id:'loader',  name:'Loader',   per:.04, keys:['tcd'],        what:'Defense attack speed',     fmt:v=>'+'+Math.round(v*100)+'% defense attack speed'},
+  {id:'mason',   name:'Mason',    per:.08, keys:['thp'],        what:'Defense health',           fmt:v=>'+'+Math.round(v*100)+'% defense health'},   // build 290 (Matt: "we need to add a stat called tower health in the skills maybe"): 96e-mason.js keeps every tower's health in step
   {id:'wideshot',name:'Wideshot', per:.06, keys:['aoe'],        what:'Area of effect radius',    fmt:v=>'+'+Math.round(v*100)+'% AoE radius'},
   {id:'manawell',name:'Manawell', per:.10, keys:['mana'],       what:'Mana from orbs',           fmt:v=>'+'+Math.round(v*100)+'% mana'}];
 const SKILL_MAX=10, GOLD_CSS='#ffd060';
