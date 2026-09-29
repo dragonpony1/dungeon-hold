@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="45">
+<meta name="hideout-build" content="46">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -134,6 +134,23 @@ canvas{display:block}
 #chestBody{padding:10px 20px 14px;overflow-y:auto}
 #chestBody .isection{color:#c8a878}
 #chestBody .islot{border-color:#7a5a2a;background:#150e08}
+#tradeWrap{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:21}
+#tradePanel{position:relative;width:min(640px,95vw);max-height:92vh;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px #000a;font-family:Georgia,'Times New Roman',serif;background:linear-gradient(#10222c,#08131a);border:3px solid #3a8aa5}
+#tradeHeader{background:linear-gradient(#17394a,#0c2130);padding:12px 20px 8px;text-align:center;border-bottom:3px solid #5ac}
+#tradeHeader h1{margin:0;color:#bfefff;font-size:1.4em;letter-spacing:0.04em;text-shadow:0 2px 4px #000}
+#tradeHeader p{margin:4px 0 0;color:#8fb8c8;font-size:0.85em;font-style:italic}
+#tradeBody{padding:10px 20px 14px;overflow-y:auto}
+#tradeBody .isection{color:#8fb8c8}
+#tradeBody .islot{border-color:#3a7a95;background:#08161e}
+#tradeBody .islot.mine{border-color:#7fe0a0;box-shadow:0 0 6px #7fe0a066}
+#tradeBody .islot.blocked{opacity:0.35;cursor:not-allowed}
+.tcols{display:flex;gap:18px}.tcols>div{flex:1;min-width:0}
+.tstate{text-align:center;font:12px monospace;margin:2px 0 6px;color:#8ab}.tstate.on{color:#7f7}
+#tradeBtns{display:flex;gap:12px;justify-content:center;margin:14px 0 4px}
+#tradeBtns button{font:bold 14px Georgia,serif;padding:9px 22px;border-radius:8px;border:2px solid #5ac;background:#12384a;color:#dff;cursor:pointer;letter-spacing:0.05em}
+#tradeBtns button.locked{background:#1c5a34;border-color:#7fe0a0}
+#tradeBtns button:disabled{opacity:0.45;cursor:default}
+#tradeClose{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:#000c;color:#fff;border:2px solid #a55;font:16px monospace;cursor:pointer;z-index:2}
 #chestClose{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:#000c;color:#fff;border:2px solid #a55;font:16px monospace;cursor:pointer;z-index:2}
 .fgear.unique{border-color:#ffcf3a;box-shadow:0 0 12px #ffcf3a66}
 #gearClose{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:#000c;color:#fff;border:2px solid #a55;font:16px monospace;cursor:pointer;z-index:2}
@@ -210,6 +227,21 @@ canvas{display:block}
   </div>
 </div></div>
 
+<div id="tradeWrap"><div id="tradePanel">
+  <button id="tradeClose">&times;</button>
+  <div id="tradeHeader"><h1 id="tradeTitle">TRADE</h1><p>Click things in your bag or hotbar to offer them. When you both like it, both press LOCK IN — then it swaps.</p></div>
+  <div id="tradeBody">
+    <div class="tcols">
+      <div><div class="isection">You offer</div><div id="tradeMine" class="islotgrid"></div><div id="tradeMyState" class="tstate"></div></div>
+      <div><div class="isection" id="tradeTheirTitle">They offer</div><div id="tradeTheirs" class="islotgrid"></div><div id="tradeTheirState" class="tstate"></div></div>
+    </div>
+    <div class="isection">Your bag</div><div id="tradeBag" class="islotgrid"></div>
+    <div class="isection">Your hotbar</div><div id="tradeHot" class="islotgrid"></div>
+    <div id="tradeBtns"><button id="tradeLock">LOCK IN</button><button id="tradeCancel">CANCEL</button></div>
+    <div id="tradeNote" class="tstate"></div>
+  </div>
+</div></div>
+
 <div id="lockerWrap"><div id="lockerPanel">
   <button id="lockerClose">&times;</button>
   <div id="lockerHeader">
@@ -230,7 +262,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 45;
+const HIDEOUT_BUILD = 46;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -383,20 +415,23 @@ const HD = {
       if (a.name !== String(p.name || '') || a.hero !== String(p.hero || '')) { a.name = String(p.name || '').slice(0, 16); a.hero = String(p.hero || ''); if (a.group) { scene.remove(a.group); a.group = null; } }
       a.tx = +p.x || 0; a.ty = +p.y || 0; a.tz = +p.z || 0; a.tr = +p.ry || 0;
     }
-    for (const [id, a] of [...this.peers]) if (!seen.has(id)) { if (a.group) scene.remove(a.group); this.peers.delete(id); }
+    for (const [id, a] of [...this.peers]) if (!seen.has(id)) { if (a.group) scene.remove(a.group); this.peers.delete(id); if (this.tradeGone) this.tradeGone(id); }
     this.bar();
   },
   makeAvatar(a) {
     const col = HERO_COL[a.hero] || 0xb8b8b8, g = new THREE.Group();
-    const mat = c => new THREE.MeshLambertMaterial({ color: c });
+    const mat = c => new THREE.MeshBasicMaterial({ color: c });   // flat colours: the room's lights wash a lit material out to white
     const robe = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.72, EYE_HEIGHT * 0.62, 14), mat(col)); robe.position.y = EYE_HEIGHT * 0.31; g.add(robe);
+    const dark = new THREE.Color(col).multiplyScalar(0.55).getHex();
+    const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.56, 0.16, 14), mat(dark)); belt.position.y = EYE_HEIGHT * 0.34; g.add(belt);
+    const hem = new THREE.Mesh(new THREE.CylinderGeometry(0.73, 0.75, 0.12, 14), mat(dark)); hem.position.y = 0.06; g.add(hem);
     const headY = EYE_HEIGHT * 0.62 + 0.3;
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 16, 12), mat(0xf0c8a0)); head.position.y = headY; g.add(head);
     const hat = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.9, 14), mat(col)); hat.position.y = headY + 0.66; g.add(hat);
     const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.06, 14), mat(col)); brim.position.y = headY + 0.28; g.add(brim);
     for (const sx of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), mat(0x222222)); eye.position.set(sx * 0.12, headY + 0.04, -0.31); g.add(eye); }   // the face looks toward -Z, the way the camera does at yaw 0
     const beard = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.4, 10), mat(0xf4f0e8)); beard.position.set(0, headY - 0.28, -0.22); beard.rotation.x = -0.35; g.add(beard);
-    const tag = labelSprite(a.name || 'Friend', '#ffffff'); tag.scale.multiplyScalar(0.55); tag.position.y = headY + 1.55; g.add(tag);
+    const tag = labelSprite(a.name || 'Friend', '#ffffff'); tag.scale.multiplyScalar(0.95); tag.position.y = headY + 1.7; g.add(tag);
     g.userData.avatar = true; return g;
   },
   tick(now, dt) {
@@ -420,6 +455,145 @@ window.addEventListener('message', (e) => {   // the game's messages to us (obje
   const d = e.data; if (!d || typeof d !== 'object' || typeof d.type !== 'string' || d.type.slice(0, 3) !== 'hd:') return;
   HD.onParent(d);
 });
+// ---- THE TRADE (build 46). T near a friend asks; T on an ask accepts. Each side offers up to six things from its own bag/hotbar; any change to
+// either offer un-locks both; LOCK IN sends a fingerprint of BOTH offers as I see them; when both have locked on the same fingerprint each side swaps
+// locally (removes what it gave, adds what it got) and closes. Nothing moves before that, and a cancel, a Escape, or a friend leaving just closes the panel.
+// Starter machines cannot be traded (a fresh save hands them out again, which would duplicate them). The only gap: a link dropping in the milliseconds
+// between the two locks can leave one side swapped and the other not.
+const TRADE = { open: false, peerId: null, peerName: '', init: false, mine: [], theirs: [], myLock: false, theirLock: false, theirSig: null, incoming: null, asking: null, askT: null, done: false, wasActive: false };
+const TRADE_MAX = 6;
+const tradeEl = id => document.getElementById(id);
+const hash32 = str => { let h = 5381; for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0; return h; };
+const tradeArr = name => name === 'bag' ? SAVE.bag : SAVE.hotbar;
+const tradeSend = msg => HD.post({ type: 'hd:trade', to: TRADE.peerId, msg });
+const tradable = v => !!v && !(typeof v === 'string' && STARTER_ITEMS.includes(v));
+function tradeClean(v) {   // whatever came over the wire: a known furniture id, or a gear record of sane size
+  if (typeof v === 'string') return (GEAR[v] && !STARTER_ITEMS.includes(v)) ? v : null;
+  if (v && typeof v === 'object' && (v.kind === 'carried' || v.kind === 'forged') && v.rec && typeof v.rec === 'object') {
+    try { const t = JSON.stringify(v); if (t.length > 8000) return null; return JSON.parse(t); } catch (e) { return null; }
+  }
+  return null;
+}
+const tradeVals = list => list.map(o => (o && o.v !== undefined) ? o.v : o);
+function tradeSig() { const a = tradeVals(TRADE.mine), b = TRADE.theirs; return hash32(JSON.stringify(TRADE.init ? [a, b] : [b, a])); }
+function tradeFree() { return SAVE.bag.filter(v => !v).length + SAVE.hotbar.filter(v => !v).length; }
+function tradeFits() { return tradeFree() + TRADE.mine.length >= TRADE.theirs.length; }
+function tradeGridTo(container, values, cols, onClick, cls) {
+  container.innerHTML = ''; container.style.gridTemplateColumns = 'repeat(' + cols + ', 46px)';
+  values.forEach((v, i) => {
+    const d = document.createElement('div'); d.className = 'islot' + (v ? '' : ' empty') + (cls && cls(v, i) ? ' ' + cls(v, i) : '');
+    if (v) {
+      d.innerHTML = '<img src="' + slotIcon(v) + '">'; const col = slotColor(v); if (col) { d.style.borderColor = col; d.style.boxShadow = '0 0 6px ' + col + '66'; }
+      attachTooltip(d, slotTip(v) + (tradable(v) ? '' : ' — starter machines cannot be traded'));
+      if (onClick) d.onclick = () => onClick(i);
+    }
+    container.appendChild(d);
+  });
+}
+function tradeRender() {
+  if (!TRADE.open) return;
+  tradeEl('tradeTitle').textContent = 'TRADE WITH ' + TRADE.peerName.toUpperCase();
+  tradeEl('tradeTheirTitle').textContent = TRADE.peerName + ' offers';
+  const mineSet = new Set(TRADE.mine.map(o => o.arr + ':' + o.i));
+  const pad = (list, n) => { const a = list.slice(); while (a.length < n) a.push(null); return a; };
+  tradeGridTo(tradeEl('tradeMine'), pad(tradeVals(TRADE.mine), TRADE_MAX), 3, i => { if (TRADE.mine[i]) tradeRemove(i); });
+  tradeGridTo(tradeEl('tradeTheirs'), pad(TRADE.theirs, TRADE_MAX), 3, null);
+  tradeGridTo(tradeEl('tradeBag'), SAVE.bag, 9, i => tradeToggle('bag', i), (v, i) => mineSet.has('bag:' + i) ? 'mine' : (!tradable(v) ? 'blocked' : ''));
+  tradeGridTo(tradeEl('tradeHot'), SAVE.hotbar, 9, i => tradeToggle('hotbar', i), (v, i) => mineSet.has('hotbar:' + i) ? 'mine' : (!tradable(v) ? 'blocked' : ''));
+  const ms = tradeEl('tradeMyState'), ts = tradeEl('tradeTheirState');
+  ms.textContent = TRADE.myLock ? '✔ You are locked in' : 'not locked in'; ms.className = 'tstate' + (TRADE.myLock ? ' on' : '');
+  ts.textContent = TRADE.theirLock ? '✔ ' + TRADE.peerName + ' is locked in' : 'not locked in'; ts.className = 'tstate' + (TRADE.theirLock ? ' on' : '');
+  const lb = tradeEl('tradeLock'); lb.textContent = TRADE.myLock ? 'UNLOCK' : 'LOCK IN'; lb.className = TRADE.myLock ? 'locked' : '';
+  lb.disabled = !TRADE.myLock && (!(TRADE.mine.length || TRADE.theirs.length) || !tradeFits());
+  tradeEl('tradeNote').textContent = !tradeFits() ? 'Not enough room in your bag and hotbar for what you would get' : (!(TRADE.mine.length || TRADE.theirs.length) ? 'Nothing offered yet' : '');
+}
+function tradeOffered() { tradeSend({ op: 'offer', items: tradeVals(TRADE.mine) }); }
+function tradeReset() { TRADE.myLock = false; TRADE.theirLock = false; TRADE.theirSig = null; }
+function tradeToggle(arrName, i) {
+  if (!TRADE.open || TRADE.done) return;
+  const idx = TRADE.mine.findIndex(o => o.arr === arrName && o.i === i);
+  if (idx >= 0) { TRADE.mine.splice(idx, 1); }
+  else { const v = tradeArr(arrName)[i]; if (!v) return; if (!tradable(v)) { flashMsg('Starter machines cannot be traded'); return; } if (TRADE.mine.length >= TRADE_MAX) { flashMsg('You can offer up to ' + TRADE_MAX + ' things'); return; }
+    TRADE.mine.push({ arr: arrName, i, v: JSON.parse(JSON.stringify(v)) }); }
+  tradeReset(); tradeOffered(); tradeRender();
+}
+function tradeRemove(idx) { TRADE.mine.splice(idx, 1); tradeReset(); tradeOffered(); tradeRender(); }
+function tradeOpen(peerId, name, init) {
+  TRADE.open = true; TRADE.peerId = peerId; TRADE.peerName = String(name || 'Friend').slice(0, 16); TRADE.init = init; TRADE.mine = []; TRADE.theirs = []; TRADE.done = false; tradeReset(); TRADE.incoming = null; TRADE.asking = null; clearTimeout(TRADE.askT);
+  TRADE.wasActive = active; if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
+  tradeEl('tradeWrap').style.display = 'flex'; tradeRender();
+}
+function tradeClose(notify) {
+  if (!TRADE.open) return;
+  if (notify) tradeSend({ op: 'cancel' });
+  TRADE.open = false; TRADE.peerId = null; TRADE.mine = []; TRADE.theirs = []; tradeReset();
+  tradeEl('tradeWrap').style.display = 'none';
+  if (TRADE.wasActive) canvas.requestPointerLock();
+}
+function tradeCancel() { tradeClose(true); }
+function tradeLockPress() {
+  if (!TRADE.open || TRADE.done) return;
+  if (TRADE.myLock) { TRADE.myLock = false; tradeSend({ op: 'unlock' }); tradeRender(); return; }
+  if (!tradeFits()) { flashMsg('Not enough room in your bag and hotbar for what you would get'); return; }
+  TRADE.myLock = true; tradeSend({ op: 'lock', sig: tradeSig() }); tradeRender(); tradeMaybeCommit();
+}
+function tradeMaybeCommit() {
+  if (!TRADE.open || TRADE.done || !TRADE.myLock || !TRADE.theirLock || TRADE.theirSig !== tradeSig()) return;
+  // both locked on the same pair of offers: check what I gave is still exactly where I took it from, and that there is room, then swap
+  for (const o of TRADE.mine) if (JSON.stringify(tradeArr(o.arr)[o.i]) !== JSON.stringify(o.v)) { flashMsg('Your bag changed — the trade was cancelled'); tradeClose(true); return; }
+  if (!tradeFits()) { flashMsg('Not enough room — the trade was cancelled'); tradeClose(true); return; }
+  TRADE.done = true;
+  const gave = TRADE.mine.length, got = TRADE.theirs.slice();
+  for (const o of TRADE.mine) tradeArr(o.arr)[o.i] = null;
+  for (const v of got) if (!giveItem(v, 'bag')) stashGear && stashGear(v);
+  if (selectedSlot !== null) syncSelection();
+  writeSave(); renderInv(); if (typeof refreshSlotViews === 'function') refreshSlotViews();
+  const name = TRADE.peerName; TRADE.open = true; tradeClose(false);
+  try { sfxSuccess(); } catch (e) {}
+  flashMsg('Trade with ' + name + ' complete — you gave ' + gave + ' and got ' + got.length);
+  TRADE.lastDone = { gave, got: got.length, at: Date.now() };
+}
+HD.trade = function (d) {
+  const m = d.msg && typeof d.msg === 'object' ? d.msg : {}, from = String(d.from || '');
+  switch (m.op) {
+    case 'req': {
+      if (TRADE.open) { HD.post({ type: 'hd:trade', to: from, msg: { op: 'busy' } }); break; }
+      TRADE.incoming = { from, name: String(m.name || 'Friend').slice(0, 16), t: performance.now() };
+      flashMsg(TRADE.incoming.name + ' wants to trade — press T'); break; }
+    case 'ok': { if (TRADE.asking === from && !TRADE.open) { const a = HD.peers.get(from); tradeOpen(from, (a && a.name) || 'Friend', true); } break; }
+    case 'busy': { if (TRADE.asking === from) { TRADE.asking = null; flashMsg('They are busy — try again in a moment'); } break; }
+    case 'offer': { if (TRADE.open && from === TRADE.peerId && Array.isArray(m.items)) { TRADE.theirs = m.items.slice(0, TRADE_MAX).map(tradeClean).filter(Boolean); tradeReset(); tradeRender(); } break; }
+    case 'lock': { if (TRADE.open && from === TRADE.peerId) { TRADE.theirLock = true; TRADE.theirSig = m.sig; tradeRender(); tradeMaybeCommit(); } break; }
+    case 'unlock': { if (TRADE.open && from === TRADE.peerId) { TRADE.theirLock = false; TRADE.theirSig = null; tradeRender(); } break; }
+    case 'cancel': { if (TRADE.open && from === TRADE.peerId) { flashMsg(TRADE.peerName + ' cancelled the trade'); tradeClose(false); } break; }
+  }
+};
+HD.tradeGone = function (id) { if (TRADE.open && TRADE.peerId === id) { flashMsg(TRADE.peerName + ' left — the trade was cancelled'); tradeClose(false); } if (TRADE.incoming && TRADE.incoming.from === id) TRADE.incoming = null; };
+function tradeNearest() {
+  let best = null, bd = 6;
+  for (const a of HD.peers.values()) { const d = Math.hypot(a.x - camera.position.x, a.z - camera.position.z); if (d < bd) { bd = d; best = a; } }
+  return best;
+}
+HD.tradeKey = function () {
+  if (!COOP || window.parent === window || TRADE.open) return;
+  const inc = TRADE.incoming;
+  if (inc && performance.now() - inc.t < 30000 && HD.peers.has(inc.from)) { tradeSend0(inc.from, { op: 'ok' }); tradeOpen(inc.from, inc.name, false); return; }
+  const near = tradeNearest();
+  if (!near) { flashMsg('Stand near a friend and press T to trade'); return; }
+  TRADE.asking = near.id; clearTimeout(TRADE.askT); TRADE.askT = setTimeout(() => { if (TRADE.asking === near.id) TRADE.asking = null; }, 30000);
+  tradeSend0(near.id, { op: 'req', name: (HD.me && HD.me.name) || 'Friend' });
+  flashMsg('Trade request sent to ' + near.name + ' — waiting for them to press T');
+};
+const tradeSend0 = (to, msg) => HD.post({ type: 'hd:trade', to, msg });
+HD.tradePrompt = function () {
+  if (!COOP || window.parent === window || TRADE.open) return '';
+  const inc = TRADE.incoming; if (inc && performance.now() - inc.t < 30000 && HD.peers.has(inc.from)) return 'T: Accept ' + inc.name + "'s trade";
+  const near = tradeNearest(); return near ? 'T: Trade with ' + near.name : '';
+};
+tradeEl('tradeLock').onclick = tradeLockPress;
+tradeEl('tradeCancel').onclick = tradeCancel;
+tradeEl('tradeClose').onclick = tradeCancel;
+tradeEl('tradeWrap').addEventListener('click', e => { if (e.target.id === 'tradeWrap') tradeCancel(); });
 HD.init();
 // puts an item in the first free slot — new things (bought, rewards) go to the bag, picked-up furniture back to the
 // hotbar so moving things stays quick; false when both are full
@@ -1219,7 +1393,7 @@ function loadPctText(url) {
 }
 
 function isAnyPanelOpen() {
-  return ['vendWrap','forgeWrap','cauldronWrap','gearWrap','lockerWrap','chestWrap'].some(id => document.getElementById(id).style.display === 'flex');
+  return ['vendWrap','forgeWrap','cauldronWrap','gearWrap','lockerWrap','chestWrap','tradeWrap'].some(id => document.getElementById(id).style.display === 'flex');
 }
 
 function updateGhost() {
@@ -2145,6 +2319,7 @@ document.addEventListener('keydown', e => {
   if (document.getElementById('gearWrap').style.display === 'flex') closeGearPanel();
   if (document.getElementById('lockerWrap').style.display === 'flex') closeLocker();
   if (document.getElementById('chestWrap').style.display === 'flex') closeChest();
+  if (document.getElementById('tradeWrap').style.display === 'flex') tradeCancel();
 });
 
 // ============= THE FORGE (Legendary Sludge -> gamble for mythic gear; MYTHIC_GEAR is defined up top) =============
@@ -2506,6 +2681,7 @@ document.addEventListener('keydown', e => {
   if (k === 'r' && ghost) { ghostRy += Math.PI/6; }
   if (k === 'r' && dropGhost) { dropGhostRy += Math.PI/6; }
   if (k === 'i' && active) openGearPanel();
+  if (k === 't' && active) HD.tradeKey();
 });
 document.addEventListener('keyup', e => { keys[keyName(e)]=false; });
 canvas.addEventListener('click', () => {
@@ -2601,6 +2777,7 @@ function animate(now) {
       const hits = raycaster.intersectObjects(interactables.map(i=>i.mesh));
       const pHits = raycaster.intersectObjects(pickupables.map(p=>p.pickHit));
       const lines = [];
+      const tradeLine = HD.tradePrompt(); if (tradeLine) lines.push(tradeLine);
       if (hits.length && hits[0].distance < 2.5) {
         const it = interactables.find(i => i.mesh === hits[0].object);
         if (it.prompt) lines.push(it.prompt);
@@ -2623,6 +2800,8 @@ function animate(now) {
 window.__hd = { coop: COOP, build: HIDEOUT_BUILD, visiting: () => HD.visiting, host: () => HD.hostName, me: () => HD.me,
   peers: () => [...HD.peers.values()].map(a => ({ id: a.id, name: a.name, hero: a.hero, x: +a.x.toFixed(2), z: +a.z.toFixed(2), shown: !!a.group })),
   entries: () => pickupables.filter(p => !p.isSharedGear).map(p => ({ gid: p.gid, pid: p.pid, x: p.x, z: p.z, ry: p.ry })),
+  trade: { state: () => ({ open: TRADE.open, peer: TRADE.peerId, mine: tradeVals(TRADE.mine), theirs: TRADE.theirs, myLock: TRADE.myLock, theirLock: TRADE.theirLock, incoming: !!TRADE.incoming, last: TRADE.lastDone || null }),
+    ask: () => HD.tradeKey(), toggle: tradeToggle, lock: tradeLockPress, cancel: tradeCancel, nearest: () => { const a = tradeNearest(); return a ? a.id : null; }, inv: () => ({ bag: SAVE.bag.slice(), hotbar: SAVE.hotbar.slice() }) },
   applyLayout, select: (i) => { selectedSlot = i; syncSelection(); return { gear: selectedGear, drop: selectedDropGearId }; }, teleport: (x, z) => { camera.position.x = x; camera.position.z = z; }, placedCount: () => SAVE.placed.length, active: () => active, camera: () => ({ x: camera.position.x, y: camera.position.y, z: camera.position.z, yaw }) };
 animate(performance.now());
 window.addEventListener('resize', () => { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
