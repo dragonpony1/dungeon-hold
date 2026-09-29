@@ -130,14 +130,16 @@ const hostManaBeforeWave=await hostPage.evaluate(()=>window.__dd.status().mana);
 const guestManaBeforeWave=await hostPage.evaluate(id=>window.__combat.guestMana(id),guestId);
 const waveNum=await hostPage.evaluate(()=>{ const d=window.__dd; d.startWave(); return d.S.wave; });
 const expectedBonus=50+10*waveNum;
-const hostPhaseAfterWave=await hostPage.evaluate(()=>{ const d=window.__dd; let guard=0; while(d.S.phase==='wave'&&guard++<600){ d.step(1/60,10); for(const e of d.enemies) if(!e.dead) d.kill(e); } return d.S.phase; });
+let owedOrbs=0;   // build 257: every kill's mana is also dropped into the guest's pool (99-network.js MANA_SHARE), so the guest's rise is the wave bonus PLUS these
+const hostPhaseAfterWave=await hostPage.evaluate(()=>{ const d=window.__dd; let guard=0, owed=0; while(d.S.phase==='wave'&&guard++<600){ d.step(1/60,10); for(const e of d.enemies) if(!e.dead){ owed+=e.mana; d.kill(e); } } window.__owed=owed; return d.S.phase; });
+owedOrbs=await hostPage.evaluate(()=>window.__owed);
 check("the wave really did clear on the host",hostPhaseAfterWave==='build',hostPhaseAfterWave);
 await tickBoth(4,5);
 const hostManaAfterWave=await hostPage.evaluate(()=>window.__dd.status().mana);
 const guestManaAfterWave=await hostPage.evaluate(id=>window.__combat.guestMana(id),guestId);
 check("the host's own mana got the real wave-held bonus",near(hostManaAfterWave-hostManaBeforeWave,expectedBonus,.1),
   JSON.stringify({delta:hostManaAfterWave-hostManaBeforeWave,expectedBonus}));
-check("the guest's OWN pool got the SAME bonus too, independently credited",near(guestManaAfterWave-guestManaBeforeWave,expectedBonus,.1),
+check("the guest's OWN pool got the SAME bonus too, independently credited (plus the kills mana dropped to it, 6.3 an orb)",near(guestManaAfterWave-guestManaBeforeWave,expectedBonus+Math.round(6.3*owedOrbs*10)/10,.6),
   JSON.stringify({delta:guestManaAfterWave-guestManaBeforeWave,expectedBonus}));
 
 // ==== 5: the guest's own HUD shows THEIR mana, not the host's ====

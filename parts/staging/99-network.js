@@ -1306,6 +1306,15 @@ onMessage('pickupOrb',(data,fromId)=>hostGuestPickupOrb(data,fromId));
 function guestApplyLoot(it){ Meta.onPickup(it,{x:hero.x,y:hero.y,z:hero.z}); }   // the complete real pickup flow, scoped to THIS client's own Meta/bag/gold entirely for free
 onMessage('lootGrant',data=>{ if(role==='guest') guestApplyLoot(data.it); });
 onMessage('orbGrant',data=>{ if(role!=='guest') return; SFX.mana(); floatText(hero.x,hero.y+1,hero.z,'+'+data.v,'#5ee9ff'); });
+// build 257 (Matt: "in coop drop mana to guests so they can build"): a guest's pool was earned only by walking onto orbs the host's kills dropped, first come first served -- and the host, standing where the kills are, took
+// them. Now every kill's mana is ALSO dropped straight into each guest's own pool, the same amount those orbs are worth to that guest (5 x the orb multiplier x their own mana stat, per orb): a guest earns what a
+// solo player would from the same kills without chasing anything, and can build. The orbs on the floor stay (a guest who walks onto one still gets it, on top). The host's own pool is unchanged. The gifts are
+// added up and sent as one 'manaShare' every .8 s (a +N mana float over the guest, no chime), not one per kill.
+const MANA_SHARE=new Map(); let manaShareT=0;
+{ const prevOrbs=spawnOrbs; spawnOrbs=function(x,z,n){ prevOrbs.apply(this,arguments); if(role!=='host'||!(n>0)||!guestMana.size) return;
+    guestMana.forEach((cur,id)=>{ const s=guestStats.get(id), v=Math.round(5*MANA_ORB_MUL*(1+(s?s.stat.mana:0)/100)*(s?s.mult.mana:1)*10)/10, tot=Math.round(v*n*10)/10; guestMana.set(id,Math.round((cur+tot)*10)/10); MANA_SHARE.set(id,(MANA_SHARE.get(id)||0)+tot); }); }; }
+{ const prevUpd=Meta.update; Meta.update=dt=>{ prevUpd(dt); if(role!=='host'||!MANA_SHARE.size) return; manaShareT+=dt; if(manaShareT<.8) return; manaShareT=0; MANA_SHARE.forEach((v,id)=>{ if(v>0&&guestMana.has(id)) send('manaShare',{v:Math.round(v*10)/10},id); }); MANA_SHARE.clear(); }; }
+onMessage('manaShare',d=>{ if(role==='guest'&&d&&Number.isFinite(+d.v)) floatText(hero.x,hero.y+1.6,hero.z,'+'+d.v+' mana','#5ee9ff'); });   // a float text, no chime: SFX.mana is the orb-landing sound (the room-one guide counts it as 'walked over an orb')
 
 // build 159: the host is gone (a guest's one connection is the host's, so any close on a guest is that). Everything of the host's
 // hall goes -- every party puppet (the other guests' too: their only link to this page was through the host, and they stood
