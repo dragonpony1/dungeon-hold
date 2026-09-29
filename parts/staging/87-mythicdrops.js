@@ -18,6 +18,7 @@
 (function(){
 let MYTHIC_DROP=.025, NAMED_DROP=.05, NAMED_MOB=.00015;   // NAMED_MOB (build 238, Matt: "allow it at .015% on a regular mob in a regular wave"): any ordinary mob kill during a wave -- one in ~6,700 -- may drop a NAMED mythic where it fell; bosses never do
 const SETS=[['void','of the Void'],['crimson','of Chaos'],['rock','of the Earth'],['lava','of Fire'],['angelic','of Radiance'],['storm','of the Storm'],['shadow','of Shadow'],['ice','of Ice'],['wind','of the Wind']];
+const gateOk=id=>{ const g=window.__setGate; return !g||g.mythic(id); };   // 97b-setgate.js: which sets may drop in this room and wave (asked at call time; none gated until it loads)
 const BASE={armor:'Armor',amulet:'Amulet',charm:'Trinket',familiar:'Familiar'};
 const GOLDC='#ffcf3a';
 // a mythic's card picture: Matt's art, which ships inside the game with the embedded hideout (dist/hideout/…). it.art is
@@ -27,9 +28,9 @@ const PICS='hideout/assets/hideout/items/', NAMED_PIC={hourglass_of_hollow_sand:
 function mythicArt(it){ if(!it) return null; if(it.named){ const f=NAMED_PIC[it.named]; return f===null?null:PICS+'named/'+(f||it.named)+'.jpg'; } if(!it.setId) return null;
   const piece=it.slot==='weapon'?(it.look==='bow'?null:(it.look||'sword')):{armor:'armor',amulet:'amulet',charm:'trinket'}[it.slot];
   return piece?PICS+'sets/'+it.setId+'-'+piece+'.jpg':null; }
-function eligible(it){ return !!(it&&typeof it==='object'&&SLOTS.includes(it.slot)&&!it.mythic&&!it.named&&(it.rarity|0)<5&&it.stats&&!(Meta.packs&&Meta.packs.of(it))); }
+function eligible(it){ return !!(it&&typeof it==='object'&&SLOTS.includes(it.slot)&&!it.mythic&&!it.named&&(it.rarity|0)<5&&it.stats&&!(Meta.packs&&Meta.packs.of(it))&&SETS.some(s=>gateOk(s[0]))); }
 function weaponKind(){ const hm=window.__weapons&&window.__weapons.mount&&window.__weapons.mount(); if(hm&&hm.staff) return 'staff'; if(hm&&hm.bow) return 'bow'; return LR()<.3?'polearm':'sword'; }
-function mythicize(it){ const [id,tail]=SETS[Math.floor(LR()*SETS.length)]; const L=Math.max(1,it.lvl|0); let kind=null;
+function mythicize(it){ const pool=SETS.filter(s=>gateOk(s[0])); if(!pool.length) return it; const [id,tail]=pool[Math.floor(LR()*pool.length)]; const L=Math.max(1,it.lvl|0); let kind=null;
   if(it.slot==='weapon'){ kind=weaponKind(); it.look=kind; }
   it.name='Mythic '+(kind?kind[0].toUpperCase()+kind.slice(1):(BASE[it.slot]||'Relic'))+' '+tail;
   it.setId=id; it.rarity=5; it.mythic=true; it.mythicTier='mythic'; const pic=mythicArt(it); if(pic) it.art=pic;
@@ -46,7 +47,7 @@ function cardOnFloor(l,it){ const item=l.mesh.userData.item; const tex=new THREE
 // a drop: maybe mythic
 { const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const turned=eligible(it)&&LR()<MYTHIC_DROP; if(turned) mythicize(it); const l=prev(it,x,z,gentle);
     if(l&&l.mesh&&it&&(it.mythic||it.named)&&it.art&&!(Meta.packs&&Meta.packs.of(it))) cardOnFloor(l,it);
-    if(turned){ floatText(x,1.9,z,'✦ MYTHIC ✦ '+it.name,GOLDC); if(SFX.setBong) SFX.setBong(); } return l; }; }
+    if(turned||(it&&it.__announce)){ if(it) delete it.__announce; floatText(x,1.9,z,'✦ MYTHIC ✦ '+it.name,GOLDC); if(SFX.setBong) SFX.setBong(); } return l; }; }
 // a wave held: maybe a named mythic by the crystal
 { const prev=Meta.onWaveHeld; Meta.onWaveHeld=function(w){ const r=prev.apply(this,arguments);
     if(LR()<NAMED_DROP){ const it=namedItem(); if(it){ dropLoot(it,R(-1.6,1.6),4.6,true); floatText(0,2.6,4.6,'✦ A NAMED MYTHIC ✦ '+it.name,GOLDC); if(SFX.setBong) SFX.setBong(); if(typeof toast==='function') toast('A named mythic fell by the Heartroot: '+it.name); } }

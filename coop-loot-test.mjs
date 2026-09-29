@@ -20,7 +20,7 @@ const server=await serve(8721);
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const errors=[]; const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function open(query,init){ const ctx=await browser.newContext(); if(init) await ctx.addInitScript(init.fn,init.arg); const p=await ctx.newPage(); p.on("pageerror",e=>errors.push(String(e)));
-  await p.goto("http://127.0.0.1:8721/?silent&nogate"+(query||""),{timeout:90000});
+  await p.goto("http://127.0.0.1:8721/?silent&nogate&nosetgate"+(query||""),{timeout:90000});
   await p.waitForFunction(()=>window.__dd&&window.__net&&window.__meta&&window.__combat&&window.__mythicDrops&&window.__lobby&&window.__trainer,null,{timeout:60000});
   await p.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,30); }); return {ctx,p}; }
 async function tick(pages,batches=6,size=5){ for(let b=0;b<batches;b++){ for(let i=0;i<size;i++) for(const p of pages) await p.evaluate(()=>window.__dd.step(1/60,1)); await sleep(20); } }

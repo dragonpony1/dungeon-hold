@@ -10,7 +10,7 @@ const PORT=8909, BASE="http://127.0.0.1:"+PORT;
 const server=await serve(PORT,{dist:DIST});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const errors=[]; const page=await browser.newPage(); page.on("pageerror",e=>errors.push(String(e)));
-await page.goto(BASE+"/?silent&nogate",{timeout:90000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__forest&&window.__void&&window.__voidset&&window.__weapons&&window.__heroes,null,{timeout:60000});
+await page.goto(BASE+"/?silent&nogate&nosetgate",{timeout:90000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__forest&&window.__void&&window.__voidset&&window.__weapons&&window.__heroes,null,{timeout:60000});
 await page.evaluate(()=>{ window.__freeze=true; try{ localStorage.removeItem('dd_setHint'); localStorage.removeItem('dd_gear_carried'); localStorage.removeItem('dd_hideout_unlocks'); }catch(e){} window.__dd.start(); window.__dd.step(1/60,3); });
 // drop odds by wave, from the real roll
 const odds=await page.evaluate(()=>{ const d=window.__dd, F=window.__forest, V=window.__void; window.__meta.reset(); d.resetGear(); /* no Forest pieces owned: the pity rule stays out of the odds */ const at=(w,minR,n)=>{ d.S.wave=w; let f=0,v=0; for(let i=0;i<n;i++){ const it=d.rollItem(minR,undefined,3); if(F.isForest(it)) f++; else if(V.isVoid(it)) v++; } return {f:f/n,v:v/n}; };

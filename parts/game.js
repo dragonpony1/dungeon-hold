@@ -716,7 +716,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=239;
+const BUILD=240;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1221,6 +1221,8 @@ function lootMesh(it){ const g=new THREE.Group(); const col=RCOL[it.rarity]; con
   const ring=new THREE.Mesh(new THREE.RingGeometry(.35,.55,20),new THREE.MeshBasicMaterial({color:C(col),transparent:true,opacity:.7,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide})); ring.rotation.x=-PI/2; ring.position.y=.05; ring.userData.noOL=true; g.add(ring); g.userData.ring=ring;
   const gl=glow(col,1.6+it.rarity*.35,.6); gl.position.y=.55; g.add(gl); return g; }
 function dropLoot(it,x,z,gentle){ const a=LR()*TAU, sp=gentle?.6:2.2; const l={it,x,y:.6,z,vx:Math.cos(a)*sp,vy:gentle?3:5,vz:Math.sin(a)*sp,mesh:lootMesh(it),t:0}; l.mesh.position.set(x,.6,z); scene.add(l.mesh); loot.push(l); return l; }
+// the wave-clear reward (a staging module may reshape it: 97b-setgate.js makes the Throne Room's wave 7 reward a set piece 80% of the time)
+function waveRewardItem(){ return rollItem(effWave()%5===0?2:1); }
 function rollDrop(e){ const ch=DROP[e.kind]||0; if(LR()<ch) dropLoot(rollItem(e.kind==='ogre'?(effWave()>=6?2:1):0),e.x,e.z); if(e.kind==='ogre'&&LR()<.5) dropLoot(rollItem(1),e.x,e.z); }
 function lootToast(it,verb){ $('toast').innerHTML='<b style="color:'+RCSS[it.rarity]+'">'+it.name+'</b> · '+statStr(it)+' — '+verb; $('toast').style.opacity=1; toastT=3.4; }
 function applyGear(){ const oldMax=hero.max; hero.max=Math.round((100+heroStat('hp'))*heroMult('hp')); if(hero.max>oldMax) hero.hp+=hero.max-oldMax; hero.hp=Math.min(hero.hp,hero.max); }
@@ -1268,7 +1270,7 @@ function startWave(){ if(S.held){ moveOn(); return; }   /* build 160: on the vic
   if(S.phase!=='build') return; S.wave++; S.phase='wave'; S.waveT=0; const c=waveComp(effWave()); spawnQ=c.q; banner((SURVIVAL?(c.boss?'☠ BOSS WAVE ':'SURVIVAL · WAVE '):'WAVE ')+S.wave+' OF '+runWaves(),c.desc); SFX.horn(); setMusic('wave'); cancelPlace(); }
 function updateWave(dt){ if(S.phase!=='wave') return; S.waveT+=dt; let live=SURVIVAL?enemies.reduce((a,e)=>a+(e.dead?0:1),0):0;
   while(spawnQ.length&&spawnQ[0].t<=S.waveT){ if(SURVIVAL&&live>=SURVIVAL_LIVE) break; /* build 176: Survival's cap on the living -- the rest wait at the gate and come out as the hall thins them (the campaign never needs it) */ const s=spawnQ.shift(); spawnEnemy(s.kind,s.lane); live++; }
-  if(!spawnQ.length&&!enemies.some(e=>!e.dead)){ const bonus=50+10*effWave(); S.mana+=bonus; dropLoot(rollItem(effWave()%5===0?2:1),R(-1.6,1.6),4.6,true); Meta.onWaveHeld(effWave());
+  if(!spawnQ.length&&!enemies.some(e=>!e.dead)){ const bonus=50+10*effWave(); S.mana+=bonus; dropLoot(waveRewardItem(),R(-1.6,1.6),4.6,true); Meta.onWaveHeld(effWave());
     if(S.wave>=runWaves()) winMap(); else { S.phase='build'; banner('HALL HELD','wave '+S.wave+' of '+runWaves()+' repelled  ·  +'+bonus+' mana  ·  a reward drops by the Heartroot'); setMusic('build'); SFX.held(); } } }
 // the last wave of a map held: the map is cleared, the next one unlocks, the run is paid -- and the hall stays open.
 // Build 160, Matt after his first hall: it said HALL HELD and then "didn't let me walk around or have any control of moving on" --
