@@ -34,6 +34,9 @@ if(MAP.throne){
   function warmGlow(root){ root.traverse(o=>{ const m=o.isMesh&&o.material; if(!m||m.userData.__wg) return; m.userData.__wg=true;
     m.onBeforeCompile=sh=>{ sh.fragmentShader=sh.fragmentShader.replace('#include <emissivemap_fragment>',
       '#include <emissivemap_fragment>\n  totalEmissiveRadiance += vec3(.22,.11,.03);'); }; }); }
+  // the blue-and-gold window's glass gets a self-glow so it reads as light coming through in the dim hall (added to whatever the model already does)
+  function windowGlow(root){ root.traverse(o=>{ const m=o.isMesh&&o.material; if(!m||m.userData.__wgl) return; m.userData.__wgl=true; const prev=m.onBeforeCompile;
+    m.onBeforeCompile=sh=>{ if(prev) prev(sh); sh.fragmentShader=sh.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n  { float bf=clamp(diffuseColor.b-diffuseColor.r-.05,0.0,1.0); totalEmissiveRadiance += vec3(.25,.5,1.0)*bf*1.5; }'); }; }); }
   // ONE FETCH AND ONE PARSE PER MODEL: "it hardly loads, it does completely load, it's just very slow". Every call below
   // used to fetch and parse its own copy of its model: the door once per gate (four 10 MB downloads), the raked railing
   // twelve times, the chandelier, the rugs and the statues once per spot -- 109 MB for this map, half of it repeats, and a
@@ -82,7 +85,7 @@ if(MAP.throne){
   // the true wall was the only way to clear it. That bug's long fixed, but these never got moved back: they've been
   // floating .85 units out in the open room ever since, with the now-correctly-flush wall panel visible behind them —
   // "attached to the wall behind the wall". tz0-.8 lands them back on the real wall face, matching everything else.
-  loadThroneProp('throne-window.glb',5.0,wrap=>place(wrap,tx0,ty0+3.6,tz0-.8,0));
+  loadThroneProp('throne-window-v2.glb',5.0,wrap=>{ windowGlow(wrap); place(wrap,tx0,ty0+3.6,tz0-.8,0); });   // build 232: Matt's blue-and-gold window (v2) everywhere, this one included
   loadThroneProp('throne-crest.glb',2.2,wrap=>place(wrap,tx0,ty0+7.6,tz0-.8,0));
   // the old flanking pair is gone: real sconces now go up everywhere the pulled procedural torch used to stand —
   // see the dense wall+pillar placement below, once WIN (the painted-window face set) exists to steer clear of.
@@ -214,7 +217,7 @@ if(MAP.throne){
   // gate" doesn't build on this indoor map, so the wall run is the only banner this hall ever had.
   { const spots=(world.userData.bannerMeshes||[]).map(b=>({p:b.position.clone(),yaw:b.rotation.y}));
     (world.userData.bannerMeshes||[]).forEach(b=>{ b.visible=false; });
-    if(spots.length) loadThroneProp('throne-banner2.glb',2.6,wrap=>{ spots.forEach(s=>{ const t=wrap.clone(); t.position.copy(s.p); t.rotation.y=s.yaw; world.add(t); }); }); }
+    /* build 232: these small banners sat behind the wall panel and never showed; the tall banners in THE SIDE WALLS block below replace them */ }
   // the carpet motif, over the same cells the floor tile above already covers — laid a hair higher so it wins the
   // z-fight — but restricted to actual T.CARPET cells (the runner and the landings it crosses), leaving the plain
   // stone floor tile as-is everywhere else. Ramp cells stay out of both loops (a flat tile can't sit right on a
@@ -230,16 +233,31 @@ if(MAP.throne){
   // middle one all meet; the rug's long axis (local X) already runs that way at yaw 0, no rotation needed.
   [15,22,29].forEach(lz=>loadThronePropW('throne-rug.glb',8.0,wrap=>place(wrap,tx0,hgt[idx(tx,lz)]+.03,cwz(lz),0)));
   // test hook: the doors as placed, and per model how many placements it served (each from one fetch)
-  window.__thronedecor={doors:()=>DOORS.slice(),used:()=>Object.assign({},USED),protos:()=>Object.keys(PROTO)};
-  /* the ambient stained-glass windows tiled around the hall — pulled out with the pair behind the throne, same
-     re-figuring-placement reason. The wall panel motif right above stays on, so the bare wall is still visible.
-  loadThroneProp('throne-window.glb',4.2,wrap=>{
-    wallFaces.forEach(w=>{ if(w.cz<4||w.cz>44||WIN.has(w)) return; if(Math.abs(w.cx-tx)<=5&&w.cz<=4) return;   // skip right behind the throne — the big dramatic window's already there
-      const runAxisVal=(w.nz!==0)?w.cx:w.cz; if(((runAxisVal%8)+8)%8!==3) return;
-      const baseY=hgt[idx(w.cx,w.cz)]||0, yaw=Math.atan2(w.nx,w.nz);
-      const t=wrap.clone(); t.position.set(w.x+w.nx*.2,baseY+4.2,w.z+w.nz*.2); t.rotation.y=yaw; world.add(t);
-      const l=new THREE.PointLight(C(0x9a8ad0),1.8,15,2); l.position.set(w.nx*1.2,0,w.nz*1.2); t.add(l);
-    });
-  });
-  */
+  window.__thronedecor={doors:()=>DOORS.slice(),used:()=>Object.assign({},USED),protos:()=>Object.keys(PROTO),faces:()=>wallFaces.map(w=>({cx:w.cx,cz:w.cz,x:+w.x.toFixed(1),z:+w.z.toFixed(1),nx:w.nx,nz:w.nz,y:hgt[idx(w.cx,w.cz)]||0,win:WIN.has(w)}))};
+  // ===== build 232: THE SIDE WALLS. Matt: "we never got the windows and walls done in here", "these should adorn the wall of the great thrown room".
+  // Why the walls were bare: the painted windows and the little banners were mounted .1-.12 off the wall, BEHIND the wall panel (.18), so they never
+  // showed, and the ambient window row below had been pulled. Now a set rhythm runs down both long walls, every 4 cells (8 units) and mirrored so the two
+  // sides differ: Matt's blue-and-gold window, a tall banner, the dragon-head plaque, a window, the scepter rack ... All of it hangs .5 off the wall, in
+  // front of the panel, sized to the wall above that cell's floor (the walls are 18 tall, but only 10 above the top landing). The painted window planes,
+  // drapes and rods are hidden (game.js keeps them in world.userData.windowParts).
+  (world.userData.windowParts||[]).forEach(o=>{ o.visible=false; });
+  { const WALLS=[{nx:1,x:-19},{nx:-1,x:19}];
+    const RHYTHM=[
+      [['window',6],['banner',10],['window',14],['beast',18],['window',22],['banner',26],['window',30],['rack',34],['window',38],['banner',42]],
+      [['window',6],['rack',10],['window',14],['banner',18],['window',22],['rack',26],['window',30],['beast',34],['window',38],['banner',42]]];   // the beast heads stay off the pillar rows (cz 26 and 38), where a column would stand in front of them
+    const faceFor=(side,cz)=>{ let best=null, bd=1e9; for(const w of wallFaces){ if(w.nx!==side.nx||Math.abs(w.x-side.x)>.6||w.cz<4||w.cz>44) continue; const d=Math.abs(w.cz-cz); if(d<bd){ bd=d; best=w; } } return best; };
+    const plan=[]; WALLS.forEach((side,si)=>RHYTHM[si].forEach(([kind,cz])=>{ const f=faceFor(side,cz); if(!f) return; const base=hgt[idx(f.cx,f.cz)]||0; plan.push({kind,f,base,span:WALLH-base,yaw:Math.atan2(f.nx,f.nz)}); }));
+    const OFF=.4;   // where a piece's back rests, out from the wall face: clear of the panel relief
+    // each piece: how tall it is on this wall, and where its bottom edge sits (fitModel roots a wrap at its bottom); every prop is one fetch, cloned per spot
+    const SIZE={ window:s=>Math.min(10.5,s*.6), banner:s=>Math.min(9,s*.5), beast:s=>Math.min(7,s*.42), rack:s=>Math.min(6.4,s*.38) };
+    const BOTTOM={ window:(b,s,h)=>b+s*.22, banner:(b,s,h)=>b+s*.92-h, beast:(b,s,h)=>b+s*.42-h/2, rack:(b,s,h)=>b+s*.42-h/2 };
+    const FLAT={ window:.55, banner:1, beast:.6, rack:.8 };   // depth squash: a model scaled by height gets thicker as it gets taller
+    const PROP={ window:['throne-window-v2.glb',8], banner:['throne-banner2.glb',6], beast:['throne-beast.glb',3.6], rack:['throne-scepter.glb',4.4] };
+    for(const kind of Object.keys(PROP)){ const [file,H0]=PROP[kind];
+      loadThroneProp(file,H0,wrap=>{ if(kind==='window') windowGlow(wrap); wrap.children[0].scale.z*=FLAT[kind];
+        for(const p of plan){ if(p.kind!==kind) continue; const h=SIZE[kind](p.span), k=h/H0, t=wrap.clone(); t.scale.setScalar(k); t.updateMatrixWorld(true);
+          const back=Math.max(0,-new THREE.Box3().setFromObject(t).min.z);   // how far the model reaches behind its own origin (a plaque's wooden back): pushed out so that back rests just clear of the wall panel instead of sinking into the wall
+          t.position.set(p.f.x+p.f.nx*(OFF+back),BOTTOM[kind](p.base,p.span,h),p.f.z+p.f.nz*(OFF+back)); t.rotation.y=p.yaw; world.add(t); } }); }
+    window.__thronedecor.walls=()=>plan.map(p=>({kind:p.kind,cz:p.f.cz,x:p.f.x,base:p.base}));
+  }
 }

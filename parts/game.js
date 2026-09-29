@@ -413,12 +413,12 @@ function makeTorch(){ const g=new THREE.Group(); g.add(M(G.box(.14,.14,.34),mat(
   MAP.crates.forEach(([x,z])=>{ const g=new THREE.Group(); g.position.set(cw(x),0,cwz(z)); const cm=mat(0x8a5e34);
     g.add(M(G.box(1.1,1.1,1.1),cm,-.35,.55,.2)); g.add(M(G.box(.9,.9,.9),cm,.5,.45,-.3)); g.add(M(G.box(.8,.8,.8),cm,-.2,1.5,.2)); g.add(M(G.box(1.14,.08,.08),mat(0x3a2a20),-.35,.55,.76)); world.add(outline(g)); });
   // torches + banners along the walls
-  const [hx0,hx1,hz0,hz1]=MAP.hall; const WIN=new Set(); let nWin=0;
+  const [hx0,hx1,hz0,hz1]=MAP.hall; const WIN=new Set(); let nWin=0; const WINPARTS=[];
   if(WINDOWTEX){ let k=0; wallFaces.forEach(f=>{ if(!(f.cx>=hx0&&f.cx<=hx1&&f.cz>=hz0&&f.cz<=hz1)) return; k++; if(k%6!==2) return; WIN.add(f); nWin++; const yaw=Math.atan2(f.nx,f.nz), tx=f.nz, tz=-f.nx; const fy=hgt[idx(f.cx,f.cz)]||0, wh=WALLH-fy;   // tall arched windows with crimson drapes, every sixth hall face, in the wall above that cell's floor
-      const w=new THREE.Mesh(new THREE.PlaneGeometry(2.4,Math.min(6,wh*.6)),new THREE.MeshBasicMaterial({map:WINDOWTEX,transparent:true,alphaTest:.5,side:THREE.DoubleSide})); w.position.set(f.x+f.nx*.1,fy+wh*.56,f.z+f.nz*.1); w.rotation.y=yaw; w.userData.noOL=true; w.userData.window=true; world.add(w);
-      const dh=wh*.62; for(const sd of [-1,1]){ const d=new THREE.Mesh(new THREE.PlaneGeometry(1.0,dh),new THREE.MeshToonMaterial({map:DRAPETEX,gradientMap:GRAD,color:C(0xffffff),side:THREE.DoubleSide})); d.position.set(f.x+f.nx*.16+tx*sd*1.75,fy+wh*.5,f.z+f.nz*.16+tz*sd*1.75); d.rotation.y=yaw; d.userData.noOL=true; world.add(d); }
-      const rod=M(G.cyl(.06,.06,4.9,6),mat(0xe0b040),f.x+f.nx*.2,fy+wh*.5+dh/2+.12,f.z+f.nz*.2); rod.rotation.set(0,yaw,PI/2); world.add(rod); for(const sd of [-1,1]) world.add(M(G.sph(.14,7,6),mat(0xe0b040),f.x+f.nx*.2+tx*sd*2.45,fy+wh*.5+dh/2+.12,f.z+f.nz*.2+tz*sd*2.45)); }); }
-  world.userData.windows=nWin;
+      const w=new THREE.Mesh(new THREE.PlaneGeometry(2.4,Math.min(6,wh*.6)),new THREE.MeshBasicMaterial({map:WINDOWTEX,transparent:true,alphaTest:.5,side:THREE.DoubleSide})); w.position.set(f.x+f.nx*.1,fy+wh*.56,f.z+f.nz*.1); w.rotation.y=yaw; w.userData.noOL=true; w.userData.window=true; world.add(w); WINPARTS.push(w);
+      const dh=wh*.62; for(const sd of [-1,1]){ const d=new THREE.Mesh(new THREE.PlaneGeometry(1.0,dh),new THREE.MeshToonMaterial({map:DRAPETEX,gradientMap:GRAD,color:C(0xffffff),side:THREE.DoubleSide})); d.position.set(f.x+f.nx*.16+tx*sd*1.75,fy+wh*.5,f.z+f.nz*.16+tz*sd*1.75); d.rotation.y=yaw; d.userData.noOL=true; world.add(d); WINPARTS.push(d); }
+      const rod=M(G.cyl(.06,.06,4.9,6),mat(0xe0b040),f.x+f.nx*.2,fy+wh*.5+dh/2+.12,f.z+f.nz*.2); rod.rotation.set(0,yaw,PI/2); world.add(rod); WINPARTS.push(rod); for(const sd of [-1,1]){ const fin=M(G.sph(.14,7,6),mat(0xe0b040),f.x+f.nx*.2+tx*sd*2.45,fy+wh*.5+dh/2+.12,f.z+f.nz*.2+tz*sd*2.45); world.add(fin); WINPARTS.push(fin); } }); }
+  world.userData.windows=nWin; world.userData.windowParts=WINPARTS;
   const torchProcs=[], bannerMeshes=[]; let i=0; wallFaces.forEach(f=>{ const inHall=f.cx>=hx0&&f.cx<=hx1&&f.cz>=hz0&&f.cz<=hz1; i++; if(WIN.has(f)) return;
     const yaw=Math.atan2(f.nx,f.nz), fy=hgt[idx(f.cx,f.cz)]||0;   // torches and banners hang above the floor of the cell they face (a landing's wall carries its own)
     if(i%4===1){ const t=makeTorch(); t.position.set(f.x,fy+3.1,f.z); t.rotation.y=yaw; world.add(t); torchProcs.push(t); }
@@ -716,7 +716,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=231;
+const BUILD=232;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
