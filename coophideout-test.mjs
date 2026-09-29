@@ -71,6 +71,67 @@ await hf.evaluate(()=>{ const i=SAVE.placed.findIndex(p=>p.pid==="h-new"); SAVE.
 const gone=await until(gf,()=>!window.__hd.entries().some(e=>e.pid==="h-new"),null,60000);
 check("and a piece the host takes away goes from the guest's room too",gone,JSON.stringify(await gf.evaluate(()=>window.__hd.entries().map(e=>e.pid))));
 
+// ---- THE TRADE WINDOW (hideout build 46)
+const CHARM={kind:"carried",rec:{id:"g-test-1",name:"Test Charm",slot:"charm",rarity:2,lvl:5,tier:"rare",stats:{hp:10},value:50,score:30,from:"dungeon-hold"}};
+await hf.evaluate(c=>{ SAVE.bag[0]='bookshelf_empty'; SAVE.bag[1]=c; SAVE.bag[2]='vending_machine'; SAVE.hotbar[0]=null; writeSave(); },CHARM);
+await gf.evaluate(()=>{ SAVE.bag[0]='display_pedestal'; SAVE.hotbar[0]=null; writeSave(); });
+await hf.evaluate(()=>window.__hd.teleport(0,0)); await gf.evaluate(()=>window.__hd.teleport(2,0));
+await until(hf,()=>window.__hd.trade.nearest()!==null,null,30000); await until(gf,()=>window.__hd.trade.nearest()!==null,null,30000);
+check("standing near a friend, each can find the other to trade with",(await hf.evaluate(()=>window.__hd.trade.nearest()))!==null&&(await gf.evaluate(()=>window.__hd.trade.nearest()))!==null);
+await hf.evaluate(()=>window.__hd.trade.ask());
+const asked=await until(gf,()=>window.__hd.trade.state().incoming,null,30000);
+check("the host's T sends a request the guest sees",asked);
+await gf.evaluate(()=>window.__hd.trade.ask());
+const bothOpen=await until(hf,()=>window.__hd.trade.state().open,null,30000)&&await until(gf,()=>window.__hd.trade.state().open,null,30000);
+check("the guest's T accepts: the trade window opens on both sides",bothOpen);
+// starter machines are never offered
+await hf.evaluate(()=>window.__hd.trade.toggle('bag',2));
+check("a starter machine cannot be put in a trade",(await hf.evaluate(()=>window.__hd.trade.state().mine.length))===0);
+await hf.evaluate(()=>{ window.__hd.trade.toggle('bag',0); window.__hd.trade.toggle('bag',1); });
+await gf.evaluate(()=>window.__hd.trade.toggle('bag',0));
+const seesOffers=await until(gf,()=>window.__hd.trade.state().theirs.length===2,null,30000)&&await until(hf,()=>window.__hd.trade.state().theirs.length===1,null,30000);
+const gState=await gf.evaluate(()=>window.__hd.trade.state()), hState=await hf.evaluate(()=>window.__hd.trade.state());
+check("each side sees exactly what the other offers (the host offers a bookshelf and a charm, the guest a pedestal)",seesOffers&&gState.theirs[0]==="bookshelf_empty"&&gState.theirs[1].rec.id==="g-test-1"&&hState.theirs[0]==="display_pedestal",JSON.stringify({g:gState.theirs.length,h:hState.theirs}));
+// locking on one side, then the other changes its offer: locks reset
+await hf.evaluate(()=>window.__hd.trade.lock());
+const gSawLock=await until(gf,()=>window.__hd.trade.state().theirLock,null,30000);
+await gf.evaluate(()=>{ window.__hd.trade.toggle('bag',0); window.__hd.trade.toggle('bag',0); });   // off and on again: an edit
+const reset=await until(hf,()=>!window.__hd.trade.state().myLock,null,30000);
+check("the guest saw the host lock in; any change to an offer un-locks both sides",gSawLock&&reset,JSON.stringify(await hf.evaluate(()=>window.__hd.trade.state())));
+// nothing has moved yet
+const before=await hf.evaluate(()=>window.__hd.trade.inv());
+check("nothing moves before both lock in",before.bag[0]==="bookshelf_empty"&&before.bag[1]&&before.bag[1].rec.id==="g-test-1");
+// both lock on the same offers: the swap happens
+await hf.evaluate(()=>window.__hd.trade.lock()); await gf.evaluate(()=>window.__hd.trade.lock());
+const swapped=await until(hf,()=>window.__hd.trade.state().last!==null,null,30000)&&await until(gf,()=>window.__hd.trade.state().last!==null,null,30000);
+const hInv=await hf.evaluate(()=>window.__hd.trade.inv()), gInv=await gf.evaluate(()=>window.__hd.trade.inv());
+const has=(inv,f)=>[...inv.bag,...inv.hotbar].some(f);
+check("both locked in: the swap happens on both sides — the host now has the pedestal and not its bookshelf or charm, the guest the opposite",swapped&&has(hInv,v=>v==="display_pedestal")&&!has(hInv,v=>v==="bookshelf_empty")&&!has(hInv,v=>v&&v.rec&&v.rec.id==="g-test-1")&&has(gInv,v=>v==="bookshelf_empty")&&has(gInv,v=>v&&v.rec&&v.rec.id==="g-test-1")&&!has(gInv,v=>v==="display_pedestal"),JSON.stringify({h:hInv.bag.filter(Boolean).length,g:gInv.bag.filter(Boolean).length}));
+check("the trade windows closed on both sides, and the host's starter machine stayed put",!(await hf.evaluate(()=>window.__hd.trade.state().open))&&!(await gf.evaluate(()=>window.__hd.trade.state().open))&&has(hInv,v=>v==="vending_machine"));
+const persisted=await hostPage.evaluate(()=>JSON.parse(localStorage.getItem('dd_hideout_save_v2')));
+check("the swap is saved: the host's stored bag has the pedestal and no bookshelf",persisted.bag.includes("display_pedestal")&&!persisted.bag.includes("bookshelf_empty"));
+// a cancel changes nothing
+await hf.evaluate(()=>window.__hd.trade.ask()); await until(gf,()=>window.__hd.trade.state().incoming,null,30000); await gf.evaluate(()=>window.__hd.trade.ask());
+await until(hf,()=>window.__hd.trade.state().open,null,30000); await until(gf,()=>window.__hd.trade.state().open,null,30000);
+await hf.evaluate(()=>window.__hd.trade.toggle('bag',0));
+await hf.evaluate(()=>window.__hd.trade.cancel());
+const cancelled=await until(gf,()=>!window.__hd.trade.state().open,null,30000);
+const hInv2=await hf.evaluate(()=>window.__hd.trade.inv());
+check("a cancel closes the other side's window too and moves nothing",cancelled&&JSON.stringify(hInv2)===JSON.stringify(hInv),JSON.stringify({cancelled}));
+// no room: a guest with a completely full bag and hotbar cannot lock in to receive something without giving something
+await gf.evaluate(()=>{ for(let i=0;i<SAVE.bag.length;i++) if(!SAVE.bag[i]) SAVE.bag[i]='table_stools'; for(let i=0;i<SAVE.hotbar.length;i++) if(!SAVE.hotbar[i]) SAVE.hotbar[i]='table_stools'; writeSave(); });
+await hf.evaluate(()=>window.__hd.trade.ask()); await until(gf,()=>window.__hd.trade.state().incoming,null,30000); await gf.evaluate(()=>window.__hd.trade.ask());
+await until(hf,()=>window.__hd.trade.state().open,null,30000); await until(gf,()=>window.__hd.trade.state().open,null,30000);
+const hi=await hf.evaluate(()=>window.__hd.trade.inv()); const hIdx=hi.bag.findIndex(v=>v&&v!=="vending_machine"&&v!=="sludge_cauldron"&&v!=="ore_forge"&&v!=="wall_locker"&&v!=="portal");
+await hf.evaluate(i=>window.__hd.trade.toggle('bag',i),hIdx);
+await until(gf,()=>window.__hd.trade.state().theirs.length===1,null,30000);
+await gf.evaluate(()=>window.__hd.trade.lock());
+check("with no room for what it would get, the guest cannot lock in (its bag is unchanged, no lock)",!(await gf.evaluate(()=>window.__hd.trade.state().myLock)));
+await gf.evaluate(()=>window.__hd.trade.toggle('bag',3)); await gf.evaluate(()=>window.__hd.trade.lock());   // offering one back makes room
+check("offering something back makes room, and then it can lock in",await gf.evaluate(()=>window.__hd.trade.state().myLock));
+await hf.evaluate(()=>window.__hd.trade.cancel());
+await until(gf,()=>!window.__hd.trade.state().open,null,30000);
+
 // ---- leaving: the guest steps out and the host stops seeing it
 await guestPage.evaluate(()=>window.__hideout.close());
 const left=await until(hf,()=>window.__hd.peers().length===0,null,30000);
