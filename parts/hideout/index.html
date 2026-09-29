@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="51">
+<meta name="hideout-build" content="52">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -57,6 +57,10 @@ canvas{display:block}
 .fgear .swatch{width:100%;aspect-ratio:1;border-radius:8px;margin-bottom:6px;object-fit:contain;background:#150c06;box-sizing:border-box;padding:6px}
 .fgear .fname{font-size:0.85em;font-weight:bold;line-height:1.15}
 .fgear .fsub{font-size:0.7em;margin-top:2px;opacity:0.9}
+#forgeSets{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+#forgeSets .fsetlabel{flex-basis:100%;font-size:0.8em;letter-spacing:0.05em;color:#d8a878;font-style:italic}
+.fset{cursor:pointer;font-family:inherit;font-size:0.8em;font-weight:bold;color:#e8c9a0;background:#241811;border:2px solid #6b3a1a;border-radius:14px;padding:4px 11px}
+.fset:hover{filter:brightness(1.15)}.fset.sel{background:#5a2a10;color:#fff2c0;box-shadow:0 0 10px #ff8c33aa}
 #coopBar{position:fixed;top:8px;left:50%;transform:translateX(-50%);background:#000b;color:#cfe;font:13px monospace;padding:6px 14px;border-radius:14px;border:1px solid #5ac;z-index:12;display:none;pointer-events:none;white-space:nowrap}
 #buildTag{position:fixed;bottom:6px;left:8px;color:#fff7;font:11px monospace;pointer-events:none;z-index:11}
 
@@ -188,6 +192,7 @@ canvas{display:block}
   </div>
   <div id="forgeBody">
     <div id="forgeGearGrid"></div>
+    <div id="forgeSets"></div>
     <button id="forgeCraftBtn">Craft</button>
     <div id="forgeOutput">Choose a gear target above, then Craft.</div>
   </div>
@@ -263,7 +268,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 51;
+const HIDEOUT_BUILD = 52;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -380,7 +385,17 @@ function loadSave(){
 }
 function writeSave(){ localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); try { HD.saved(); } catch (e) {} }
 const SAVE = loadSave();
+// build 52 (Matt: "take away all my sludge so i can feel the economy"): a one-time wipe of all four sludges, asked for by putting ?zerosludge=1 on the address of the page this one is in -- the game address when the hideout is
+// embedded (same origin, so its own address bar can be read), this page own address otherwise. The word is taken out of the address as soon as it has been used, so a later trip through the portal does not wipe again.
+let SLUDGE_WIPED = false;
+(function () { try {
+  const w = (window.parent && window.parent !== window) ? window.parent : window, q = new URLSearchParams(w.location.search);
+  if (q.get('zerosludge') !== '1') return;
+  SAVE.sludge = 0; SAVE.legendarySludge = 0; SAVE.commonSludge = 0; SAVE.uncommonSludge = 0; localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); SLUDGE_WIPED = true;
+  q.delete('zerosludge'); const qs = q.toString(); w.history.replaceState(null, '', w.location.pathname + (qs ? '?' + qs : '') + w.location.hash);
+} catch (e) {} })();
 document.getElementById('sludge').textContent = SAVE.sludge;
+if (SLUDGE_WIPED) setTimeout(() => { try { flashMsg('All your sludge is gone: earn it back at the Cauldron Cart'); } catch (e) {} }, 2500);
 
 // ============= CO-OP (build 45) =============
 // In a co-op run the game opens this page in an iframe with ?coop=host or ?coop=guest and relays messages between us and
@@ -2388,15 +2403,18 @@ document.addEventListener('keydown', e => {
 // (Matt's number, "start at about 6%" — tune freely). Otherwise FORGE_SUCCESS_CHANCE makes a mythic set piece, and
 // the rest fail and lose the sludge.
 const FORGE_COST = 5, FORGE_SUCCESS_CHANCE = 0.35, NAMED_PROC_CHANCE = 0.06;
+// build 52 (Matt: "make picking cost 3 extra"): rolling for ONE set (instead of a random one of nine) costs PICK_EXTRA more Legendary Sludge a try. The odds are the same (35% a set piece, 6% a named mythic that ignores the pick);
+// only the set is chosen. A random set piece of one particular set averages ~130 sludge; a picked one ~23 (8 a try at 35%).
+const PICK_EXTRA = 3;
 const PROCD_MULT = 1.35;   // build 51: what the forge's proc makes is PROC'D GEAR: a named mythic with +35% on its primary stat (the first stat of its table), a golden glow on the wearer in the game, and a fanfare
 const FORGE_LVL = 10; // placeholder item level for forged gear until the game says what a forged piece's level should be
 // mythic-tier stat values: the game's rollStat at rarity 5, level 10 (parts/game.js) — placeholders the game can rebalance
 const MYTHIC_STAT = { dmg:24, spd:45, hp:156, def:24, regen:4.5, tow:41, mana:65, move:20, fdmg:35, frate:63, trate:20, tarea:18 };
 const SET_STAT_POOL = { weapon:['dmg','spd','tow'], armor:['hp','def','regen'], amulet:['mana','tow','hp'],
   familiar:['fdmg','frate','move'], trinket:['move','trate','tarea'] };
-function setPieceRecord(type) {
+function setPieceRecord(type, wantId) {
   const rollable = MYTHIC_SETS.filter(s => !s.offForge); // nine sets — Nature/Forest is skipped for now
-  const set = rollable[Math.floor(Math.random() * rollable.length)];
+  const set = (wantId && rollable.find(s => s.id === wantId)) || rollable[Math.floor(Math.random() * rollable.length)];
   const looks = (type === 'weapon' && SET_WEAPONS[set.id]) || SET_ART_PIECES[type] || [];
   const art = looks.length ? looks[Math.floor(Math.random() * looks.length)] : null; // sword or whip, armor, …
   const stats = {};
@@ -2425,13 +2443,16 @@ function namedRecord(type) {
 }
 function forgeOddsText() {
   const set = Math.round((1 - NAMED_PROC_CHANCE) * FORGE_SUCCESS_CHANCE * 100), named = Math.round(NAMED_PROC_CHANCE * 100);
-  return 'Choose a gear target above, then Craft. About ' + set + '% make a Mythic set piece; ' + named + '% proc a Named Mythic.';
+  const pick = forgeSet ? MYTHIC_SETS.find(s => s.id === forgeSet) : null;
+  return 'Choose a gear target above, then Craft. About ' + set + '% make a Mythic set piece' + (pick ? ' ' + pick.tail + ' (the set you picked, +' + PICK_EXTRA + ' sludge a try)' : ' of a random set') + '; ' + named + '% proc a Named Mythic.';
 }
 // MYTHIC_GEAR now exists, so the shared gear-display poller (which looks up icons by category) is safe to start
 pollDroppedGear();
 setInterval(pollDroppedGear, 6000);
 
 let forgeSelected = null, forgeWasActive = false;
+let forgeSet = null;   // the set id being rolled for, or null for a random one
+const forgeCost = () => FORGE_COST + (forgeSet ? PICK_EXTRA : 0);
 
 function buildForgeGrid() {
   const grid = document.getElementById('forgeGearGrid');
@@ -2475,8 +2496,22 @@ function startForgeShowcase() {
 }
 function stopForgeShowcase() { if (forgeShowTimer) clearInterval(forgeShowTimer); forgeShowTimer = null; }
 function renderForgePanel() {
+  const cost = forgeCost();
   document.getElementById('forgeSludgeText').textContent = SAVE.legendarySludge + ' Legendary Sludge';
-  document.getElementById('forgeCraftBtn').disabled = !forgeSelected || SAVE.legendarySludge < FORGE_COST;
+  const btn = document.getElementById('forgeCraftBtn');
+  btn.disabled = !forgeSelected || SAVE.legendarySludge < cost;
+  btn.textContent = 'Craft · ' + cost + ' sludge';
+  buildForgeSets();
+}
+// the set row: "Any set" (the base cost) and the nine forge sets (each PICK_EXTRA more a try); picking the same one again puts it back to random
+function buildForgeSets() {
+  const row = document.getElementById('forgeSets'); row.innerHTML = '';
+  const label = document.createElement('div'); label.className = 'fsetlabel'; label.textContent = 'Roll for a set: +' + PICK_EXTRA + ' sludge a try'; row.appendChild(label);
+  const mk = (id, text, color) => {
+    const b = document.createElement('button'); b.className = 'fset' + ((forgeSet || null) === id ? ' sel' : ''); b.textContent = text; if (color) b.style.borderColor = color;
+    b.onclick = () => { forgeSet = id && forgeSet !== id ? id : null; renderForgePanel(); const out = document.getElementById('forgeOutput'); if (!out.className) out.textContent = forgeOddsText(); };
+    row.appendChild(b); };
+  mk(null, 'Any set'); MYTHIC_SETS.filter(s => !s.offForge).forEach(s => mk(s.id, s.tail, s.color));
 }
 function openForge() {
   forgeWasActive = active;
@@ -2494,12 +2529,13 @@ function closeForge() {
 document.getElementById('forgeClose').onclick = closeForge;
 document.getElementById('forgeWrap').addEventListener('click', e => { if (e.target.id === 'forgeWrap') closeForge(); });
 document.getElementById('forgeCraftBtn').onclick = () => {
-  if (!forgeSelected || SAVE.legendarySludge < FORGE_COST) return;
-  SAVE.legendarySludge -= FORGE_COST;
+  const cost = forgeCost();
+  if (!forgeSelected || SAVE.legendarySludge < cost) return;
+  SAVE.legendarySludge -= cost;
   const out = document.getElementById('forgeOutput');
   sfxClick();
   const rec = Math.random() < NAMED_PROC_CHANCE ? namedRecord(forgeSelected)
-    : Math.random() < FORGE_SUCCESS_CHANCE ? setPieceRecord(forgeSelected) : null;
+    : Math.random() < FORGE_SUCCESS_CHANCE ? setPieceRecord(forgeSelected, forgeSet) : null;
   if (rec) {
     const bagged = giveItem({ kind: 'forged', rec }, 'bag'); // a full bag keeps it on the waiting list in the I panel
     if (!bagged) SAVE.gear.push(rec);
