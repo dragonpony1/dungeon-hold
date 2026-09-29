@@ -104,7 +104,7 @@ function onMapHeld(w,o){ if(run.ended||run.settled) return; settleRun(w,Object.a
 function onRunEnd(w,o){ if(run.ended) return true; run.ended=true; const early=run.settled; settleRun(w,o); w=w|0;
   if(stockTierFor(st.best)>st.stockTier){ st.stockTier=stockTierFor(st.best); rollStock(); } saveMeta(); const data=summary(); if(o) Object.assign(data,o); data.paidEarly=early; let shown=false;   // paidEarly: the payout went out at HALL HELD and has been on the HUD all lap -- TO THE TAVERN doesn't count it up again (20-tavern.js)
   if(typeof Tavern!=='undefined'&&Tavern&&Tavern.summary){ try{ Tavern.summary(data); shown=true; }catch(e){ console.error(e); } }
-  if(!shown) toast('The crystal fell on wave '+w+' — +'+(25*w)+' gold'); return shown; }
+  if(!shown) toast('The Heartroot fell on wave '+w+' — +'+(25*w)+' gold'); return shown; }
 // the reroll happens when a run actually starts (first in-play frame), never on a page load: TRY AGAIN / a refresh is not a free Restock
 function metaUpdate(dt){ if(!run.started&&S.phase!=='start'){ run.started=true; rollStock(); } }
 function metaOpen(){ if(typeof Tavern!=='undefined'&&Tavern&&Tavern.open) Tavern.open(); else toast('The tavern is being built'); }

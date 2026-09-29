@@ -212,7 +212,7 @@ function loadWispProjectile(){ if(wispProjGLB||wispProjP) return; wispProjP=fetc
 // "but make the patronus bright pink". Every SC.every seconds of a wave a see-through hot-pink copy of the stag charges through the THICKEST
 // group in range (my call, so it always hits something and needs no aiming), hitting every mob it passes once for SC.mult pet shots and
 // throwing it back SC.knock/2 units; bosses take the full damage but only a nudge. Runs where the mobs are real (solo, or the host).
-const SC={every:8,speed:12,hitR:1.4,mult:6,knock:9,bossKnock:.12,pink:0xff3fae,t:3,ghosts:[],pops:[],count:0,hits:0};
+const SC={every:8,speed:8,hitR:1.4,mult:6,knock:9,bossKnock:.12,pink:0xff3fae,t:3,ghosts:[],pops:[],count:0,hits:0};
 const SC_BOSS=new Set(['cyclops','pigflail','pigdagger','pigsling','trollboss']);
 const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
 function gladeWorn(){ return !!fam&&namedPet(gear.familiar)==='gladehart'; }
@@ -245,7 +245,7 @@ function scTick(dt){
 // the reward: felling the Cyclops (95c-cyclops.js) drops Gladehart by the crystal like a named mythic, once -- never if you already own it
 function gladeReward(){ const M=window.__mythic; if(!M||!M.NAMED||!M.NAMED.gladehart||isGuest()) return false; const has=M.has('gladehart')||Meta.bag().some(b=>b&&M.id(b)==='gladehart')||((Meta.armory&&Meta.armory())||[]).some(b=>b&&M.id(b)==='gladehart'); if(has) return false;
   const it=M.normalize({tier:'named',named:'gladehart',lvl:Math.max(1,effWave())}); if(!it) return false; it.from='dungeon-hold'; const pic=window.__mythicDrops&&window.__mythicDrops.art&&window.__mythicDrops.art(it); if(pic) it.art=pic;
-  dropLoot(it,R(-1.6,1.6),4.6,true); floatText(0,2.6,4.6,'✦ GLADEHART ✦ the spirit stag','#ff7ade'); toast('Gladehart, the spirit stag, fell by the crystal — pick it up'); return true; }
+  dropLoot(it,R(-1.6,1.6),4.6,true); floatText(0,2.6,4.6,'✦ GLADEHART ✦ the spirit stag','#ff7ade'); toast('Gladehart, the spirit stag, fell by the Heartroot — pick it up'); return true; }
 window.__gladehart={worn:gladeWorn,charges:()=>SC.count,ghosts:()=>SC.ghosts.length,hits:()=>SC.hits,cd:()=>+SC.t.toFixed(2),fire:()=>{ const t=thickest(); if(!t) return false; scLaunch(t); return true; },thickest,reward:gladeReward,cfg:SC,ghostPos:()=>{ const G=SC.ghosts[0]; return G?{x:G.x,y:G.y,z:G.z}:null; }};
 // ---------------------------------------------------------------- TRIMAW, the magma hydra (build 222)
 // Matt's reward pet for Throne Room SURVIVAL wave 50 (Gladehart's is wave 20). Three heads, three breaths at up to three targets each volley:
@@ -296,7 +296,7 @@ function trimawFire(e){ fam.kick=1; const tg=[e,...extraTargets(e,2)]; const [x,
 // the reward: holding Throne Room survival wave 50 (winMap) drops Trimaw by the crystal, once -- never if you already own it. Solo/host only.
 function trimawReward(){ const M=window.__mythic; if(!M||!M.NAMED||!M.NAMED.trimaw||isGuest()) return false; const has=M.has('trimaw')||Meta.bag().some(b=>b&&M.id(b)==='trimaw')||((Meta.armory&&Meta.armory())||[]).some(b=>b&&M.id(b)==='trimaw'); if(has) return false;
   const it=M.normalize({tier:'named',named:'trimaw',lvl:Math.max(1,effWave())}); if(!it) return false; it.from='dungeon-hold'; const pic=window.__mythicDrops&&window.__mythicDrops.art&&window.__mythicDrops.art(it); if(pic) it.art=pic;
-  dropLoot(it,R(-1.6,1.6),4.6,true); floatText(0,2.6,4.6,'✦ TRIMAW ✦ the magma hydra','#ff7ade'); toast('Trimaw, the magma hydra, fell by the crystal — pick it up'); return true; }
+  dropLoot(it,R(-1.6,1.6),4.6,true); floatText(0,2.6,4.6,'✦ TRIMAW ✦ the magma hydra','#ff7ade'); toast('Trimaw, the magma hydra, fell by the Heartroot — pick it up'); return true; }
 { const prev=winMap; winMap=function(){ const r=prev.apply(this,arguments); if(SURVIVAL&&MAPI===1) trimawReward(); return r; }; }   // Throne Room (index 1) survival's fiftieth wave
 window.__trimaw={shotMeshes:()=>famShots.map(s=>s.mesh),fxLoaded:()=>!!(TRV.fire&&TRV.frost&&TRV.venom),bursts:()=>TB.length,ringReal:()=>{ const g=tfxRing(TM.heads[0]); let real=false; g.traverse(o=>{ if(o.geometry&&o.geometry.type!=='TorusGeometry'&&o.isMesh) real=true; }); return real; },worn:trimawWorn,fired:()=>TM.fired,hits:()=>TM.hits,reward:trimawReward,cfg:TM,fire:e=>{ if(!trimawWorn()||!e) return false; trimawFire(e); return true; }};
 })();

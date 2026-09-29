@@ -6,7 +6,7 @@
 (function(){
 const PUBLIC='https://dragonpony1.github.io/dungeon-hold/';
 function link(){ const h=location.hostname; return (location.protocol==='file:'||!h||h==='localhost'||h==='127.0.0.1')?PUBLIC:location.origin+location.pathname; }   // origin+path: no ?silent / ?v= rides along; a local copy shares the real one
-function message(){ return ['ROOTGATE — a gnome tower-defense game that plays right in your browser. Hold the crystal against the horde!','',link(),'','Best on a computer. On a phone: open it, then Share → Add to Home Screen so it opens like an app.'].join('\n'); }
+function message(){ return ['ROOTGATE — a gnome tower-defense game that plays right in your browser. Hold the Heartroot against the horde!','',link(),'','Best on a computer. On a phone: open it, then Share → Add to Home Screen so it opens like an app.'].join('\n'); }
 function fallbackCopy(t){ const ta=document.createElement('textarea'); ta.value=t; ta.style.cssText='position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); }
 // the label is remembered once: re-reading textContent on a second tap mid-flash would capture the flash as the label to go back to
 function flash(btn,label){ if(!btn) return; if(!btn.dataset.label) btn.dataset.label=btn.textContent; clearTimeout(btn._revert); btn.textContent=label; btn._revert=setTimeout(()=>{ btn.textContent=btn.dataset.label; },1600); }

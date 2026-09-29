@@ -49,7 +49,7 @@ function cardOnFloor(l,it){ const item=l.mesh.userData.item; const tex=new THREE
     if(turned){ floatText(x,1.9,z,'✦ MYTHIC ✦ '+it.name,GOLDC); if(SFX.setBong) SFX.setBong(); } return l; }; }
 // a wave held: maybe a named mythic by the crystal
 { const prev=Meta.onWaveHeld; Meta.onWaveHeld=function(w){ const r=prev.apply(this,arguments);
-    if(LR()<NAMED_DROP){ const it=namedItem(); if(it){ dropLoot(it,R(-1.6,1.6),4.6,true); floatText(0,2.6,4.6,'✦ A NAMED MYTHIC ✦ '+it.name,GOLDC); if(SFX.setBong) SFX.setBong(); if(typeof toast==='function') toast('A named mythic fell by the crystal: '+it.name); } }
+    if(LR()<NAMED_DROP){ const it=namedItem(); if(it){ dropLoot(it,R(-1.6,1.6),4.6,true); floatText(0,2.6,4.6,'✦ A NAMED MYTHIC ✦ '+it.name,GOLDC); if(SFX.setBong) SFX.setBong(); if(typeof toast==='function') toast('A named mythic fell by the Heartroot: '+it.name); } }
     return r; }; }
 window.__mythicDrops={rates:()=>({mythic:MYTHIC_DROP,named:NAMED_DROP}),set:(m,n)=>{ if(Number.isFinite(m)) MYTHIC_DROP=m; if(Number.isFinite(n)) NAMED_DROP=n; },mythicize,namedItem,eligible,art:mythicArt,SETS};
 })();

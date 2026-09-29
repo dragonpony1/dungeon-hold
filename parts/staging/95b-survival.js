@@ -53,9 +53,9 @@ render();
 { const prev=Meta.onRunEnd; Meta.onRunEnd=function(w,o){ if(!SURVIVAL||guest()) return prev.apply(this,arguments);
     const won=!!(o&&o.won), held=won?S.wave:Math.max(0,S.wave-1), r=record(held);
     const sv={held,best:r.best,newBest:r.newBest,total:SURVIVAL_WAVES};
-    $('deadh1').textContent=won?'SURVIVAL COMPLETE':'SHATTERED';
-    if(won) $('deadh2').innerHTML=esc(MAP.name)+' · ALL <span id="deadwave">'+held+'</span> WAVES HELD'; else $('deadh2').innerHTML='THE CRYSTAL FELL ON WAVE <span id="deadwave">'+S.wave+'</span> · SURVIVED '+held+' WAVE'+(held===1?'':'S')+(r.newBest?' — A NEW BEST':'');
-    $('deadp').textContent=won?'Fifty waves, and the crystal stands. Your gear, gold and skills stay with you.':(r.newBest?'Your best on this map yet. ':'Your best here: '+r.best+' waves. ')+'Your gear, gold and skills stay with you.';
+    $('deadh1').textContent=won?'SURVIVAL COMPLETE':'THE GATE HAS OPENED';
+    if(won) $('deadh2').innerHTML=esc(MAP.name)+' · ALL <span id="deadwave">'+held+'</span> WAVES HELD'; else $('deadh2').innerHTML='THE HEARTROOT FELL ON WAVE <span id="deadwave">'+S.wave+'</span> · SURVIVED '+held+' WAVE'+(held===1?'':'S')+(r.newBest?' — A NEW BEST':'');
+    $('deadp').textContent=won?'Fifty waves, and the Heartroot stands. Your gear, gold and skills stay with you.':(r.newBest?'Your best on this map yet. ':'Your best here: '+r.best+' waves. ')+'Your gear, gold and skills stay with you.';
     $('nextmapbtn').style.display='none'; $('againbtn').textContent='↻ SURVIVE AGAIN';
     return prev.call(this,w,Object.assign({},o,{survival:sv})); }; }
 // SURVIVAL COMPLETE on the end screen behind the lap (95-campaign.js's wrap worded it HALL HELD / NEXT MAP)

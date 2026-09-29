@@ -171,9 +171,9 @@ const Tavern={
     const stat=(v,l)=>'<div class="tv-stat"><b>'+v+'</b><span>'+l+'</span></div>';
     const spent=data.goldSpent||0;
     const sv=data.survival&&typeof data.survival==='object'?data.survival:null;   // build 176: a Survival run (95b-survival.js adds it) -- its own words, and its own best: the waves held on this map
-    const h1=sv?(data.won?'SURVIVAL COMPLETE':'SHATTERED'):(data.won?'HALL HELD':'SHATTERED');
-    const h2=sv?(data.won?'ALL '+sv.held+' WAVES HELD ON '+(data.mapName||'THE HALL'):'THE CRYSTAL FELL ON WAVE '+(data.wave|0)+' · SURVIVED '+sv.held+' WAVE'+(sv.held===1?'':'S'))+(sv.newBest?' — A NEW BEST':sv.best>0?' · BEST '+sv.best:'')
-      :(data.won?(data.mapName||'THE HALL')+' CLEARED · THE HORDE BROKE ON WAVE '+(data.wave|0):'THE CRYSTAL FELL ON WAVE '+(data.wave|0))+(data.newBest?' · A NEW BEST':'');
+    const h1=sv?(data.won?'SURVIVAL COMPLETE':'THE GATE HAS OPENED'):(data.won?'HALL HELD':'THE GATE HAS OPENED');
+    const h2=sv?(data.won?'ALL '+sv.held+' WAVES HELD ON '+(data.mapName||'THE HALL'):'THE HEARTROOT FELL ON WAVE '+(data.wave|0)+' · SURVIVED '+sv.held+' WAVE'+(sv.held===1?'':'S'))+(sv.newBest?' — A NEW BEST':sv.best>0?' · BEST '+sv.best:'')
+      :(data.won?(data.mapName||'THE HALL')+' CLEARED · THE HORDE BROKE ON WAVE '+(data.wave|0):'THE HEARTROOT FELL ON WAVE '+(data.wave|0))+(data.newBest?' · A NEW BEST':'');
     $('tv-sum').innerHTML='<h1>'+h1+'</h1><h2>'+h2+'</h2><div class="tv-stats">'+stat(tvG(data.kills||0),'KILLS')+stat('+'+tvG(data.xpGained||0),'XP')+stat('+'+tvG(data.goldGained||0)+' ●','GOLD EARNED'+(spent?'<small>−'+tvG(spent)+' spent</small>':''))+stat('+'+(data.levelsGained||0),'LEVELS')+'</div>'+dh
      +'<p style="color:#c9b8a0;font-size:13px;margin:0 0 6px">Your gear, gold and skills stay with you.</p><div class="db">'+(data.won&&data.hasNext?'<button class="tv-btn hot" data-act="nextmap" id="tv-nextmap">▶ NEXT MAP</button>':'')+'<button class="tv-btn'+(data.won&&data.hasNext?'':' hot')+'" data-act="totavern" id="tv-totavern">🍺 TO THE TAVERN</button><button class="tv-btn" data-act="again" id="tv-again">'+(sv?'↻ SURVIVE AGAIN':data.won?'↻ REPLAY THIS MAP':'↻ GO AGAIN')+'</button></div>';
     $('tv-box').classList.add('hide'); $('tv-sum').classList.remove('hide'); $('tavern').classList.remove('hide'); tvLoop(); return true; },

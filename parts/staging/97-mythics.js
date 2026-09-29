@@ -20,7 +20,7 @@ const NAMED={
   trimaw:{name:'Trimaw',slot:'familiar',reward:true,stats:{fdmg:28,frate:35,move:10},power:'three heads breathe fire (burn), frost (slow) and venom (poison) at three targets, and everything it hits takes 25% more damage from everything for a few seconds'},   // reward:true -- earned at Throne Room survival wave 50, never rolled; upgrades to 400 (90-forge.js upMax)
   old_lamplight:{name:'Old Lamplight',slot:'familiar',stats:{fdmg:30,frate:60,fproj:1},power:'+1 pet projectile, and your pet fires at whatever is being hit'},
   gloomcap_censer:{name:'Gloomcap Censer',slot:'charm',stats:{trate:20,tarea:18,regen:3},power:'defenses near you build 50% faster and fire 15% faster'},
-  hourglass_of_hollow_sand:{name:'Hourglass of Hollow Sand',slot:'charm',stats:{spd:35,move:18,mana:40},power:'once a wave, when the crystal is about to fall, the horde crawls for 4 s'},
+  hourglass_of_hollow_sand:{name:'Hourglass of Hollow Sand',slot:'charm',stats:{spd:35,move:18,mana:40},power:'once a wave, when the Heartroot is about to fall, the horde crawls for 4 s'},
   subterfuge:{name:'Subterfuge',slot:'weapon',stats:{dmg:26,spd:18,move:12},power:'a bow: every shot is five lightning arrows in a 40° wedge, each half an arrow, and each one that hits jumps to 3 more enemies (60%, 35%, 20%)'},   // build 170, Matt's; the eleventh, a game-made one (the hideout's forge doesn't know it). Its power is 86i-subterfuge.js's
 };
 const slug=str=>String(str||'').toLowerCase().replace(/^the /,'').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');

@@ -9,7 +9,7 @@
 //    the campaign's pace); wave 10 is a boss wave led by a troll boss with an ogre guard; never more than SURVIVAL_LIVE alive at once
 //  - play: waves 7 and 8 held for real -- no HALL HELD at 7, the HUD reads SURVIVAL · WAVE 8 / 50, the best (8) saved and on the row;
 //    wave 50 held: SURVIVAL COMPLETE, the victory lap (held, ▶ MOVE ON), then the tally with no NEXT MAP; ddMapsCleared never moves
-//  - the crystal falling on wave 23: SHATTERED · SURVIVED 22 WAVES — A NEW BEST, and the best saved
+//  - the crystal falling on wave 23: THE GATE HAS OPENED · SURVIVED 22 WAVES — A NEW BEST, and the best saved
 //  - co-op: a guest in the host's Survival run reads SURVIVAL · WAVE n / 50, gets SURVIVAL COMPLETE on the lap and at the end, and its
 //    own campaign stays where it was
 // Ports 8817 (http), 9717 (signaling).
@@ -124,7 +124,7 @@ let shotDesk=null, shotPhone=null;
   await p.evaluate(()=>{ window.__freeze=true; window.__meta.reset(); window.__dd.resetGear(); localStorage.setItem(window.__forest.LOCKER_KEY,JSON.stringify({item:{id:'sv-taken'},at:1,taken:true})); window.__dd.start(); window.__dd.step(1/60,30); window.__dd.setHero(500,500,0); });
   await p.evaluate(()=>{ const d=window.__dd; d.S.wave=22; d.S.phase='build'; d.startWave(); d.step(1/60,120); d.hurtCrystal(99999); for(let i=0;i<200&&d.S.phase!=='dead';i++) d.step(1/60,1); });
   const end=await p.evaluate(()=>{ const s=document.getElementById('tv-sum'); return {phase:window.__dd.S.phase,tally:window.__tavern.isOpen(),h1:s?(s.querySelector('h1')||{}).textContent:'',h2:s?(s.querySelector('h2')||{}).textContent:'',again:(document.getElementById('tv-again')||{}).textContent,dead:document.getElementById('deadh2').textContent,best:localStorage.getItem('dd_survivalBest'),cleared:localStorage.getItem('ddMapsCleared')}; });
-  check("the crystal falls on wave 23: SHATTERED · THE CRYSTAL FELL ON WAVE 23 · SURVIVED 22 WAVES — A NEW BEST (the old best was 10)",end.phase==='dead'&&end.tally&&end.h1==='SHATTERED'&&end.h2==='THE CRYSTAL FELL ON WAVE 23 · SURVIVED 22 WAVES — A NEW BEST'&&end.again==='↻ SURVIVE AGAIN'&&/SURVIVED 22 WAVES/.test(end.dead),JSON.stringify(end));
+  check("the crystal falls on wave 23: THE GATE HAS OPENED · THE HEARTROOT FELL ON WAVE 23 · SURVIVED 22 WAVES — A NEW BEST (the old best was 10)",end.phase==='dead'&&end.tally&&end.h1==='THE GATE HAS OPENED'&&end.h2==='THE HEARTROOT FELL ON WAVE 23 · SURVIVED 22 WAVES — A NEW BEST'&&end.again==='↻ SURVIVE AGAIN'&&/SURVIVED 22 WAVES/.test(end.dead),JSON.stringify(end));
   const b=JSON.parse(end.best||'{}');
   check("the new best is saved for this map only (hall 22, the throne room's 4 untouched), the campaign still at 1",b.hall===22&&b.throne===4&&end.cleared==='1',JSON.stringify({b,cleared:end.cleared}));
   // closing the tally puts the old end screen back with the wave filled in (its #deadwave kept)

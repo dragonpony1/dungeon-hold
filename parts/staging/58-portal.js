@@ -17,7 +17,7 @@ const PX=PORTAL_CFG?cw(PORTAL_CFG.cx):-2.5, PZ=PORTAL_CFG?cwz(PORTAL_CFG.cz):2, 
 const baseY=floorH(PX,PZ);
 let wrap=null, state='hidden', pop=0, lastPhase=null;
 fetchBytes(ASSET('hideout-portal.glb'),'soon').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
-    const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,2.4); toonify(root,fit.scale);
+    const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,3.6); toonify(root,fit.scale);
     wrap=fit.wrap; wrap.visible=false; wrap.scale.setScalar(0); scene.add(wrap);
   }catch(e){ console.warn('portal model',e); } },e=>console.warn('portal model',e))).catch(e=>console.warn('portal model',e));
 function portalUpdate(dt){ if(!wrap) return; const ph=hallPhase();   // the host's phase on a co-op guest (above): out with the host's horn, back in with its build phase

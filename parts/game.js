@@ -89,7 +89,7 @@ const MAPS=[
   lanes:{N:{cx:16,cz:2,face:0,name:'North'}, W:{cx:5,cz:3,face:0,name:'West'}, E:{cx:31,cz:17,face:-PI/2,name:'East'}},
   hall:[10,22,11,23],pillars:[[12,13],[20,13],[12,21],[20,21]],barrels:[[10,11],[22,11]],crates:[[10,23],[22,23]],chandelier:[0,-6],beams:{zs:[-8,0,8],w:26},tavern:{dx:0,dz:0},
   lights:[[-9,4.4,-9,0xff8a2a,1.5,16],[9,4.4,-9,0xff8a2a,1.5,16],[-9,4.4,9,0xff8a2a,1.5,16],[9,4.4,9,0xff8a2a,1.5,16],
-   [0,5,-6,0xffb05a,.8,13],[0,3.2,0,0xc060ff,1.3,15],[0,4,-18,0xff8a2a,1.7,15],[0,4,-26,0xff8a2a,1.2,12],[-16,4,0,0xff8a2a,1.7,15],[-24,4,-10,0xff8a2a,1.5,14],[-24,4,-22,0xff8a2a,1.4,13],[18,4,0,0xff8a2a,1.7,15],[28,4,0,0xff8a2a,1.6,15],[-22,4,-26,0xc040ff,.9,10],[0,4,-28,0xc040ff,.9,10],[30,4,0,0xc040ff,.9,10],
+   [0,5,-6,0xffb05a,.8,13],[0,3.2,0,0xb494ff,1.3,15],[0,4,-18,0xff8a2a,1.7,15],[0,4,-26,0xff8a2a,1.2,12],[-16,4,0,0xff8a2a,1.7,15],[-24,4,-10,0xff8a2a,1.5,14],[-24,4,-22,0xff8a2a,1.4,13],[18,4,0,0xff8a2a,1.7,15],[28,4,0,0xff8a2a,1.6,15],[-22,4,-26,0xc040ff,.9,10],[0,4,-28,0xc040ff,.9,10],[30,4,0,0xc040ff,.9,10],
    [0,4.2,19,0xffb05a,1.3,13],[-6,3.8,24,0xff8a2a,1.2,12],[6,3.8,22,0xff8a2a,1.2,12],[0,2.2,26.4,0xff7a1a,1.6,9]]},   // the tavern: lamps and the hearth
  {id:'throne',name:'THE THRONE ROOM',sub:'a marble stair hall four flights high: twin stairs up each wall, one up the middle, landings where the streams meet · feeder gates on the landings · seven waves',gw:27,gh:54,crystal:[13,6],waves:7,wallH:18,du:80,mana:480,fog:[36,110],style:{marble:true,windows:true,rails:true},
   build(f,g,h,ramp){ f(4,22,3,9,T.FLOOR); h(4,22,3,9,8); f(12,14,3,9,T.CARPET); f(12,14,5,7,T.DAIS); g(13,6,T.CRYSTAL);   // the top: the throne and the crystal, eight up
@@ -111,7 +111,7 @@ const MAPS=[
   hall:[4,22,3,44],pillars:[[6,4],[20,4],[7,12],[19,12],[6,26],[20,26],[7,38],[19,38],[7,42],[19,42]],barrels:[[4,44],[22,44]],crates:[[4,36],[22,36]],chandeliers:[[0,18],[0,46],[0,68]],beams:{zs:[-2,12,26,38,52,66],w:40},tavern:{dx:4,dz:21},throne:[13,3],noTavern:true,
   raven:{cx:9,cz:3,face:0},   // against the back wall behind the crystal, off to the west of the throne itself and clear of the flanking pillars (at x 6 and 20, z 4) — facing 0 (+z, south) so it looks out into the room
   portal:{cx:17,cz:3,face:0},   // mirrored to the east of the crystal, same back wall row as the raven and clear of the same flanking pillars — the two sit symmetrically, neither in the other's way
-  lights:[{cx:6,cz:4,up:4.2,c:0xff8a2a,i:1.4,d:15},{cx:20,cz:4,up:4.2,c:0xff8a2a,i:1.4,d:15},{cx:6,cz:9,up:4,c:0xff8a2a,i:1.3,d:14},{cx:20,cz:9,up:4,c:0xff8a2a,i:1.3,d:14},[0,11.2,0,0xc060ff,1.3,15],
+  lights:[{cx:6,cz:4,up:4.2,c:0xff8a2a,i:1.4,d:15},{cx:20,cz:4,up:4.2,c:0xff8a2a,i:1.4,d:15},{cx:6,cz:9,up:4,c:0xff8a2a,i:1.3,d:14},{cx:20,cz:9,up:4,c:0xff8a2a,i:1.3,d:14},[0,11.2,0,0xb494ff,1.3,15],
    {cx:6,cz:12,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:12,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:15,up:3.6,c:0xffb05a,i:1.2,d:14},{cx:25,cz:15,up:3.4,c:0xc040ff,i:.9,d:10},
    {cx:6,cz:19,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:19,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:22,up:3.6,c:0xffb05a,i:1.2,d:14},{cx:1,cz:22,up:3.4,c:0xc040ff,i:.9,d:10},
    {cx:6,cz:26,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:26,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:29,up:3.6,c:0xffb05a,i:1.2,d:14},{cx:25,cz:29,up:3.4,c:0xc040ff,i:.9,d:10},
@@ -127,9 +127,9 @@ const MAPS=[
   lanes:{NW:{cx:3,cz:1,face:0,name:'North-west'}, NE:{cx:40,cz:1,face:0,name:'North-east'}, SW:{cx:1,cz:40,face:PI/2,name:'South-west'}},
   hall:[2,41,2,41],pillars:(()=>{ const p=[]; for(let x=6;x<=38;x+=8){ p.push([x,4],[x,39]); } for(let z=6;z<=38;z+=8){ p.push([4,z],[39,z]); } return p; })(),pillarH:4.4,barrels:[[14,14],[29,29]],crates:[],chandeliers:[],beams:{zs:[],w:0},tavern:{dx:5,dz:19},
   roofs:[[2,41,2,4],[2,41,39,41],[2,4,5,38],[39,41,5,38],[16,26,42,51]],trees:[[9,9],[34,9],[9,34],[34,34]],
-  lights:[[0,4.2,0,0xc060ff,1.3,15],{cx:6,cz:3,y:4,c:0xff8a2a,i:1.4,d:13},{cx:22,cz:3,y:4,c:0xff8a2a,i:1.4,d:13},{cx:38,cz:3,y:4,c:0xff8a2a,i:1.4,d:13},{cx:6,cz:40,y:4,c:0xff8a2a,i:1.4,d:13},{cx:38,cz:40,y:4,c:0xff8a2a,i:1.4,d:13},{cx:3,cz:14,y:4,c:0xff8a2a,i:1.4,d:13},{cx:3,cz:30,y:4,c:0xff8a2a,i:1.4,d:13},{cx:40,cz:14,y:4,c:0xff8a2a,i:1.4,d:13},{cx:40,cz:30,y:4,c:0xff8a2a,i:1.4,d:13},
+  lights:[[0,4.2,0,0xb494ff,1.3,15],{cx:6,cz:3,y:4,c:0xff8a2a,i:1.4,d:13},{cx:22,cz:3,y:4,c:0xff8a2a,i:1.4,d:13},{cx:38,cz:3,y:4,c:0xff8a2a,i:1.4,d:13},{cx:6,cz:40,y:4,c:0xff8a2a,i:1.4,d:13},{cx:38,cz:40,y:4,c:0xff8a2a,i:1.4,d:13},{cx:3,cz:14,y:4,c:0xff8a2a,i:1.4,d:13},{cx:3,cz:30,y:4,c:0xff8a2a,i:1.4,d:13},{cx:40,cz:14,y:4,c:0xff8a2a,i:1.4,d:13},{cx:40,cz:30,y:4,c:0xff8a2a,i:1.4,d:13},
    {cx:3,cz:1,y:4,c:0xc040ff,i:.9,d:10},{cx:40,cz:1,y:4,c:0xc040ff,i:.9,d:10},{cx:1,cz:40,y:4,c:0xc040ff,i:.9,d:10},{cx:21,cz:43,y:4.2,c:0xffb05a,i:1.3,d:13},{cx:19,cz:45,y:3.8,c:0xff8a2a,i:1.2,d:12},{cx:23,cz:49,y:3.8,c:0xff8a2a,i:1.2,d:12},{cx:21,cz:50,y:2.2,c:0xff7a1a,i:1.6,d:9,oz:.4}]},
- {id:'feast',name:'THE GREAT FEAST HALL',sub:'three long tables, three doors, the crystal at the high table · seven waves',gw:52,gh:35,crystal:[5,13],waves:7,wallH:10,du:60,mana:360,fog:[30,100],style:{windows:true},
+ {id:'feast',name:'THE GREAT FEAST HALL',sub:'three long tables, three doors, the Heartroot at the high table · seven waves',gw:52,gh:35,crystal:[5,13],waves:7,wallH:10,du:60,mana:360,fog:[30,100],style:{windows:true},
   build(f,g,h,ramp){ f(3,46,3,24,T.FLOOR); f(3,8,10,17,T.FLOOR); h(3,8,10,17,1); f(9,10,10,17,T.FLOOR); ramp(9,10,10,17,4,0,1); f(4,6,12,14,T.DAIS); g(5,13,T.CRYSTAL); f(11,46,13,14,T.CARPET);   // the hall, the high table's dais a step up at the west end, a runner down the middle
     for(const [z0,z1] of [[8,9],[13,14],[18,19]]) for(let x=14;x<=40;x++){ if(x===22||x===23||x===30||x===31||x===38||x===39) continue; g(x,z0,T.PROP); g(x,z1,T.PROP); }   // three long tables with benches; gaps to cross between the aisles
     f(47,50,12,14,T.FLOOR); g(50,13,T.SPAWN); f(23,25,1,2,T.FLOOR); g(24,1,T.SPAWN); f(31,33,25,27,T.FLOOR); g(32,27,T.SPAWN);   // gates: the east doors at the far end, a door in each long wall
@@ -138,7 +138,7 @@ const MAPS=[
   lanes:{E:{cx:50,cz:13,face:-PI/2,name:'East'}, N:{cx:24,cz:1,face:0,name:'North'}, S:{cx:32,cz:27,face:PI,name:'South'}},
   hall:[3,46,3,24],pillars:[],barrels:[[3,3],[46,3]],crates:[[3,24],[46,24]],chandeliers:[[14,0],[30,0],[46,0]],beams:{zs:[-14,-6,2,10],w:90},tavern:{dx:30,dz:2},
   tables:[[14,40,8,9],[14,40,13,14],[14,40,18,19]],tableGaps:[22,23,30,31,38,39],hearths:[[20,2,0],[34,2,0],[20,25,PI],[34,25,PI]],
-  lights:[[0,4.2,0,0xc060ff,1.3,15],[14,7,0,0xffb05a,.9,15],[30,7,0,0xffb05a,.9,15],[46,7,0,0xffb05a,.9,15],{cx:20,cz:3,y:2.4,c:0xff7a1a,i:1.8,d:12},{cx:34,cz:3,y:2.4,c:0xff7a1a,i:1.8,d:12},{cx:20,cz:24,y:2.4,c:0xff7a1a,i:1.8,d:12},{cx:34,cz:24,y:2.4,c:0xff7a1a,i:1.8,d:12},
+  lights:[[0,4.2,0,0xb494ff,1.3,15],[14,7,0,0xffb05a,.9,15],[30,7,0,0xffb05a,.9,15],[46,7,0,0xffb05a,.9,15],{cx:20,cz:3,y:2.4,c:0xff7a1a,i:1.8,d:12},{cx:34,cz:3,y:2.4,c:0xff7a1a,i:1.8,d:12},{cx:20,cz:24,y:2.4,c:0xff7a1a,i:1.8,d:12},{cx:34,cz:24,y:2.4,c:0xff7a1a,i:1.8,d:12},
    {cx:6,cz:11,y:4.4,c:0xff8a2a,i:1.4,d:13},{cx:6,cz:16,y:4.4,c:0xff8a2a,i:1.4,d:13},{cx:12,cz:4,y:4,c:0xff8a2a,i:1.4,d:13},{cx:12,cz:23,y:4,c:0xff8a2a,i:1.4,d:13},{cx:42,cz:4,y:4,c:0xff8a2a,i:1.4,d:13},{cx:42,cz:23,y:4,c:0xff8a2a,i:1.4,d:13},
    {cx:50,cz:13,y:4,c:0xc040ff,i:.9,d:10},{cx:24,cz:1,y:4,c:0xc040ff,i:.9,d:10},{cx:32,cz:27,y:4,c:0xc040ff,i:.9,d:10},{cx:46,cz:26,y:4.2,c:0xffb05a,i:1.3,d:13},{cx:44,cz:28,y:3.8,c:0xff8a2a,i:1.2,d:12},{cx:48,cz:32,y:3.8,c:0xff8a2a,i:1.2,d:12},{cx:46,cz:33,y:2.2,c:0xff7a1a,i:1.6,d:9,oz:.4}]},
  {id:'moat',name:'THE DRAWBRIDGE',sub:'the castle\'s outer ward behind a moat: one drawbridge, an old ford at the west end, a wide green before the walls · gates on the road and in the woods, a sally port late · seven waves',gw:50,gh:56,crystal:[20,7],waves:7,wallH:10,fog:[48,134],du:90,mana:520,style:{outdoor:true,grass:true,road:true,windows:true},
@@ -158,7 +158,7 @@ const MAPS=[
   trees:[[3,21],[3,33],[3,45],[3,52],[46,21],[46,33],[46,52],[9,52],[16,52],[42,52],[10,30],[39,30],[13,44],[7,38],[43,36],[19,50]],
   castle:{towers:[[21.5,14.5,2,14],[26.5,14.5,2,14],[2.5,14.5,1.8,12],[47.5,14.5,1.8,12],[13.5,.5,2.4,26,'cone'],[34.5,.5,2.4,26,'cone']],keep:[[14,34,-5,1,20]],arches:[[23,25,14,15,6.5]],bridge:[23,25,16,19],chains:[[21.6,12.6,15.6,22.4,1.2,19.6],[26.4,12.6,15.6,25.6,1.2,19.6]],
     lamps:[[22,24],[26,24],[22,32],[26,32],[22,40],[26,40],[22,48],[26,48]],statues:[[21,21,0],[27,21,0],[9,3,0],[16,3,0],[31,3,0],[38,3,0]],braziers:[[21,12],[27,12],[17,5],[17,9]]},
-  lights:[{cx:20,cz:7,up:4.2,c:0xc060ff,i:1.3,d:15},{cx:23,cz:13,up:3.4,c:0xff8a2a,i:1.4,d:14},{cx:25,cz:13,up:3.4,c:0xff8a2a,i:1.4,d:14},
+  lights:[{cx:20,cz:7,up:4.2,c:0xb494ff,i:1.3,d:15},{cx:23,cz:13,up:3.4,c:0xff8a2a,i:1.4,d:14},{cx:25,cz:13,up:3.4,c:0xff8a2a,i:1.4,d:14},
    {cx:21,cz:12,up:2.2,c:0xff7a1a,i:1.6,d:10},{cx:27,cz:12,up:2.2,c:0xff7a1a,i:1.6,d:10},{cx:17,cz:5,up:2.2,c:0xff7a1a,i:1.6,d:10},{cx:17,cz:9,up:2.2,c:0xff7a1a,i:1.6,d:10},
    {cx:8,cz:3,up:4,c:0xff8a2a,i:1.3,d:14},{cx:24,cz:3,up:4,c:0xff8a2a,i:1.3,d:14},{cx:40,cz:3,up:4,c:0xff8a2a,i:1.3,d:14},{cx:5,cz:10,up:4,c:0xff8a2a,i:1.2,d:13},{cx:44,cz:10,up:4,c:0xff8a2a,i:1.2,d:13},
    {cx:22,cz:24,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:24,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:22,cz:32,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:32,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:22,cz:40,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:40,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:22,cz:48,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:48,up:3.6,c:0xffb05a,i:1.1,d:12},
@@ -172,13 +172,13 @@ const MAPS=[
 // stays 0 in it (the hall is "before room one": map one's waves, loot and no level gate), so what is keyed to map one checks
 // TUTORIAL as well -- the Forest rails (93-gearsets.js) and the old guide card (96-trainer.js) stay out of it
 const TUTORIAL=!Q.get('coopjoin')&&Q.has('tutorial')&&Q.get('tutorial')!=='0';
-const TUT_MAP={id:'tutorial',name:'THE TUTORIAL HALL',sub:'one hall, one door, the crystal · two small waves',gw:11,gh:25,crystal:[5,17],waves:2,crystalHp:300,du:40,mana:60,wallH:11,fog:[30,90],style:{windows:true},noTavern:true,
+const TUT_MAP={id:'tutorial',name:'THE TUTORIAL HALL',sub:'one hall, one door, the Heartroot · two small waves',gw:11,gh:25,crystal:[5,17],waves:2,crystalHp:300,du:40,mana:60,wallH:11,fog:[30,90],style:{windows:true},noTavern:true,
   build(f,g){ f(3,7,1,13,T.FLOOR); f(1,9,14,23,T.FLOOR); f(5,5,2,15,T.CARPET); f(4,6,16,18,T.DAIS); g(5,17,T.CRYSTAL); g(5,2,T.SPAWN);   // the hall, five wide: one lane (the runner) from the door in the north wall to the crystal's chamber
     [[1,23],[9,14],[9,23],[1,14]].forEach(([x,z])=>g(x,z,T.PROP)); },   // barrels and crates in the chamber's corners
   lanes:{N:{cx:5,cz:2,face:0,name:'the door'}},
   hall:[1,9,1,23],pillars:[],barrels:[[1,23],[9,14]],crates:[[9,23],[1,14]],chandeliers:[[0,-18],[0,4]],beams:{zs:[-26,-14,-2,10],w:20},
   start:[5,12],spot:[5,8],mark:[5,11],   // 89-tutorial.js: where the knight starts (in the hall, the door ahead and the crystal behind -- from the usual start the crystal hid the lane), the glowing spot the first step walks to, and the ballista's marker on the lane (its bolts fly straight up the runner to the door)
-  lights:[[0,3.2,0,0xc060ff,1.3,15],{cx:3,cz:5,up:4,c:0xff8a2a,i:1.4,d:13},{cx:7,cz:5,up:4,c:0xff8a2a,i:1.4,d:13},{cx:3,cz:11,up:4,c:0xff8a2a,i:1.4,d:13},{cx:7,cz:11,up:4,c:0xff8a2a,i:1.4,d:13},
+  lights:[[0,3.2,0,0xb494ff,1.3,15],{cx:3,cz:5,up:4,c:0xff8a2a,i:1.4,d:13},{cx:7,cz:5,up:4,c:0xff8a2a,i:1.4,d:13},{cx:3,cz:11,up:4,c:0xff8a2a,i:1.4,d:13},{cx:7,cz:11,up:4,c:0xff8a2a,i:1.4,d:13},
    {cx:1,cz:16,up:4,c:0xff8a2a,i:1.4,d:13},{cx:9,cz:16,up:4,c:0xff8a2a,i:1.4,d:13},{cx:1,cz:22,up:4,c:0xff8a2a,i:1.4,d:13},{cx:9,cz:22,up:4,c:0xff8a2a,i:1.4,d:13},{cx:5,cz:20,up:4.4,c:0xffb05a,i:1.2,d:13},{cx:5,cz:2,up:3.4,c:0xc040ff,i:.9,d:10}]};
 const MAPS_CLEARED=(()=>{ try{ return Math.max(0,Math.min(MAPS.length,parseInt(localStorage.getItem('ddMapsCleared'))||0)); }catch(e){ return 0; } })();
 // co-op lobby (99b-lobby.js): a guest following its host onto the host's map reloads with ?coopmap=N&coopjoin=<room code>.
@@ -469,7 +469,7 @@ function makeTorch(){ const g=new THREE.Group(); g.add(M(G.box(.14,.14,.34),mat(
 const crystalG=new THREE.Group(); crystalG.position.y=hgt[GOAL]; world.add(crystalG);
 const crystalMesh=(()=>{ const m=new THREE.Mesh(new THREE.OctahedronGeometry(1,0),new THREE.MeshToonMaterial({color:C(0x2fb8e8),emissive:C(0x0e7aa8),emissiveIntensity:.55,gradientMap:GRAD})); m.scale.set(1,1.9,1); return m; })();
 { crystalG.add(M(G.cyl(1.5,1.7,.3,12),mat(0x4a4262),0,.15,0)); crystalG.add(M(G.cyl(1.1,1.3,.3,12),mat(0x5a5276),0,.45,0)); crystalG.add(M(G.cyl(.7,.9,.35,10),mat(0x4a4262),0,.77,0)); crystalG.add(M(G.cyl(1.32,1.32,.08,12),mat(0xe0b040),0,.83,0));
-  const cg=new THREE.Group(); cg.position.y=2.7; cg.add(outline(crystalMesh)); cg.add(glow(0xc050ff,4.2,.45)); crystalG.add(cg); crystalG.userData.cg=cg;
+  const cg=new THREE.Group(); cg.position.y=2.7; cg.add(outline(crystalMesh)); cg.add(glow(0xa08cff,4.2,.45)); crystalG.add(cg); crystalG.userData.cg=cg;
   for(let k=0;k<4;k++){ const s=new THREE.Mesh(new THREE.OctahedronGeometry(.22,0),basic(0x9af8ff)); s.userData.noOL=true; s.userData.a=k/4*TAU; cg.add(s); crystalG.userData['s'+k]=s; } }
 // spawn portals
 const portals=[];
@@ -716,7 +716,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=230;
+const BUILD=231;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1269,7 +1269,7 @@ function startWave(){ if(S.held){ moveOn(); return; }   /* build 160: on the vic
 function updateWave(dt){ if(S.phase!=='wave') return; S.waveT+=dt; let live=SURVIVAL?enemies.reduce((a,e)=>a+(e.dead?0:1),0):0;
   while(spawnQ.length&&spawnQ[0].t<=S.waveT){ if(SURVIVAL&&live>=SURVIVAL_LIVE) break; /* build 176: Survival's cap on the living -- the rest wait at the gate and come out as the hall thins them (the campaign never needs it) */ const s=spawnQ.shift(); spawnEnemy(s.kind,s.lane); live++; }
   if(!spawnQ.length&&!enemies.some(e=>!e.dead)){ const bonus=50+10*effWave(); S.mana+=bonus; dropLoot(rollItem(effWave()%5===0?2:1),R(-1.6,1.6),4.6,true); Meta.onWaveHeld(effWave());
-    if(S.wave>=runWaves()) winMap(); else { S.phase='build'; banner('HALL HELD','wave '+S.wave+' of '+runWaves()+' repelled  ·  +'+bonus+' mana  ·  a reward drops by the crystal'); setMusic('build'); SFX.held(); } } }
+    if(S.wave>=runWaves()) winMap(); else { S.phase='build'; banner('HALL HELD','wave '+S.wave+' of '+runWaves()+' repelled  ·  +'+bonus+' mana  ·  a reward drops by the Heartroot'); setMusic('build'); SFX.held(); } } }
 // the last wave of a map held: the map is cleared, the next one unlocks, the run is paid -- and the hall stays open.
 // Build 160, Matt after his first hall: it said HALL HELD and then "didn't let me walk around or have any control of moving on" --
 // "you should be able to walk around and collect mana, spend your gold on upgrades, maybe even go to the hideout and back and move

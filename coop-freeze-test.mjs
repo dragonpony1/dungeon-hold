@@ -13,7 +13,7 @@
 //  - a frame loop that is only slow (four frames a second, visible) is NOT taken over by the keeper
 //  - with no Worker to be had (refused on the spot, or one that never speaks) a plain timer keeps the hall going instead
 //  - the crystal falling while the host is in the tavern (a real goblin walking in under the tavern): the host gets the run
-//    summary, the guest (in its own pause menu) gets SHATTERED with its pause stepped aside
+//    summary, the guest (in its own pause menu) gets THE GATE HAS OPENED with its pause stepped aside
 // Ports 8711 (http), 9611 (signaling).
 import { chromium } from "playwright"; import { serve } from "./serve.mjs"; import path from "path";
 let PeerServer;
@@ -146,7 +146,7 @@ await G.p.evaluate(()=>window.__pause.open());
 const fell=await until(H.p,()=>{ const s=window.__tavern.state(); return window.__dd.S.phase==='dead'&&s.open&&s.sum?true:null; },null,30000,"host's run summary");
 const gEnd=await until(G.p,()=>!document.getElementById('dead').classList.contains('hide')?{h1:document.getElementById('deadh1').textContent,pause:window.__pause.isOpen(),phase:window.__dd.S.phase}:null,null,15000,"guest's end screen");
 check("a goblin walks in under the host's tavern and the crystal falls: the host gets the run summary over its tavern",!!fell,JSON.stringify(fell));
-check("...and the guest, in its own pause menu, gets SHATTERED with the pause stepped aside",!!gEnd&&gEnd.v.h1==='SHATTERED'&&!gEnd.v.pause&&gEnd.v.phase==='dead',JSON.stringify(gEnd&&gEnd.v));
+check("...and the guest, in its own pause menu, gets THE GATE HAS OPENED with the pause stepped aside",!!gEnd&&gEnd.v.h1==='THE GATE HAS OPENED'&&!gEnd.v.pause&&gEnd.v.phase==='dead',JSON.stringify(gEnd&&gEnd.v));
 
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon|Could not connect to peer|Lost connection to server|ERR_CONNECTION_REFUSED|WebSocket/i.test(e));
 check("no page errors",realErrors.length===0,realErrors.slice(0,5).join(" | "));

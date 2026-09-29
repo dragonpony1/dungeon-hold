@@ -904,7 +904,7 @@ function guestShowRunEnd(w){
   if(document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play');
   const sv=!!w.survival, held=w.phase==='won'?w.wave|0:Math.max(0,(w.wave|0)-1), rec=sv&&window.__survival?window.__survival.record(held):null;   // build 176: a Survival run -- the waves held go on this player's own best for the map too (they held them)
   if(w.phase==='won'){ SFX.held(); $('deadh1').textContent=sv?'SURVIVAL COMPLETE':'HALL HELD'; $('deadh2').textContent=sv?'ALL '+held+' WAVES HELD ON '+MAP.name:w.mapName+' is cleared'; }
-  else { sting(); $('deadh1').textContent='SHATTERED'; $('deadh2').textContent='THE HALL FELL ON WAVE '+w.wave+(sv?' · SURVIVED '+held+' WAVE'+(held===1?'':'S')+(rec&&rec.newBest?' — A NEW BEST':''):''); }
+  else { sting(); $('deadh1').textContent='THE GATE HAS OPENED'; $('deadh2').textContent='THE HALL FELL ON WAVE '+w.wave+(sv?' · SURVIVED '+held+' WAVE'+(held===1?'':'S')+(rec&&rec.newBest?' — A NEW BEST':''):''); }
   const paidAtHeld=w.phase==='won'&&!!w.held;   // build 160: paid at HALL HELD (mapHeld, below) -- or, arriving on the lap, not at all
   const pay=paidAtHeld?(guestHeld?guestHeld.pay:0):typeof w.pay==='number'&&Number.isFinite(w.pay)?Math.max(0,Math.round(w.pay)):w.wave>0?25*w.wave+(w.phase==='won'?150:0):0; if(pay&&!paidAtHeld){ Meta.addGold(pay,'run'); Meta.save(); }   // phase 13: the run's payout -- since build 159 (3/7) the host's own number (runPay), so a later map pays the guest what it pays the host; the old map-wave formula only for an older host that sends none
   $('deadp').textContent=(pay?'+'+pay+' ● gold for the run. ':'')+'Your own gear, gold and skills stay with you. Go again.'+(offerRejoin()?" ⟲ REJOIN puts you in the host's next game as soon as they host it.":'');
@@ -981,7 +981,7 @@ function runPay(w,won){ w=w|0; return w>0?25*w+(won?150:0):0; }
     else if(w.phase==='build'&&w.held){ $('wavet').textContent=w.survival?'SURVIVAL COMPLETE — '+w.mapName+' STANDS':'HALL HELD — '+w.mapName+' CLEARED'; $('phaset').textContent='The hall is yours to roam — the host moves the party on when ready'; }   // build 160: the host's victory lap
     else if(w.phase==='build'){ $('wavet').textContent=w.wave?'HALL HELD — BUILD PHASE':'BUILD PHASE'; $('phaset').textContent='Only the host can start the next wave'; }
     else if(w.phase==='won'){ $('wavet').textContent='HALL HELD — '+w.mapName+' CLEARED'; $('phaset').textContent=''; }
-    else if(w.phase==='dead'){ $('wavet').textContent='THE CRYSTAL FELL'; $('phaset').textContent=''; }
+    else if(w.phase==='dead'){ $('wavet').textContent='THE HEARTROOT FELL'; $('phaset').textContent=''; }
     { const b=$('wavebtn'), want=w.held?'▶ MOVE ON':'📯 START WAVE'; if(b&&b.textContent!==want) b.textContent=want; }   // build 160: the host's lap is this page's lap (game.js's own label only knows this page's S.held, never set on a guest)
     { const hc=[...conns.values()][0]; if(hc&&(w.phase==='build'||w.phase==='wave')){ if(hc.__hidden) $('phaset').textContent="The host's game is in the background"; else if(hc.__paused) $('phaset').textContent='The host paused the game'; } }   // build 159 (2/7): the heartbeat's own flags (the host says so the moment its tab hides) -- why no horn is coming. The hall itself runs on (the keeper), except on a phone host, which the browser stops outright; 'paused' only ever shows with COOP_HALL_RUNS off
     // this guest's OWN mana pool (phase 12 -- no longer the shared hall number), keyed out of w.manas by this

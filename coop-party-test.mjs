@@ -6,7 +6,7 @@
 // Real browsers, the real buttons, a local PeerJS signaling server (the same client code path as the public broker). It checks:
 //  - HOST A GAME keeps its code in this tab; the host plays map two, the guest (map one unlocked only) is moved there by the lobby
 //  - the crystal falls: the host leaves the matchmaking server but keeps its guest's link, a join on its code finds no such room; the
-//    guest's SHATTERED offers ⟲ REJOIN <code> beside TRY AGAIN (unchanged: a plain reload), and REJOIN would take it home, not to map two
+//    guest's THE GATE HAS OPENED offers ⟲ REJOIN <code> beside TRY AGAIN (unchanged: a plain reload), and REJOIN would take it home, not to map two
 //  - REJOIN: the guest reloads onto its OWN map one, the multiplayer screen open, "Waiting for the host's next game"
 //  - the host's GO AGAIN, then HOST A GAME (~50 s after the REJOIN, a host reading its run summary): the SAME code, and it says so;
 //    the waiting guest is in its lobby within seconds (a plain join would still be sitting out its 48 s backoff), and the lobby moves
@@ -75,8 +75,8 @@ const hEnd=await until(H,()=>window.__dd.S.phase==='dead'?{broker:window.__net.o
 const gShown=await until(G,()=>!document.getElementById('dead').classList.contains('hide')?true:null,null,30000,"guest's end screen");
 const gEnd=await endScreen(G);
 check("the run over, the host leaves the matchmaking server -- and keeps its link to the guest (it needs no server)",!!hEnd&&hEnd.v.broker===false&&hEnd.v.peers===1&&hEnd.v.role==='host',JSON.stringify(hEnd));
-check("the guest's SHATTERED offers ⟲ REJOIN "+code1+" beside TRY AGAIN, which is unchanged (TRY AGAIN, a plain reload: solo), and says what REJOIN does",
-  !!gShown&&gEnd.h1==='SHATTERED'&&gEnd.rejoin&&gEnd.rejoinText==='⟲ REJOIN '+code1&&gEnd.again==='TRY AGAIN'&&gEnd.againClick==='location.reload()'&&/REJOIN/.test(gEnd.p),JSON.stringify(gEnd));
+check("the guest's THE GATE HAS OPENED offers ⟲ REJOIN "+code1+" beside TRY AGAIN, which is unchanged (TRY AGAIN, a plain reload: solo), and says what REJOIN does",
+  !!gShown&&gEnd.h1==='THE GATE HAS OPENED'&&gEnd.rejoin&&gEnd.rejoinText==='⟲ REJOIN '+code1&&gEnd.again==='TRY AGAIN'&&gEnd.againClick==='location.reload()'&&/REJOIN/.test(gEnd.p),JSON.stringify(gEnd));
 check("...and REJOIN would take this guest HOME (map two is past its own unlock): the rejoin link carries the code but no map",
   !!gEnd.to&&/coopjoin=/.test(gEnd.to)&&gEnd.to.includes('coopjoin='+code1)&&!/coopmap=/.test(gEnd.to),gEnd.to);
 const Xctx=await newCtx({w:400,h:760}); const X=await newPage(Xctx);

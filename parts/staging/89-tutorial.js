@@ -136,12 +136,12 @@ const STEPS=[
     return {main:K?'Click once more to build it':'Tap ✔ again to build it',how:'it faces up the hall, at the door the goblins come through',at:[MARK[0],.4,MARK[1]],mk:'mark',glow:tch}; },
   done:()=>defs.some(d=>d.kind==='harpoon'), ok:'Ballista built!'},
  {id:'horn', horn:true,
-  view(){ if(S.phase!=='wave'){ const b=$('wavebtn'); return {main:'Now sound the horn',how:K?'press <kbd>G</kbd> — a few goblins come through the door, after the crystal behind you':'tap <b>📯 START WAVE</b> (top right) — a few goblins come through the door, after your crystal',el:b,glow:[b]}; }
+  view(){ if(S.phase!=='wave'){ const b=$('wavebtn'); return {main:'Now sound the horn',how:K?'press <kbd>G</kbd> — a few goblins come through the door, after the Heartroot behind you':'tap <b>📯 START WAVE</b> (top right) — a few goblins come through the door, after your Heartroot',el:b,glow:[b]}; }
     return {main:'Here they come!',how:'your ballista shoots them down the hall — help it with your sword ('+(K?'<kbd>click</kbd>':'<b>⚔</b>')+')',at:mobAt(leadMob()),glow:TOUCH?[hb('⚔')]:[]}; },
   done:()=>S.wave>=1&&S.phase==='build', ok:'Wave held!'},
  {id:'loot', enter(){ L.equipBase=equips; L.pickBase=pickups; L.selFor=-1; if(!loot.length&&!lootItem()) dropLoot(rollItem(1),0,4.6,true); },   // the held wave drops its reward by the crystal (game.js); if it is already gone somewhere, the hall drops another
   run(){ const it=lootItem(); if(it&&tavernOpen()&&L.selFor!==opens&&Meta.bag().some(b=>b.id===it.id)){ L.selFor=opens; try{ window.__tavern.tab('bag'); window.__tavern.select(it.id,'bag'); }catch(e){} } },   // the bag opens with the new piece already picked: its EQUIP button is right there
-  view(){ const it=lootItem(); if(!it){ const l=nearest(loot); return {main:'Oh look — LOOT!',how:'a piece of gear dropped by the crystal — walk over it to pick it up',at:l?[l.x,l.y+1.4,l.z]:null}; }
+  view(){ const it=lootItem(); if(!it){ const l=nearest(loot); return {main:'Oh look — LOOT!',how:'a piece of gear dropped by the Heartroot — walk over it to pick it up',at:l?[l.x,l.y+1.4,l.z]:null}; }
     if(!tavernOpen()){ const b=TOUCH?hb('🎒'):$('bagbtn'); return {main:'Open your bag',how:K?'press <kbd>B</kbd>':'tap <b>🎒</b>',el:b,glow:[b]}; }
     const eq=document.querySelector('#tv-detail [data-act="equip"]'); return {main:'Equip it',how:(K?'<kbd>click</kbd>':'tap')+' <b>EQUIP</b> — your new piece is already picked',el:eq,glow:[eq],low:true}; },
   done(){ const it=lootItem(); return (!!it&&SLOTS.some(s=>gear[s]&&gear[s].id===it.id))||equips>L.equipBase||(Meta.bagFull()&&pickups>L.pickBase); }, ok:'Equipped — you just got stronger'},

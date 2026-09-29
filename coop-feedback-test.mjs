@@ -4,7 +4,7 @@
 // for real damage -- but hurt()'s floatText/SFX.hit are purely local to the HOST simulating the hit; a guest's own
 // puppet enemy just silently lost hp with no feedback at all. (2) the host's real run ending (crystal dead, or the
 // last wave held) never told a guest's own game anything -- only their HUD text -- so a guest was left standing in
-// a frozen, empty hall while the host alone got the SHATTERED/HALL HELD screen. -- 99-network.js.
+// a frozen, empty hall while the host alone got the THE GATE HAS OPENED/HALL HELD screen. -- 99-network.js.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 let PeerServer;
 try { ({ PeerServer } = await import("peer")); }
@@ -95,7 +95,7 @@ async function tickBoth(hostPage,guestPage,batches=6,size=5){
   const guestDeadVisible=await guestPage.evaluate(()=>!document.getElementById('dead').classList.contains('hide'));
   check("the guest's own screen shows the real dead overlay, not just updated HUD text",guestDeadVisible);
   const guestDeadTitle=await guestPage.evaluate(()=>document.getElementById('deadh1').textContent);
-  check("it's titled SHATTERED for a guest too",guestDeadTitle==='SHATTERED',guestDeadTitle);
+  check("it's titled THE GATE HAS OPENED for a guest too",guestDeadTitle==='THE GATE HAS OPENED',guestDeadTitle);
   const guestPlayClass=await guestPage.evaluate(()=>document.body.classList.contains('play'));
   check("the guest's own body leaves 'play' state, same as the host's local finishDeath() already does",!guestPlayClass);
   await close();
@@ -135,7 +135,7 @@ async function tickBoth(hostPage,guestPage,batches=6,size=5){
   }
   check("the guest's own S.phase moves to 'won' too, when the host moves on",guestPhase==='won',guestPhase);
   const guestTitle=await guestPage.evaluate(()=>document.getElementById('deadh1').textContent);
-  check("titled HALL HELD for a guest's win, not SHATTERED",guestTitle==='HALL HELD',guestTitle);
+  check("titled HALL HELD for a guest's win, not THE GATE HAS OPENED",guestTitle==='HALL HELD',guestTitle);
   await close();
 }
 

@@ -153,7 +153,7 @@ log("crystal fell", fall);
 const S=fall.summary; const expGold=before.gold+25*fall.wave;
 check("crystal falls on wave 3 → summary overlay shown, old #dead hidden, Meta.isOpen", fall.phase==='dead'&&fall.wave===3&&fall.sumVis&&fall.tavVis&&fall.deadHidden&&fall.T.sum, JSON.stringify({phase:fall.phase,wave:fall.wave,sumVis:fall.sumVis,deadHidden:fall.deadHidden}));
 check("payout 25*wave = "+(25*fall.wave)+" added to gold", fall.gold===expGold&&S.payout===25*fall.wave, JSON.stringify({gold:fall.gold,expGold,payout:S.payout}));
-check("summary h2 names the wave", fall.h2==='THE CRYSTAL FELL ON WAVE '+fall.wave+' · A NEW BEST', fall.h2);
+check("summary h2 names the wave", fall.h2==='THE HEARTROOT FELL ON WAVE '+fall.wave+' · A NEW BEST', fall.h2);
 const expEarned=tally.goldEarned+25*fall.wave;
 check("summary numbers add up: kills="+fall.summary.kills+" (S.kills "+(before.kills)+"), xp "+S.xpGained+" == tally "+tally.xp+", goldGained "+S.goldGained+" == earned "+expEarned+", spent "+S.goldSpent+" == "+tally.goldSpent+", levels "+S.levelsGained+", drops "+S.drops+" == "+tally.drops, S.kills===before.kills&&S.xpGained===tally.xp&&S.goldGained===expEarned&&S.goldSpent===tally.goldSpent&&S.levelsGained===lvl.L1-1&&S.drops===tally.drops, JSON.stringify({S,tally}));
 check("gold identity: final gold == earned - spent + given", fall.gold===S.goldGained-S.goldSpent+tally.given, JSON.stringify({gold:fall.gold,earned:S.goldGained,spent:S.goldSpent,given:tally.given}));
@@ -183,7 +183,7 @@ if(deadSell){ await page.click('#tv-bag .tv-card[data-id="'+deadSell.id+'"]'); a
 await page.keyboard.press('Escape'); await page.waitForTimeout(80);
 const escDead=await page.evaluate(()=>({open:window.__dd.Meta.isOpen(),tav:document.getElementById('tavern').classList.contains('hide'),dead:!document.getElementById('dead').classList.contains('hide'),deadwave:document.getElementById('deadwave').textContent,deadTxt:document.getElementById('dead').textContent.replace(/\s+/g,' ').trim()}));
 log("Escape in tavern while dead", escDead);
-check("Escape after death shows the old SHATTERED screen with the right wave (TRY AGAIN)", !escDead.open&&escDead.tav&&escDead.dead&&escDead.deadwave==='3', JSON.stringify(escDead));
+check("Escape after death shows the old THE GATE HAS OPENED screen with the right wave (TRY AGAIN)", !escDead.open&&escDead.tav&&escDead.dead&&escDead.deadwave==='3', JSON.stringify(escDead));
 // can the player get back to the tavern from the old dead screen? (I key)
 await page.keyboard.press('KeyI'); await page.waitForTimeout(80);
 const backIn=await page.evaluate(()=>({open:window.__dd.Meta.isOpen(),deadHidden:document.getElementById('dead').classList.contains('hide'),sum:window.__tavern.state().sum}));
@@ -210,7 +210,7 @@ check("DEFEND THE HALL from the start screen starts the run", play2.phase==='bui
 const run2=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; const g0=M.gold(), x0=M.xp(); d.startWave(); let guard=0, kx=0; while(d.S.phase==='wave'&&guard++<800){ d.step(1/60,10); for(const e of d.enemies) if(!e.dead){ kx+=M.XP[e.kind]; d.kill(e); } } d.step(1/60,3); d.startWave(); d.S.crystal=1; const o=d.spawn('ogre','N'); o.x=0; o.z=-3.2; guard=0; while(d.S.phase!=='dead'&&guard++<600) d.step(1/60,1);
   const s=M.summary(); return {s,gold:M.gold(),g0,x0,kx,h2:document.querySelector('#tv-sum h2').textContent,stats:[...document.querySelectorAll('#tv-sum .tv-stat')].map(e=>e.textContent.replace(/\s+/g,' '))}; });
 log("run 2 summary", run2);
-check("run 2 (fell on wave 2, best stays 3): summary is per-run (xp = 30+kills, gold = 15 + 50 payout, no spent), not a new best", run2.s.wave===2&&run2.s.xpGained===30+run2.kx&&run2.s.goldGained===15+50&&run2.s.goldSpent===0&&!run2.s.newBest&&run2.h2==='THE CRYSTAL FELL ON WAVE 2'&&run2.gold===run2.g0+65, JSON.stringify(run2).slice(0,500));
+check("run 2 (fell on wave 2, best stays 3): summary is per-run (xp = 30+kills, gold = 15 + 50 payout, no spent), not a new best", run2.s.wave===2&&run2.s.xpGained===30+run2.kx&&run2.s.goldGained===15+50&&run2.s.goldSpent===0&&!run2.s.newBest&&run2.h2==='THE HEARTROOT FELL ON WAVE 2'&&run2.gold===run2.g0+65, JSON.stringify(run2).slice(0,500));
 check("no page errors / console errors or warnings across the loop", errors.length===0, errors.join(" | ").slice(0,600));
 const stateSnap=await ctx.storageState(); await ctx.close();
 // ================= 9. phone pass: real taps =================
@@ -244,7 +244,7 @@ const xb=await pp.evaluate(()=>{ const b=document.getElementById('tv-close').get
 const deadEnd=await pp.evaluate(()=>{ const dead=document.getElementById('dead'); const hb=[...document.querySelectorAll('#btns .hb')].find(b=>b.textContent==='🎒'); const bag=document.getElementById('bagbtn'); const at=el=>{ if(!el) return 'none'; const r=el.getBoundingClientRect(); if(!r.width) return 'zero-size'; const e=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2); return e?(e.id||e.className||e.tagName):'null'; };
   return {deadVis:!dead.classList.contains('hide'),deadTxt:dead.textContent.replace(/\s+/g,' ').trim(),deadButtons:[...dead.querySelectorAll('button')].map(b=>b.textContent),hbHit:at(hb),bagbtnHit:at(bag),hudVis:getComputedStyle(document.getElementById('hud')).display,open:window.__dd.Meta.isOpen()}; });
 await pp.screenshot({path:SHOT+"r2-phone-dead-end.png"}); log("phone: ✕ after death", deadEnd);
-check("phone: after ✕ on the post-run tavern the player can still reach the tavern (🎒 not covered by the SHATTERED screen)", deadEnd.hbHit==='hb'||deadEnd.bagbtnHit==='bagbtn', JSON.stringify(deadEnd));
+check("phone: after ✕ on the post-run tavern the player can still reach the tavern (🎒 not covered by the THE GATE HAS OPENED screen)", deadEnd.hbHit==='hb'||deadEnd.bagbtnHit==='bagbtn', JSON.stringify(deadEnd));
 await pp.evaluate(()=>window.__dd.Meta.open()); await pp.waitForTimeout(100);
 check("phone: TO THE TAVERN tap → bag tab, gold landed, DEFEND AGAIN, no overflow", !ptav.sum&&ptav.tab==='bag'&&ptav.gold===ptav.real&&/AGAIN/.test(ptav.defend)&&ov4.ok, JSON.stringify({ptav,ov4}));
 check("phone: no errors/warnings", perr.length===0, perr.join(" | ").slice(0,400));

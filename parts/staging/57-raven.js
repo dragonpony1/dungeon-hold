@@ -19,14 +19,14 @@ const perch=(()=>{ const g=new THREE.Group(); const bark=mat(0x6a4e34), barkD=ma
   for(const [bx,by,bz,rot] of [[.14,.55,.03,.9],[-.11,.32,-.09,-1.3]]){ const b=M(G.cyl(.02,.04,.22,5),barkD,bx,by,bz); b.rotation.z=rot; g.add(b); }
   g.add(M(G.cyl(.15,.17,.06,8),barkD,x,y,z));   // a knotty cap where the raven's feet grip
   return outline(g); })();
-perch.position.set(RX,baseY,RZ);
+perch.position.set(RX,baseY,RZ); perch.scale.setScalar(1.35);   // build 231 (Matt: "make the portal to hideout and the raven both bigger"): the raven is 1.5x, its stump a little more so
 world.add(perch);
 let wrap=null, state='hidden', pop=0, lastPhase=null;
 fetchBytes(ASSET('raven.glb'),'soon').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
-    const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,1.6); toonify(root,fit.scale);
+    const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,2.4); toonify(root,fit.scale);
     wrap=fit.wrap; wrap.visible=false; wrap.scale.setScalar(0); scene.add(wrap);
   }catch(e){ console.warn('raven model',e); } },e=>console.warn('raven model',e))).catch(e=>console.warn('raven model',e));
-function ravenY(){ return baseY+PERCH_H+.08+Math.sin(S.t*1.6)*.05; }
+function ravenY(){ return baseY+PERCH_H*1.35+.08+Math.sin(S.t*1.6)*.05; }
 function near(){ return state==='perched'&&Math.hypot(hero.x-RX,hero.z-RZ)<NEAR; }
 function ravenUpdate(dt){ if(!wrap) return;
   if(lastPhase===null){ lastPhase=S.phase; if(S.phase==='build') state='in'; }   // first frame ever seen already in build (a resumed run): still pop in, not just silently baseline
