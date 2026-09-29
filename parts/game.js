@@ -716,7 +716,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=245;
+const BUILD=246;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1186,7 +1186,8 @@ const SLOTS=['weapon','armor','charm','amulet','familiar'], SICON={weapon:'⚔',
 const BASES={weapon:['Shortsword','Broadsword','Cleaver','Warhammer','Halberd','Gnome Blade'],armor:['Jerkin','Chainmail','Breastplate','Plate Harness','Tower Plate','Warden Mail'],charm:['Charm','Talisman','Idol','Sigil','Lantern','Relic'],amulet:['Pendant','Amulet','Locket','Torc','Medallion','Heartstone'],familiar:['Wisp','Cave Bat','Moss Sprite','Fire Imp','Crystal Owl','Storm Drake']};
 const PREFIX=[['Rusty','Plain','Worn','Sturdy','Old'],['Fine','Hardened','Keen','Polished'],['Gleaming','Runed','Tempered','Silvered'],['Ancient','Stormforged','Dragonbone','Moonlit'],['Mythic','Eternal','Goblinbane','Crystalheart']];
 const SUFFIX=['of Goblin Slaying','of Embers','of Fury','of Stone','of Vigil','of Thorns'];   // flavour only; "of the …" names that mean a set come from 93-gearsets.js
-const DROP={goblin:.05,archer:.10,orc:.22,ogre:1,drake:.3,troll:.28,trollboss:1}; const LOOT_HOOK=3.2;   // how close a landed piece has to be before it flies to you
+const DROP={goblin:.06,archer:.12,orc:.264,ogre:1,drake:.36,troll:.336,trollboss:1}, OGRE2=.6;   // build 246 (Matt: "we made the fancy loot more rare now increase the trash loot, the random loot gen by 20%"): every ordinary gear drop 20% more likely than before (goblin .05, archer .10, orc .22, drake .30, troll .28; the ogre's second piece .5); the ogre's first piece and the troll boss's were already certain
+ const LOOT_HOOK=3.2;   // how close a landed piece has to be before it flies to you
 const STATL={dmg:v=>'+'+v+' dmg',spd:v=>'+'+v+'% swing',hp:v=>'+'+v+' hp',def:v=>'+'+v+'% armor',regen:v=>'+'+v+' hp/s',tow:v=>'+'+v+'% defenses',mana:v=>'+'+v+'% mana',move:v=>'+'+v+'% speed',fdmg:v=>v+' pet dmg',frate:v=>'+'+v+'% pet rate',trate:v=>'+'+v+'% defense speed',tarea:v=>'+'+v+'% defense range',fproj:v=>'+'+v+' pet projectile'+(v===1?'':'s')};
 const STATW={dmg:3,spd:1,hp:.6,def:1.5,regen:4,tow:1.2,mana:.5,move:1.5,fdmg:2.5,frate:.8,trate:1.2,tarea:1.2,fproj:12}; const ROLLABLE=['dmg','spd','hp','def','regen','tow','mana','move','fdmg','frate'];
 function heroStat(k){ let v=0; for(const s of SLOTS){ const it=gear[s]; if(it&&it.stats[k]) v+=it.stats[k]; } return v; }
@@ -1223,7 +1224,8 @@ function lootMesh(it){ const g=new THREE.Group(); const col=RCOL[it.rarity]; con
 function dropLoot(it,x,z,gentle){ const a=LR()*TAU, sp=gentle?.6:2.2; const l={it,x,y:.6,z,vx:Math.cos(a)*sp,vy:gentle?3:5,vz:Math.sin(a)*sp,mesh:lootMesh(it),t:0}; l.mesh.position.set(x,.6,z); scene.add(l.mesh); loot.push(l); return l; }
 // the wave-clear reward (a staging module may reshape it: 97b-setgate.js makes the Throne Room's wave 7 reward a set piece 80% of the time)
 function waveRewardItem(){ return rollItem(effWave()%5===0?2:1); }
-function rollDrop(e){ const ch=DROP[e.kind]||0; if(LR()<ch) dropLoot(rollItem(e.kind==='ogre'?(effWave()>=6?2:1):0),e.x,e.z); if(e.kind==='ogre'&&LR()<.5) dropLoot(rollItem(1),e.x,e.z); }
+function rollDrop(e){ const ch=DROP[e.kind]||0; if(LR()<ch) dropLoot(rollItem(e.kind==='ogre'?(effWave()>=6?2:1):0),e.x,e.z); if(e.kind==='ogre'&&LR()<OGRE2) dropLoot(rollItem(1),e.x,e.z); }
+window.__lootRates={table:DROP,ogre2:OGRE2,roll:e=>rollDrop(e),count:()=>loot.length,clear:()=>{ while(loot.length){ const l=loot.pop(); scene.remove(l.mesh); } }};
 function lootToast(it,verb){ $('toast').innerHTML='<b style="color:'+RCSS[it.rarity]+'">'+it.name+'</b> · '+(it.procd&&window.__procHtml?window.__procHtml(statStr(it)):statStr(it))+' — '+verb; $('toast').style.opacity=1; toastT=3.4; }
 function applyGear(){ const oldMax=hero.max; hero.max=Math.round((100+heroStat('hp'))*heroMult('hp')); if(hero.max>oldMax) hero.hp+=hero.max-oldMax; hero.hp=Math.min(hero.hp,hero.max); }
 function saveGear(){ try{ localStorage.setItem('ddGear',JSON.stringify(gear)); }catch(e){} }
