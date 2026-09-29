@@ -27,10 +27,10 @@ const PIGS={
     // them, hp raised well past a token bump): fit/h/r all scaled ×1.2 together this time (no "taller not bulkier"
     // qualifier this round), spd brought up near the wave's own goblin pace (3.4), hp roughly doubled
     dim:{fit:5.16,h:4.8,r:1.14,nat:{walk:.85,run:1.9}},
-    stats:{hp:520,spd:2.6,dmg:18,cd:2.5,mana:24}},
+    stats:{hp:520,spd:2.6,dmg:18,cd:2.5,mana:24,swingT:1.8,hitT:.9}   /* build 289 (Matt: "i think ogre's have that same problem"): its 2.5 s Axe_Spin_Attack plays over 1.8 s (was squeezed into .45), the blow mid-spin */},
   pigdagger:{files:{walk:'pigdagger-walk.glb',run:'pigdagger-run.glb',attack:'pigdagger-attack.glb'},atkName:'Double_Blade_Spin',
     dim:{fit:3.96,h:3.6,r:.79,nat:{walk:1.0,run:2.3}},
-    stats:{hp:340,spd:2.6,dmg:11,cd:1.5,mana:18}},
+    stats:{hp:340,spd:2.6,dmg:18,cd:2.6,mana:18,swingT:2.4,hitT:1}   /* build 289: its 5.7 s Double_Blade_Spin (a leap, then slashes) plays over 2.4 s, the blow as it lands; it swings every 2.6 s (was 1.5) so each blow is 18 (was 11), about the same damage over time */},
   pigsling:{files:{walk:'pigsling-walk.glb',run:'pigsling-run.glb',attack:'pigsling-attack.glb'},atkName:'Crouch_Charge_and_Throw',
     dim:{fit:4.32,h:3.96,r:.94,nat:{walk:.9,run:2.0}},
     stats:{hp:480,spd:2.6,dmg:14,cd:3.8,mana:20,splash:2.3,ranged:14,heroShot:true,swingT:3,hitT:2.25}},   // build 288 (Matt: "it never could actually swing it around"): its 7.7 s Crouch_Charge_and_Throw plays over 3 s -- the wind-up and the sling going round, then the throw at 2.25 s (where the clip's arm comes over, 75%) -- a throw every 3.8 s   // build 287 (Matt: "act like a ranged mob and stay back a little ... and try to hit me"): ranged, and a heroShot mob (game.js) throws at a hero it can see first   // hp was the lowest of the three (200) and the one Matt kept losing to focus fire before ever seeing him -- now the highest, since he's also the one standing still the longest (charging a throw) with nothing else drawing tower attention his way. No `ranged` -- same call the Cyclops made: that field only ever makes the generic AI snipe a TOWER from range (game.js's own ranged-standoff check explicitly skips it for a hero target), so a melee-seeking mob plus Sling's own charge-and-throw special below (mirroring Boulder Toss) covers both a hero and a tower without fighting itself. `splash` stays so fireArrow picks the heavier grenade visual for the throw.

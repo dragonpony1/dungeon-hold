@@ -626,7 +626,7 @@ function markGrow(lvl){ return 1+.07*(Math.min(lvl||1,CHEV_FROM)-1); }   // a ma
 // a defense's sector of fire at its current mark
 function arcOf(d){ const cfg=DEFS[d.kind]; if(cfg.arcs) return cfg.arcs[Math.min(cfg.arcs.length-1,(d.lvl||1)-1)]; return cfg.arc||360; }
 function mobSpd(e){ return e.spd*(e.slowT>0?DEFS.slice.slow:1)*(e.chillT>0?(e.chillK||DEFS.frost.chill):1)*(e.holdT>0?0:1)*(e.crawlT>0?.15:1); }   // holdT: Rootsplitter's roots; crawlT: the Hourglass (97-mythics.js)   // spored mobs crawl; chilled ones too
-const MOBS={goblin:{hp:10,spd:3.4,dmg:3,cd:1.0,mana:1,detour:3}, orc:{hp:45,spd:2.1,dmg:8,cd:1.4,mana:3,detour:1}, archer:{hp:22,spd:2.8,dmg:4,cd:1.6,mana:2,ranged:11,detour:4}, drake:{hp:32,spd:2.6,dmg:9,cd:1.8,mana:4,detour:0,fly:2.6}, ogre:{hp:200,spd:1.7,dmg:20,cd:2.2,mana:8,detour:0}, troll:{hp:65,spd:2.3,dmg:10,cd:2.0,mana:6,ranged:13,detour:3},
+const MOBS={goblin:{hp:10,spd:3.4,dmg:3,cd:1.0,mana:1,detour:3}, orc:{hp:45,spd:2.1,dmg:8,cd:1.4,mana:3,detour:1}, archer:{hp:22,spd:2.8,dmg:4,cd:1.6,mana:2,ranged:11,detour:4}, drake:{hp:32,spd:2.6,dmg:9,cd:1.8,mana:4,detour:0,fly:2.6}, ogre:{hp:200,spd:1.7,dmg:20,cd:2.2,mana:8,detour:0,swingT:1.1,hitT:.64}, troll:{hp:65,spd:2.3,dmg:10,cd:2.0,mana:6,ranged:13,detour:3},
   trollboss:{hp:340,spd:1.9,dmg:14,cd:2.6,mana:14,ranged:11,splash:2.2,detour:2,healAmt:14,healR:6.5,healCd:3.2}};   // the lavender troll: a healer mini-boss — a slow lob that splashes, and a heal-pulse that mends nearby mobs (kill this one first)
 const DU_CAP=MAP.du||40, SENS=0.0042;   // roots: a bigger map gives more to build with
 const CRYSTAL_MAX=MAP.crystalHp||150;   // the crystal's life: half again what it was, so a leak costs a wave, not the run; a map may set its own (the training ground doubles it)
@@ -722,7 +722,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=288;
+const BUILD=289;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -900,7 +900,7 @@ function hurt(e,dmg,kx,kz){ if(e.dead) return; e.hp-=dmg; e.squash=1; floatText(
 function kill(e){ e.dead=.001; S.kills++; spawnOrbs(e.x,e.z,e.mana); rollDrop(e); Meta.onKill(e); if(e.kind==='ogre'||e.kind==='orc'||e.kind==='drake'||e.kind==='troll'||e.kind==='trollboss') SFX.bigDie(); else SFX.die(); }
 function attack(e,tg){ e.swing=0; e.pending=tg; }
 function landHit(e,tg){
-  if(tg.kind==='hero'){ if(tg.ranged){ const H=tg.hero.hurt===hurtHero?hero:tg.hero; fireArrow(e,H.x,(H.y||0)+1,H.z,{kind:'hero'}); } else if(!tg.hero.isDead()) tg.hero.hurt(e.dmg); }
+  if(tg.kind==='hero'){ if(tg.ranged){ const H=tg.hero.hurt===hurtHero?hero:tg.hero; fireArrow(e,H.x,(H.y||0)+1,H.z,{kind:'hero'}); } else if(!tg.hero.isDead()){ const H=tg.hero.hurt===hurtHero?hero:tg.hero; if(Math.hypot(H.x-e.x,H.z-e.z)<=(tg.reach||e.r+1.3)+.8) tg.hero.hurt(e.dmg); } }   /* build 289: a blow lands only on a hero still within reach when it lands -- a real wind-up can be dodged */
   else if(tg.kind==='crystal'){ if(tg.ranged) fireArrow(e,tg.x||0,2.6,tg.z||0,{kind:'crystal',which:tg.which}); else hurtCrystal(e.dmg,e,tg.which); }
   else if(tg.kind==='def'){ const d=tg.obj; if(!defs.includes(d)) return; if(tg.ranged) fireArrow(e,d.x,1.0,d.z,{kind:'def',obj:d}); else { hurtDef(d,e.dmg); if(d.kind==='spike'&&!e.dead){ hurt(e,thornsBack(d,e.dmg),0,0); thornSpark(e); } } } }
 // the hedge's thorns (build 163, Matt: "I want the bramble barrier tower to return damage, like thorn damage"): each melee hit it takes
