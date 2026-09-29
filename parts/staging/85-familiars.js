@@ -232,19 +232,40 @@ function statusUpdate(dt){
   for(const [e,o] of stFx){ if(e.dead||(!o.p&&!o.m)){ [o.p,o.m].forEach(s=>{ if(s){ scene.remove(s); s.material.dispose(); } }); stFx.delete(e); } } }
 const RING={geo:null,mats:{}};   // one shared torus and one material per colour: famShotsUpdate frees a shot's geometry unless it is marked shared
 function ringMesh(col){ if(!RING.geo) RING.geo=new THREE.TorusGeometry(.2,.045,8,20); if(!RING.mats[col]) RING.mats[col]=new THREE.MeshBasicMaterial({color:C(col),transparent:true,opacity:.95,depthWrite:false}); const g=new THREE.Group(); const r=new THREE.Mesh(RING.geo,RING.mats[col]); r.userData.shared=true; r.userData.noOL=true; g.add(r); const r2=new THREE.Mesh(RING.geo,RING.mats[col]); r2.scale.setScalar(.62); r2.userData.shared=true; r2.userData.noOL=true; g.add(r2); g.add(glow(col,.55,.3)); return g; }   // a solid coloured ring (additive blending washed it to white) with a smaller one inside it, and a glow
+// ---- Matt's own Fire Ring Projectile + Magma Impact Burst (build 224), 1K, fetched the first time a Trimaw is worn. Fire uses them as made; frost and
+// venom get the same models with the colour map's hues turned (fire hues 0-70 compressed into an icy blue / a green band, greys and darks left
+// alone) -- done once at load. Self-lit (a plain map, no ink shells): thin flames read as a black scribble under the toon outline. Until they
+// land the code-built rings above stand in.
+const TRV={};   // head name -> {ring, burst} templates
+const TB=[];    // live magma bursts
+let TFXP=null;
+function tfxHue(src,base){ const im=src&&src.image; if(!im) return src; const w=im.width||im.naturalWidth, h=im.height||im.naturalHeight; if(!w||!h) return src; const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); g.drawImage(im,0,0); const d=g.getImageData(0,0,w,h), a=d.data;
+  for(let i=0;i<a.length;i+=4){ const r=a[i]/255, gr=a[i+1]/255, b=a[i+2]/255; const mx=Math.max(r,gr,b), mn=Math.min(r,gr,b), dl=mx-mn; if(dl<.04||mx<.08) continue;
+    let hh=mx===r?((gr-b)/dl+6)%6:mx===gr?(b-r)/dl+2:(r-gr)/dl+4; hh*=60; if(hh>300) hh=0; hh=Math.min(hh,70); const s=dl/mx, nh=(base+hh*.4)%360, hp=nh/60, ch=mx*s, x=ch*(1-Math.abs(hp%2-1)), m=mx-ch;
+    let rr,gg,bb; if(hp<1){ rr=ch; gg=x; bb=0; } else if(hp<2){ rr=x; gg=ch; bb=0; } else if(hp<3){ rr=0; gg=ch; bb=x; } else if(hp<4){ rr=0; gg=x; bb=ch; } else if(hp<5){ rr=x; gg=0; bb=ch; } else { rr=ch; gg=0; bb=x; }
+    a[i]=(rr+m)*255; a[i+1]=(gg+m)*255; a[i+2]=(bb+m)*255; }
+  g.putImageData(d,0,0); const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; t.flipY=false; t.wrapS=src.wrapS; t.wrapT=src.wrapT; t.needsUpdate=true; return t; }
+function tfxMake(scene,size,base,floor){ const root=scene.clone(true); root.traverse(o=>{ if(o.isMesh){ const src=Array.isArray(o.material)?o.material[0]:o.material; o.material=new THREE.MeshBasicMaterial({map:base==null?(src.map||null):tfxHue(src.map,base),side:THREE.DoubleSide}); o.userData.shared=true; o.userData.noOL=true; o.frustumCulled=false; } });
+  root.updateMatrixWorld(true); const box=new THREE.Box3().setFromObject(root), sz=box.getSize(new THREE.Vector3()), ctr=box.getCenter(new THREE.Vector3()); const sc=size/Math.max(floor?Math.max(sz.x,sz.z):Math.max(sz.x,sz.y,sz.z),1e-6);
+  const inner=new THREE.Group(); inner.add(root); inner.scale.setScalar(sc); inner.position.set(-ctr.x*sc,floor?-box.min.y*sc:-ctr.y*sc,-ctr.z*sc); const w=new THREE.Group(); w.add(inner); return w; }   // a ring is centred; a burst stands on the floor
+function tfxLoad(){ if(TFXP) return; const get=f=>fetchBytes(ASSET(f),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(g=>g.scene||g.scenes[0]);
+  TFXP=Promise.all([get('trimaw-ring.glb'),get('trimaw-burst.glb')]).then(([ring,burst])=>{ const bases={fire:null,frost:190,venom:95}; for(const H of TM.heads){ const b=bases[H.name]; TRV[H.name]={ring:tfxMake(ring,.95,b,false),burst:tfxMake(burst,2.4,b,true)}; } }).catch(e=>console.warn('trimaw fx',e)); }
+function tfxRing(H){ const T=TRV[H.name]; if(!T) return ringMesh(H.col); const g=new THREE.Group(); g.add(T.ring.clone(true)); g.add(glow(H.col,.8,.3)); return g; }
+function tfxBurst(h,H){ const T=TRV[H.name]; if(!T||!h) return; const m=T.burst.clone(true); m.position.set(h.x,h.y||0,h.z); m.rotation.y=rnd()*TAU; m.scale.setScalar(.001); scene.add(m); if(TB.length>40){ const o=TB.shift(); scene.remove(o.m); } TB.push({m,t:0,life:.55}); }
+function tfxUpdate(dt){ if(trimawWorn()) tfxLoad(); for(let i=TB.length-1;i>=0;i--){ const b=TB[i]; b.t+=dt; const k=b.t/b.life; if(k>=1){ scene.remove(b.m); TB.splice(i,1); continue; } b.m.scale.setScalar(Math.max(.001,k<.3?.25+.75*(k/.3):1-(k-.3)/.7)); } }
 function trimawFire(e){ fam.kick=1; const tg=[e,...extraTargets(e,2)]; const [x,y,z]=muzzle();
   TM.heads.forEach((H,i)=>{ const t=tg[i]||e; const dx=t.x-x, dy=t.y+t.h*.5-y, dz=t.z-z; const d=Math.hypot(dx,dy,dz)||1, h2=Math.hypot(dx,dz)||1; const off=(i-1)*.24;
-    const mesh=ringMesh(H.col); mesh.position.set(x-dz/h2*off,y+(i===1?.12:0),z+dx/h2*off); mesh.lookAt(mesh.position.x+dx,mesh.position.y+dy,mesh.position.z+dz); scene.add(mesh);
+    const mesh=tfxRing(H); mesh.position.set(x-dz/h2*off,y+(i===1?.12:0),z+dx/h2*off); mesh.lookAt(mesh.position.x+dx,mesh.position.y+dy,mesh.position.z+dz); scene.add(mesh);
     famShots.push({x:mesh.position.x,y:mesh.position.y,z:mesh.position.z,vx:dx/d*TM.speed,vy:dy/d*TM.speed,vz:dz/d*TM.speed,g:0,t:0,mesh,spin:9,trail:true,trailCol:H.col,land:(s,h)=>{ if(!h) return; const dm=dmgOf(H.mul); famHurt(h,dm,s.vx/TM.speed*.3,s.vz/TM.speed*.3,H.name==='frost'?{slow:TM.slow}:undefined);
       if(!h.puppet){ if(H.name==='fire') burn(h,TM.burn); else if(H.name==='frost') h.slowT=Math.max(h.slowT||0,TM.slow); else { h.poisonT=TM.poisonT; h.poisonDmg=dmgOf(TM.poisonDmg); } h.markT=TM.markT; }
-      TM.hits++; famLand(h.x,h.z,dm); } }); });
+      TM.hits++; tfxBurst(h,H); famLand(h.x,h.z,dm); } }); });
   TM.fired++; }
 { const prev=famFire; famFire=function(e){ if(trimawWorn()){ trimawFire(e); return; } return prev(e); }; }
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); statusUpdate(dt); }; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); statusUpdate(dt); tfxUpdate(dt); }; }
 // the reward: holding Throne Room survival wave 50 (winMap) drops Trimaw by the crystal, once -- never if you already own it. Solo/host only.
 function trimawReward(){ const M=window.__mythic; if(!M||!M.NAMED||!M.NAMED.trimaw||isGuest()) return false; const has=M.has('trimaw')||Meta.bag().some(b=>b&&M.id(b)==='trimaw')||((Meta.armory&&Meta.armory())||[]).some(b=>b&&M.id(b)==='trimaw'); if(has) return false;
   const it=M.normalize({tier:'named',named:'trimaw',lvl:Math.max(1,effWave())}); if(!it) return false; it.from='dungeon-hold'; const pic=window.__mythicDrops&&window.__mythicDrops.art&&window.__mythicDrops.art(it); if(pic) it.art=pic;
   dropLoot(it,R(-1.6,1.6),4.6,true); floatText(0,2.6,4.6,'✦ TRIMAW ✦ the magma hydra','#ff7ade'); toast('Trimaw, the magma hydra, fell by the crystal — pick it up'); return true; }
 { const prev=winMap; winMap=function(){ const r=prev.apply(this,arguments); if(SURVIVAL&&MAPI===1) trimawReward(); return r; }; }   // Throne Room (index 1) survival's fiftieth wave
-window.__trimaw={worn:trimawWorn,fired:()=>TM.fired,hits:()=>TM.hits,reward:trimawReward,cfg:TM,fire:e=>{ if(!trimawWorn()||!e) return false; trimawFire(e); return true; }};
+window.__trimaw={shotMeshes:()=>famShots.map(s=>s.mesh),fxLoaded:()=>!!(TRV.fire&&TRV.frost&&TRV.venom),bursts:()=>TB.length,ringReal:()=>{ const g=tfxRing(TM.heads[0]); let real=false; g.traverse(o=>{ if(o.geometry&&o.geometry.type!=='TorusGeometry'&&o.isMesh) real=true; }); return real; },worn:trimawWorn,fired:()=>TM.fired,hits:()=>TM.hits,reward:trimawReward,cfg:TM,fire:e=>{ if(!trimawWorn()||!e) return false; trimawFire(e); return true; }};
 })();
