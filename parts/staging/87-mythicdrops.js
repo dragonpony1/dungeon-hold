@@ -23,7 +23,7 @@ const GOLDC='#ffcf3a';
 // a mythic's card picture: Matt's art, which ships inside the game with the embedded hideout (dist/hideout/…). it.art is
 // the game's own per-item picture override (93-gearsets.js itemArt → the bag, the shop, the sheet); the weapon's kind
 // rides in it.look (sword/staff/polearm/bow). No bow pictures yet, no familiar ones: those keep the slot's emoji.
-const PICS='hideout/assets/hideout/items/', NAMED_PIC={hourglass_of_hollow_sand:'hourglass_hollow_sand',subterfuge:null};   // null: no picture yet (build 170's Subterfuge) -- its card keeps the weapon emoji, its floor shows the bow
+const PICS='hideout/assets/hideout/items/', NAMED_PIC={hourglass_of_hollow_sand:'hourglass_hollow_sand'};   // null: no picture yet (build 170's Subterfuge) -- its card keeps the weapon emoji, its floor shows the bow
 function mythicArt(it){ if(!it) return null; if(it.named){ const f=NAMED_PIC[it.named]; return f===null?null:PICS+'named/'+(f||it.named)+'.jpg'; } if(!it.setId) return null;
   const piece=it.slot==='weapon'?(it.look==='bow'?null:(it.look||'sword')):{armor:'armor',amulet:'amulet',charm:'trinket'}[it.slot];
   return piece?PICS+'sets/'+it.setId+'-'+piece+'.jpg':null; }

@@ -54,7 +54,12 @@ function makeBolt(K,nocked){ loadArrow(); if(AGLB) return realArrow(nocked); mat
 // build 214: Matt's own Electric Arrow (parts/assets/subterfuge-arrow.glb, 1K) replaces the code-built bolt once it has loaded -- fetched the
 // first time a Subterfuge is built (equipped, or standing on the floor), never before; the bolt above stays the stand-in until then
 let AGLB=null, AP=null;
-function loadArrow(){ if(AGLB||AP) return; AP=fetchBytes(ASSET('subterfuge-arrow.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ try{
+// build 219: Matt's "Chain Lightning Impact" -- his VFX picture, its grey levelled to black (parts/assets/fx-chain-impact.jpg) so
+// additive blending shows only the lightning; a quick flash that swells and fades on every mob the lightning reaches
+let IMPACT=null;
+function impactTex(){ if(!IMPACT){ IMPACT=new THREE.TextureLoader().load(ASSET('fx-chain-impact.jpg')); IMPACT.encoding=THREE.sRGBEncoding; } return IMPACT; }
+function impactSprite(pos,size){ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:impactTex(),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,rotation:rnd()*TAU})); s.position.copy(pos); s.scale.setScalar(size*.45); s.userData.noOL=true; s.userData.size=size; return s; }
+function loadArrow(){ impactTex(); if(AGLB||AP) return; AP=fetchBytes(ASSET('subterfuge-arrow.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ try{
     const root=gltf.scene||gltf.scenes[0]; root.updateMatrixWorld(true); const box=new THREE.Box3().setFromObject(root); const size=box.getSize(new THREE.Vector3()), ctr=box.getCenter(new THREE.Vector3());
     const sc=1/Math.max(size.x,1e-6); const spin=new THREE.Group(); spin.name='subArrowSpin'; spin.add(root); root.scale.setScalar(sc); root.position.set(-ctr.x*sc,-ctr.y*sc,-ctr.z*sc);   // one unit head to tail, centred; each arrow scales it to its own length
     toonify(root,sc*1.4); root.traverse(o=>{ if(o.isMesh&&!o.userData.isOL&&o.material&&o.material.map){ o.material.emissive=new THREE.Color(0xffffff); o.material.emissiveMap=o.material.map; o.material.emissiveIntensity=.9; } });   // lightning lights itself: its own icy blues glow through the hall's warm torchlight instead of going grey
@@ -69,8 +74,9 @@ function arrowTick(g,dt){ const sp=g.getObjectByName('subArrowSpin'); if(sp){ sp
 const FX=[]; let CHAINS=0, LAST=null, DRAWN=0;
 function zap(a,b,delay,first){ const g=new THREE.Group(); g.visible=false; const core=basic(0xf4fbff,{transparent:true,depthWrite:false}), sh=basic(0x2f86ff,{transparent:true,opacity:.8,depthWrite:false,blending:THREE.AdditiveBlending});
   const n=6; let p=a.clone(); for(let i=1;i<=n;i++){ const q=i===n?b.clone():a.clone().lerp(b,i/n); if(i<n){ q.x+=(rnd()-.5)*.45; q.y+=(rnd()-.5)*.35; q.z+=(rnd()-.5)*.45; } const c=new THREE.Mesh(SEG,core), s=new THREE.Mesh(SEG,sh); c.userData.noOL=s.userData.noOL=true; place(c,p,q,first?.026:.02); place(s,p,q,first?.1:.08); g.add(c,s); p=q; }
-  const fl=glow(0x3f90ff,1.4,.9); fl.position.copy(b); g.add(fl); scene.add(g); FX.push({g,core,sh,fl,t:-delay,life:.34}); }
-function fxTick(dt){ for(let i=FX.length-1;i>=0;i--){ const f=FX[i]; f.t+=dt; if(f.t<0) continue; f.g.visible=true; const k=1-f.t/f.life; if(k<=0){ scene.remove(f.g); f.core.dispose(); f.sh.dispose(); f.fl.material.dispose(); FX.splice(i,1); continue; }
+  const fl=glow(0x3f90ff,1.4,.9); fl.position.copy(b); g.add(fl); const sp=impactSprite(b,first?1.7:1.35); g.add(sp); scene.add(g); FX.push({g,core,sh,fl,sp,t:-delay,life:.34}); }
+function fxTick(dt){ for(let i=FX.length-1;i>=0;i--){ const f=FX[i]; f.t+=dt; if(f.t<0) continue; f.g.visible=true; const k=1-f.t/f.life; if(k<=0){ scene.remove(f.g); f.core.dispose(); f.sh.dispose(); f.fl.material.dispose(); if(f.sp) f.sp.material.dispose(); FX.splice(i,1); continue; }
+    if(f.sp){ const u=Math.min(1,f.t/(f.life*.3)); f.sp.scale.setScalar(f.sp.userData.size*(.45+.55*u)); f.sp.material.opacity=Math.min(1,k*1.4); }
     const fl=k>.5||Math.sin(f.t*90)>0; f.core.opacity=(fl?1:.35)*k; f.sh.opacity=.8*k; f.fl.material.opacity=.9*k; } }   // it flickers as it fades
 const mid=e=>V(e.x,e.y+(e.h||1.2)*.55,e.z);
 function draw(segs){ DRAWN++; segs.forEach((s,i)=>zap(V(s[0],s[1],s[2]),V(s[3],s[4],s[5]),i*CH_STAGGER,i===0)); if(segs.length){ noise(.12,.06,3400); beep(1800,.08,'sawtooth',.02,-1200); } }
@@ -81,7 +87,7 @@ function chain(e0,dmg,owner){ const hitList=[e0], segs=[], hits=[]; let cur=e0;
   draw(segs);
   if(owner&&window.__net&&window.__net.role&&window.__net.role()==='host') window.__net.send('powerFx',{k:'chain',s:segs},owner);   // a guest's page has no real mobs to chain across: show it the bolts its arrow threw
   return hits; }
-function onHit(a,e){ if(a.chained) return; a.chained=true; const f=glow(0x5aa8ff,1.1,.9); f.position.copy(mid(e)); scene.add(f); FX.push({g:f,core:{dispose(){}},sh:{dispose(){}},fl:f,t:0,life:.18}); chain(e,a.dmg,a.owner); }   // only the first mob an arrow meets throws a chain (a full draw's pierce hits don't)
+function onHit(a,e){ if(a.chained) return; a.chained=true; const g=new THREE.Group(), f=glow(0x5aa8ff,1.1,.9); f.position.copy(mid(e)); g.add(f); const sp=impactSprite(mid(e),1.25); g.add(sp); scene.add(g); FX.push({g,core:{dispose(){}},sh:{dispose(){}},fl:f,sp,t:0,life:.26}); chain(e,a.dmg,a.owner); }   // only the first mob an arrow meets throws a chain (a full draw's pierce hits don't)
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); fxTick(dt); }; }
 // ---------------------------------------------------------------- the bow
 const K={name:'Subterfuge',tier:5,len:1.04,wood:SB.wood,dark:SB.leather,band:SB.steel,glow:SB.glow,tips:'crystal',gem:SB.gem,motes:3,recurve:true,litString:true,
