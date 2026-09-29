@@ -150,15 +150,15 @@ window.__bramble={on:brambleOn,sprout:(x,z,dmg)=>brambleSprout(x,z,dmg,false),li
 // lowest priority (no tier argument -- build 201's lesson from the pig bosses: never make a real-gameplay fetch
 // tier wait behind something purely decorative), so an early Wisp hit or two may land silent until it's in.
 let wispBurstGLB=null, wispBurstP=null;
-function loadWispBurst(){ if(wispBurstGLB||wispBurstP) return; wispBurstP=fetchBytes(ASSET('fam-wisp-burst.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ const root=gltf.scene||gltf.scenes[0]; root.traverse(o=>{ if(o.isMesh&&o.material){ o.material.transparent=true; o.material.depthWrite=false; } }); wispBurstGLB=root; }).catch(e=>console.warn('wisp burst model',e)); }
+function loadWispBurst(){ if(wispBurstGLB||wispBurstP) return; wispBurstP=fetchBytes(ASSET('fam-wisp-burst.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ const root=gltf.scene||gltf.scenes[0]; root.traverse(o=>{ if(o.isMesh&&o.material){ const m=o.material; m.transparent=true; m.depthWrite=false; if(m.map){ m.emissive=new THREE.Color(0xffffff); m.emissiveMap=m.map; m.emissiveIntensity=.6; } } }); /* build 218: lit by its own colours (not blown out additively) instead of the hall's dim torchlight */ wispBurstGLB=root; }).catch(e=>console.warn('wisp burst model',e)); }
 // build 204 fix (loadorder-test.mjs/throneload-test.mjs both caught this): calling loadWispBurst() unconditionally at
 // module load fetched it for every single player, whether or not they ever touch a Wisp -- same mistake as the pig
 // bosses' first draft, just smaller. ensureFam('Wisp') (this file, above) already only fetches the base Wisp model
 // once a Wisp is actually equipped; the burst now rides the same real trigger instead of its own eager one.
 const wispBursts=[];
 function wispBurst(x,z){ if(!wispBurstGLB) return; const m=wispBurstGLB.clone(true); m.position.set(x,1.1,z); m.rotation.y=rnd()*TAU; m.scale.setScalar(.001); m.userData.noOL=true; scene.add(m); wispBursts.push({m,t:0}); }
-function wispBurstUpdate(dt){ for(let i=wispBursts.length-1;i>=0;i--){ const b=wispBursts[i]; b.t+=dt; const life=.35, k=b.t/life;
-    const s=k<.4?(k/.4)*.55:.55*(1-(k-.4)/.6); b.m.scale.setScalar(Math.max(.001,s)); b.m.rotation.y+=dt*4;
+function wispBurstUpdate(dt){ for(let i=wispBursts.length-1;i>=0;i--){ const b=wispBursts[i]; b.t+=dt; const life=.6, k=b.t/life;   // build 218: .35 s at .55 read as a flicker -- Matt hadn't noticed it at all
+    const s=k<.35?(k/.35)*.75:.75*(1-(k-.35)/.65); b.m.scale.setScalar(Math.max(.001,s)); b.m.rotation.y+=dt*4;
     if(k>=1){ scene.remove(b.m); wispBursts.splice(i,1); } } }
 { const prevLand=famLand; famLand=function(x,z,dmg){ prevLand(x,z,dmg); if(trueWisp()) wispBurst(x,z); }; }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); wispBurstUpdate(dt); if(trueWisp()){ loadWispBurst(); loadWispProjectile(); } }; }   // kindOf() defaults to 'Wisp' with no pet equipped at all (its own no-familiar fallback) -- checking fam directly avoids re-making the exact eager-fetch mistake this block exists to fix
@@ -174,9 +174,11 @@ let wispProjGLB=null, wispProjP=null;
 function loadWispProjectile(){ if(wispProjGLB||wispProjP) return; wispProjP=fetchBytes(ASSET('fam-wisp-projectile.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ try{
       const root=gltf.scene||gltf.scenes[0]; root.updateMatrixWorld(true);
       const box=new THREE.Box3().setFromObject(root); const size=box.getSize(new THREE.Vector3()), ctr=box.getCenter(new THREE.Vector3());
-      const sc=.4/Math.max(size.x,size.y,size.z,1e-6);
+      const sc=.5/Math.max(size.x,size.y,size.z,1e-6);
       const inner=new THREE.Group(); inner.add(root); inner.scale.setScalar(sc); inner.position.set(-ctr.x*sc,-ctr.y*sc,-ctr.z*sc);
-      toonify(root,sc); const w=new THREE.Group(); w.add(inner); wispProjGLB=w;
+      toonify(root,sc); root.traverse(o=>{ if(o.isMesh&&!o.userData.isOL&&o.material&&o.material.map){ o.material.emissive=new THREE.Color(0xffffff); o.material.emissiveMap=o.material.map; o.material.emissiveIntensity=.9; } });
+      { const ol=[]; root.traverse(o=>{ if(o.userData.isOL) ol.push(o); }); ol.forEach(o=>o.parent.remove(o)); }   // build 218: self-lit, no ink -- on its thin swirls the outline read as a black scribble (same fix as Subterfuge's arrow)
+      const w=new THREE.Group(); w.add(inner); wispProjGLB=w;
     }catch(e){ console.warn('wisp projectile model',e); } }).catch(e=>console.warn('wisp projectile model',e)); }
 { const prevBoltMesh=famBoltMesh; famBoltMesh=function(col){ if(trueWisp()&&wispProjGLB){ const b=new THREE.Group(); const m=wispProjGLB.clone(true); m.userData.noOL=true; b.add(m); b.add(glow(col,.75,.9)); return b; } return prevBoltMesh(col); }; }
 })();
