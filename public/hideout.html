@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="68">
+<meta name="hideout-build" content="69">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -59,6 +59,8 @@ canvas{display:block}
 .fgear .fsub{font-size:0.7em;margin-top:2px;opacity:0.9}
 #forgeSets{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
 #forgeSets .fsetlabel{flex-basis:100%;font-size:0.8em;letter-spacing:0.05em;color:#d8a878;font-style:italic}
+#forgeSets .fdots{display:inline-flex;gap:3px;margin-left:7px;vertical-align:middle}#forgeSets .fdots i{width:8px;height:8px;border-radius:50%;border:1.5px solid currentColor;display:inline-block;box-sizing:border-box;opacity:.75}#forgeSets .fdots i.on{background:currentColor;opacity:1}
+.fgear .fhave{position:absolute;top:4px;left:4px;font:bold 15px/20px sans-serif;width:22px;height:22px;border-radius:50%;text-align:center;background:#000c}.fgear .fhave.have{color:#7aee7a}.fgear .fhave.miss{color:#ff9a5a}
 .fset{cursor:pointer;font-family:inherit;font-size:0.8em;font-weight:bold;color:#e8c9a0;background:#241811;border:2px solid #6b3a1a;border-radius:14px;padding:4px 11px}
 .fset:hover{filter:brightness(1.15)}.fset.sel{background:#5a2a10;color:#fff2c0;box-shadow:0 0 10px #ff8c33aa}
 #coopBar{position:fixed;top:8px;left:50%;transform:translateX(-50%);background:#000b;color:#cfe;font:13px monospace;padding:6px 14px;border-radius:14px;border:1px solid #5ac;z-index:12;display:none;pointer-events:none;white-space:nowrap}
@@ -268,7 +270,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 68;   // build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 69;   // build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -2496,9 +2498,23 @@ let forgeSelected = null, forgeWasActive = false;
 let forgeSet = null;   // the set id being rolled for, or null for a random one
 const forgeCost = () => FORGE_COST + (forgeSet ? PICK_EXTRA : 0);
 
+// build 69 (Matt: "when i go to the forge i need to pick what piece i am going for, but i cant remember what part of my set i am missing"): what you own of every set -- written by the game (dd_owned_sets,
+// game build 298: worn by this hero or another, in the bag, in the armory) plus what this hideout holds that it forged -- by the game's slot names. The standalone page has no game: only its own.
+const OWN_KEY = 'dd_owned_sets';
+const OWN_SLOTS = [['weapon','weapon','Weapon'], ['armor','armor','Armor'], ['trinket','charm','Charm'], ['amulet','amulet','Amulet'], ['familiar','familiar','Familiar']];   // forge key, game slot, word
+const OWN_WHERE = { worn:'worn', wornOther:'worn by another hero', bag:'in your bag', armory:'in the armory', hideout:'here in the hideout' };
+function ownedSets() {
+  let o = null; try { o = JSON.parse(localStorage.getItem(OWN_KEY)); } catch (e) {}
+  const src = (o && o.sets) || {}, out = {};
+  for (const st of MYTHIC_SETS) out[st.id] = Object.assign({}, src[st.tail] || {});
+  const recs = slotArrays().flat().filter(v => isGearItem(v) && v.kind === 'forged').map(v => v.rec).concat(SAVE.gear);
+  for (const r of recs) if (r && r.set && r.slot && out[r.set] && !out[r.set][r.slot]) out[r.set][r.slot] = 'hideout';
+  return out;
+}
 function buildForgeGrid() {
   const grid = document.getElementById('forgeGearGrid');
   grid.innerHTML = '';
+  const setOwn = forgeSet ? (ownedSets()[forgeSet] || {}) : null;
   Object.keys(MYTHIC_GEAR).forEach(key => {
     const g = MYTHIC_GEAR[key];
     const owned = SAVE.gear.filter(x => x.type === key).length // waiting list + everything in your slots
@@ -2509,9 +2525,11 @@ function buildForgeGrid() {
     const show = forgeShowcase(key);
     el.innerHTML = '<img class="swatch" data-cat="'+key+'" data-i="0" style="transition:opacity .22s" src="'+show[0]+'">'
       + (owned ? '<span style="position:absolute;top:4px;right:4px;background:#000c;color:#ffcf8a;font:bold 11px monospace;border-radius:4px;padding:1px 5px">x'+owned+'</span>' : '')
+      + (setOwn ? (setOwn[GAME_SLOT[key]] ? '<span class="fhave have">✓</span>' : '<span class="fhave miss">✗</span>') : '')
       + '<div class="fname">'+g.name+'</div>';
     el.onclick = () => { forgeSelected = (forgeSelected === key) ? null : key; buildForgeGrid(); };
-    attachTooltip(el, 'Target: ' + g.name + (owned ? ' (you own ' + owned + ')' : ''));
+    const setNote = setOwn ? (setOwn[GAME_SLOT[key]] ? ' · this set: you have one (' + (OWN_WHERE[setOwn[GAME_SLOT[key]]] || 'owned') + ')' : ' · this set: MISSING') : '';
+    attachTooltip(el, 'Target: ' + g.name + (owned ? ' (you own ' + owned + ')' : '') + setNote);
     grid.appendChild(el);
   });
   renderForgePanel();
@@ -2548,10 +2566,17 @@ function renderForgePanel() {
 // the set row: "Any set" (the base cost) and the nine forge sets (each PICK_EXTRA more a try); picking the same one again puts it back to random
 function buildForgeSets() {
   const row = document.getElementById('forgeSets'); row.innerHTML = '';
-  const label = document.createElement('div'); label.className = 'fsetlabel'; label.textContent = 'Roll for a set: +' + PICK_EXTRA + ' sludge a try'; row.appendChild(label);
+  const label = document.createElement('div'); label.className = 'fsetlabel'; label.textContent = 'Roll for a set: +' + PICK_EXTRA + ' sludge a try · ● a piece you have'; row.appendChild(label);
+  const own = ownedSets();
   const mk = (id, text, color) => {
     const b = document.createElement('button'); b.className = 'fset' + ((forgeSet || null) === id ? ' sel' : ''); b.textContent = text; if (color) b.style.borderColor = color;
-    b.onclick = () => { forgeSet = id && forgeSet !== id ? id : null; renderForgePanel(); const out = document.getElementById('forgeOutput'); if (!out.className) out.textContent = forgeOddsText(); };
+    if (id) {   // build 69: a dot per slot, filled where you have that set's piece -- the gaps are what you are missing
+      const o = own[id] || {}, dots = document.createElement('span'); dots.className = 'fdots'; dots.style.color = color || '#ffb347';
+      dots.innerHTML = OWN_SLOTS.map(([k, s]) => '<i class="' + (o[s] ? 'on' : '') + '"></i>').join(''); b.appendChild(dots);
+      const have = OWN_SLOTS.filter(([k, s]) => o[s]).map(([k, s, w]) => w + ' (' + (OWN_WHERE[o[s]] || 'owned') + ')'), miss = OWN_SLOTS.filter(([k, s]) => !o[s]).map(([k, s, w]) => w);
+      attachTooltip(b, text + ' — ' + (have.length ? 'you have: ' + have.join(', ') : 'none yet') + (miss.length ? ' · missing: ' + miss.join(', ') : ' · the whole set!'));
+    }
+    b.onclick = () => { forgeSet = id && forgeSet !== id ? id : null; buildForgeGrid(); const out = document.getElementById('forgeOutput'); if (!out.className) out.textContent = forgeOddsText(); };
     row.appendChild(b); };
   mk(null, 'Any set'); MYTHIC_SETS.filter(s => !s.offForge).forEach(s => mk(s.id, s.tail, s.color));
 }
@@ -2835,7 +2860,15 @@ document.addEventListener('keydown', e => {
   if (k === 'r' && dropGhost) { dropGhostRy += Math.PI/6; }
   if (k === 'i' && active) openGearPanel();
   if (k === 't' && active) HD.tradeKey();
+  if (k === 'b' && active) openHallBag();
 });
+// build 69 (Matt: "while in the hideout you need to be able to see what you have on ... why cant b for bag just work in the hide out"): B asks the game to open its own bag (the tavern's, with what every
+// slot has on, salvage into the Cauldron and the forge on each card) over this page (game build 298, 96g-hideoutbag.js). The standalone page has no game around it: B opens the I panel there.
+function openHallBag() {
+  if (window.parent === window) { openGearPanel(); return; }
+  if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
+  try { window.parent.postMessage('hideout:bag', '*'); } catch (e) {}
+}
 document.addEventListener('keyup', e => { keys[keyName(e)]=false; });
 canvas.addEventListener('click', () => {
   if (document.pointerLockElement !== canvas) return;
@@ -2884,6 +2917,12 @@ window.addEventListener('message', (e) => {
     rewardBannerShown = false; refreshRewardsFresh();
     pollDroppedGear();
     document.getElementById('start').style.display = 'flex';
+  } else if (e.data === 'hideout:scrap') {   // build 69: gear salvaged from the game's bag while we are up: the Cart's scrap is re-read now, so nothing here writes an old count over it
+    Object.assign(BAG, loadBag());
+    if (document.getElementById('cauldronWrap').style.display === 'flex') buildCauldronRows();
+  } else if (e.data === 'hideout:bagClosed') {   // build 69: the game's bag (B) closed: a click steps back in
+    lastT = performance.now();
+    if (!document.pointerLockElement) document.getElementById('start').style.display = 'flex';
   }
 });
 function animate(now) {
