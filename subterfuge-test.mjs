@@ -18,7 +18,7 @@ const t=await P.evaluate(()=>{ const M=window.__mythic, N=M.NAMED.subterfuge; co
     hands:{bow:window.__named.model(it,"bow"),sword:window.__named.model(it,"sword"),staff:window.__named.model(it,"staff")}}; });
 check("Subterfuge is in the named table: a weapon with mythic stats and a power",!!(t.N&&t.N.slot==="weapon"&&t.N.stats.dmg>0&&/five|5/.test(t.N.power)),JSON.stringify(t.N));
 check("it normalizes (from its id and from its name) to a rarity-5 named weapon with the table's stats",t.it&&t.it.name==="Subterfuge"&&t.it.rarity===5&&t.it.named==="subterfuge"&&t.it.stats.dmg===t.N.stats.dmg&&t.it.power&&t.byName==="subterfuge"&&t.id==="subterfuge",JSON.stringify(t));
-check("it's in the named drop pool (twelve now: build 258 added 6/7) and its card shows Matt's picture (build 219: named/subterfuge.jpg, hideout build 38)",t.inPool&&t.pool===12&&/named\/subterfuge\.jpg$/.test(t.it.art||"")&&typeof t.card==="string"&&/<img/.test(t.card),JSON.stringify({pool:t.pool,art:t.it.art,card:t.card}));
+check("it's in the named drop pool (thirteen now: build 258 added 6/7, build 266 Gabriel's Charm) and its card shows Matt's picture (build 219: named/subterfuge.jpg, hideout build 38)",t.inPool&&t.pool===13&&/named\/subterfuge\.jpg$/.test(t.it.art||"")&&typeof t.card==="string"&&/<img/.test(t.card),JSON.stringify({pool:t.pool,art:t.it.art,card:t.card}));
 check("the Troll's bow hand holds bow-subterfuge; the Knight holds the top sword (holy), a staff hand the top staff (staff-battle)",t.hands.bow==="bow-subterfuge"&&t.hands.sword==="holy"&&t.hands.staff==="staff-battle",JSON.stringify(t.hands));
 
 // ---- the Troll wearing it

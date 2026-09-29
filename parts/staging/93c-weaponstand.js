@@ -30,6 +30,7 @@ const NAMED_REAL={
   trimaw:{file:'named-trimaw.glb',h:.85,lift:.6},
   wardens_oath:{file:'named-wardens_oath.glb',h:.8,lift:.65},
   hourglass_of_hollow_sand:{file:'named-hourglass_of_hollow_sand.glb',h:.9,lift:.6},
+  gabriels_charm:{file:'named-gabriels_charm.glb',h:.95,lift:.6},   // build 266
 };
 // build 226 (Matt: the new bat "is perfect when equipped but it didn't show on the floor or in the hideout"): a plain familiar drop was the generic loot shape -- the pet models only ever
 // loaded once one was EQUIPPED (85-familiars.js). Every kind stands as its own model now, through this same loader: fam_<kind> -> the pet's own file, so a re-made pet updates here for free
@@ -47,7 +48,7 @@ function modelFor(it){ if(!it) return null; if(it.named&&NAMED_REAL[it.named]) r
   const W=window.__weapons;
   if(it.forceLook) return it.forceLook==='staff'&&window.__staff?window.__staff.staffFor(it):it.forceLook==='bow'&&window.__bow?window.__bow.bowFor(it):W.swordFor(it);   // dev-panel-only field (74-devpanel.js): lets Matt preview a set's bow/staff/sword look on the floor regardless of which hero he's actually playing -- a real drop never carries this, so every other weapon still tracks the current hero exactly as before
   const hm=W.mount&&W.mount(); return hm&&hm.staff&&window.__staff?window.__staff.staffFor(it):hm&&hm.bow&&window.__bow?window.__bow.bowFor(it):W.swordFor(it); }
-function colours(it){ const named=it.named||(window.__named&&window.__named.id(it)); if(named==='subterfuge'||named==='sixseven') return [0x4aa8ff,GOLD]; if(named) return [GOLD,named==='rootsplitter'?0x7aff3a:0xfff2c0];   // named: a gold column; Rootsplitter's motes half green; Subterfuge a storm-blue column with gold motes (build 170). it.named itself (set regardless of slot) catches Bramblewhisk and future non-weapon named mythics that window.__named.id() never will
+function colours(it){ const named=it.named||(window.__named&&window.__named.id(it)); if(named==='subterfuge'||named==='sixseven') return [0x4aa8ff,GOLD]; if(named==='gabriels_charm') return [0x7fd8ff,0xffffff]; if(named) return [GOLD,named==='rootsplitter'?0x7aff3a:0xfff2c0];   // named: a gold column; Rootsplitter's motes half green; Subterfuge a storm-blue column with gold motes (build 170). it.named itself (set regardless of slot) catches Bramblewhisk and future non-weapon named mythics that window.__named.id() never will
   const k=window.__setweapons.setOf(it), K=k&&window.__staff&&window.__staff.info(k); const c=K&&K.glow!=null?K.glow:RCOL[Math.max(0,Math.min(5,it.rarity|0))]; return [c,K&&K.gem!=null?K.gem:0xffffff]; }
 function heightFor(name){ const nr=name.startsWith('named-')&&NAMED_REAL[name.slice(6)]; return nr?nr.h:/^bow-/.test(name)?1.4:/^(polearm-|staff-|named-last|named-sixseven)/.test(name)?1.75:1.4; }   // world units, foot to tip (the Knight is 1.7): a sword or a bow a bit under his height, a polearm or staff just over it -- the pictures from the game's camera read small any shorter
 function stand(l,it){ const name=modelFor(it); if(!name) return null;
