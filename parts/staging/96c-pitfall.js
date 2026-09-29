@@ -11,7 +11,7 @@ DEFKEYS.push('pit'); DEFKEY_LABELS.push('4');
 { const cfg=DEFS.pit; const s=document.createElement('div'); s.className='slot'; s.id='slot-pit';
   s.innerHTML='<div class="k">4</div><div class="ic">'+cfg.ic+'</div><div class="n">'+cfg.name+'</div><div class="cst">🌱 '+cfg.du+' · '+cfg.mana+' ◆</div>';
   s.addEventListener('click',()=>select('pit')); $('hotbar').appendChild(s); }
-{ const w=HEROES.find(h=>h.id==='witch'); if(w&&!w.unlocks.includes('pit')) w.unlocks.push('pit'); }
+{ const w=HEROES.find(h=>h.id==='witch'); if(w){ w.unlocks=w.unlocks.filter(k=>k!=='slice'); if(!w.unlocks.includes('pit')) w.unlocks.push('pit'); } }   // build 230: the Mycelium Cage is gone from the game; Pitfall is the Witch's third tower (70-hero2.js lists it there too)
 NOWALK_DEF.pit=1;   // mobs walk straight over it and never attack it (the Cage and the Perch get the same treatment)
 const BOSS=new Set(['trollboss','cyclops','pigflail','pigdagger','pigsling']), BIG=new Set(['ogre']);
 const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');

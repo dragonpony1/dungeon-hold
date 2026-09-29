@@ -10,6 +10,8 @@ await page.evaluate(()=>{ const d=window.__dd; d.start(); d.step(1/60,20); windo
 // the tower exists for the Witch: a hotbar slot and a definition
 const meta=await page.evaluate(()=>({def:!!window.__dd.DEFS&&!!window.__dd.DEFS.pit||!!window.__pit.cfg,slot:!!document.getElementById("slot-pit"),unlocks:window.__heroes.unlocks(),can:window.__heroes.canUse("pit"),cfg:window.__pit.cfg}));
 check("Pitfall is one of the Witch's towers (hotbar slot, unlocked for her, not for the others)",meta.slot&&meta.unlocks.includes("pit")&&meta.can,JSON.stringify({slot:meta.slot,unlocks:meta.unlocks}));
+const cageSlot=await page.evaluate(()=>{ const el=document.getElementById("slot-slice"); return !el||el.style.display==="none"; });
+check("the Mycelium Cage is gone: the Witch has exactly Frost Spire, Turnip Trebuchet and Pitfall (Pitfall on key 3) and the Cage's hotbar slot is hidden",JSON.stringify(meta.unlocks)===JSON.stringify(["frost","ball","pit"])&&cageSlot,JSON.stringify({unlocks:meta.unlocks,cageSlotHidden:cageSlot}));
 const place=await page.evaluate(()=>{ const d=window.__dd; d.S.phase="build"; const before=d.defs.length; d.placeDefAt("pit",0,12,0); const t=d.defs.find(x=>x.kind==="pit"); return {placed:d.defs.length-before,ok:!!t,lvl:t&&t.lvl,x:t&&t.x,z:t&&t.z}; });
 check("it can be placed like any tower",place.placed===1&&place.ok,JSON.stringify(place));
 const run=await page.evaluate(async()=>{ const d=window.__dd, P=window.__pit; const t=d.defs.find(x=>x.kind==="pit"); d.enemies.slice().forEach(e=>{ e.dead=1; }); d.enemies.length=0; d.S.phase="wave"; d.setHero(0,5,0); d.step(1/60,10);

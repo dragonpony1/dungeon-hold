@@ -96,20 +96,28 @@ const LV={r:2,life:4.2,tick:.5,mul:.42,linger:2.4,cap:8}; const LAVA=[]; let lav
 function lavaTexture(){ if(lavaMap) return lavaMap; const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d'); const r=g.createRadialGradient(64,64,4,64,64,62); r.addColorStop(0,'#fff3a8'); r.addColorStop(.22,'#ffb02e'); r.addColorStop(.55,'#ff5a12'); r.addColorStop(.82,'#a3200acc'); r.addColorStop(1,'#3a0e0800'); g.fillStyle=r; g.fillRect(0,0,128,128);
   for(let i=0;i<14;i++){ const a=rnd()*TAU, d=14+rnd()*36; g.fillStyle='rgba(40,8,2,'+(.25+rnd()*.3)+')'; g.beginPath(); g.ellipse(64+Math.cos(a)*d,64+Math.sin(a)*d,3+rnd()*7,2+rnd()*5,rnd()*PI,0,TAU); g.fill(); }   // dark crust flecks on the molten surface
   lavaMap=new THREE.CanvasTexture(c); lavaMap.encoding=THREE.sRGBEncoding; return lavaMap; }
+// build 230: Matt's own Molten Lava Drop (a meteor of lava that falls from the Imp onto the mob) and Molten Lava Pool (the ring of dark rock and flames round the molten floor). Fetched once an Imp is worn; until then (or if they fail) the plain pool appears at once as before.
+const LFX={drop:null,pool:null,loading:null}, LDROP=[];
+function lavaLoad(){ if(LFX.loading) return; const get=f=>fetchBytes(ASSET(f),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(g=>g.scene||g.scenes[0]);
+  LFX.loading=Promise.all([get('fam-imp-lavadrop.glb'),get('fam-imp-lavapool.glb')]).then(([d,pl])=>{ LFX.drop=tfxMake(d,1.15,null,false); LFX.pool=tfxMake(pl,LV.r*2*.98,null,true); }).catch(e=>console.warn('imp lava models',e)); }
+function lavaDrop(x0,y0,z0,x,z,y){ if(!LFX.drop){ lavaPool(x,z,y); return; } const m=LFX.drop.clone(true); m.position.set(x0,y0,z0); scene.add(m); LDROP.push({m,x0,y0,z0,x,z,y:y||0,t:0,dur:.3}); }
+function lavaDropUpdate(dt){ for(let i=LDROP.length-1;i>=0;i--){ const d=LDROP[i]; d.t+=dt; const k=Math.min(1,d.t/d.dur), q=k*k; d.m.position.set(lerp(d.x0,d.x,q),lerp(d.y0,d.y+.6,q),lerp(d.z0,d.z,q)); d.m.rotation.y+=dt*6; d.m.scale.setScalar(.8+.5*k);
+    if(k>=1){ scene.remove(d.m); LDROP.splice(i,1); lavaPool(d.x,d.z,d.y); } } }
 function lavaPool(x,z,y){ if(LAVA.length>=LV.cap){ const o=LAVA.shift(); scene.remove(o.g); o.disc.material.dispose(); o.glow.material.dispose(); o.embers.forEach(m=>m.material.dispose()); }
   const g=new THREE.Group(); g.position.set(x,(y||0)+.04,z); const disc=new THREE.Mesh(new THREE.CircleGeometry(LV.r,40),new THREE.MeshBasicMaterial({map:lavaTexture(),transparent:true,depthWrite:false,opacity:0})); disc.rotation.x=-PI/2; disc.userData.noOL=true; disc.renderOrder=2; g.add(disc);
   const gl=glow(0xff7a20,LV.r*1.9,.5); gl.position.y=.35; g.add(gl); const embers=[]; for(let i=0;i<6;i++){ const m=glow(0xffb040,.5,.8); m.userData={a:rnd()*TAU,r:rnd()*LV.r*.8,ph:rnd()}; g.add(m); embers.push(m); }
-  scene.add(g); LAVA.push({g,disc,glow:gl,embers,x,z,t:0,tk:0}); beep(150,.22,'sawtooth',.05,-40); noise(.1,.04,2200); }
-function lavaUpdate(dt){ for(let i=LAVA.length-1;i>=0;i--){ const p=LAVA[i]; p.t+=dt; if(p.t>=LV.life){ scene.remove(p.g); p.disc.material.dispose(); p.glow.material.dispose(); p.embers.forEach(m=>m.material.dispose()); LAVA.splice(i,1); continue; }
-    const fin=Math.min(1,p.t/.25), fout=Math.min(1,(LV.life-p.t)/.9), k=Math.min(fin,fout), pulse=1+Math.sin(p.t*7)*.04; p.disc.material.opacity=k*.95; p.disc.scale.setScalar((.55+.45*fin)*pulse); p.glow.material.opacity=.5*k*(.85+.15*Math.sin(p.t*11));
+  let rim=null; if(LFX.pool){ rim=LFX.pool.clone(true); g.add(rim); }
+  scene.add(g); LAVA.push({g,disc,glow:gl,embers,rim,x,z,t:0,tk:0}); beep(150,.22,'sawtooth',.05,-40); noise(.1,.04,2200); }
+function lavaUpdate(dt){ if(fam&&kindOf()==='Fire Imp') lavaLoad(); lavaDropUpdate(dt); for(let i=LAVA.length-1;i>=0;i--){ const p=LAVA[i]; p.t+=dt; if(p.t>=LV.life){ scene.remove(p.g); p.disc.material.dispose(); p.glow.material.dispose(); p.embers.forEach(m=>m.material.dispose()); LAVA.splice(i,1); continue; }
+    const fin=Math.min(1,p.t/.25), fout=Math.min(1,(LV.life-p.t)/.9), k=Math.min(fin,fout), pulse=1+Math.sin(p.t*7)*.04; p.disc.material.opacity=k*.95; p.disc.scale.setScalar((.55+.45*fin)*pulse*(p.rim?.96:1)); if(p.rim){ const rs=.6+.4*fin; p.rim.scale.set(rs,rs*(.35+.65*fout),rs); p.rim.position.y=-(1-fout)*.3; }   // the rock rim sinks and flattens as the pool cools p.glow.material.opacity=.5*k*(.85+.15*Math.sin(p.t*11));
     for(const m of p.embers){ const u=(p.t*.55+m.userData.ph)%1; m.position.set(Math.cos(m.userData.a+p.t*.6)*m.userData.r,.15+u*1.2,Math.sin(m.userData.a+p.t*.6)*m.userData.r); m.material.opacity=.8*(1-u)*k; m.scale.setScalar(.35+(1-u)*.35); }
     p.tk+=dt; if(p.tk>=LV.tick&&p.t>.2){ p.tk-=LV.tick; for(const m of nearMobs(p.x,p.z,LV.r,null)){ if((m.lavaT||-9)>S.t-LV.tick*.85) continue; m.lavaT=S.t; famHurt(m,dmgOf(LV.mul),0,0,{burn:LV.linger,burnDmg:dmgOf(.25)}); burn(m,{burn:LV.linger,burnDmg:.25}); } } } }   // one tick per mob per interval however many pools it stands in: overlapping pools do not stack
-window.__lava={pools:()=>LAVA.length,cfg:LV,drop:(x,z)=>lavaPool(x,z,0),clear:()=>{ while(LAVA.length){ const o=LAVA.pop(); scene.remove(o.g); } }};
+window.__lava={pools:()=>LAVA.length,drops:()=>LDROP.length,models:()=>!!(LFX.drop&&LFX.pool),cfg:LV,drop:(x,z)=>lavaPool(x,z,0),clear:()=>{ while(LAVA.length){ const o=LAVA.pop(); scene.remove(o.g); } }};
 function swoopUpdate(dt){ if(!swoop||!fam) return; const w=swoop; w.t+=dt/w.dur; const e=w.e; if(e.dead&&w.t<.5){ w.t=.5; }
   const k=Math.sin(Math.min(1,w.t)*PI);   // 0 → 1 (at the mob) → 0 (back on the shoulder)
   const tx=e.dead?w.x0:e.x, ty=e.dead?w.y0:(w.lava?e.y+e.h+.85:e.y+e.h*.7), tz=e.dead?w.z0:e.z; const px=lerp(fam.x,tx,k), py=lerp(fam.y,ty,k)+Math.sin(w.t*PI)*.3, pz=lerp(fam.z,tz,k);
   fam.g.position.set(px,py,pz); fam.g.rotation.y=Math.atan2((w.t<.5?tx:fam.x)-px,(w.t<.5?tz:fam.z)-pz); fam.g.rotation.x=(w.t<.5?.5:-.35)*k;
-  if(w.lava&&!w.bit&&w.t>=.5){ w.bit=true; if(!e.dead) lavaPool(e.x,e.z,e.y||0); }
+  if(w.lava&&!w.bit&&w.t>=.5){ w.bit=true; if(!e.dead) lavaDrop(fam.g.position.x,fam.g.position.y-.1,fam.g.position.z,e.x,e.z,e.y||0); }
   else if(!w.bit&&w.t>=.5&&!e.dead){ w.bit=true; famHurt(e,dmgOf(K().dmg),Math.sin(fam.g.rotation.y)*.6,Math.cos(fam.g.rotation.y)*.6); famLand(e.x,e.z,dmgOf(K().dmg)); const nb=heroStat('fproj')|0; if(nb>0) for(const m of nearMobs(e.x,e.z,1.6,e).slice(0,nb)) famHurt(m,dmgOf(K().dmg*.7),0,0); SFX.hit(); fx((g,mt)=>{ const p=glow(0xffe0a0,1.2,.8); p.position.set(e.x,e.y+e.h*.7,e.z); g.add(p); },.2); }
   if(w.t>=1){ swoop=null; fam.g.rotation.x=0; } }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(fam){ swoopUpdate(dt); } lavaUpdate(dt); famShotsUpdate(dt); famFxUpdate(dt); burnUpdate(dt); }; }

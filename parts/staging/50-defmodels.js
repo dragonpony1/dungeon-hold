@@ -63,7 +63,7 @@ function ensureDefMark(kind,lvl){ const list=DEF_LAZY[kind]; if(!list) return fa
 defMarks('harpoon','ballista');   // Mark I..IV; Mark V keeps the tier-4 look
 defMarks('spike','hedge');   // the bramble hedge (Meshy) Mark I..IV; Mark V keeps the tier-4 look (hedge-1 is the hedge every mark used to share; II-IV are the player's T2-T4 cut to one 1024 px base-colour map, all toonify() reads)
 defMarks('acorn','cannon');   // the acorn cannon (Meshy) Mark I..IV; Mark V keeps the tier-4 look
-defMarks('slice','cage');   // the Mycelium Cage (the player's Meshy set, build 148) Mark I..IV; Mark V keeps the tier-4 look. cage-3 is the unnumbered 'Trap' file
+// (build 230: the Mycelium Cage tower is gone from the game -- its Mark IV art became the Heartroot, heartroot.glb -- so its Mark I..IV files are no longer requested)
 defMarks('totem','totem');   // the rune totem (Meshy) Mark I..IV; Mark V keeps the tier-4 look
 defMarks('frost','frost');   // the Frost Spire: the player's four cold towers (build 150; the earlier frost-N files were runed pillars that read as rune totems) Mark I..IV; Mark V keeps the tier-4 look
 defMarks('ball','trebuchet');   // the Turnip Trebuchet: the player's four Meshy trebuchets, wood / iron / steel / gold as Marks I..IV (build 150); Mark V keeps the gold

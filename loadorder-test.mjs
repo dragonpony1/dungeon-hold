@@ -19,7 +19,7 @@ const t0=Date.now(); const started=[], finished=[]; const sleep=ms=>new Promise(
 page.on("request",r=>{ const u=r.url().replace(BASE,''); if(/\.glb\.txt$/.test(u)) started.push({u,t:Date.now()-t0}); });
 page.on("requestfinished",r=>{ const u=r.url().replace(BASE,''); if(/\.glb\.txt$/.test(u)) finished.push({u,t:Date.now()-t0}); });
 const name=u=>u.replace(/^\/assets\//,'').replace(/\.[0-9a-f]{8}\.glb\.txt$/,'');
-const isFirst=u=>/^(gnome|knight|witch|fighter|squire|ninja|crystal|sword-[a-z]+)$/.test(name(u));
+const isFirst=u=>/^(gnome|knight|witch|fighter|squire|ninja|crystal|heartroot|sword-[a-z]+)$/.test(name(u));
 const isSoon=u=>/^(goblin|ballista-1|hedge-1|cannon-1|cage-1|trebuchet-1|totem-1|frost-1|snare-1|aura-[a-z]+|acorn|ballista-bolt|raven|hideout-portal)$/.test(name(u));
 const isLater=u=>/^(orc|ogre|bandit|trollmob|trollboss|drake|smith)$/.test(name(u));
 const isLazy=u=>/^(armor-stand-|fam-|(ballista|hedge|cannon|cage|trebuchet|totem|frost|snare)-[234]$)/.test(name(u));
@@ -35,7 +35,7 @@ check("the hero model landed",/hero: /.test(await page.evaluate(()=>document.get
 // let the whole startup stream settle: no new request for 3s (or 90s cap)
 for(let i=0,last=-1,quiet=0;i<360&&quiet<12;i++){ await sleep(250); if(started.length===last) quiet++; else { quiet=0; last=started.length; } }
 const firstThree=started.slice(0,3);
-check("the first three requests are the hero, the crystal and the sword in hand, in some order",firstThree.length===3&&firstThree.every(s=>isFirst(s.u))&&firstThree.some(s=>/crystal/.test(s.u))&&firstThree.some(s=>/sword-/.test(s.u)),JSON.stringify(firstThree.map(s=>name(s.u))));
+check("the first three requests are the hero, the Heartroot and the sword in hand, in some order",firstThree.length===3&&firstThree.every(s=>isFirst(s.u))&&firstThree.some(s=>/crystal|heartroot/.test(s.u))&&firstThree.some(s=>/sword-/.test(s.u)),JSON.stringify(firstThree.map(s=>name(s.u))));
 const firstDone=Math.max(...firstThree.map(s=>(finished.find(f=>f.u===s.u)||{t:Infinity}).t));
 const firstOther=started.find(s=>!isFirst(s.u));
 check("nothing else is even requested until all three have finished downloading",!!firstOther&&firstDone<Infinity&&firstOther.t>=firstDone,JSON.stringify({firstDone,firstOther:firstOther&&{n:name(firstOther.u),t:firstOther.t}}));

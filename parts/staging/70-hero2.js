@@ -11,7 +11,7 @@
 // the Gnome Ranger now -- meshy/ranger merged his walk/run/archery clips into ranger.glb with a bow mount in the left hand. The id stays
 // 'troll' so saves, per-hero gear, his unlocks, Subterfuge, the Volley and the Archer's Perch all carry straight over.
 const HEROES=[
-  {id:'witch', name:'GNOME BATTLE WITCH',sub:'a battle staff that shoots · bolts reach 18',glb:'witch.glb',label:'Gnome Battle Witch (Meshy)',reach:18,unlocks:['frost','ball','slice']},
+  {id:'witch', name:'GNOME BATTLE WITCH',sub:'a battle staff that shoots · bolts reach 18',glb:'witch.glb',label:'Gnome Battle Witch (Meshy)',reach:18,unlocks:['frost','ball','pit']},
   {id:'troll', name:'GNOME RANGER',sub:'a longbow · arrows reach 24',glb:'ranger.glb',label:'Gnome Ranger (Meshy)',reach:24,unlocks:['acorn','snare','venom']},   // doubled from 9/12: both targeting range and projectile flight distance derive from reach (83-bow.js, 82-staff.js), so this doubles how far a ranged hero can actually engage, not just how far the bolt visually flies
   {id:'knight',name:'GNOME KNIGHT',sub:'sword and shield-arm · the hall\'s keeper',glb:'knight.glb',label:'Gnome Knight (Meshy)',reach:2.4,unlocks:['harpoon','spike','totem']},
   {id:'fighter',name:'GNOME FIGHTER',sub:'a battle staff that shoots · bolts reach 18',glb:'fighter.glb',label:'Gnome Fighter (Meshy)',reach:18,unlocks:['zap','venom','ember','dazzle']}];   // build 164 (Matt: "whichever hero has the aura halos needs to have all 4"): the Fighter is the halo hero -- the Venom Halo joins the other three (keys 1-4); the Troll keeps his too, rather than drop to a single ground tower
