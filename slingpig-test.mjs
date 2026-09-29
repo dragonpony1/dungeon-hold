@@ -23,5 +23,9 @@ const t=await page.evaluate(()=>{ const d=window.__dd; for(const e of d.enemies)
   const lane=Object.keys(d.lanes())[0]; const p=d.spawn("pigsling",lane); let t=0; for(let i=0;i<60*40;i++){ d.setHero(-60,-60,0); d.step(1/60,1); t+=1/60; if(d.status().crystal<c0) break; }
   const out={ t:+t.toFixed(1), crystal0:c0, crystal1:d.status().crystal, alive:!p.dead }; d.kill(p); return out; });
 check("with no hero in sight it walks its lane and throws at the Heartroot from range",t.crystal1<t.crystal0,JSON.stringify(t));
+const w=await page.evaluate(()=>{ const d=window.__dd; for(const e of d.enemies) d.kill(e); d.step(1/60,5); d.setHero(3,6,0); const lane=Object.keys(d.lanes())[0]; const p=d.spawn("pigsling",lane); p.x=-9; p.z=6; let start=null, rel=null, maxSw=0, t=0;
+  for(let i=0;i<60*8&&rel===null;i++){ const b=d.status().projs; d.setHero(3,6,0); d.step(1/60,1); t+=1/60; if(p.swing>=0&&start===null) start=t; if(p.swing>maxSw) maxSw=p.swing; if(start!==null&&d.status().projs>b) rel=t; }
+  const out={ windUp:rel!==null&&start!==null?+(rel-start).toFixed(2):null, maxSwing:+maxSw.toFixed(2) }; d.kill(p); return out; });
+check("build 288 (Matt: it never could actually swing it around): the throw plays out -- a wind-up of about 2.25 s before the bomb leaves, the attack about 3 s long (was 0.4)",w.windUp>=2&&w.windUp<=2.5,JSON.stringify(w));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");

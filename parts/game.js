@@ -722,7 +722,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=287;
+const BUILD=288;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -868,7 +868,7 @@ function ogreRoar(e,n){ e.roar=n; e.shoutT=e.mdl.actions.shout.getClip().duratio
   else floatText(e.x,e.y+e.h+.6,e.z,'RAAAGH!','#ff9a5a'); }
 function mobAnim(e,dt){ const m=e.mdl, A=m.actions; let st; if(e.dead) st='death'; else if(e.shoutT>0&&A.shout) st='shout'; else if(e.swing>=0&&A.attack) st='attack'; else if(e.walking) st='walk'; else st='idle';
   if(st==='shout'){ if(m.cur!==A.shout) mobPlay(m,'shout',{restart:true,fade:.1,speed:SHOUT_SPEED}); }
-  else if(st==='attack'){ if(m.cur!==A.attack) mobPlay(m,'attack',{restart:true,fade:.06,speed:A.attack.getClip().duration/.45}); }
+  else if(st==='attack'){ if(m.cur!==A.attack) mobPlay(m,'attack',{restart:true,fade:.06,speed:A.attack.getClip().duration/((MOBS[e.kind]&&MOBS[e.kind].swingT)||.45)}); }   // build 288: a mob with its own swingT plays its whole attack clip over it
   else if(st==='death'){ if(A.death){ if(m.cur!==A.death) mobPlay(m,'death',{restart:true,fade:.08}); } else mobPlay(m,'idle',{fade:.1}); }
   else if(st==='walk'){ const nat=MOBDIM[e.kind].nat, hs=mobSpd(e)/e.h; const useRun=A.run&&A.run!==A.walk&&Math.abs(hs-nat.run)<Math.abs(hs-nat.walk); const k=useRun?'run':(A.walk?'walk':'run'); if(A[k]){ A[k].timeScale=Math.max(.7,hs/(useRun?nat.run:nat.walk)); mobPlay(m,k,{fade:.15}); } }
   else mobPlay(m,'idle',{fade:.2});
@@ -900,7 +900,7 @@ function hurt(e,dmg,kx,kz){ if(e.dead) return; e.hp-=dmg; e.squash=1; floatText(
 function kill(e){ e.dead=.001; S.kills++; spawnOrbs(e.x,e.z,e.mana); rollDrop(e); Meta.onKill(e); if(e.kind==='ogre'||e.kind==='orc'||e.kind==='drake'||e.kind==='troll'||e.kind==='trollboss') SFX.bigDie(); else SFX.die(); }
 function attack(e,tg){ e.swing=0; e.pending=tg; }
 function landHit(e,tg){
-  if(tg.kind==='hero'){ if(tg.ranged) fireArrow(e,tg.hero.x,(tg.hero.y||0)+1,tg.hero.z,{kind:'hero'}); else if(!tg.hero.isDead()) tg.hero.hurt(e.dmg); }
+  if(tg.kind==='hero'){ if(tg.ranged){ const H=tg.hero.hurt===hurtHero?hero:tg.hero; fireArrow(e,H.x,(H.y||0)+1,H.z,{kind:'hero'}); } else if(!tg.hero.isDead()) tg.hero.hurt(e.dmg); }
   else if(tg.kind==='crystal'){ if(tg.ranged) fireArrow(e,tg.x||0,2.6,tg.z||0,{kind:'crystal',which:tg.which}); else hurtCrystal(e.dmg,e,tg.which); }
   else if(tg.kind==='def'){ const d=tg.obj; if(!defs.includes(d)) return; if(tg.ranged) fireArrow(e,d.x,1.0,d.z,{kind:'def',obj:d}); else { hurtDef(d,e.dmg); if(d.kind==='spike'&&!e.dead){ hurt(e,thornsBack(d,e.dmg),0,0); thornSpark(e); } } } }
 // the hedge's thorns (build 163, Matt: "I want the bramble barrier tower to return damage, like thorn damage"): each melee hit it takes
@@ -928,7 +928,7 @@ function updateEnemies(dt){
       if(e.fly){ e.y=Math.max(baseFloor(e.x,e.z),e.y-9*dt); g.position.y=e.y; g.rotation.z+=dt*2.5; }   // a dead flyer drops
       if(e.mdl.glb){ mobAnim(e,dt); const t=e.dead-.9; if(t>0){ const s=Math.max(0,1-t/.35)*e.sc; g.scale.setScalar(Math.max(s,.001)); g.position.y=e.y-(1-s)*.4; } if(e.dead>1.25){ scene.remove(g); enemies.splice(i,1); } continue; }
       const s=Math.max(0,1-e.dead/.3)*e.sc; g.scale.set(s*1.3,s*.6,s*1.3); if(e.dead>.3){ scene.remove(g); enemies.splice(i,1); } continue; }
-    e.pop=Math.min(1,e.pop+dt*3); e.atk-=dt; e.slowT=Math.max(0,(e.slowT||0)-dt); if(e.holdT>0) e.holdT-=dt; if(e.crawlT>0) e.crawlT-=dt; if(e.lanternT>0) e.lanternT-=dt; e.chillT=Math.max(0,(e.chillT||0)-dt); if(!e.chillT) e.chillK=1; if(e.swing>=0){ e.swing+=dt; if(e.pending&&e.swing>=.2){ const tg=e.pending; e.pending=null; landHit(e,tg); } if(e.swing>.4) e.swing=-1; }
+    e.pop=Math.min(1,e.pop+dt*3); e.atk-=dt; e.slowT=Math.max(0,(e.slowT||0)-dt); if(e.holdT>0) e.holdT-=dt; if(e.crawlT>0) e.crawlT-=dt; if(e.lanternT>0) e.lanternT-=dt; e.chillT=Math.max(0,(e.chillT||0)-dt); if(!e.chillT) e.chillK=1; if(e.swing>=0){ e.swing+=dt; const MSW=MOBS[e.kind]||{}; if(e.pending&&e.swing>=(MSW.hitT||.2)){ const tg=e.pending; e.pending=null; landHit(e,tg); } if(e.swing>(MSW.swingT||.4)) e.swing=-1; }
     if(e.lift>0) e.lift=Math.max(0,e.lift-dt*1.4);   // the cage's lift, a look only: the mob's real y (its floor) is untouched
     if(e.poisonT>0){ e.poisonT-=dt; e.poisonTick=(e.poisonTick||0)-dt; if(e.poisonTick<=0){ e.poisonTick=.5; hurt(e,e.poisonDmg*.5,0,0); } } e.confuseT=Math.max(0,(e.confuseT||0)-dt);   // the venom halo's lingering DOT (keeps ticking after a mob leaves the ring) and the dazzling halo's wander timer
     let target=null;
