@@ -11,7 +11,7 @@
 (function(){
 window.__courtdecor={info:()=>null,loaded:()=>false};
 if(!MAP||MAP.id!=='court') return;
-const HEDGE=T.WATER, H_HEDGE=1.2, H_BED=.2, TREE_H=36;
+const HEDGE=T.WATER, H_HEDGE=1.2, H_BED=.2, TREE_H=30.6;   // build 283 (Matt: "just decrease its size by 15%"): 36 -> 30.6
 // ---- the layout, as drawn (H2): one half; the other is the same turned 180 degrees about the court's centre
 const HALF={ rooms:[[29,34,12,19],[19,24,19,24]], paths:[{p:[[8,7],[7,7]],w:3},{p:[[6,7],[6,35],[26,35],[26,15],[29,15]]},{p:[[24,21],[26,21]]}], nooks:[[9,10,11,13],[9,10,20,22],[12,14,32,33],[23,24,31,33],[27,28,25,27]] };
 const inCourt=(x,z)=>x>=5&&x<=38&&z>=5&&z<=38;
