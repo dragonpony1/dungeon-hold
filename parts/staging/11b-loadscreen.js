@@ -3,7 +3,7 @@
 // its one background (19b/20b) faded in behind it whenever its model landed. Now a full screen stands over the title from the first moment:
 //   * THE ROTATION: the title's 3D backgrounds (the Draconic Fire Bow, the Wisp's projectile, the Fire Imp, the Storm Drake, the Trimaw, the 6/7), a new one every ROT_S seconds, each slowly spinning on black
 //     under a spotlight with its name beneath it (20b-titlestage.js's look). Each is fetched when its turn is near (fetchBytesNow: straight away, and not counted in the percentage -- it is the screen's own dressing).
-//   * A LINE that changes every SAY_S seconds: fun sayings and tips (mine), and QUOTES about the game from Matt's family and his employer -- Matt's own words, filled in only as he sends them (never made up).
+//   * A LINE that changes every SAY_S seconds (build 279, Matt: "make those tips stay just 1-2 seconds longer": 7 s, was 5.5): fun sayings and tips (mine), and QUOTES about the game from Matt's family and his employer -- Matt's own words, filled in only as he sends them (never made up).
 //   * A PROGRESS BAR: the share of every file the game has asked for that has landed (game.js LOADQ: asked/got, every tier, a failure counts as done so one bad file never holds the door).
 //   * It stays until that share reaches 90% (and at least MIN_MS, so a cached visit still shows a line), then fades to the title. My call: once the essentials are in (the 'soon' tier: the hero, the hall, the
 //     first mobs) a small "press any key to skip" appears, so a slow phone line never traps anyone; and a file that hangs can never hold it past the 'soon' tier plus 45 s.
@@ -13,7 +13,7 @@
 const FORCE=Q.has('loadscreen');
 window.__loadscreen={on:()=>false,frac:()=>1,line:()=>'',next:()=>{},model:()=>null,closed:()=>true,sayings:()=>[],quotes:()=>[]};
 if(!HAS_ASSETS||(navigator.webdriver&&!FORCE)) return;
-const MIN_MS=3500, ROT_S=6.5, SAY_S=5.5, GOAL=.9, HANG_MS=45000;
+const MIN_MS=3500, ROT_S=6.5, SAY_S=7, GOAL=.9, HANG_MS=45000;
 const MODELS=[{file:'bow-fire.glb',name:'DRACONIC FIRE BOW',sub:'',spin:.32},{file:'fam-wisp-projectile.glb',name:'WISP PROJECTILE',sub:'',spin:.4},{file:'fam-imp.glb',name:'FIRE IMP',sub:'',spin:.36},
   {file:'fam-drake.glb',name:'STORM DRAKE',sub:'',spin:.34},{file:'named-trimaw.glb',name:'TRIMAW',sub:'named mythic',spin:.3},{file:'named-sixseven.glb',name:'6/7',sub:'named mythic',spin:.3}];
 const SAYINGS=[
