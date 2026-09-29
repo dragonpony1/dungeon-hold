@@ -716,7 +716,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=242;
+const BUILD=244;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1224,7 +1224,7 @@ function dropLoot(it,x,z,gentle){ const a=LR()*TAU, sp=gentle?.6:2.2; const l={i
 // the wave-clear reward (a staging module may reshape it: 97b-setgate.js makes the Throne Room's wave 7 reward a set piece 80% of the time)
 function waveRewardItem(){ return rollItem(effWave()%5===0?2:1); }
 function rollDrop(e){ const ch=DROP[e.kind]||0; if(LR()<ch) dropLoot(rollItem(e.kind==='ogre'?(effWave()>=6?2:1):0),e.x,e.z); if(e.kind==='ogre'&&LR()<.5) dropLoot(rollItem(1),e.x,e.z); }
-function lootToast(it,verb){ $('toast').innerHTML='<b style="color:'+RCSS[it.rarity]+'">'+it.name+'</b> · '+statStr(it)+' — '+verb; $('toast').style.opacity=1; toastT=3.4; }
+function lootToast(it,verb){ $('toast').innerHTML='<b style="color:'+RCSS[it.rarity]+'">'+it.name+'</b> · '+(it.procd&&window.__procHtml?window.__procHtml(statStr(it)):statStr(it))+' — '+verb; $('toast').style.opacity=1; toastT=3.4; }
 function applyGear(){ const oldMax=hero.max; hero.max=Math.round((100+heroStat('hp'))*heroMult('hp')); if(hero.max>oldMax) hero.hp+=hero.max-oldMax; hero.hp=Math.min(hero.hp,hero.max); }
 function saveGear(){ try{ localStorage.setItem('ddGear',JSON.stringify(gear)); }catch(e){} }
 function loadGear(){ try{ const g=JSON.parse(localStorage.getItem('ddGear')); if(g&&typeof g==='object'){ for(const s of SLOTS){ const it=g[s]; if(it&&it.stats&&SLOTS.includes(it.slot)&&it.rarity>=0&&it.rarity<=4) gear[s]=it; } } }catch(e){} applyGear(); hero.hp=hero.max; }

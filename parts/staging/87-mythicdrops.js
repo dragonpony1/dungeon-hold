@@ -24,6 +24,7 @@ const GOLDC='#ffcf3a';
 // build 241 (Matt: the higher-end pieces are rare on purpose and "when one drops a sound comes with it, it's an attention grabber, so you want to stop and go look"): a mythic or a named mythic
 // landing gets a rising four-note fanfare, LOUDER than an ordinary drop chime, and a tall beam of light over it for eight seconds (set-pack pieces already have their own chime and column, 93-gearsets.js)
 let FANCY=0; const fancySynth=named=>{ const g=named?1.25:1; beep(523,.55,'triangle',.2*g,0); setTimeout(()=>beep(659,.55,'triangle',.2*g,0),120); setTimeout(()=>beep(784,.65,'triangle',.22*g,0),240); setTimeout(()=>beep(1047,1.4,'sine',.26*g,0),380); setTimeout(()=>beep(1568,1.1,'sine',.09*g,0),400); if(named){ setTimeout(()=>beep(262,1.6,'sine',.2,0),380); } noise(.18,.05,5200); };
+SFX.fancySynth=fancySynth;
 SFX.fancy=named=>{ FANCY++; if(SFX.fancySample&&SFX.fancySample(!!named)) return; fancySynth(named); };
 const BEAMS=[], BEAM_GEO=new THREE.CylinderGeometry(.16,.36,9,14,1,true);
 function dropBeam(x,z,col){ const m=new THREE.Mesh(BEAM_GEO,new THREE.MeshBasicMaterial({color:C(col),transparent:true,opacity:.5,side:THREE.DoubleSide,depthWrite:false})); m.position.set(x,4.5,z); m.userData.noOL=true; scene.add(m); BEAMS.push({m,t:0}); }

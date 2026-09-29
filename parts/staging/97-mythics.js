@@ -33,7 +33,8 @@ function has(id){ for(const s of SLOTS){ const it=gear[s]; if(it&&it.named&&myth
 function normalize(rec){ if(!rec||typeof rec!=='object') return null; const it={id:rec.id||Math.floor(Math.random()*1e9).toString(36),name:String(rec.name||'Mythic piece'),slot:rec.slot,rarity:Number.isFinite(+rec.rarity)?+rec.rarity:5,lvl:Math.max(1,+rec.lvl||10),stats:{},value:0,mythic:true,from:'hideout'};
   if(!SLOTS.includes(it.slot)){ const k=mythicId(rec); if(k) it.slot=NAMED[k].slot; else return null; }
   const st=(rec.stats&&typeof rec.stats==='object')?rec.stats:{}; for(const k in st){ const v=+st[k]; if(Number.isFinite(v)&&STATL[k]) it.stats[k]=v; }
-  const k=mythicId(rec); if(rec.tier==='named'||(rec.named&&k)){ if(!k) return null; it.named=k; it.name=NAMED[k].name; it.slot=NAMED[k].slot; it.stats=Object.assign({},NAMED[k].stats); it.rarity=5; it.power=NAMED[k].power; }
+  const k=mythicId(rec); if(rec.tier==='named'||(rec.named&&k)){ if(!k) return null; it.named=k; it.name=NAMED[k].name; it.slot=NAMED[k].slot; it.stats=Object.assign({},NAMED[k].stats); it.rarity=5; it.power=NAMED[k].power;
+    if(rec.procd){ const pk=Object.keys(it.stats)[0]; if(pk){ it.stats[pk]=Math.round(it.stats[pk]*1.35*10)/10; it.primary=pk; it.procd=true; } } }   // build 243: PROC'D GEAR (97c-procd.js): only the hideout's forge sets rec.procd; the primary stat is the first of the named table's stats, +35%
   // build 154/157: the set id and the weapon's kind ride along, so the hand shows the set's own weapon. A forged record calls
   // them set and art (art = sword/staff/polearm there); a game item that went to the hideout and came back calls them setId
   // and look, and its art is already a picture path

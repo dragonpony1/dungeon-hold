@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="50">
+<meta name="hideout-build" content="51">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -134,6 +134,7 @@ canvas{display:block}
 #chestBody{padding:10px 20px 14px;overflow-y:auto}
 #chestBody .isection{color:#c8a878}
 #chestBody .islot{border-color:#7a5a2a;background:#150e08}
+.procstat{color:#ffd24a;font-family:'Cinzel Decorative',Georgia,serif;font-weight:900;text-shadow:0 0 6px #ffb02e99;letter-spacing:.5px}
 #tradeWrap{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:21}
 #tradePanel{position:relative;width:min(640px,95vw);max-height:92vh;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px #000a;font-family:Georgia,'Times New Roman',serif;background:linear-gradient(#10222c,#08131a);border:3px solid #3a8aa5}
 #tradeHeader{background:linear-gradient(#17394a,#0c2130);padding:12px 20px 8px;text-align:center;border-bottom:3px solid #5ac}
@@ -262,7 +263,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 50;
+const HIDEOUT_BUILD = 51;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -906,6 +907,9 @@ const NAMED_MYTHICS = {
 const STAT_LABEL = { dmg:v=>'+'+v+' dmg', spd:v=>'+'+v+'% swing', hp:v=>'+'+v+' hp', def:v=>'+'+v+'% armor', regen:v=>'+'+v+' hp/s',
   tow:v=>'+'+v+'% defenses', mana:v=>'+'+v+'% mana', move:v=>'+'+v+'% speed', fdmg:v=>v+' pet dmg', frate:v=>'+'+v+'% pet rate',
   trate:v=>'+'+v+'% defense speed', tarea:v=>'+'+v+'% defense range', fproj:v=>'+'+v+' pet projectile'+(v===1?'':'s') };
+function statHtml(stats, primary) {   // like statText, HTML: the primary stat gold with its own font (proc'd gear)
+  return stats && typeof stats === 'object' ? Object.entries(stats).map(([k, v]) => { const t = esc(STAT_LABEL[k] ? STAT_LABEL[k](v) : k + ' ' + v); return k === primary ? '<span class="procstat">' + t + '</span>' : t; }).join(', ') : '';
+}
 function statText(stats) {
   return stats && typeof stats === 'object' ? Object.entries(stats).map(([k, v]) => STAT_LABEL[k] ? STAT_LABEL[k](v) : k + ' ' + v).join(', ') : '';
 }
@@ -1558,8 +1562,8 @@ function pieceFromForged(g) {
   const stats = statText(g.stats);
   const N = g.tier === 'named' && NAMED_MYTHICS[g.named];
   if (N) return { kind:'forged', key:'f:'+g.id, id:g.id, type:g.type, tier:'named', name:N.name,
-    icon: N.art || catIcon, color:'#ffcf3a', label: N.name, desc: N.name + ' (Named Mythic ' + word + ')', sub:'Named Mythic',
-    tip: N.name + ' — Named Mythic ' + word + (stats ? ' · ' + stats : '') + ' · Power: ' + N.power + ' · “' + N.lore + '”', named3d: NAMED_3D.has(g.named) ? g.named : null, payload: g };
+    icon: N.art || catIcon, color:'#ffcf3a', label: N.name, desc: N.name + ' (' + (g.procd ? "Proc'd " : '') + 'Named Mythic ' + word + ')', sub: g.procd ? "Proc'd gear · Named Mythic" : 'Named Mythic', procd: !!g.procd,
+    tip: N.name + ' — ' + (g.procd ? "PROC'D GEAR (+35% primary stat) · " : '') + 'Named Mythic ' + word + (stats ? ' · ' + stats : '') + ' · Power: ' + N.power + ' · “' + N.lore + '”', named3d: NAMED_3D.has(g.named) ? g.named : null, payload: g };
   const set = g.set && MYTHIC_SETS.find(s => s.id === g.set);
   if (set) {
     // the set's CURRENT name ending, so a piece forged before a set was renamed reads the same as a new one
@@ -2043,7 +2047,7 @@ function toGameItem(v) {
   const r = v.rec;
   return Object.assign({ id: r.id, name: pieceFromForged(r).label, slot: r.slot || GAME_SLOT[r.type] || 'weapon',
     rarity: r.rarity ?? MYTHIC_RARITY, lvl: r.lvl || FORGE_LVL, stats: r.stats || {}, tier: r.tier,
-    set: r.set || null, named: r.named || null, art: r.art || null }, stamp);
+    set: r.set || null, named: r.named || null, art: r.art || null, procd: !!r.procd, primary: r.primary || null }, stamp);
 }
 function sendToHall(arr, i) {
   const v = arr[i];
@@ -2384,6 +2388,7 @@ document.addEventListener('keydown', e => {
 // (Matt's number, "start at about 6%" — tune freely). Otherwise FORGE_SUCCESS_CHANCE makes a mythic set piece, and
 // the rest fail and lose the sludge.
 const FORGE_COST = 5, FORGE_SUCCESS_CHANCE = 0.35, NAMED_PROC_CHANCE = 0.06;
+const PROCD_MULT = 1.35;   // build 51: what the forge's proc makes is PROC'D GEAR: a named mythic with +35% on its primary stat (the first stat of its table), a golden glow on the wearer in the game, and a fanfare
 const FORGE_LVL = 10; // placeholder item level for forged gear until the game says what a forged piece's level should be
 // mythic-tier stat values: the game's rollStat at rarity 5, level 10 (parts/game.js) — placeholders the game can rebalance
 const MYTHIC_STAT = { dmg:24, spd:45, hp:156, def:24, regen:4.5, tow:41, mana:65, move:20, fdmg:35, frate:63, trate:20, tarea:18 };
@@ -2411,8 +2416,12 @@ function namedRecord(type) {
   const pool = fresh.length ? fresh : ids;
   const id = pool[Math.floor(Math.random() * pool.length)];
   const N = NAMED_MYTHICS[id];
-  return { id: crypto.randomUUID(), type, slot: GAME_SLOT[type], tier: 'named', rarity: MYTHIC_RARITY, named: id,
+  const rec = { id: crypto.randomUUID(), type, slot: GAME_SLOT[type], tier: 'named', rarity: MYTHIC_RARITY, named: id,
     name: N.name, lvl: FORGE_LVL, stats: Object.assign({}, N.stats), craftedAt: Date.now() };
+  const pk = Object.keys(rec.stats)[0];
+  if (pk) { rec.stats[pk] = Math.round(rec.stats[pk] * PROCD_MULT * 10) / 10; rec.primary = pk; }
+  rec.procd = true;   // only the forge can make this; the game applies the same +35% again when it normalises the piece
+  return rec;
 }
 function forgeOddsText() {
   const set = Math.round((1 - NAMED_PROC_CHANCE) * FORGE_SUCCESS_CHANCE * 100), named = Math.round(NAMED_PROC_CHANCE * 100);
@@ -2500,8 +2509,8 @@ document.getElementById('forgeCraftBtn').onclick = () => {
       const N = NAMED_MYTHICS[rec.named];
       out.className = 'unique';
       out.innerHTML = '<div><img src="' + cutoutIcon(piece.icon) + '" style="width:88px;height:88px;object-fit:contain;display:block;margin:0 auto 6px">'
-        + '✨ NAMED MYTHIC ✨<br><span style="font-size:1.35em">' + esc(N.name) + '</span>'
-        + '<div style="font-weight:normal;margin-top:6px">' + esc(statText(rec.stats)) + '</div>'
+        + (rec.procd ? "🌟 PROC'D GEAR 🌟<br><span style=\"font-size:.7em;font-weight:normal\">a named mythic with +35% on its main stat</span><br>" : '✨ NAMED MYTHIC ✨<br>') + '<span style="font-size:1.35em">' + esc(N.name) + '</span>'
+        + '<div style="font-weight:normal;margin-top:6px">' + statHtml(rec.stats, rec.primary) + '</div>'
         + '<div style="font-weight:normal;margin-top:4px"><b>Power:</b> ' + esc(N.power) + '</div>'
         + '<div style="font-weight:normal;font-style:italic;opacity:0.85;margin-top:4px">“' + esc(N.lore) + '”</div>'
         + '<div style="font-weight:normal;margin-top:6px">' + where + '</div></div>';
@@ -2511,7 +2520,7 @@ document.getElementById('forgeCraftBtn').onclick = () => {
         + 'Forged: <b style="color:' + piece.color + '">' + esc(rec.name) + '</b><br>' + esc(statText(rec.stats)) + '.' + where + '</div>';
     }
     refreshSlotViews();
-    setTimeout(rec.tier === 'named' ? sfxUnique : sfxSuccess, 90);
+    setTimeout(rec.procd ? sfxProcd : rec.tier === 'named' ? sfxUnique : sfxSuccess, 90);
   } else {
     out.className = 'fail';
     out.textContent = 'The forge sputters and fails. The sludge is lost.';
@@ -2677,6 +2686,14 @@ function sfxCraftBubble() {
 }
 function sfxSuccess() { sfxTone(523, 0.12, 'triangle', 0.14); sfxTone(659, 0.12, 'triangle', 0.14, 0.09); sfxTone(784, 0.22, 'triangle', 0.16, 0.18); }
 function sfxFail() { sfxSweep(220, 70, 0.35, 'sawtooth', 0.16); }
+// build 51: the synthesized FANFARE for proc'd gear -- a rising six-note run, a held chord under it and a bright shimmer on top
+function sfxProcd() {
+  [392,523,659,784,1046,1318].forEach((f,i) => sfxTone(f, 0.34, 'triangle', 0.16, i*0.1));
+  [523,659,784,1046].forEach(f => sfxTone(f, 1.1, 'sine', 0.1, 0.7));
+  sfxTone(262, 1.3, 'sine', 0.14, 0.7);
+  sfxSweep(800, 2600, 0.6, 'sine', 0.06, 0.15);
+  [1568,2093,2637].forEach((f,i) => sfxTone(f, 0.25, 'sine', 0.05, 0.75 + i*0.09));
+}
 function sfxUnique() {
   [523,659,784,1046,1318,1568].forEach((f,i) => sfxTone(f, 0.28, 'triangle', 0.13, i*0.08));
   sfxSweep(1200, 2400, 0.4, 'sine', 0.05, 0.05);

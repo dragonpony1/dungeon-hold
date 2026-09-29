@@ -814,7 +814,7 @@ Meta.defOwnerKind=(id,kind)=>{ const s=guestStats.get(id); return s?(s.kind&&s.k
 // tier actually is (3 or 5), so a puppet can show the dimmer three-piece shell too (98-party.js dress/dressTick, told
 // the tier) -- one extra small field, no new message type. Every five-piece gameplay power is untouched: those all key
 // off has()/anyWears()/Meta.sets.active() on the wearer's OWN page, never off this cosmetic broadcast field.
-function lookOf(){ const w=window.__weapons&&window.__weapons.look?window.__weapons.look():null; const acts=Meta.sets&&Meta.sets.active?Meta.sets.active():[]; const full=acts.find(a=>a.tier>=5)||acts.find(a=>a.tier>=3)||null; const fi=gear.familiar; return {w:w&&w.w||null,t:w&&w.t||1,ws:w&&w.s||null,s:full?full.name:null,st:full?full.tier:0,f:fi?{n:fi.name,r:fi.rarity|0}:null}; }
+function lookOf(){ const w=window.__weapons&&window.__weapons.look?window.__weapons.look():null; const acts=Meta.sets&&Meta.sets.active?Meta.sets.active():[]; const full=acts.find(a=>a.tier>=5)||acts.find(a=>a.tier>=3)||null; const fi=gear.familiar; return {w:w&&w.w||null,t:w&&w.t||1,ws:w&&w.s||null,s:full?full.name:null,st:full?full.tier:0,f:fi?{n:fi.name,r:fi.rarity|0}:null,pd:SLOTS.some(s=>gear[s]&&gear[s].procd)?1:0}; }
 let syncT=0;
 function hostBroadcastHeroes(dt){
   if(role!=='host'||!conns.size) return;
