@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="60">
+<meta name="hideout-build" content="61">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -268,7 +268,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 60;   // build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 61;   // build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -400,6 +400,22 @@ if (SAVE.__cleared) { delete SAVE.__cleared; SLUDGE_WIPED = true; try { localSto
 } catch (e) {} })();
 document.getElementById('sludge').textContent = SAVE.sludge;
 if (SLUDGE_WIPED) setTimeout(() => { try { flashMsg('Your sludge is gone: earn it at the Cauldron Cart'); } catch (e) {} }, 2500);
+// build 61 (game build 270, Matt: "Could add sludge jars to dropped loot by mobs", then "Yeah go on that"): SLUDGE JARS FROM THE HALL. Mobs drop jars; the game banks each one the moment it is picked up into
+// localStorage 'dd_sludge_in' = {common,uncommon,rare,legendary} counts (the game only ever ADDS to it, read-modify-write, the way it fills dd_gear_bag). This page takes them into its own four sludges on load and on every
+// 'hideout:show' (the embedded frame is kept between visits), zeroes the key, and says what came in once the player is inside (JARS_PENDING, shown on entry like the reward banner).
+const SLUDGE_IN_KEY = 'dd_sludge_in';
+let JARS_PENDING = null;
+function absorbSludgeJars() { let j = null; try { j = JSON.parse(localStorage.getItem(SLUDGE_IN_KEY)); } catch (e) {} if (!j || typeof j !== 'object') return null;
+  const n = k => Math.max(0, Math.floor(+j[k]) || 0), got = { common: n('common'), uncommon: n('uncommon'), rare: n('rare'), legendary: n('legendary') };
+  if (!(got.common + got.uncommon + got.rare + got.legendary)) return null;
+  SAVE.commonSludge += got.common; SAVE.uncommonSludge += got.uncommon; SAVE.sludge += got.rare; SAVE.legendarySludge += got.legendary;
+  try { localStorage.setItem(SLUDGE_IN_KEY, JSON.stringify({ common: 0, uncommon: 0, rare: 0, legendary: 0 })); } catch (e) {}
+  writeSave(); try { document.getElementById('sludge').textContent = SAVE.sludge; } catch (e) {}
+  const P0 = JARS_PENDING || { common: 0, uncommon: 0, rare: 0, legendary: 0 }; for (const k in got) P0[k] += got[k]; JARS_PENDING = P0; return got; }
+function maybeShowJarsMsg() { const g = JARS_PENDING; if (!g) return; JARS_PENDING = null; const parts = [];
+  if (g.legendary) parts.push(g.legendary + ' Legendary'); if (g.rare) parts.push(g.rare + ' Rare'); if (g.uncommon) parts.push(g.uncommon + ' Uncommon'); if (g.common) parts.push(g.common + ' Common');
+  try { flashMsg('Sludge jars from the hall: ' + parts.join(', ') + ' Sludge'); clearTimeout(msgTimer); msgTimer = setTimeout(() => { document.getElementById('msg').style.display = 'none'; }, 6000); } catch (e) {} }
+absorbSludgeJars();
 
 // ============= CO-OP (build 45) =============
 // In a co-op run the game opens this page in an iframe with ?coop=host or ?coop=guest and relays messages between us and
@@ -986,7 +1002,7 @@ document.addEventListener('pointerlockchange', () => {
   active = document.pointerLockElement === canvas;
   if (!suppressStart) document.getElementById('start').style.display = active ? 'none' : 'flex';
   suppressStart = false;
-  if (active) maybeShowRewardBanner();
+  if (active) { maybeShowRewardBanner(); maybeShowJarsMsg(); }
 });
 document.addEventListener('mousemove', e => {
   if (!active) return;
@@ -2864,6 +2880,7 @@ window.addEventListener('message', (e) => {
   } else if (e.data === 'hideout:show') {
     hiddenByHost = false; lastT = performance.now();
     Object.assign(BAG, loadBag());
+    absorbSludgeJars();   // build 61: jars banked in the hall since the last visit
     rewardBannerShown = false; refreshRewardsFresh();
     pollDroppedGear();
     document.getElementById('start').style.display = 'flex';
