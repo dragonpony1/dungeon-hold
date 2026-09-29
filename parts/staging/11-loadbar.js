@@ -21,6 +21,10 @@ const el=document.createElement('div'); el.id='loadctr';
 el.style.cssText='position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:50;pointer-events:none;text-align:center;font-family:"Cinzel Decorative",Georgia,serif;font-weight:700;font-size:26px;color:#e8b94a;text-shadow:0 0 14px #000,0 3px 0 #000;letter-spacing:1px;display:none;white-space:nowrap;';
 document.body.appendChild(el);
 function fmt(){ const n=LOADT.inflight; return '⏳ '+n+' ASSET'+(n===1?'':'S')+' LEFT'; }
-setInterval(()=>{ const on=LOADT.inflight>0; el.style.display=on?'block':'none'; if(on) el.textContent=fmt(); },150);
-window.__loadctr={el:()=>el,visible:()=>el.style.display==='block',text:()=>el.textContent};
+// build 226 (Matt, equipping the new bat: "the top didn't say there were assets either"): a ~1 MB pet model can land between two 150 ms checks and never show. Any change in the
+// file count now counts as activity, and once everything has landed the counter says so for a moment instead of vanishing
+let lastFiles=LOADT.files, lastAct=-1e9;
+setInterval(()=>{ const now=performance.now(); const busy=LOADT.inflight>0; if(busy||LOADT.files!==lastFiles) lastAct=now; lastFiles=LOADT.files;
+  if(busy){ el.style.display='block'; el.style.color='#e8b94a'; el.textContent=fmt(); } else if(now-lastAct<1500&&lastAct>0){ el.style.display='block'; el.style.color='#8fe07a'; el.textContent='✓ ASSETS LOADED'; } else el.style.display='none'; },150);
+window.__loadctr={el:()=>el,visible:()=>el.style.display==='block',text:()=>el.textContent,busy:()=>LOADT.inflight>0};
 })();

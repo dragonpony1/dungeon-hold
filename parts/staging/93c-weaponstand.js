@@ -31,13 +31,17 @@ const NAMED_REAL={
   wardens_oath:{file:'named-wardens_oath.glb',h:.8,lift:.65},
   hourglass_of_hollow_sand:{file:'named-hourglass_of_hollow_sand.glb',h:.9,lift:.6},
 };
+// build 226 (Matt: the new bat "is perfect when equipped but it didn't show on the floor or in the hideout"): a plain familiar drop was the generic loot shape -- the pet models only ever
+// loaded once one was EQUIPPED (85-familiars.js). Every kind stands as its own model now, through this same loader: fam_<kind> -> the pet's own file, so a re-made pet updates here for free
+Object.assign(NAMED_REAL,{fam_wisp:{file:'fam-wisp.glb',h:.95,lift:.55},fam_bat:{file:'fam-bat.glb',h:.85,lift:.6},fam_sprite:{file:'fam-sprite.glb',h:.95,lift:.55},fam_imp:{file:'fam-imp.glb',h:1,lift:.55},fam_owl:{file:'fam-owl.glb',h:.95,lift:.55},fam_drake:{file:'fam-drake.glb',h:1.1,lift:.55}});
+const FAM_KEY={'Wisp':'fam_wisp','Bat':'fam_bat','Sprite':'fam_sprite','Fire Imp':'fam_imp','Crystal Owl':'fam_owl','Storm Drake':'fam_drake'};
 const NR_GLB={}, NR_P={}, NR_PENDING=[];
 function loadNamedReal(k){ const cfg=NAMED_REAL[k]; if(!cfg||NR_GLB[k]||NR_P[k]) return; NR_P[k]=fetchBytes(ASSET(cfg.file)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ try{
       const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,cfg.h); toonify(root,fit.scale); NR_GLB[k]=fit.wrap;
     }catch(e){ console.warn('named model '+k,e); } }).catch(e=>console.warn('named model '+k,e)); }
 function pmat(){ if(!PM) PM=new THREE.PointsMaterial({map:GLOWT,size:.3,vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true}); return PM; }   // shared by every drop: each mote's colour (and fade) is its vertex colour
 // the model this page's hero would hold for the item, or null for anything without its own (a plain sword, a Forest piece)
-function modelFor(it){ if(!it) return null; if(it.named&&NAMED_REAL[it.named]) return 'named-'+it.named;   // window.__named.id() only ever resolves weapon-slot named items by design (86h-named.js's namedId guards on it.slot==='weapon') -- it.named itself is set regardless of slot (97-mythics.js), so that's the real check for anything non-weapon
+function modelFor(it){ if(!it) return null; if(it.named&&NAMED_REAL[it.named]) return 'named-'+it.named; if(it.slot==='familiar'&&!it.named&&typeof famKind==='function'){ const k=FAM_KEY[famKind(it)]; if(k) return 'named-'+k; }   // window.__named.id() only ever resolves weapon-slot named items by design (86h-named.js's namedId guards on it.slot==='weapon') -- it.named itself is set regardless of slot (97-mythics.js), so that's the real check for anything non-weapon
   if(it.slot!=='weapon') return null; const named=window.__named&&window.__named.id(it), set=window.__setweapons&&window.__setweapons.setOf(it); if(!named&&!set) return null;
   if(named&&window.__named.own&&window.__named.own(named)==='bow') return 'bow-'+named;   // build 170: a named BOW stands as itself for every hero (the Knight's stand-in for Subterfuge is a loaded .glb sword, which can't stand here)
   const W=window.__weapons;
