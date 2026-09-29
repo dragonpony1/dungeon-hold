@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="41">
+<meta name="hideout-build" content="42">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -228,7 +228,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 41;
+const HIDEOUT_BUILD = 42;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -575,8 +575,8 @@ const NAMED_MYTHICS = {
   hourglass_hollow_sand:{ type:'trinket', name:'Hourglass of Hollow Sand', art:NAMED_ART_DIR+'hourglass_hollow_sand.jpg', stats:{ spd:35, move:18, mana:40 },
     power:'Once per wave, when a gate is about to fall, enemies slow to a crawl for 4 seconds.',
     lore:'The sand falls upward. Nobody knows what it is counting down to.' },
-  // build 38: the game's eleventh (game build 170) -- known here so one carried in from the hall shows as itself; noForge: the forge
-  // makes no bows, so it never comes out of the forge's named roll or its tile showcase
+  // build 38: the game's eleventh (game build 170) -- known here so one carried in from the hall shows as itself. Build 42 (Matt: "we needed
+  // another forged named bow"): it is forgeable now -- the forge's weapon roll picks among Rootsplitter, The Last Lantern and Subterfuge
   // build 39: the game's twelfth (game build 221) -- the spirit stag the Cyclops hands over; noForge, it is earned in the dungeon, never forged
   gladehart:          { type:'familiar', name:'Gladehart',                art:NAMED_ART_DIR+'gladehart.jpg', stats:{ fdmg:34, frate:40, move:12 }, noForge:true,
     power:'Every 8 seconds a bright pink spirit stag charges through the thickest pack, hitting everything for six pet shots and throwing it way back.',
@@ -585,7 +585,7 @@ const NAMED_MYTHICS = {
   trimaw:             { type:'familiar', name:'Trimaw',                   art:NAMED_ART_DIR+'trimaw.jpg', stats:{ fdmg:28, frate:35, move:10 }, noForge:true,
     power:'Three heads breathe fire (burn), frost (slow) and venom (poison) at three targets, and everything it hits takes 25% more damage from everything for a few seconds.',
     lore:'A hydra hatchling of black rock and live magma. Each head has its own opinion, and all three are angry.' },
-  subterfuge:         { type:'weapon',   name:'Subterfuge',               art:NAMED_ART_DIR+'subterfuge.jpg', stats:{ dmg:26, spd:18, move:12 }, noForge:true,
+  subterfuge:         { type:'weapon',   name:'Subterfuge',               art:NAMED_ART_DIR+'subterfuge.jpg', stats:{ dmg:26, spd:18, move:12 },
     power:'A bow: every shot is five lightning arrows in a 40° wedge, and each one that hits jumps to three more enemies.',
     lore:'Strung with a bolt that never grounded. It never shoots where it seems to aim.' },
 };
