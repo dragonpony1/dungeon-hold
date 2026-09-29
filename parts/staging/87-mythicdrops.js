@@ -16,7 +16,7 @@
 // A mythic scrapped on the way to the hideout counts as legendary scrap (59-hideout.js clamps rarity to 4), so it still
 // feeds the sludge cycle. Rates are two numbers here — tune freely; __mythicDrops.rates() / .set() for tests.
 (function(){
-let MYTHIC_DROP=.07, NAMED_DROP=.05;
+let MYTHIC_DROP=.025, NAMED_DROP=.05, NAMED_MOB=.00015;   // NAMED_MOB (build 238, Matt: "allow it at .015% on a regular mob in a regular wave"): any ordinary mob kill during a wave -- one in ~6,700 -- may drop a NAMED mythic where it fell; bosses never do
 const SETS=[['void','of the Void'],['crimson','of Chaos'],['rock','of the Earth'],['lava','of Fire'],['angelic','of Radiance'],['storm','of the Storm'],['shadow','of Shadow'],['ice','of Ice'],['wind','of the Wind']];
 const BASE={armor:'Armor',amulet:'Amulet',charm:'Trinket',familiar:'Familiar'};
 const GOLDC='#ffcf3a';
@@ -51,5 +51,9 @@ function cardOnFloor(l,it){ const item=l.mesh.userData.item; const tex=new THREE
 { const prev=Meta.onWaveHeld; Meta.onWaveHeld=function(w){ const r=prev.apply(this,arguments);
     if(LR()<NAMED_DROP){ const it=namedItem(); if(it){ dropLoot(it,R(-1.6,1.6),4.6,true); floatText(0,2.6,4.6,'✦ A NAMED MYTHIC ✦ '+it.name,GOLDC); if(SFX.setBong) SFX.setBong(); if(typeof toast==='function') toast('A named mythic fell by the Heartroot: '+it.name); } }
     return r; }; }
-window.__mythicDrops={rates:()=>({mythic:MYTHIC_DROP,named:NAMED_DROP}),set:(m,n)=>{ if(Number.isFinite(m)) MYTHIC_DROP=m; if(Number.isFinite(n)) NAMED_DROP=n; },mythicize,namedItem,eligible,art:mythicArt,SETS};
+// a regular mob killed in a regular wave: a very small chance of a named mythic where it fell (host or solo: the kill is real there; a co-op guest's floor gets it only from the wave reward roll)
+const MOB_BOSS=new Set(['trollboss','cyclops','pigflail','pigdagger','pigsling']);
+{ const prev=rollDrop; rollDrop=function(e){ prev(e); if(TUTORIAL||S.phase!=='wave'||!e||e.puppet||MOB_BOSS.has(e.kind)) return;
+    if(LR()<NAMED_MOB){ const it=namedItem(); if(it){ dropLoot(it,e.x,e.z); floatText(e.x,2.4,e.z,'✦ A NAMED MYTHIC ✦ '+it.name,GOLDC); if(SFX.setBong) SFX.setBong(); if(typeof toast==='function') toast('A named mythic dropped from a '+(e.kind||'mob')+': '+it.name); } } }; }
+window.__mythicDrops={rates:()=>({mythic:MYTHIC_DROP,named:NAMED_DROP,mob:NAMED_MOB}),set:(m,n,k)=>{ if(Number.isFinite(m)) MYTHIC_DROP=m; if(Number.isFinite(n)) NAMED_DROP=n; if(Number.isFinite(k)) NAMED_MOB=k; },mythicize,namedItem,eligible,art:mythicArt,SETS};
 })();

@@ -1,0 +1,20 @@
+import { chromium } from "playwright"; import { serve } from "./serve.mjs";
+// build 238: a regular mob killed in a regular wave has a tiny chance (0.015%) of dropping a NAMED mythic where it fell; bosses, the build phase and the tutorial never do
+const server=await serve(8879);
+const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
+const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
+const page=await (await browser.newContext()).newPage(); page.on("pageerror",e=>errors.push(String(e)));
+await page.goto("http://127.0.0.1:8879/?silent&nogate",{timeout:90000}); await page.waitForFunction(()=>window.__dd&&window.__mythicDrops&&window.__mythic,null,{timeout:90000});
+await page.evaluate(()=>{ const d=window.__dd; d.start(); d.step(1/60,20); });
+check("the default rate for a regular mob is 0.015% (0.00015)",await page.evaluate(()=>window.__mythicDrops.rates().mob)===0.00015);
+await page.evaluate(()=>window.__mythicDrops.set(0,0,0));
+const run=(kind,phase)=>page.evaluate(([kind,phase])=>{ const d=window.__dd; d.S.phase=phase; d.loot.slice().forEach(l=>d.scene.remove(l.mesh)); d.loot.length=0; window.__mythicDrops.set(0,0,1); const e=d.spawn(kind==="cyclops"?"ogre":kind,"N"); e.kind=kind; e.x=4; e.z=8; e.y=0; e.hp=e.max=10; d.kill(e); d.step(1/60,2); window.__mythicDrops.set(0,0,0); return d.loot.filter(l=>l.it&&l.it.named&&!/^(gladehart|trimaw)$/.test(l.it.named)).map(l=>l.it.named); },[kind,phase]);
+const gob=await run("goblin","wave");
+check("with the chance forced to 1, a goblin killed in a wave drops a named mythic where it fell",gob.length===1,JSON.stringify(gob));
+check("an ogre (a regular mob) can too",(await run("ogre","wave")).length===1);
+check("a boss never does",(await run("cyclops","wave")).length===0&&(await run("trollboss","wave")).length===0);
+check("nothing drops in the build phase",(await run("goblin","build")).length===0);
+const none=await page.evaluate(()=>{ const d=window.__dd; d.S.phase="wave"; d.loot.slice().forEach(l=>d.scene.remove(l.mesh)); d.loot.length=0; let named=0; for(let i=0;i<300;i++){ const e=d.spawn("goblin","N"); e.x=4; e.z=8; e.y=0; e.hp=e.max=10; d.kill(e); } d.step(1/60,2); return d.loot.filter(l=>l.it&&l.it.named&&!/^(gladehart|trimaw)$/.test(l.it.named)).length; });
+check("at the real rate 300 goblins drop no named mythic (odds of one: about 4%)",none<=1,String(none));
+const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,2).join(" | "));
+await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");
