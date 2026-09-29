@@ -45,7 +45,7 @@ const soonDone=Math.max(...soonStarted.map(s=>(finished.find(f=>f.u===s.u)||{t:I
 check("the later tier (the other mobs, the smith) waits for the whole soon tier to land",laterStarted.length>=5&&soonDone<Infinity&&laterStarted.every(s=>s.t>=soonDone),JSON.stringify({soonDone,firstLater:laterStarted[0]&&{n:name(laterStarted[0].u),t:laterStarted[0].t}}));
 const lazyAtStart=started.filter(s=>isLazy(s.u));
 check("upgrade marks, familiars and armor stands are not requested at start at all",lazyAtStart.length===0,lazyAtStart.map(s=>name(s.u)).join(' '));
-check("the startup stream is far shorter than the ~60 models it used to be",started.length<=30,String(started.length)+" requests: "+started.map(s=>name(s.u)).join(' '));
+check("the startup stream is far shorter than the ~60 models it used to be (map one's own six decor models, build 247, stream in behind the mobs: 33 in all)",started.length<=40,String(started.length)+" requests: "+started.map(s=>name(s.u)).join(' '));
 
 // a placed ballista prefetches Mark II; upgrading it fetches Mark III
 await page.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); window.__dd.S.mana=99999; });
