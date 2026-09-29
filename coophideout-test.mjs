@@ -63,6 +63,11 @@ const gPeers=await gf.evaluate(()=>window.__hd.peers()), hPeers=await hf.evaluat
 check("each player sees the other as an avatar at the other's position",seen,JSON.stringify({guestSees:gPeers,hostSees:hPeers}));
 check("the avatars carry name tags (the players' names) and nobody sees themselves",gPeers.length===1&&hPeers.length===1&&gPeers[0].name.length>0&&hPeers[0].name.length>0,JSON.stringify({g:gPeers.map(p=>p.name),h:hPeers.map(p=>p.name)}));
 
+// ---- the avatars wear each player's real hero model (build 47), with a walk and an idle clip
+const modelsOn=await until(gf,()=>window.__hd.peers().some(p=>p.model),null,60000)&&await until(hf,()=>window.__hd.peers().some(p=>p.model),null,60000);
+const gClips=await gf.evaluate(()=>window.__hd.peers().map(p=>({hero:p.hero,model:p.model,clips:p.clips})));
+check("each avatar wears the other player's real hero model (the Knight), with idle and walk clips",modelsOn&&gClips[0].hero==="knight"&&gClips[0].clips.includes("idle")&&gClips[0].clips.includes("walk"),JSON.stringify(gClips));
+
 // ---- the host changes its room while the guest is inside: it shows up for the guest
 await hf.evaluate(()=>{ SAVE.placed.push({pid:"h-new",gid:"bookshelf_empty",x:-12,z:-2,ry:0}); spawnPlacedItem("bookshelf_empty",{x:-12,y:GROUND_Y,z:-2},0,"h-new"); writeSave(); });
 const live=await until(gf,()=>window.__hd.entries().some(e=>e.pid==="h-new"),null,60000);

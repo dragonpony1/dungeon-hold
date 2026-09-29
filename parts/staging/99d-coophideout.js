@@ -20,6 +20,9 @@ const txt=(v,n)=>String(v==null?'':v).slice(0,n), num=v=>{ v=+v; return isFinite
 const heroId=()=>window.__heroes&&window.__heroes.pick?window.__heroes.pick():'';
 function myName(){ const el=document.getElementById('lobbyName'); const v=el&&el.value&&el.value.trim(); if(v) return v.slice(0,16);
   const h=window.__heroes&&window.__heroes.list?window.__heroes.list().find(x=>x.id===heroId()):null; return h?String(h.name).replace(/^GNOME /,'').slice(0,16):'Friend'; }
+// where each hero's model file lives (the hideout page fetches them itself, same origin) so an avatar can wear its player's hero
+const HERO_FILES={knight:'knight.glb',witch:'witch.glb',troll:'ranger.glb',fighter:'fighter.glb'};
+function heroUrls(){ const o={}; for(const k in HERO_FILES){ try{ o[k]=ASSET(HERO_FILES[k]); }catch(e){} } return o; }
 const post=msg=>{ const w=H.frameWin&&H.frameWin(); if(w) try{ w.postMessage(msg,'*'); }catch(e){} };
 const PEERS=new Map();   // host side: guest id -> {name,hero,x,y,z,ry,t}
 let selfPos=null, lastSig='', wasList=false, lastRole=null, stats={sent:0,layouts:0,trades:0};
@@ -47,7 +50,7 @@ N.onLeave((id,why)=>{ if(role()==='host'){ PEERS.delete(id); return; }
   if(lastRole==='guest'&&H.isOpen()) setTimeout(()=>{ if(H.isOpen()&&!(N.peers&&N.peers().length)) H.close('The host left — back to the hall'); },0); });
 // ---- the iframe side
 addEventListener('message',e=>{ const w=H.frameWin&&H.frameWin(); if(!w||e.source!==w) return; const d=e.data; if(!d||typeof d.type!=='string'||d.type.slice(0,3)!=='hd:') return;
-  if(d.type==='hd:ready'){ post({type:'hd:me',id:myId(),name:myName(),hero:heroId()}); if(role()==='guest') N.send('hdneed',{}); }
+  if(d.type==='hd:ready'){ post({type:'hd:me',id:myId(),name:myName(),hero:heroId(),heroUrls:heroUrls()}); if(role()==='guest') N.send('hdneed',{}); }
   else if(d.type==='hd:pos'){ selfPos={x:num(d.x),y:num(d.y),z:num(d.z),ry:num(d.ry)}; if(role()==='guest'){ N.send('hdpos',Object.assign({name:myName(),hero:heroId()},selfPos)); stats.sent++; } }
   else if(d.type==='hd:saved'){ hostLayoutChanged(); }
   else if(d.type==='hd:trade'){ if(!d.to||typeof d.to!=='string') return; if(role()==='host') N.send('hdtrade',{from:myId(),to:d.to,msg:d.msg},d.to); else if(role()==='guest') N.send('hdtrade',{to:d.to,msg:d.msg}); } });
