@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="37">
+<meta name="hideout-build" content="38">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -228,7 +228,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 37;
+const HIDEOUT_BUILD = 38;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -573,6 +573,11 @@ const NAMED_MYTHICS = {
   hourglass_hollow_sand:{ type:'trinket', name:'Hourglass of Hollow Sand', art:NAMED_ART_DIR+'hourglass_hollow_sand.jpg', stats:{ spd:35, move:18, mana:40 },
     power:'Once per wave, when a gate is about to fall, enemies slow to a crawl for 4 seconds.',
     lore:'The sand falls upward. Nobody knows what it is counting down to.' },
+  // build 38: the game's eleventh (game build 170) -- known here so one carried in from the hall shows as itself; noForge: the forge
+  // makes no bows, so it never comes out of the forge's named roll or its tile showcase
+  subterfuge:         { type:'weapon',   name:'Subterfuge',               art:NAMED_ART_DIR+'subterfuge.jpg', stats:{ dmg:26, spd:18, move:12 }, noForge:true,
+    power:'A bow: every shot is five lightning arrows in a 40° wedge, and each one that hits jumps to three more enemies.',
+    lore:'Strung with a bolt that never grounded. It never shoots where it seems to aim.' },
 };
 // the game's own stat wording (parts/game.js STATL) so a tooltip here reads like the item card over there
 const STAT_LABEL = { dmg:v=>'+'+v+' dmg', spd:v=>'+'+v+'% swing', hp:v=>'+'+v+' hp', def:v=>'+'+v+'% armor', regen:v=>'+'+v+' hp/s',
@@ -2043,7 +2048,7 @@ function ownedNamed() {
   return new Set(recs.filter(r => r.tier === 'named').map(r => r.named));
 }
 function namedRecord(type) {
-  const ids = Object.keys(NAMED_MYTHICS).filter(id => NAMED_MYTHICS[id].type === type);
+  const ids = Object.keys(NAMED_MYTHICS).filter(id => NAMED_MYTHICS[id].type === type && !NAMED_MYTHICS[id].noForge);
   const have = ownedNamed(), fresh = ids.filter(id => !have.has(id));
   const pool = fresh.length ? fresh : ids;
   const id = pool[Math.floor(Math.random() * pool.length)];
@@ -2086,7 +2091,7 @@ function buildForgeGrid() {
 // category art. The tiles take turns, so only one changes at a time.
 function forgeShowcase(key) {
   const out = [];
-  for (const id in NAMED_MYTHICS) if (NAMED_MYTHICS[id].type === key && NAMED_MYTHICS[id].art) out.push(NAMED_MYTHICS[id].art);
+  for (const id in NAMED_MYTHICS) if (NAMED_MYTHICS[id].type === key && NAMED_MYTHICS[id].art && !NAMED_MYTHICS[id].noForge) out.push(NAMED_MYTHICS[id].art);
   for (const st of MYTHIC_SETS) { if (st.offForge) continue;
     for (const p of key === 'weapon' ? (SET_WEAPONS[st.id] || SET_ART_PIECES.weapon) : (SET_ART_PIECES[key] || [])) out.push(SET_ART_DIR + st.id + '-' + p + '.jpg'); }
   return out.length ? out : [MYTHIC_GEAR[key].icon];
