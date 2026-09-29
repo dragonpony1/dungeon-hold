@@ -25,7 +25,7 @@ check("the training-ground banner announced wave zero",await page.evaluate(()=>/
 // the goblin reaches the crystal: it vanishes with IT GOT THROUGH, a lesson says another is coming, and another comes -- the step stays
 const through=await page.evaluate(()=>{ const d=window.__dd; const g=d.enemies.find(e=>e.training&&!e.dead); g.x=0; g.z=1.2; d.step(1/60,150); const g2=d.enemies.find(e=>e.training&&!e.dead); return {first:g.through===true,again:!!g2&&g2!==g,lesson:window.__lesson.text(),crystal:d.S.crystal,w0:window.__trainer.w0()}; });
 const v2=await view(page);
-check("at the crystal the goblin vanishes (crystal untouched at 300), the lesson says another is coming, another walks the lane, and the step is still 'dispatch him'",through.first&&through.again&&through.crystal===300&&/another is coming/.test(through.lesson)&&through.w0.through===1&&v2.step==='slay'&&!v2.waiting,JSON.stringify({through,v2}));
+check("at the crystal the goblin vanishes (crystal untouched at 300), the lesson says another is coming, another walks the lane, and the step is still 'dispatch him'",through.first&&through.again&&through.crystal===300&&/another is coming/i.test(through.lesson)&&through.w0.through===1&&v2.step==='slay'&&!v2.waiting,JSON.stringify({through,v2}));
 // the swing: the goblin dead ticks step 1, and the ✓ waits for Enter
 await page.evaluate(()=>{ const d=window.__dd; const g=d.enemies.find(e=>e.training&&!e.dead); d.kill(g); d.step(1/60,5); });
 const v3=await view(page);

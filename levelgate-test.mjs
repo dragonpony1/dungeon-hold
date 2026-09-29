@@ -30,7 +30,7 @@ const two=await p2.evaluate(()=>{ const d=window.__dd, M=window.__meta; window._
   const green=d.rollItem(1,'amulet',8); green.rarity=1; green.name=green.name.replace(/ of (the )?[A-Z]\w*( [A-Z]\w*)?$/,'')+' of the Forest'; green.req=M.reqFor(green); M.giveItem(green);
   const rareEq=M.equip(rare.id); const lesson=window.__lesson.text(), lessonOn=window.__lesson.on(); const greenEq=M.equip(green.id);
   return {map:d.map().id,level:M.level(),rareWear:M.canWear(rare),rareEq,lesson,lessonOn,greenWear:M.canWear(green),greenEq}; });
-check("map two, level 1: the rare charm is refused (needs level 4) and the lesson card says why and how levels come",two.map==='throne'&&two.level===1&&!two.rareWear&&two.rareEq===false&&two.lessonOn&&/Needs level 4 — you are level 1/.test(two.lesson)&&/Levels come from kills/.test(two.lesson),JSON.stringify(two));
+check("map two, level 1: the rare charm is refused (needs level 4) and the lesson card says why and how levels come",two.map==='throne'&&two.level===1&&!two.rareWear&&two.rareEq===false&&two.lessonOn&&/LEVEL 4 NEEDED/.test(two.lesson)&&/You are level 1/.test(two.lesson)&&/Kills/.test(two.lesson)&&/Waves held/.test(two.lesson),JSON.stringify(two));
 check("...while the Forest piece still equips there",two.greenWear&&two.greenEq===true,JSON.stringify(two));
 await ctx2.close();
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
