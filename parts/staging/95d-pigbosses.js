@@ -33,7 +33,7 @@ const PIGS={
     stats:{hp:340,spd:2.6,dmg:11,cd:1.5,mana:18}},
   pigsling:{files:{walk:'pigsling-walk.glb',run:'pigsling-run.glb',attack:'pigsling-attack.glb'},atkName:'Crouch_Charge_and_Throw',
     dim:{fit:4.32,h:3.96,r:.94,nat:{walk:.9,run:2.0}},
-    stats:{hp:480,spd:2.6,dmg:14,cd:2.4,mana:20,splash:2.3}},   // hp was the lowest of the three (200) and the one Matt kept losing to focus fire before ever seeing him -- now the highest, since he's also the one standing still the longest (charging a throw) with nothing else drawing tower attention his way. No `ranged` -- same call the Cyclops made: that field only ever makes the generic AI snipe a TOWER from range (game.js's own ranged-standoff check explicitly skips it for a hero target), so a melee-seeking mob plus Sling's own charge-and-throw special below (mirroring Boulder Toss) covers both a hero and a tower without fighting itself. `splash` stays so fireArrow picks the heavier grenade visual for the throw.
+    stats:{hp:480,spd:2.6,dmg:14,cd:2.4,mana:20,splash:2.3,ranged:14,heroShot:true}},   // build 287 (Matt: "act like a ranged mob and stay back a little ... and try to hit me"): ranged, and a heroShot mob (game.js) throws at a hero it can see first   // hp was the lowest of the three (200) and the one Matt kept losing to focus fire before ever seeing him -- now the highest, since he's also the one standing still the longest (charging a throw) with nothing else drawing tower attention his way. No `ranged` -- same call the Cyclops made: that field only ever makes the generic AI snipe a TOWER from range (game.js's own ranged-standoff check explicitly skips it for a hero target), so a melee-seeking mob plus Sling's own charge-and-throw special below (mirroring Boulder Toss) covers both a hero and a tower without fighting itself. `splash` stays so fireArrow picks the heavier grenade visual for the throw.
 };
 for(const k in PIGS){ MOBDIM[k]=PIGS[k].dim; MOBS[k]=PIGS[k].stats; }
 // build 187's emissiveTexture fix, confirmed present on all three of these too (checked each one's raw materials
@@ -117,7 +117,9 @@ function slingChargeStart(e){ e.slingCharging=true; e.slingChargeT=0; const g=gl
 function slingThrow(e){ e.slingCharging=false; if(e.slingGlow){ scene.remove(e.slingGlow); e.slingGlow.material.dispose(); e.slingGlow=null; }
   let best=null, bd=14; for(const d of defs){ const dd=Math.hypot(d.x-e.x,d.z-e.z); if(dd<bd&&dd>2&&los(e.x,e.z,d.x,d.z)){ bd=dd; best=d; } }
   if(!best) return; e.swing=0; fireArrow(e,best.x,1.0,best.z,{kind:'def',obj:best}); }
-{ const prev=updateEnemies; updateEnemies=function(dt){ prev(dt);
+const SLING_SPECIAL=false;   // build 287: the old charge-and-throw (at towers only) is off -- the Sling boss is a ranged mob now and every attack is its throw
+{ const prev=updateEnemies; updateEnemies=function(dt){ for(const e of enemies) if(!e.dead&&e.kind==='pigsling') e.slowT=0;   /* build 287: no tower slow holds it (no shove already: 99e-bossgrit.js) */
+    prev(dt); if(!SLING_SPECIAL) return;
     for(const e of enemies){ if(e.dead||e.kind!=='pigsling') continue;
       if(e.slingCd===undefined) e.slingCd=5+R(0,2);
       if(e.slingCharging){ e.slingChargeT+=dt; if(e.slingGlow) e.slingGlow.material.opacity=Math.min(.75,e.slingChargeT/SLING_CHARGE*.75); if(e.slingChargeT>=SLING_CHARGE) slingThrow(e); }
