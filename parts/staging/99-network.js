@@ -879,7 +879,7 @@ function hostBroadcastWorld(dt){
   // personal resource). mana:S.mana stays too, unchanged meaning (the HOST's own pool) -- nothing else reads it
   // differently than before, so no existing caller (tests included) needed to change.
   const manas={}; manas[selfId]=S.mana; guestMana.forEach((v,id)=>{ manas[id]=v; });
-  sendSnap('world',{crystal:S.crystal,crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,held:!!S.held,waveTotal:runWaves(),survival:!!SURVIVAL,mapName:MAP.name,mana:S.mana,manas,du:S.du,duCap:DU_CAP});   // held (build 160): the host's hall is on its victory lap -- phase 'build', but no horn to wait for
+  sendSnap('world',{crystal:S.crystal,crystal2:GOAL2>=0?S.crystal2:null,crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,held:!!S.held,waveTotal:runWaves(),survival:!!SURVIVAL,mapName:MAP.name,mana:S.mana,manas,du:S.du,duCap:DU_CAP});   // held (build 160): the host's hall is on its victory lap -- phase 'build', but no horn to wait for
 }
 // a guest's own local S.phase never actually moves through 'deathcut'/'dead'/'won' -- only the HOST's real crystal
 // hitting 0, or its real last wave breaking, does that (hurtCrystal/winMap, game.js), and neither one so much as

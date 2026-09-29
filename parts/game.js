@@ -117,17 +117,19 @@ const MAPS=[
    {cx:6,cz:26,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:26,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:29,up:3.6,c:0xffb05a,i:1.2,d:14},{cx:25,cz:29,up:3.4,c:0xc040ff,i:.9,d:10},
    {cx:6,cz:33,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:33,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:36,up:4.4,c:0xffb05a,i:1.0,d:16},{cx:5,cz:40,up:4,c:0xff8a2a,i:1.5,d:15},{cx:21,cz:40,up:4,c:0xff8a2a,i:1.5,d:15},{cx:13,cz:44,up:4,c:0xff8a2a,i:1.3,d:14},{cx:13,cz:47,up:3.4,c:0xc040ff,i:.9,d:10},
    ]},
- {id:'court',name:'THE CLOISTER COURT',sub:'open sky, a sunken court, covered walkways all round · seven waves',gw:44,gh:52,crystal:[22,21],waves:7,wallH:9,du:60,mana:520,fog:[34,110],style:{outdoor:true,moss:true},
-  build(f,g,h,ramp){ f(2,41,2,41,T.FLOOR); h(2,41,2,41,1.5); h(5,38,5,38,0); f(21,23,19,23,T.CARPET); f(21,23,20,22,T.DAIS); g(22,21,T.CRYSTAL);   // the cloister walkway a step and a half up, the court sunken, the crystal in the middle
-    f(21,23,5,6,T.FLOOR); ramp(21,23,5,6,1,0,1.5); f(21,23,37,38,T.FLOOR); ramp(21,23,37,38,2,0,1.5); f(5,6,20,22,T.FLOOR); ramp(5,6,20,22,4,0,1.5); f(37,38,20,22,T.FLOOR); ramp(37,38,20,22,3,0,1.5);   // four flights down into the court
+ {id:'court',name:'THE CLOISTER COURT',sub:'a sunken garden, two Heartroots and the long way round · seven waves',gw:44,gh:52,crystal:[32,15],crystal2:[11,28],waves:7,wallH:9,du:60,mana:520,fog:[34,110],style:{outdoor:true,moss:true},
+  build(f,g,h,ramp){ f(2,41,2,41,T.FLOOR); h(2,41,2,41,1.5); h(5,38,5,38,0);   // the cloister walkway a step and a half up, the court sunken
+    f(31,33,13,17,T.CARPET); f(31,33,14,16,T.DAIS); g(32,15,T.CRYSTAL); f(10,12,26,30,T.CARPET); f(10,12,27,29,T.DAIS); g(11,28,T.CRYSTAL);   // build 282 (H2): two Heartroots, at 2 o'clock and 8 o'clock
+    f(7,9,5,6,T.FLOOR); ramp(7,9,5,6,1,0,1.5); f(34,36,37,38,T.FLOOR); ramp(34,36,37,38,2,0,1.5);   // two flights down, in the north-west and south-east corners
+    h(19,24,13,16,1.5); h(19,24,27,30,1.5);   // two raised terraces either side of the giant tree: no stair, so only towers and a jumping hero get up
+    [[21,21],[22,21],[21,22],[22,22]].forEach(([x,z])=>g(x,z,T.PROP));   // the giant tree's trunk
     f(2,4,1,1,T.FLOOR); h(2,4,1,1,1.5); g(3,1,T.SPAWN); f(39,41,1,1,T.FLOOR); h(39,41,1,1,1.5); g(40,1,T.SPAWN); f(1,1,39,41,T.FLOOR); h(1,1,39,41,1.5); g(1,40,T.SPAWN);   // gates in three corners: the horde walks the cloister to a stair
     f(17,25,44,50,T.FLOOR); f(21,21,42,43,T.FLOOR); h(21,21,42,43,1.5); h(17,25,44,50,1.5); f(21,21,44,46,T.CARPET); [[17,45],[18,49],[24,46],[24,47],[24,48],[21,50]].forEach(([x,z])=>g(x,z,T.PROP));   // the tavern through the south wall, on the walkway's level
-    for(let x=6;x<=38;x+=8){ g(x,4,T.PILLAR); g(x,39,T.PILLAR); } for(let z=6;z<=38;z+=8){ g(4,z,T.PILLAR); g(39,z,T.PILLAR); }   // the colonnade along the inner edge of the walkway
-    [[9,9],[34,9],[9,34],[34,34]].forEach(([x,z])=>g(x,z,T.PROP)); [[14,14],[29,29]].forEach(([x,z])=>g(x,z,T.PROP)); },   // trees, and two barrels
+    for(let x=6;x<=38;x+=8){ g(x,4,T.PILLAR); g(x,39,T.PILLAR); } for(let z=6;z<=38;z+=8){ g(4,z,T.PILLAR); g(39,z,T.PILLAR); } },   // the colonnade along the inner edge of the walkway
   lanes:{NW:{cx:3,cz:1,face:0,name:'North-west'}, NE:{cx:40,cz:1,face:0,name:'North-east'}, SW:{cx:1,cz:40,face:PI/2,name:'South-west'}},
-  hall:[2,41,2,41],pillars:(()=>{ const p=[]; for(let x=6;x<=38;x+=8){ p.push([x,4],[x,39]); } for(let z=6;z<=38;z+=8){ p.push([4,z],[39,z]); } return p; })(),pillarH:4.4,barrels:[[14,14],[29,29]],crates:[],chandeliers:[],beams:{zs:[],w:0},tavern:{dx:5,dz:19},
-  roofs:[[2,41,2,4],[2,41,39,41],[2,4,5,38],[39,41,5,38],[16,26,42,51]],trees:[[9,9],[34,9],[9,34],[34,34]],
-  lights:[[0,4.2,0,0xb494ff,1.3,15],{cx:6,cz:3,y:4,c:0xff8a2a,i:1.4,d:13},{cx:22,cz:3,y:4,c:0xff8a2a,i:1.4,d:13},{cx:38,cz:3,y:4,c:0xff8a2a,i:1.4,d:13},{cx:6,cz:40,y:4,c:0xff8a2a,i:1.4,d:13},{cx:38,cz:40,y:4,c:0xff8a2a,i:1.4,d:13},{cx:3,cz:14,y:4,c:0xff8a2a,i:1.4,d:13},{cx:3,cz:30,y:4,c:0xff8a2a,i:1.4,d:13},{cx:40,cz:14,y:4,c:0xff8a2a,i:1.4,d:13},{cx:40,cz:30,y:4,c:0xff8a2a,i:1.4,d:13},
+  hall:[2,41,2,41],pillars:(()=>{ const p=[]; for(let x=6;x<=38;x+=8){ p.push([x,4],[x,39]); } for(let z=6;z<=38;z+=8){ p.push([4,z],[39,z]); } return p; })(),pillarH:4.4,barrels:[],crates:[],chandeliers:[],beams:{zs:[],w:0},tavern:{dx:5,dz:19},
+  roofs:[[2,41,2,4],[2,41,39,41],[2,4,5,38],[39,41,5,38],[16,26,42,51]],trees:[],
+  lights:[[0,4.2,0,0xb494ff,1.3,15],{cx:11,cz:28,y:4.2,c:0xb494ff,i:1.3,d:15},{cx:21,cz:21,y:7,c:0xfff0c8,i:1.1,d:24},{cx:6,cz:3,y:4,c:0xff8a2a,i:1.4,d:13},{cx:22,cz:3,y:4,c:0xff8a2a,i:1.4,d:13},{cx:38,cz:3,y:4,c:0xff8a2a,i:1.4,d:13},{cx:6,cz:40,y:4,c:0xff8a2a,i:1.4,d:13},{cx:38,cz:40,y:4,c:0xff8a2a,i:1.4,d:13},{cx:3,cz:14,y:4,c:0xff8a2a,i:1.4,d:13},{cx:3,cz:30,y:4,c:0xff8a2a,i:1.4,d:13},{cx:40,cz:14,y:4,c:0xff8a2a,i:1.4,d:13},{cx:40,cz:30,y:4,c:0xff8a2a,i:1.4,d:13},
    {cx:3,cz:1,y:4,c:0xc040ff,i:.9,d:10},{cx:40,cz:1,y:4,c:0xc040ff,i:.9,d:10},{cx:1,cz:40,y:4,c:0xc040ff,i:.9,d:10},{cx:21,cz:43,y:4.2,c:0xffb05a,i:1.3,d:13},{cx:19,cz:45,y:3.8,c:0xff8a2a,i:1.2,d:12},{cx:23,cz:49,y:3.8,c:0xff8a2a,i:1.2,d:12},{cx:21,cz:50,y:2.2,c:0xff7a1a,i:1.6,d:9,oz:.4}]},
  {id:'feast',name:'THE GREAT FEAST HALL',sub:'three long tables, three doors, the Heartroot at the high table · seven waves',gw:52,gh:35,crystal:[5,13],waves:7,wallH:10,du:60,mana:360,fog:[30,100],style:{windows:true},
   build(f,g,h,ramp){ f(3,46,3,24,T.FLOOR); f(3,8,10,17,T.FLOOR); h(3,8,10,17,1); f(9,10,10,17,T.FLOOR); ramp(9,10,10,17,4,0,1); f(4,6,12,14,T.DAIS); g(5,13,T.CRYSTAL); f(11,46,13,14,T.CARPET);   // the hall, the high table's dais a step up at the west end, a runner down the middle
@@ -217,6 +219,9 @@ function ramp(x0,x1,z0,z1,dir,y0,y1){ const alongZ=dir===1||dir===2; const n=alo
 MAP.build(fill,(x,z,t)=>{ grid[idx(x,z)]=t; },hfill,ramp);
 const HASWATER=grid.includes(T.WATER), WATER_BED=-1.5, WATER_Y=-.8; if(HASWATER) for(let i=0;i<grid.length;i++) if(grid[i]===T.WATER) hgt[i]=WATER_BED;   // the moat's bed lies below the banks, its surface a little under them
 const GOAL=idx(MAP.crystal[0],MAP.crystal[1]);
+const GOAL2=MAP.crystal2?idx(MAP.crystal2[0],MAP.crystal2[1]):-1, C2X=MAP.crystal2?cw(MAP.crystal2[0]):0, C2Z=MAP.crystal2?cwz(MAP.crystal2[1]):0;   // build 282: a map's SECOND Heartroot (the Cloister Court), world C2X/C2Z; -1 on every other map
+const isGoal=i=>i===GOAL||(GOAL2>=0&&i===GOAL2), goalCr=(i,e)=>(GOAL2>=0&&i===GOAL2)?{kind:'crystal',x:C2X,z:C2Z,reach:2.9+e.r,which:2}:{kind:'crystal',x:0,z:0,reach:2.9+e.r};   // which Heartroot a flow step leads into, and the target that means
+let crystal2Shake=0;
 const LANES=MAP.lanes;
 const walk=t=>t===T.FLOOR||t===T.CARPET||t===T.DAIS||t===T.SPAWN;
 const heroSolid=t=>t===T.WALL||t===T.PILLAR||t===T.CRYSTAL||t===T.PROP||t===T.WATER;
@@ -227,7 +232,7 @@ const NOWALK_DEF={slice:1};   // kinds mobs (and the hero's generic def-collisio
 let flowFree=null, flowDef=null, flowFly=null;
 function bfs(respect,fly){
   const nxt=new Int16Array(GW*GH).fill(-1), dist=new Int16Array(GW*GH).fill(-1);
-  dist[GOAL]=0; const q=[GOAL]; let qi=0;
+  dist[GOAL]=0; const q=[GOAL]; let qi=0; if(GOAL2>=0){ dist[GOAL2]=0; q.push(GOAL2); }
   while(qi<q.length){ const i=q[qi++]; const x=i%GW, z=(i/GW)|0;
     for(let k=0;k<4;k++){ const nx=x+[1,-1,0,0][k], nz=z+[0,0,1,-1][k]; if(!inb(nx,nz)) continue; const j=idx(nx,nz); if(!fly){ if(Math.abs(hgt[j]-hgt[i])>.8) continue; /* no path over a ledge: stairs only (flyers ignore it) */ const ai=rampA[i], aj=rampA[j], alongZ=k>=2; if((ai&&((ai<=2)!==alongZ))||(aj&&((aj<=2)!==alongZ))) continue; } /* a flight is entered and left at its ends, never over its side (the side of a stair is a ledge the steps can't climb) */
       if(dist[j]>=0||!(walk(grid[j])||(fly&&grid[j]===T.WATER))) continue; if(respect&&defAt[j]&&!NOWALK_DEF[defAt[j].kind]) continue;
@@ -625,7 +630,7 @@ const MOBS={goblin:{hp:10,spd:3.4,dmg:3,cd:1.0,mana:1,detour:3}, orc:{hp:45,spd:
   trollboss:{hp:340,spd:1.9,dmg:14,cd:2.6,mana:14,ranged:11,splash:2.2,detour:2,healAmt:14,healR:6.5,healCd:3.2}};   // the lavender troll: a healer mini-boss — a slow lob that splashes, and a heal-pulse that mends nearby mobs (kill this one first)
 const DU_CAP=MAP.du||40, SENS=0.0042;   // roots: a bigger map gives more to build with
 const CRYSTAL_MAX=MAP.crystalHp||150;   // the crystal's life: half again what it was, so a leak costs a wave, not the run; a map may set its own (the training ground doubles it)
-const S={mana:MAP.mana||260,du:0,crystal:CRYSTAL_MAX,wave:0,phase:'start',t:0,waveT:0,kills:0,held:false};   // held (build 160): the last wave is held and the hall is on its victory lap -- phase 'build', no more waves, MOVE ON ends the run (winMap/moveOn)
+const S={mana:MAP.mana||260,du:0,crystal:CRYSTAL_MAX,crystal2:CRYSTAL_MAX,wave:0,phase:'start',t:0,waveT:0,kills:0,held:false};   // held (build 160): the last wave is held and the hall is on its victory lap -- phase 'build', no more waves, MOVE ON ends the run (winMap/moveOn)
 function effWave(w){ return MAP.wbase+(w===undefined?S.wave:w); }   // map 2 wave 1 is the eighth wave of the campaign: mobs, loot and pay scale with this
 function statWave(){ return effWave()-survivalPast()*(1-SURVIVAL_STAT_RATE); }   // build 176: the wave a mob's own hp/damage/speed scale off -- effWave in the campaign; past a map's own waves in Survival it climbs at half pace (volume is Survival's ramp, not hide). Loot, pay and mana keep effWave
 const hero={x:0,y:0,z:6,vy:0,yaw:PI,hp:100,max:100,swingT:-1,hitDone:false,dead:0,ph:0,moving:false,hurtT:0,grounded:true,reach:2.4};   // reach: how far the swing lands (a whip reaches further than a sword)
@@ -705,18 +710,19 @@ function swing(){ if(hero.swingT>=0||hero.dead>0||S.phase==='start'||S.phase==='
   if(useGLB&&GLBH&&GLBH.actions.attack) playHero('attack',{restart:true,fade:.05,speed:GLBH.map.attack.duration/swingDur()}); }
 function hitCone(){ const fx=Math.sin(hero.yaw), fz=Math.cos(hero.yaw); let n=0; for(const e of enemies){ if(e.dead) continue; const dx=e.x-hero.x, dz=e.z-hero.z, d=Math.hypot(dx,dz); if(d<(hero.reach||2.4)+e.r&&(dx*fx+dz*fz)/Math.max(d,.01)>.4){ hurt(e,heroDmg(),fx*1.4,fz*1.4); n++; } } if(n) SFX.hit(); }
 function hurtHero(dmg){ if(hero.dead>0) return; dmg=Math.max(1,Math.round(dmg*(1-Math.min(75,heroStat('def'))/100))); hero.hp-=dmg; hero.hurtT=3; flashDmg(); SFX.hurt(); if(hero.hp<=0){ hero.hp=0; hero.dead=4; toast('You fell! Back in 4 seconds…'); H.g.visible=false; heroShadow.visible=false; } }
-function hurtCrystal(dmg,killer){ if(S.phase==='dead'||S.phase==='won'||S.phase==='deathcut'||S.held) return;   /* build 160: nothing ends a victory lap but MOVE ON -- a crystal that has held its map can't fall on the lap */ S.crystal-=dmg; flashDmg(); SFX.crystal(); crystalShake=.4; if(S.crystal<=0){ S.crystal=0; startDeathCut(killer); } }
+function hurtCrystal(dmg,killer,which){ if(S.phase==='dead'||S.phase==='won'||S.phase==='deathcut'||S.held) return;   /* build 160: nothing ends a victory lap but MOVE ON -- a crystal that has held its map can't fall on the lap */ if(which===2){ S.crystal2-=dmg; flashDmg(); SFX.crystal(); crystal2Shake=.4; if(S.crystal2<=0){ S.crystal2=0; startDeathCut(killer,2); } return; }   /* build 282: the second Heartroot; either one falling ends the run */
+  S.crystal-=dmg; flashDmg(); SFX.crystal(); crystalShake=.4; if(S.crystal<=0){ S.crystal=0; startDeathCut(killer); } }
 function finishDeath(){ S.phase='dead'; droneOff(); setMusic('none'); sting(); if(document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play'); if(!Meta.onRunEnd(S.wave)){ $('deadwave').textContent=S.wave; $('dead').classList.remove('hide'); } deathCut=null; }
-function startDeathCut(killer){ const k=(killer&&!killer.dead)?killer:null; deathCut={t:0,dur:2,killer:k,eye:null,eye2:null,look:null}; if(k&&k.mdl&&k.mdl.glb&&k.mdl.actions&&k.mdl.actions.attack){ k.swing=0; mobPlay(k.mdl,'attack',{restart:true,fade:0,speed:.5}); } S.phase='deathcut'; }
+function startDeathCut(killer,which){ const k=(killer&&!killer.dead)?killer:null; deathCut={t:0,dur:2,killer:k,eye:null,eye2:null,look:null,hx:which===2?C2X:0,hz:which===2?C2Z:0}; if(k&&k.mdl&&k.mdl.glb&&k.mdl.actions&&k.mdl.actions.attack){ k.swing=0; mobPlay(k.mdl,'attack',{restart:true,fade:0,speed:.5}); } S.phase='deathcut'; }
 function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c.killer; if(k&&!k.dead&&k.mdl&&k.mdl.actions) mobAnim(k,dt);   /* only a rigged (GLB) killer has clips to drive; a mob still on its procedural body while its model is on the way (loading tiers, build 123) used to throw here and stall the death cut */
-  const cy=crystalG.position.y+2.5; const kx=k?k.x:0, kz=k?k.z:2.5, ky=k?k.y+(k.h||1.6)*.55:cy;
-  if(!c.eye){ const dl=Math.hypot(kx,kz)||1, nx=kx/dl, nz=kz/dl, px=-nz, pz=nx; c.eye=[nx*1.7+px*3.3,Math.max(cy,ky)+.5,nz*1.7+pz*3.3]; c.look=[kx*.4,(cy+ky)/2,kz*.4]; c.eye2=[lerp(c.eye[0],c.look[0],.3),lerp(c.eye[1],c.look[1],.15),lerp(c.eye[2],c.look[2],.3)]; }
+  const cy=crystalG.position.y+2.5, hx=c.hx||0, hz=c.hz||0; const kx=k?k.x:hx, kz=k?k.z:hz+2.5, ky=k?k.y+(k.h||1.6)*.55:cy;
+  if(!c.eye){ const rx=kx-hx, rz=kz-hz, dl=Math.hypot(rx,rz)||1, nx=rx/dl, nz=rz/dl, px=-nz, pz=nx; c.eye=[hx+nx*1.7+px*3.3,Math.max(cy,ky)+.5,hz+nz*1.7+pz*3.3]; c.look=[hx+rx*.4,(cy+ky)/2,hz+rz*.4]; c.eye2=[lerp(c.eye[0],c.look[0],.3),lerp(c.eye[1],c.look[1],.15),lerp(c.eye[2],c.look[2],.3)]; }
   const p=Math.min(1,c.t/c.dur); camera.position.set(lerp(c.eye[0],c.eye2[0],p),lerp(c.eye[1],c.eye2[1],p),lerp(c.eye[2],c.eye2[2],p)); camera.lookAt(c.look[0],c.look[1],c.look[2]);
   crystalShake=.45; if(c.t>=c.dur) finishDeath(); }
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=281;
+const BUILD=282;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -895,7 +901,7 @@ function kill(e){ e.dead=.001; S.kills++; spawnOrbs(e.x,e.z,e.mana); rollDrop(e)
 function attack(e,tg){ e.swing=0; e.pending=tg; }
 function landHit(e,tg){
   if(tg.kind==='hero'){ if(!tg.hero.isDead()) tg.hero.hurt(e.dmg); }
-  else if(tg.kind==='crystal'){ if(tg.ranged) fireArrow(e,0,2.6,0,{kind:'crystal'}); else hurtCrystal(e.dmg,e); }
+  else if(tg.kind==='crystal'){ if(tg.ranged) fireArrow(e,tg.x||0,2.6,tg.z||0,{kind:'crystal',which:tg.which}); else hurtCrystal(e.dmg,e,tg.which); }
   else if(tg.kind==='def'){ const d=tg.obj; if(!defs.includes(d)) return; if(tg.ranged) fireArrow(e,d.x,1.0,d.z,{kind:'def',obj:d}); else { hurtDef(d,e.dmg); if(d.kind==='spike'&&!e.dead){ hurt(e,thornsBack(d,e.dmg),0,0); thornSpark(e); } } } }
 // the hedge's thorns (build 163, Matt: "I want the bramble barrier tower to return damage, like thorn damage"): each melee hit it takes
 // comes back as half the blow plus DEFS.spike.thorns, +25% a mark, scaled by the owner's defense-damage gear -- it used to be a flat 2
@@ -934,15 +940,15 @@ function updateEnemies(dt){
     for(const h of extraHeroes){ if(h.isDead()) continue; const hd2=Math.hypot(h.x-e.x,h.z-e.z); if(hd2<hd){ hd=hd2; hx=h.x; hz=h.z; } }
     const nh=nearestHero(e,extraHeroes);
     if(nh) target={kind:'hero',x:nh.x,z:nh.z,reach:e.r+1.3,hero:nh};
-    else if(e.fly){ const ci=idx(wc(e.x),wcz(e.z)); const n=flowFly.nxt[ci]; const cr={kind:'crystal',x:0,z:0,reach:2.9+e.r}; target=(ci===GOAL||n===GOAL)?cr:(n>=0?{kind:'move',x:cw(n%GW),z:cwz((n/GW)|0)}:null); }   // straight over stairs, ledges and defenses
-    else { const ci=idx(wc(e.x),wcz(e.z)); let n=flowDef.nxt[ci]; const cr={kind:'crystal',x:0,z:0,reach:2.9+e.r};
+    else if(e.fly){ const ci=idx(wc(e.x),wcz(e.z)); const n=flowFly.nxt[ci]; const cr=goalCr(isGoal(ci)?ci:n,e); target=(isGoal(ci)||isGoal(n))?cr:(n>=0?{kind:'move',x:cw(n%GW),z:cwz((n/GW)|0)}:null); }   // straight over stairs, ledges and defenses
+    else { const ci=idx(wc(e.x),wcz(e.z)); let n=flowDef.nxt[ci]; const cr=goalCr(isGoal(ci)?ci:n,e);
       // defenses in the way get smashed, not politely walked around: if going round costs more than this mob's patience
       // (in grid squares — ogres have none, goblins a little), follow the straight path and break whatever blocks it
       const dD=flowDef.dist[ci], dF=flowFree.dist[ci]; const patience=MOBS[e.kind].detour!==undefined?MOBS[e.kind].detour:3; const smash=dD<0||(dF>=0&&dD-dF>patience);
-      if(ci===GOAL||n===GOAL) target=cr; else if(n>=0&&!smash) target={kind:'move',x:cw(n%GW),z:cwz((n/GW)|0)};
-      else { n=flowFree.nxt[ci]; if(n===GOAL) target=cr; else if(n>=0){ const d=defAt[n]; target=(d&&!NOWALK_DEF[d.kind])?{kind:'def',obj:d,x:d.x,z:d.z,reach:1.35+e.r}:{kind:'move',x:cw(n%GW),z:cwz((n/GW)|0)}; } } }
+      if(isGoal(ci)||isGoal(n)) target=cr; else if(n>=0&&!smash) target={kind:'move',x:cw(n%GW),z:cwz((n/GW)|0)};
+      else { n=flowFree.nxt[ci]; if(isGoal(n)) target=goalCr(n,e); else if(n>=0){ const d=defAt[n]; target=(d&&!NOWALK_DEF[d.kind])?{kind:'def',obj:d,x:d.x,z:d.z,reach:1.35+e.r}:{kind:'move',x:cw(n%GW),z:cwz((n/GW)|0)}; } } }
     const onStairs=e.ranged&&!e.fly&&(Math.abs(baseFloor(e.x+.9,e.z)-baseFloor(e.x-.9,e.z))+Math.abs(baseFloor(e.x,e.z+.9)-baseFloor(e.x,e.z-.9))>.25);   /* build 180: an archer or troll on a staircase keeps climbing to flat ground before it stops to shoot -- parked on the Throne Room's top flight they plugged it, and the orcs and ogres behind were shoved off its side and jammed ("these 2 enemies keep getting stuck") */
-    if(e.ranged&&target&&target.kind!=='hero'&&!onStairs){ let best=null, bd=e.ranged; for(const d of defs){ if(d.kind==="spike"||d.kind==="slice") continue; const dd=Math.hypot(d.x-e.x,d.z-e.z); if(dd<bd&&los(e.x,e.z,d.x,d.z)){ bd=dd; best={kind:"def",obj:d,x:d.x,z:d.z}; } } const cd=Math.hypot(e.x,e.z); if(cd<e.ranged&&los(e.x,e.z,0,0)) best={kind:'crystal',x:0,z:0}; if(best){ best.reach=e.ranged-1; if(best.kind==='def'&&DEF_HITS_BACK[best.obj.kind]) best.reach=Math.min(best.reach,Math.max(1.6,stat(best.obj,'range')-.8)); best.ranged=true; target=best; } }   /* build 161 (Matt: "a ranged mob is allowed to stand just outside their range and poke at them"): an archer (11) or troll (13) shooting a TOWER comes inside that tower's own reach first -- a halo's 5, the frost's 6, the cannon's 12 -- so it can always answer; the crystal and heroes are still shot from full range, and a tower that can't hit a walker (totem, snare) is shot from anywhere */
+    if(e.ranged&&target&&target.kind!=='hero'&&!onStairs){ let best=null, bd=e.ranged; for(const d of defs){ if(d.kind==="spike"||d.kind==="slice") continue; const dd=Math.hypot(d.x-e.x,d.z-e.z); if(dd<bd&&los(e.x,e.z,d.x,d.z)){ bd=dd; best={kind:"def",obj:d,x:d.x,z:d.z}; } } const cd=Math.hypot(e.x,e.z), pd=GOAL2>=0?flowFree.dist[idx(wc(e.x),wcz(e.z))]:0, pathNear=GOAL2<0||(pd>=0&&pd*CELL<=e.ranged*1.5); if(cd<e.ranged&&pathNear&&los(e.x,e.z,0,0)) best={kind:'crystal',x:0,z:0}; if(GOAL2>=0){ const c2=Math.hypot(e.x-C2X,e.z-C2Z); if(c2<e.ranged&&c2<cd&&pathNear&&los(e.x,e.z,C2X,C2Z)) best={kind:'crystal',x:C2X,z:C2Z,which:2}; }   /* build 282: on a two-Heartroot map (the Cloister Court's garden) an archer walking a lane past a Heartroot could shoot it through the hedges and skip the long way: it shoots one only once its path has brought it near (within half again its range) */ if(best){ best.reach=e.ranged-1; if(best.kind==='def'&&DEF_HITS_BACK[best.obj.kind]) best.reach=Math.min(best.reach,Math.max(1.6,stat(best.obj,'range')-.8)); best.ranged=true; target=best; } }   /* build 161 (Matt: "a ranged mob is allowed to stand just outside their range and poke at them"): an archer (11) or troll (13) shooting a TOWER comes inside that tower's own reach first -- a halo's 5, the frost's 6, the cannon's 12 -- so it can always answer; the crystal and heroes are still shot from full range, and a tower that can't hit a walker (totem, snare) is shot from anywhere */
     e.tgtDef=target&&target.kind==='def'?target.obj:null;   // which tower this mob is attacking right now (updateDefs: that tower answers it first)
     if(e.roar===0&&((hd<14&&los(e.x,e.z,hx,hz))||Math.hypot(e.x,e.z)<12)) ogreRoar(e,1); else if(e.roar===1&&e.hp<=e.max*.5) ogreRoar(e,2);
     if(e.kind==='trollboss'){ e.healT=(e.healT===undefined?0:e.healT)-dt; if(e.healT<=0){ const cfg=MOBS.trollboss; let healed=0; for(const o of enemies){ if(o===e||o.dead||o.hp>=o.max) continue; if(Math.hypot(o.x-e.x,o.z-e.z)>cfg.healR) continue; const before=o.hp; o.hp=Math.min(o.max,o.hp+cfg.healAmt); if(o.hp>before){ floatText(o.x,o.y+o.h+.3,o.z,'+'+Math.round(o.hp-before),'#8ef4c0'); healed++; } } if(healed) healPulse(e); e.healT=cfg.healCd; } }   // the healer's pulse: any wounded mob nearby is mended — kill this one first or the horde outlasts you
@@ -1167,8 +1173,8 @@ function updateProj(dt){
     else if(p.kind==='shock'){ p.t+=dt; const k=p.t/.45; p.mesh.scale.setScalar(.3+easeOut(k)*p.r); p.mesh.material.opacity=.6*(1-k); dead=p.t>=.45; }   // the trebuchet's splash ring (build 150)
     else if(p.kind==='spark'){ p.t+=dt; const k=p.t/.3; p.mesh.position.y+=dt*.8; p.mesh.scale.set(.9*(1-k*.5),.9*(1-k*.5),1); p.mesh.material.opacity=.75*(1-k); dead=p.t>=.3; }   // the spire's frostbite glint (build 150)
     else { p.t+=dt/p.dur; const t=Math.min(1,p.t); const x=lerp(p.x0,p.x1,t), z=lerp(p.z0,p.z1,t), y=lerp(p.y0,p.y1,t)+Math.sin(t*PI)*1.4; p.mesh.position.set(x,y,z); const t2=Math.min(1,t+.05); p.mesh.lookAt(lerp(p.x0,p.x1,t2),lerp(p.y0,p.y1,t2)+Math.sin(t2*PI)*1.4,lerp(p.z0,p.z1,t2));
-      if(p.t>=1){ dead=true; if(p.hit.kind==='crystal') hurtCrystal(p.dmg,p.owner); else if(p.hit.obj&&defs.includes(p.hit.obj)) hurtDef(p.hit.obj,p.dmg);
-        if(p.splash){ grenadeBurst(p.x1,p.y1,p.z1); const hitCrystal=Math.hypot(p.x1,p.z1)<p.splash; if(hitCrystal&&p.hit.kind!=='crystal') hurtCrystal(Math.round(p.dmg*.6*10)/10,p.owner); for(const d2 of defs){ if(d2===p.hit.obj) continue; if(Math.hypot(d2.x-p.x1,d2.z-p.z1)<p.splash+.6) hurtDef(d2,Math.round(p.dmg*.6*10)/10); } } /* the grenade bursts: everything nearby (not just what it was aimed at) takes half again what it hit */ } }
+      if(p.t>=1){ dead=true; if(p.hit.kind==='crystal') hurtCrystal(p.dmg,p.owner,p.hit.which); else if(p.hit.obj&&defs.includes(p.hit.obj)) hurtDef(p.hit.obj,p.dmg);
+        if(p.splash){ grenadeBurst(p.x1,p.y1,p.z1); const hitCrystal=Math.hypot(p.x1,p.z1)<p.splash; if(GOAL2>=0&&Math.hypot(p.x1-C2X,p.z1-C2Z)<p.splash&&!(p.hit.kind==='crystal'&&p.hit.which===2)) hurtCrystal(Math.round(p.dmg*.6*10)/10,p.owner,2); if(hitCrystal&&!(p.hit.kind==='crystal'&&!p.hit.which)) hurtCrystal(Math.round(p.dmg*.6*10)/10,p.owner); for(const d2 of defs){ if(d2===p.hit.obj) continue; if(Math.hypot(d2.x-p.x1,d2.z-p.z1)<p.splash+.6) hurtDef(d2,Math.round(p.dmg*.6*10)/10); } } /* the grenade bursts: everything nearby (not just what it was aimed at) takes half again what it hit */ } }
     if(dead){ scene.remove(p.mesh); projs.splice(i,1); } }
 }
 const MANA_ORB_MUL=1.25;   // every mob's mana orbs are worth this much more (a playtest ask); one place to retune, and the co-op orb grant reads it too
@@ -1419,9 +1425,9 @@ window.__dd={renders:()=>RENDERS,placeDefAt,upgradeDef,marks:()=>({max:MAXLVL,na
   step:(dt,n)=>{ for(let i=0;i<(n||1);i++) update(dt||1/60); },
   shot:(w,h)=>{ w=w||960; h=h||540; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); updateCamera(0); renderer.render(scene,camera); const d=renderer.domElement.toDataURL('image/png'); onResize(); return d; },
   setHero:(x,z,yaw)=>{ hero.x=x; hero.z=z; if(yaw!==undefined) hero.yaw=yaw; }, setCam:(yaw,pitch,dist)=>{ cam.yaw=yaw; cam.pitch=pitch; cam.dist=dist; cam.d=dist; },
-  status:()=>({phase:S.phase,held:S.held,wave:S.wave,mana:S.mana,du:S.du,crystal:S.crystal,heroHp:Math.round(hero.hp),enemies:enemies.filter(e=>!e.dead).length,defs:defs.length,projs:projs.length,orbs:orbs.length,queue:spawnQ.length,kills:S.kills,loot:loot.length,t:+S.t.toFixed(1)}),
+  status:()=>({phase:S.phase,held:S.held,wave:S.wave,mana:S.mana,du:S.du,crystal:S.crystal,crystal2:GOAL2>=0?S.crystal2:null,heroHp:Math.round(hero.hp),enemies:enemies.filter(e=>!e.dead).length,defs:defs.length,projs:projs.length,orbs:orbs.length,queue:spawnQ.length,kills:S.kills,loot:loot.length,t:+S.t.toFixed(1)}),
   addMana:n=>{ S.mana+=n; }, mute:()=>setSound(false), reflow, flow:()=>flowDef, flowFly:()=>flowFly, worldInfo:()=>Object.assign({duCap:DU_CAP},world.userData),
   survival:()=>SURVIVAL, runWaves, waveComp:w=>waveComp(w===undefined?effWave():w), statWave,   // build 176 (survival-test.mjs)
-  map:()=>({index:MAPI,tutorial:TUTORIAL,id:MAP.id,name:MAP.name,waves:MAP.waves,wbase:MAP.wbase,total:MAPS.length,cleared:MAPS_CLEARED,gw:GW,gh:GH,wallH:WALLH,windows:world.userData.windows|0,style:MAP.style||null}), maps:()=>MAPS.map(m=>({id:m.id,name:m.name,waves:m.waves})), effWave, winMap, lanes:()=>LANES, pathLen:(cx,cz)=>flowFree.dist[idx(cx,cz)], pathLenFly:(cx,cz)=>flowFly.dist[idx(cx,cz)], cellAt:(cx,cz)=>gat(cx,cz), cw, cwz, floorH, baseFloor, hgtAt:(cx,cz)=>hgt[idx(cx,cz)] };
+  map:()=>({index:MAPI,tutorial:TUTORIAL,id:MAP.id,name:MAP.name,waves:MAP.waves,wbase:MAP.wbase,total:MAPS.length,cleared:MAPS_CLEARED,gw:GW,gh:GH,wallH:WALLH,windows:world.userData.windows|0,style:MAP.style||null}), maps:()=>MAPS.map(m=>({id:m.id,name:m.name,waves:m.waves})), effWave, winMap, lanes:()=>LANES, pathLen:(cx,cz)=>flowFree.dist[idx(cx,cz)], pathLenFly:(cx,cz)=>flowFly.dist[idx(cx,cz)], cellAt:(cx,cz)=>gat(cx,cz), hearts:()=>GOAL2>=0?[{x:0,z:0,cell:[GOAL%GW,(GOAL/GW)|0],hp:S.crystal},{x:C2X,z:C2Z,cell:[GOAL2%GW,(GOAL2/GW)|0],hp:S.crystal2}]:[{x:0,z:0,cell:[GOAL%GW,(GOAL/GW)|0],hp:S.crystal}], cw, cwz, floorH, baseFloor, hgtAt:(cx,cz)=>hgt[idx(cx,cz)] };
 })();
 
