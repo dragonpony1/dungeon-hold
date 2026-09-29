@@ -11,7 +11,7 @@ const FAM_H={'Wisp':.8,'Bat':.7,'Sprite':.8,'Fire Imp':.85,'Crystal Owl':.8,'Sto
 const FAM_KIND={
   'Wisp':        {rate:1.0,dmg:1.0,desc:'spark bolts'},
   'Bat':         {rate:.55,dmg:1.7,desc:'swoops and bites'},
-  'Sprite':      {rate:.8, dmg:.6, desc:'seed pods · spore cloud slows',slow:2.2,r:1.6},
+  'Sprite':      {rate:.8, dmg:.5, desc:'dual thorn darts · each slows',slow:1.2,r:1.0},   // build 242 (Matt: "the sprite will be shooting dual thorn darts"): two thorns a shot, each hitting for .5 pet damage in a 1-unit puff (was one seed pod, .6 in a 1.6 spore cloud)
   'Fire Imp':    {rate:.7, dmg:.9, desc:'dives and drops molten lava · burning pools',splash:1.3,burn:3,burnDmg:.25},
   'Crystal Owl': {rate:.9, dmg:.8, desc:'beam chains to 3 mobs',hops:2,chain:.7,reach:4},
   'Storm Drake': {rate:.5, dmg:1.4,desc:'lightning forks into the pack',fork:.8,r:1.8}};
@@ -62,6 +62,13 @@ const THORN={col:0x3dff5a,geo:null,mat:null,glowP:null,speed:1.6,UP:new THREE.Ve
 function thornsOn(){ const b=window.__forest&&window.__forest.boon&&window.__forest.boon(); return !!((b&&b.thorns)||(window.__mythic&&window.__mythic.has('bramblewhisk'))); }   // or the Bramblewhisk (build 152)
 function thornMesh(){ const T=THORN; if(!T.geo){ T.geo=G.cyl(0,.05,.46,6); T.mat=basic(0xb8ffb0); T.glowP=glow(T.col,.62,.9); }
   const g=new THREE.Group(); const c=new THREE.Mesh(T.geo,T.mat); c.userData.noOL=true; c.userData.shared=true; g.add(c); const s=T.glowP.clone(); s.userData.shared=true; g.add(s); g.userData.thorn=c; return g; }   // one geometry, one material, one glow material for every thorn: nothing allocated per shot but the group
+// build 242: Matt's Sprite Thorn Darts model (fam-thorn-dart.glb: a vine-wrapped emerald thorn, long along X, pointed at both ends) for the Sprite's two darts. Self-lit (tfxMake: the map on a basic
+// material), fitted to .62 long and laid along +Y inside a group that aimThorn turns to face the flight; a glow rides along like the plain thorn's.
+let DART=null, DARTP=null;
+function dartLoad(){ if(DARTP) return; DARTP=fetchBytes(ASSET('fam-thorn-dart.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(g=>{ DART=tfxMake(g.scene||g.scenes[0],.95,null,false); }).catch(e=>console.warn('sprite dart model',e)); }
+function dartMesh(){ if(!DART) return thornMesh(); if(!THORN.glowP) thornMesh();
+  const g=new THREE.Group(), inner=new THREE.Group(), m=DART.clone(true); m.rotation.z=PI/2; inner.add(m); g.add(inner); g.userData.thorn=inner;
+  const gl=THORN.glowP.clone(); gl.userData.shared=true; g.add(gl); return g; }
 function aimThorn(g,vx,vy,vz){ const c=g&&g.userData.thorn; if(!c) return; const v=new THREE.Vector3(vx,vy,vz); if(v.lengthSq()<1e-6) return; c.quaternion.setFromUnitVectors(THORN.UP,v.normalize()); }
 function thornTrail(x,y,z){ fx((g,mt)=>{ const p=glow(THORN.col,.32,.6); p.position.set(x,y,z); g.add(p); },.18); }
 // the Wisp's sparks come from 30-familiar.js's famBolts: re-dress the bolt it just made, speed it up, and give it a trail
@@ -73,9 +80,12 @@ function extraTargets(e,n){ const out=[]; const cands=famFoes().filter(m=>!m.dea
 famFire=function(e){ const n=heroStat('fproj')|0; fireOne(e,n); const k=kindOf(); if(n>0&&(k==='Wisp'||k==='Sprite'||k==='Fire Imp')) for(const t of extraTargets(e,n)) fireOne(t,0); };
 function fireOne(e,extra){ const k=kindOf(), C=FAM_KIND[k]; fam.kick=1;
   if(k==='Bat'){ const [x,y,z]=[fam.x,fam.y,fam.z]; swoop={e,t:0,dur:.6,bit:false,x0:x,y0:y,z0:z}; return; }
-  if(k==='Sprite'){ const [x,y,z]=muzzle(); const th=thornsOn(); const T=th?.62/THORN.speed:.62, g=th?9:14; const tx=e.x+(e.walking?Math.sin(e.yaw)*mobSpd(e)*T*.6:0), tz=e.z+(e.walking?Math.cos(e.yaw)*mobSpd(e)*T*.6:0); const mesh=th?thornMesh():shotMesh(0x9be36a,.8,.11); mesh.position.set(x,y,z); scene.add(mesh);   /* thorns: under half the flight time and lighter gravity, so the arc tops out near 0.1 m instead of 0.7 -- a skim, not a lob */
-    famShots.push({x,y,z,vx:(tx-x)/T,vy:(e.y+.3-y)/T+.5*g*T,vz:(tz-z)/T,g,t:0,mesh,thorn:th,land:(s,h)=>{ const d=dmgOf(C.dmg); for(const m of nearMobs(s.x,s.z,C.r,null)){ famHurt(m,d,0,0,{slow:C.slow}); m.slowT=Math.max(m.slowT||0,C.slow); } SFX.spore(); famLand(s.x,s.z,d);   /* {slow} (build 159, 5/7): a co-op guest's spores reach the host's mob too (famHurt's famHit), not only this page's proxy of it */
-      fx((g,mt)=>{ mt.color.set(0x9be36a); for(let i=0;i<7;i++){ const p=glow(0x9be36a,.9+rnd()*.5,.55); const a=rnd()*TAU, r=rnd()*C.r*.8; p.position.set(s.x+Math.cos(a)*r,.25+rnd()*.5,s.z+Math.sin(a)*r); g.add(p); } },.9); }}); SFX.acorn(); return; }
+  if(k==='Sprite'){ const [x,y,z]=muzzle(); const T=.62/THORN.speed, g=9;   // DUAL THORN DARTS (build 242): two thorns leave side by side and skim to the mob (thorn flight: under half the time, light gravity), each a small puff that slows
+    const tx0=e.x+(e.walking?Math.sin(e.yaw)*mobSpd(e)*T*.6:0), tz0=e.z+(e.walking?Math.cos(e.yaw)*mobSpd(e)*T*.6:0); const dx=tx0-x, dz=tz0-z, dl=Math.hypot(dx,dz)||1, px=-dz/dl, pz=dx/dl;
+    for(const sd of [-1,1]){ const mesh=dartMesh(); const sx=x+px*sd*.16, sz=z+pz*sd*.16; mesh.position.set(sx,y,sz); scene.add(mesh); const tx=tx0+px*sd*.22, tz=tz0+pz*sd*.22;
+      famShots.push({x:sx,y,z:sz,vx:(tx-sx)/T,vy:(e.y+(e.h||1.2)*.5-y)/T+.5*g*T,vz:(tz-sz)/T,g,t:0,mesh,thorn:true,land:(sh,h)=>{ const d=dmgOf(C.dmg); for(const m of nearMobs(sh.x,sh.z,C.r,null)){ famHurt(m,d,0,0,{slow:C.slow}); m.slowT=Math.max(m.slowT||0,C.slow); } SFX.spore(); famLand(sh.x,sh.z,d);   /* {slow}: a co-op guest's darts reach the host's mob too (famHurt's famHit) */
+        fx((gg,mt)=>{ mt.color.set(0x3dff5a); for(let i=0;i<4;i++){ const p=glow(0x3dff5a,.5+rnd()*.3,.5); const a=rnd()*TAU, r=rnd()*.45; p.position.set(sh.x+Math.cos(a)*r,.2+rnd()*.35,sh.z+Math.sin(a)*r); gg.add(p); } },.5); }}); }
+    SFX.acorn(); return; }
   if(k==='Fire Imp'){ if(swoop) return; swoop={e,t:0,dur:.85,bit:false,lava:true,x0:fam.x,y0:fam.y,z0:fam.z}; return; }   // build 227 (Matt: "no fire ball just the lava drops"): the Imp dives at the pack like the Bat and drops molten lava -- lavaPool below
 
   if(k==='Crystal Owl'){ famLand(e.x,e.z,dmgOf(C.dmg)); const from=new THREE.Vector3(...muzzle()); let cur=e, prev=from, d=dmgOf(C.dmg);   /* build 178: the beam's first mob is where it lands (the chain hops don't each sprout one) */ const hitList=[]; for(let hop=0;hop<=C.hops+extra&&cur;hop++){ const to=new THREE.Vector3(cur.x,cur.y+cur.h*.55,cur.z); bolt(prev,to,0x9ee8ff,.03+.01*(hop===0),false); famHurt(cur,d,0,0); hitList.push(cur); prev=to; d=dmgOf(C.dmg*Math.pow(C.chain,hop+1));
@@ -112,6 +122,7 @@ function lavaUpdate(dt){ if(fam&&kindOf()==='Fire Imp') lavaLoad(); lavaDropUpda
     const fin=Math.min(1,p.t/.25), fout=Math.min(1,(LV.life-p.t)/.9), k=Math.min(fin,fout), pulse=1+Math.sin(p.t*7)*.04; p.disc.material.opacity=k*.95; p.disc.scale.setScalar((.55+.45*fin)*pulse*(p.rim?.96:1)); if(p.rim){ const rs=.6+.4*fin; p.rim.scale.set(rs,rs*(.35+.65*fout),rs); p.rim.position.y=-(1-fout)*.3; }   // the rock rim sinks and flattens as the pool cools p.glow.material.opacity=.5*k*(.85+.15*Math.sin(p.t*11));
     for(const m of p.embers){ const u=(p.t*.55+m.userData.ph)%1; m.position.set(Math.cos(m.userData.a+p.t*.6)*m.userData.r,.15+u*1.2,Math.sin(m.userData.a+p.t*.6)*m.userData.r); m.material.opacity=.8*(1-u)*k; m.scale.setScalar(.35+(1-u)*.35); }
     p.tk+=dt; if(p.tk>=LV.tick&&p.t>.2){ p.tk-=LV.tick; for(const m of nearMobs(p.x,p.z,LV.r,null)){ if((m.lavaT||-9)>S.t-LV.tick*.85) continue; m.lavaT=S.t; famHurt(m,dmgOf(LV.mul),0,0,{burn:LV.linger,burnDmg:dmgOf(.25)}); burn(m,{burn:LV.linger,burnDmg:.25}); } } } }   // one tick per mob per interval however many pools it stands in: overlapping pools do not stack
+window.__dart={loaded:()=>!!DART,mesh:dartMesh};
 window.__lava={pools:()=>LAVA.length,drops:()=>LDROP.length,models:()=>!!(LFX.drop&&LFX.pool),cfg:LV,drop:(x,z)=>lavaPool(x,z,0),clear:()=>{ while(LAVA.length){ const o=LAVA.pop(); scene.remove(o.g); } }};
 function swoopUpdate(dt){ if(!swoop||!fam) return; const w=swoop; w.t+=dt/w.dur; const e=w.e; if(e.dead&&w.t<.5){ w.t=.5; }
   const k=Math.sin(Math.min(1,w.t)*PI);   // 0 → 1 (at the mob) → 0 (back on the shoulder)
@@ -120,7 +131,7 @@ function swoopUpdate(dt){ if(!swoop||!fam) return; const w=swoop; w.t+=dt/w.dur;
   if(w.lava&&!w.bit&&w.t>=.5){ w.bit=true; if(!e.dead) lavaDrop(fam.g.position.x,fam.g.position.y-.1,fam.g.position.z,e.x,e.z,e.y||0); }
   else if(!w.bit&&w.t>=.5&&!e.dead){ w.bit=true; famHurt(e,dmgOf(K().dmg),Math.sin(fam.g.rotation.y)*.6,Math.cos(fam.g.rotation.y)*.6); famLand(e.x,e.z,dmgOf(K().dmg)); const nb=heroStat('fproj')|0; if(nb>0) for(const m of nearMobs(e.x,e.z,1.6,e).slice(0,nb)) famHurt(m,dmgOf(K().dmg*.7),0,0); SFX.hit(); fx((g,mt)=>{ const p=glow(0xffe0a0,1.2,.8); p.position.set(e.x,e.y+e.h*.7,e.z); g.add(p); },.2); }
   if(w.t>=1){ swoop=null; fam.g.rotation.x=0; } }
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(fam){ swoopUpdate(dt); } lavaUpdate(dt); famShotsUpdate(dt); famFxUpdate(dt); burnUpdate(dt); }; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(fam&&kindOf()==='Sprite') dartLoad(); if(fam){ swoopUpdate(dt); } lavaUpdate(dt); famShotsUpdate(dt); famFxUpdate(dt); burnUpdate(dt); }; }
 const famClearProc=famClearBolts; famClearBolts=function(){ famClearProc(); for(const s of famShots){ scene.remove(s.mesh); } famShots.length=0; };
 // the bag / sheet says what each familiar does
 const statStrProc=statStr; statStr=function(it){ const s=statStrProc(it); if(it&&it.slot==='familiar'){ const nk=namedPet(it); if(nk) return s+' · '+NAMED_PET[nk].desc; const C=FAM_KIND[famKind(it)]; if(C) return s+' · '+C.desc; } return s; };

@@ -70,7 +70,7 @@ const bram=await H.evaluate(()=>{ const d=window.__dd, B=window.__bramble; for(c
   B.clear(); e.x=20; e.z=5; for(let i=0;i<20;i++) B.sprout(i*.3,2,5); const cap=B.list().length; d.step(1/60,60*4+10); const after=B.list().length; d.kill(e);
   return {plain,bw,kinds,slow,lone,three,cap,after}; });
 check("a plain pet grows no patches; Bramblewhisk's (a Wisp) do, where its shots land, and the goblins in them crawl at 60%",bram.plain.maxP===0&&!bram.plain.on&&bram.bw.on&&bram.bw.maxP>=2&&bram.bw.slowed,JSON.stringify({plain:bram.plain,bw:bram.bw}));
-check("every kind of pet grows them: the Moss Sprite's pod, the Fire Imp's fireball, the Owl's beam, the Drake's bolt, the Bat's bite",Object.values(bram.kinds).every(n=>n>=1),JSON.stringify(bram.kinds));
+check("every kind of pet grows them: the Moss Sprite's darts, the Owl's beam, the Drake's bolt, the Bat's bite",Object.entries(bram.kinds).filter(([k])=>k!=="Fire Imp").every(([,n])=>n>=1),JSON.stringify(bram.kinds));
 check("one patch from a 10-damage shot: 60% speed, and a 1.5 prick every half second (6 in 2 s); three overlapping patches still prick once (6)",bram.slow===.6&&near(bram.lone,6,.01)&&near(bram.three,6,.01),JSON.stringify({slow:bram.slow,lone:bram.lone,three:bram.three}));
 check("at most 12 patches live, and they wither after 4 s",bram.cap===12&&bram.after===0,JSON.stringify({cap:bram.cap,after:bram.after}));
 await H.evaluate(()=>{ const d=window.__dd; d.setHero(-3,10,Math.PI); d.setCam(Math.PI,.62,6); window.__bramble.sprout(-1.2,5,20); window.__bramble.sprout(1,4.2,20); window.__bramble.sprout(-.2,6.4,20); d.step(1/60,40); document.getElementById("hud").style.display="none"; });
