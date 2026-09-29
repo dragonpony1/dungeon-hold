@@ -81,6 +81,16 @@ function tickChargeGlow(){ if(!SP.charging){ chargeGlow.visible=false; return; }
   chargeGlow.visible=true; const k=SP.t/CHARGE_TIME; chargeGlow.position.set(hero.x,hero.y+1.4,hero.z);
   chargeGlow.scale.setScalar(lerp(.6,2.0,k)); chargeGlow.material.opacity=.25+.55*k; chargeGlow.material.color.copy(C(CHARGE_COLOR[heroId()]||0xffe9a8)); }
 
+// ---- the landing circle (build 255): while a special charges, a ring on the floor shows what it will cover -- round the hero for the Knight's whirlwind (4) and the Fighter's halo (8), on the spot the aim
+// picks for the Witch's starfall (5) and the Ranger's volley (2.5) -- with a disc inside growing to the ring as the charge fills. aimSpot() is the same call that fires the special, so it is where it lands. ----
+const GR={r:{knight:CLEAVE_R,witch:STARFALL_R,fighter:HALO_RING_R,troll:VOLLEY_R},on:false,x:0,z:0,R:0,k:0};
+const grGeo=new THREE.RingGeometry(.93,1,72), grDisc=new THREE.CircleGeometry(1,56);
+const grRing=new THREE.Mesh(grGeo,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.8,side:THREE.DoubleSide,depthWrite:false})), grBack=new THREE.Mesh(grDisc,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.14,side:THREE.DoubleSide,depthWrite:false})), grFill=new THREE.Mesh(grDisc,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.3,side:THREE.DoubleSide,depthWrite:false}));
+const grGroup=new THREE.Group(); for(const m of [grBack,grFill,grRing]){ m.userData.noOL=true; m.frustumCulled=false; grGroup.add(m); } grGroup.rotation.x=-PI/2; grGroup.visible=false; scene.add(grGroup);
+function tickGroundRing(){ if(!SP.charging){ if(GR.on){ GR.on=false; grGroup.visible=false; } return; }
+  const hid=heroId(), R=GR.r[hid]||3, k=Math.min(1,SP.t/CHARGE_TIME); const spot=(hid==='witch')?aimSpot(STARFALL_MAXR):(hid==='troll')?aimSpot(VOLLEY_MAXR):{x:hero.x,z:hero.z};
+  GR.on=true; GR.x=spot.x; GR.z=spot.z; GR.R=R; GR.k=k; const col=C(CHARGE_COLOR[hid]||0xffe9a8); for(const m of [grRing,grBack,grFill]) m.material.color.copy(col);
+  grGroup.position.set(spot.x,baseFloor(spot.x,spot.z)+.09,spot.z); grRing.scale.setScalar(R); grBack.scale.setScalar(R); grFill.scale.setScalar(Math.max(.001,R*k)); grRing.material.opacity=k>=.95?.6+.4*Math.sin(S.t*30)**2:.8; grGroup.visible=true; }
 // ---- the halo buff: a flat multiplier stat() (game.js) applies for every halo tower kind while HALO_SURGE_T is
 // still counting down, whoever's page is actually simulating the real hall (host or solo -- a guest's own local defs
 // are never what's drawn or shared, same as everywhere else in this game's co-op). Keyed through stat() itself
@@ -187,13 +197,38 @@ style.textContent='#specialIcon{position:absolute;left:14px;bottom:14px;width:40
  +'.special-cd .cdmask{position:absolute;inset:-2px;border-radius:50%;background:conic-gradient(#00000094 var(--cd,0deg),transparent 0deg);pointer-events:none;transition:opacity .15s}'
  +'.special-cd.ready .cdmask{opacity:0}'
  +'.special-cd.charging{border-color:#7fe0ff;box-shadow:0 0 12px #7fe0ffcc,0 3px 0 #000}'
- +'.special-cd.ready:not(.charging){border-color:var(--gold);box-shadow:0 0 10px #e8b94a99,0 3px 0 #000}';
+ +'.special-cd.ready:not(.charging){border-color:var(--gold);box-shadow:0 0 10px #e8b94a99,0 3px 0 #000}'
+ +'#specialBar{position:absolute;left:50%;transform:translateX(-50%);width:min(340px,64vw);text-align:center;pointer-events:none;opacity:0;transition:opacity .15s;z-index:6}#specialBar.on{opacity:1}'
+ +'#specialBar .sbn{font:700 13px/1 "Cinzel Decorative",Georgia,serif;letter-spacing:2px;color:var(--sbc,#ffe9a8);text-shadow:0 2px 0 #000,0 0 8px #000;margin-bottom:5px}'
+ +'#specialBar .sbt{height:14px;border-radius:8px;background:#120c1acc;border:2px solid #000;box-shadow:0 0 0 2px var(--sbc,#ffe9a8),0 3px 0 2px #000;overflow:hidden}'
+ +'#specialBar .sbf{height:100%;width:0;background:linear-gradient(90deg,var(--sbc,#ffe9a8),#fff);border-radius:6px}'
+ +'#specialBar.charging .sbt{box-shadow:0 0 14px var(--sbc),0 0 0 2px var(--sbc),0 3px 0 2px #000}'
+ +'#specialBar.cool .sbf{background:var(--sbc);opacity:.55}#specialBar.cool .sbn{opacity:.75}'
+ +'#specialBar.fired .sbf,#specialBar.ready .sbf{background:#fff}#specialBar.ready .sbt,#specialBar.fired .sbt{box-shadow:0 0 16px var(--sbc),0 0 0 2px var(--sbc),0 3px 0 2px #000}';
 document.head.appendChild(style);
 function mkIcon(id,cls){ const el=document.createElement('div'); el.id=id; el.className=cls; el.innerHTML='<span>✦</span><i class="cdmask"></i>'; return el; }
 const specialIconEl=mkIcon('specialIcon','special-cd'); $('hud').appendChild(specialIconEl);
+// build 255 (Matt: "the secondary attacks need a charge up meter"): a bar just above the hotbar. While the button is held it fills over the charge, in the hero's special colour; the instant the special goes off it
+// flashes white, then shows the cooldown filling back up (dimmer, with the seconds left), and when the special is ready again it says so for a moment and goes away. Nothing is shown while it is ready and unused.
+// The little round \u2726 icon in the corner keeps its own cooldown ring. The bar sits on the hotbar's top edge wherever the hotbar is (phones lay it out differently).
+const barEl=document.createElement('div'); barEl.id='specialBar'; barEl.innerHTML='<div class="sbn"></div><div class="sbt"><div class="sbf"></div></div>'; $('hud').appendChild(barEl);
+const barN=barEl.querySelector('.sbn'), barF=barEl.querySelector('.sbf'); const METER={state:'',fill:0,label:'',flashT:0,readyT:0,prevCharging:false,prevCd:0};
+const cssHex=h=>'#'+(h>>>0).toString(16).padStart(6,'0');
+function updateMeter(dt){ const hid=heroId(), nm=(SPEC_NAME[hid]||'Special').toUpperCase(); let st='', fill=0, label=nm;
+  if(SP.charging){ st='charging'; fill=Math.min(1,SP.t/CHARGE_TIME); }
+  else { if(METER.prevCharging&&SP.cd>=COOLDOWN-.05) METER.flashT=.3;   // it just went off
+    if(METER.prevCd>0&&SP.cd<=0) METER.readyT=1.3;
+    if(METER.flashT>0){ METER.flashT-=dt; st='fired'; fill=1; }
+    else if(SP.cd>0){ st='cool'; fill=1-SP.cd/COOLDOWN; label=nm+' \u00b7 '+Math.ceil(SP.cd)+'s'; }
+    else if(METER.readyT>0){ METER.readyT-=dt; st='ready'; fill=1; label='\u2726 '+nm+' READY'; } }
+  METER.prevCharging=SP.charging; METER.prevCd=SP.cd; METER.state=st; METER.fill=fill; METER.label=st?label:'';
+  barEl.classList.toggle('on',!!st); if(!st) return;
+  barEl.className=(st?'on ':'')+st; barEl.style.setProperty('--sbc',cssHex(CHARGE_COLOR[hid]||0xffe9a8)); barN.textContent=label; barF.style.width=(fill*100).toFixed(1)+'%';
+  const hb=$('hotbar'), hr=hb.getBoundingClientRect(), pr=$('hud').getBoundingClientRect(); barEl.style.bottom=Math.max(96,Math.round(pr.bottom-hr.top+10))+'px'; }
 let specialBtnEl=null;
 if(TOUCH){ specialBtnEl=mkIcon('specialBtn','hb special-cd'); $('btns').appendChild(specialBtnEl); }
-function updateHUD2(){
+function updateHUD2(dt){
+  updateMeter(dt||0);
   const ready=SP.cd<=0, deg=Math.max(0,Math.min(1,SP.cd/COOLDOWN))*360;
   [specialIconEl,specialBtnEl].forEach(el=>{ if(!el) return; el.style.setProperty('--cd',deg+'deg'); el.classList.toggle('ready',ready); el.classList.toggle('charging',SP.charging); });
   const nm=SPEC_NAME[heroId()]||'Special'; specialIconEl.title=nm+' — hold right-click ('+(ready?'ready':Math.ceil(SP.cd)+'s')+')';
@@ -214,7 +249,7 @@ document.addEventListener('touchcancel',specTouchEnd,{capture:true});
     if(SP.charging&&!canStart()){ SP.charging=false; SP.t=0; }   // dead, a menu opened, placing started, the run ended, etc -- mid-charge
     if(SP.charging){ SP.t+=dt; hero.specialSlow=.5; if(SP.t>=CHARGE_TIME){ SP.charging=false; SP.t=0; SP.cd=COOLDOWN; doFire(); } }
     else hero.specialSlow=1;
-    tickChargeGlow(); tickRing(dt); if(HALO_SURGE_T>0) HALO_SURGE_T=Math.max(0,HALO_SURGE_T-dt); tickVolley(); tickFall(dt); updateHUD2();
+    tickChargeGlow(); tickRing(dt); if(HALO_SURGE_T>0) HALO_SURGE_T=Math.max(0,HALO_SURGE_T-dt); tickVolley(); tickFall(dt); tickGroundRing(); updateHUD2(dt);
   }; }
 
 // ---- test/probe hook (SEE IT / specials-test.mjs): fire() force-completes a charge in progress, or fires cold if
@@ -226,6 +261,7 @@ window.__specials={
   cooldown:()=>SP.cd, cooldownMax:()=>COOLDOWN, ready:()=>SP.cd<=0,
   hero:heroId, name:()=>SPEC_NAME[heroId()],
   fire:()=>{ if(!SP.charging){ if(!canStart()||SP.cd>0) return false; SP.cd=COOLDOWN; doFire(); return true; } SP.charging=false; SP.t=0; SP.cd=COOLDOWN; doFire(); return true; },
+  meter:()=>({on:barEl.classList.contains('on'),state:METER.state,fill:+METER.fill.toFixed(3),label:METER.label,color:barEl.style.getPropertyValue('--sbc')}), ring:()=>({on:GR.on,visible:grGroup.visible,x:+GR.x.toFixed(2),z:+GR.z.toFixed(2),R:GR.R,k:+GR.k.toFixed(3)}),
   haloSurgeT:()=>HALO_SURGE_T, ringFx:()=>RING_FX?Object.assign({},RING_FX,{hit:undefined}):null, volleyQ:()=>VOLLEY_Q.length,
   forceReady:()=>{ SP.charging=false; SP.t=0; SP.cd=0; },   // test-only: clears any charge/cooldown in progress (this is a per-PLAYER timer, not per-hero -- a probe/suite testing several heroes in turn on one page needs this between them)
 };
