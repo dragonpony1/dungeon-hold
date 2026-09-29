@@ -55,16 +55,16 @@ check("tower armour: Mark VII takes 48% less than Mark I, a (hypothetical) Mark 
 
 // ---- the chevrons float clear above every kind of model and face the camera ----
 const float=await hostPage.evaluate(()=>{ const d=window.__dd, T=window.THREE; d.S.mana=100000; const out={};
-  const spots={harpoon:[11,20],ball:[14,20],slice:[17,21],zap:[20,20],frost:[11,14],totem:[20,14]};
+  const spots={harpoon:[11,20],ball:[14,20],pit:[17,21],zap:[20,20],frost:[11,14],totem:[20,14]};
   for(const [k,[cx,cz]] of Object.entries(spots)){ const t=d.place(k,cx,cz,0); if(!t){ out[k]='not placed'; continue; } while(t.lvl<5){ const l=t.lvl; d.upgradeDef({x:t.x,z:t.z,yaw:0}); if(t.lvl===l) break; } }
   d.step(1/60,40); d.camera.updateMatrixWorld(true);
   for(const t of d.defs){ if(t.lvl!==5||out[t.kind]) continue; const g=t.chev; if(!g||g.parent!==t.mdl){ out[t.kind]={chev:false}; continue; }
-    const au=t.mdl.userData.aura; t.mdl.remove(g); if(au) t.mdl.remove(au); t.mdl.updateMatrixWorld(true); const mb=new T.Box3().setFromObject(t.mdl); t.mdl.add(g); if(au) t.mdl.add(au);   /* a halo's faint 2.4-high light column (auraRing) is see-through: its chevron sits inside it, over the sigil */ t.mdl.updateMatrixWorld(true); const cb=new T.Box3().setFromObject(g);
+    const au=t.mdl.userData.aura; t.mdl.remove(g); if(au) t.mdl.remove(au); t.mdl.updateMatrixWorld(true); const mb=new T.Box3(); t.mdl.traverse(m=>{ if(m.isMesh&&m.visible) mb.union(new T.Box3().setFromObject(m)); });   /* meshes only: a glow sprite's box (Pitfall's, 3.4 wide) is not part of the model */ t.mdl.add(g); if(au) t.mdl.add(au);   /* a halo's faint 2.4-high light column (auraRing) is see-through: its chevron sits inside it, over the sigil */ t.mdl.updateMatrixWorld(true); const cb=new T.Box3().setFromObject(g);
     const q=new T.Quaternion(); g.getWorldQuaternion(q); const face=Math.abs(q.dot(d.camera.quaternion));
     out[t.kind]={modelTop:+mb.max.y.toFixed(2),chevBottom:+cb.min.y.toFixed(2),chevW:+(cb.max.x-cb.min.x).toFixed(2),face:+face.toFixed(4)}; }
   return out; });
 const kinds=Object.keys(float);
-check("a Mark V of each kind (ballista, trebuchet, cage, halo, frost spire, totem) wears its chevron clear above its own model",
+check("a Mark V of each kind (ballista, trebuchet, Pitfall, halo, frost spire, totem) wears its chevron clear above its own model",
   kinds.length===6&&kinds.every(k=>float[k].chevBottom>float[k].modelTop-.05),JSON.stringify(float));
 check("…turned to face the camera, and small (well under a cell across)",kinds.every(k=>float[k].face>.999&&float[k].chevW<1.2),JSON.stringify(float));
 

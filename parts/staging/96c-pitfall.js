@@ -13,23 +13,23 @@ DEFKEYS.push('pit'); DEFKEY_LABELS.push('4');
   s.addEventListener('click',()=>select('pit')); $('hotbar').appendChild(s); }
 { const w=HEROES.find(h=>h.id==='witch'); if(w){ w.unlocks=w.unlocks.filter(k=>k!=='slice'); if(!w.unlocks.includes('pit')) w.unlocks.push('pit'); } }   // build 230: the Mycelium Cage is gone from the game; Pitfall is the Witch's third tower (70-hero2.js lists it there too)
 NOWALK_DEF.pit=1;
-// build 233: Matt's Meshy pit rims (stone ring, rusty iron spikes pointing inward, open middle): Mark I and II so far; marks 3+ keep Mark II until his last two arrive (then this becomes defMarks('pit','pit'))
-DEF_W.pit=2.1; fetchDefGLB('pit',ASSET('pit-1.glb'),0,'soon'); DEF_LAZY.pit=[null,ASSET('pit-2.glb'),null,null];   // mobs walk straight over it and never attack it (the Cage and the Perch get the same treatment)
+// build 233/239: Matt's Meshy pit rims (stone ring, iron spikes pointing inward, open middle): Mark I..IV, one file each
+DEF_W.pit=2.1; defMarks('pit','pit');   // pit-1..4 (Matt's four Spiked Pit rims; Marks V+ keep the Mark IV rim)   // mobs walk straight over it and never attack it (the Cage and the Perch get the same treatment)
 const BOSS=new Set(['trollboss','cyclops','pigflail','pigdagger','pigsling']), BIG=new Set(['ogre']);
 const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
 // ---------------------------------------------------------------- the look: a ring of stone blocks, a hatch that splits away, a black pit, iron teeth that rise, dust
 { const prevMakeDef=makeDef; makeDef=function(kind,ghost,lvl){ if(kind!=='pit') return prevMakeDef(kind,ghost,lvl);
     const g=new THREE.Group(), body=new THREE.Group(); g.add(body); const stone=mat(0x7d7889), slab=mat(0x5b5668), iron=mat(0x2c2a33);
-    const T=defTemplate('pit',lvl); let rim=null; if(T){ rim=T.wrap.clone(); body.add(rim); g.userData.tpl=T; }   // the real rim; the code-built stone ring and static teeth are only the stand-in until it loads
+    const T=defTemplate('pit',lvl); let rim=null, rimH=1; if(T){ rim=T.wrap.clone(); body.add(rim); g.userData.tpl=T; rim.updateMatrixWorld(true); const bb=new THREE.Box3().setFromObject(rim); rimH=Math.max(.05,bb.max.y-bb.min.y); }   // the real rim; the code-built stone ring and static teeth are only the stand-in until it loads
     const N=T?0:18; for(let i=0;i<N;i++){ const a=i/N*TAU; const b=M(G.box(.36,.2,.24),stone,Math.cos(a)*1.04,.1,Math.sin(a)*1.04); b.rotation.y=-a; body.add(b); }
     const hole=new THREE.Mesh(new THREE.CircleGeometry(.98,32),new THREE.MeshBasicMaterial({color:0x050308})); hole.rotation.x=-PI/2; hole.position.y=.03; hole.userData.noOL=true; body.add(hole);
     const halves=[]; for(const sgn of [-1,1]){ const h=new THREE.Mesh(new THREE.CylinderGeometry(.96,.96,.1,20,1,false,sgn<0?0:PI,PI),slab); h.position.y=.06; h.userData.side=sgn; body.add(h); halves.push(h); }
     const teeth=[]; for(let i=0;i<(T?0:14);i++){ const a=i/14*TAU; const t=M(G.cone(.07,.42,5),iron,Math.cos(a)*.84,-.25,Math.sin(a)*.84); t.userData.a=a; body.add(t); teeth.push(t); }
     const glo=glow(0xff5a20,3.4,0); glo.position.y=.15; body.add(glo); const dust=new THREE.Group(); for(let i=0;i<8;i++){ const p=glow(0xb59b7c,1,0); p.userData={a:i/8*TAU,r:.3+.5*((i*7)%3)/2,ph:i*.13}; dust.add(p); } body.add(dust);
-    g.userData.pit={body,hole,halves,teeth,glo,dust,rim};
+    g.userData.pit={body,hole,halves,teeth,glo,dust,rim,rimH};
     if(ghost){ g.traverse(m=>{ if(m.isMesh){ if(m.userData.isOL) m.visible=false; else m.material=GHOST_OK; } }); } else { if(!T) outline(g); g.add(blob(.95)); }
     return g; }; }
-function pitAnim(d,dt){ const u=d.mdl.userData.pit; if(!u) return; const P=d.pit||{phase:'rest',t:0}; const rr=stat(d,'range'), s=d.mdl.scale.x||1; u.body.scale.setScalar(rr/s); if(u.rim) u.rim.scale.y=s/rr;   /* the rim widens with the pit's range but stays low: mobs must be seen sinking behind it, not hidden by a well wall */
+function pitAnim(d,dt){ const u=d.mdl.userData.pit; if(!u) return; const P=d.pit||{phase:'rest',t:0}; const rr=stat(d,'range'), s=d.mdl.scale.x||1; u.body.scale.setScalar(rr/s); if(u.rim){ const cap=[.55,.85,.95,1.1][Math.min(3,Math.max(0,(d.lvl||1)-1))]; u.rim.scale.y=(s/rr)*Math.min(1,cap/u.rimH); }   /* the bigger marks' rims are 1.2-1.7 tall as authored; capped so they never hide the mobs sinking behind them */   /* the rim widens with the pit's range but stays low: mobs must be seen sinking behind it, not hidden by a well wall */
   const open=P.phase==='open'?Math.min(1,P.t/.35):P.phase==='crush'?Math.max(0,1-P.t/.45):0;   // how far the hatch has split
   for(const h of u.halves) h.position.set(0,.06,h.userData.side*.96*open); u.hole.visible=open>.02;
   const crush=P.phase==='crush'?Math.min(1,P.t/.16):0;   // the teeth snap inward
