@@ -30,14 +30,15 @@ function ensure(){ if(R) return true; cv=document.createElement('canvas'); cv.id
   scene=new THREE.Scene(); scene.add(new THREE.HemisphereLight(0xffffff,0x555566,1.15)); const key=new THREE.DirectionalLight(0xffffff,1.0); key.position.set(2,3,4); scene.add(key); const rim=new THREE.DirectionalLight(0xa8c8ff,.9); rim.position.set(-3,2,-4); scene.add(rim);
   cam=new THREE.PerspectiveCamera(30,1,.05,200); if(root) scene.add(root);
   mk=document.createElement('div'); mk.id='titleMoniker'; mk.innerHTML='<b></b><i></i>'; mk.querySelector('b').textContent=NAMES[want][0]; mk.querySelector('i').textContent=NAMES[want][1]; st.insertBefore(mk,cv.nextSibling);
-  if(loaded){ cv.classList.add('on'); mk.classList.add('on'); } place(); return true; }
+  mk.classList.add('on');   // build 265 (Matt: "does it load in too?"): the name shows at once, so a slow load is a name on a black spotlight, not an empty screen; the model fades in when it lands
+  if(loaded) cv.classList.add('on'); place(); return true; }
 function place(){ if(!R) return; const w=Math.max(2,st.clientWidth||innerWidth), h=Math.max(2,st.clientHeight||innerHeight); R.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix();
   const th=Math.tan(cam.fov*Math.PI/360), dist=RAD/(th*Math.min(1,cam.aspect))/.56; cam.position.set(0,RAD*.12,dist); cam.lookAt(0,0,0);
   const sx=w>=1000?.82:w>=760?.74:.5; if(root) root.position.x=(sx*2-1)*th*dist*cam.aspect; st.style.setProperty('--tsx',(sx*100)+'%'); }
 function load(){ if(LOADING||loaded) return; LOADING=true;
   fetchBytes(ASSET(FILES[want]),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(g=>{ model=g.scene||g.scenes[0]; model.updateMatrixWorld(true);
     const box=new THREE.Box3().setFromObject(model), sz=box.getSize(new THREE.Vector3()), c=box.getCenter(new THREE.Vector3()); model.position.sub(c); RAD=Math.max(sz.x,sz.y,sz.z)/2*1.02;
-    root=new THREE.Group(); root.add(model); if(scene) scene.add(root); loaded=true; place(); if(cv) cv.classList.add('on'); if(mk) mk.classList.add('on'); }).catch(e=>console.warn('title background',e)); }
+    root=new THREE.Group(); root.add(model); if(scene) scene.add(root); loaded=true; place(); if(cv) cv.classList.add('on'); }).catch(e=>console.warn('title background',e)); }
 function frame(now){ raf=requestAnimationFrame(frame); if(!loaded||!R||!root) return; if(!T0) T0=now; const t=(now-T0)/1000; root.rotation.y=t*SPIN[want]; model.position.y=Math.sin(t*.9)*RAD*.03; R.render(scene,cam); }
 function start(){ if(raf||!ensure()) return; T0=0; raf=requestAnimationFrame(frame); load(); }
 function stop(){ if(raf){ cancelAnimationFrame(raf); raf=0; } if(R){ if(root&&scene) scene.remove(root); R.dispose(); try{ R.forceContextLoss(); }catch(e){} R=null; } if(cv){ cv.remove(); cv=null; } if(mk){ mk.remove(); mk=null; } scene=null; cam=null; }
