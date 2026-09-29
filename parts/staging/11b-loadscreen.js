@@ -1,7 +1,7 @@
 // ===== THE LOADING SCREEN (build 277). Matt: "on the loading screen, i am not seeing it a lot, as of now its just fun pictures if you stay on the pick screen too long, but i want it to stay on the loading screen until
 // its 90% loaded, give me the rotation and fun saying and quotes about my game from my mom and kids and employer". Until now there was no loading screen of its own: the title (the hero pick) came up at once and
 // its one background (19b/20b) faded in behind it whenever its model landed. Now a full screen stands over the title from the first moment:
-//   * THE ROTATION: the title's 3D backgrounds (the Draconic Fire Bow, the Wisp's projectile, the Fire Imp, the Storm Drake, the Trimaw, the 6/7), a new one every ROT_S seconds, each slowly spinning on black
+//   * THE ROTATION: the title's 3D backgrounds (the Draconic Fire Bow, the Wisp's projectile, the Fire Imp, the Storm Drake, the Trimaw, the 6/7), a new one every ROT_S seconds (build 280, Matt: "the images on the loading screen could stay longer make an even 10 seconds"), each slowly spinning on black
 //     under a spotlight with its name beneath it (20b-titlestage.js's look). Each is fetched when its turn is near (fetchBytesNow: straight away, and not counted in the percentage -- it is the screen's own dressing).
 //   * A LINE that changes every SAY_S seconds (build 279, Matt: "make those tips stay just 1-2 seconds longer": 7 s, was 5.5): fun sayings and tips (mine), and QUOTES about the game from Matt's family and his employer -- Matt's own words, filled in only as he sends them (never made up).
 //   * A PROGRESS BAR: the share of every file the game has asked for that has landed (game.js LOADQ: asked/got, every tier, a failure counts as done so one bad file never holds the door).
@@ -13,7 +13,7 @@
 const FORCE=Q.has('loadscreen');
 window.__loadscreen={on:()=>false,frac:()=>1,line:()=>'',next:()=>{},model:()=>null,closed:()=>true,sayings:()=>[],quotes:()=>[]};
 if(!HAS_ASSETS||(navigator.webdriver&&!FORCE)) return;
-const MIN_MS=3500, ROT_S=6.5, SAY_S=7, GOAL=.9, HANG_MS=45000;
+const MIN_MS=3500, ROT_S=10, SAY_S=7, GOAL=.9, HANG_MS=45000;
 const MODELS=[{file:'bow-fire.glb',name:'DRACONIC FIRE BOW',sub:'',spin:.32},{file:'fam-wisp-projectile.glb',name:'WISP PROJECTILE',sub:'',spin:.4},{file:'fam-imp.glb',name:'FIRE IMP',sub:'',spin:.36},
   {file:'fam-drake.glb',name:'STORM DRAKE',sub:'',spin:.34},{file:'named-trimaw.glb',name:'TRIMAW',sub:'named mythic',spin:.3},{file:'named-sixseven.glb',name:'6/7',sub:'named mythic',spin:.3}];
 const SAYINGS=[
