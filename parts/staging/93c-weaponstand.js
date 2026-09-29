@@ -54,7 +54,7 @@ function heightFor(name){ const nr=name.startsWith('named-')&&NAMED_REAL[name.sl
 function stand(l,it){ const name=modelFor(it); if(!name) return null;
   const nrKey=name.startsWith('named-')&&NAMED_REAL[name.slice(6)]?name.slice(6):null; let obj;
   if(nrKey){ if(!NR_GLB[nrKey]){ loadNamedReal(nrKey); if(!NR_PENDING.some(p=>p.l===l)) NR_PENDING.push({l,it}); return null; } obj=NR_GLB[nrKey].clone(true); obj.position.y=NAMED_REAL[nrKey].lift; }   // already sized+bottom-pivoted by fitModel at load, and toonify already gave it its own outline shells -- neither of the code-built path's two steps below apply here
-  else{ obj=null; window.__weapons.model(name,o=>{ obj=o; }); if(!obj) return null;   // (code-built models come back at once)
+  else{ obj=null; window.__weapons.model(name,o=>{ obj=o; }); if(!obj){ if(!NR_PENDING.some(p=>p.l===l)) NR_PENDING.push({l,it,t0:performance.now()}); return null; }   // (code-built models come back at once; build 270: a set weapon that is one of Matt's real models -- the Void, Chaos and Earth staff and polearm -- is still loading the first time one drops, so it waits in the same retry list as a named-real one and stands as soon as it lands)
     const b=obj.userData.box, y0=b?b.min.y:0, H=b?b.max.y-b.min.y:1, s=heightFor(name)/H; obj.scale.setScalar(s); obj.position.y=LIFT-y0*s; outline(obj); }
   const [col,col2]=colours(it); const root=new THREE.Group(); root.name='weaponStand'; const spin=new THREE.Group(); spin.add(obj); root.add(spin);
   const halo=glow(col,1.9,.3); halo.position.y=(nrKey?NAMED_REAL[nrKey].lift:LIFT)+heightFor(name)*.55; root.add(halo);   // the soft halo about it
@@ -79,7 +79,7 @@ function tickOne(S,dt){ const l=S.l; S.t+=dt; S.root.position.copy(l.mesh.positi
   S.pts.geometry.attributes.position.needsUpdate=true; S.pts.geometry.attributes.color.needsUpdate=true; }
 function drop(S){ scene.remove(S.root); S.pts.geometry.dispose(); S.halo.material.dispose(); S.foot.material.dispose(); if(S.l.mesh.userData.stand===S) delete S.l.mesh.userData.stand; }
 function tick(dt){ for(let i=STANDS.length-1;i>=0;i--){ const S=STANDS[i]; if(!S.l.mesh.parent){ drop(S); STANDS.splice(i,1); continue; } tickOne(S,dt); }
-  if(NR_PENDING.length) for(let i=NR_PENDING.length-1;i>=0;i--){ const {l,it}=NR_PENDING[i]; if(!l.mesh.parent||l.mesh.userData.stand){ NR_PENDING.splice(i,1); continue; } try{ if(stand(l,it)) NR_PENDING.splice(i,1); }catch(e){ console.warn('named-real stand',e); NR_PENDING.splice(i,1); } } }   // picked up, grabbed in co-op, or swept away: gone with it (also drops a still-loading named-real item from the retry list the same way)
+  if(NR_PENDING.length) for(let i=NR_PENDING.length-1;i>=0;i--){ const {l,it,t0}=NR_PENDING[i]; if(!l.mesh.parent||l.mesh.userData.stand||(t0&&performance.now()-t0>90000)){ NR_PENDING.splice(i,1); continue; } try{ if(stand(l,it)) NR_PENDING.splice(i,1); }catch(e){ console.warn('named-real stand',e); NR_PENDING.splice(i,1); } } }   // picked up, grabbed in co-op, or swept away: gone with it (also drops a still-loading named-real item from the retry list the same way)
 { const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); if(l&&l.mesh&&it&&(it.slot==='weapon'||modelFor(it))){ try{ stand(l,it); }catch(e){ console.warn('weapon stand',e); } } return l; }; }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); tick(dt); }; }
 window.__weaponStand={count:()=>STANDS.length,modelFor,

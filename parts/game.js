@@ -716,7 +716,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=269;
+const BUILD=270;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1186,7 +1186,7 @@ const SLOTS=['weapon','armor','charm','amulet','familiar'], SICON={weapon:'⚔',
 const BASES={weapon:['Shortsword','Broadsword','Cleaver','Warhammer','Halberd','Gnome Blade'],armor:['Jerkin','Chainmail','Breastplate','Plate Harness','Tower Plate','Warden Mail'],charm:['Charm','Talisman','Idol','Sigil','Lantern','Relic'],amulet:['Pendant','Amulet','Locket','Torc','Medallion','Heartstone'],familiar:['Wisp','Cave Bat','Moss Sprite','Fire Imp','Crystal Owl','Storm Drake']};
 const PREFIX=[['Rusty','Plain','Worn','Sturdy','Old'],['Fine','Hardened','Keen','Polished'],['Gleaming','Runed','Tempered','Silvered'],['Ancient','Stormforged','Dragonbone','Moonlit'],['Mythic','Eternal','Goblinbane','Crystalheart']];
 const SUFFIX=['of Goblin Slaying','of Embers','of Fury','of Stone','of Vigil','of Thorns'];   // flavour only; "of the …" names that mean a set come from 93-gearsets.js
-const DROP={goblin:.06,archer:.12,orc:.264,ogre:1,drake:.36,troll:.336,trollboss:1}, OGRE2=.6;   // build 246 (Matt: "we made the fancy loot more rare now increase the trash loot, the random loot gen by 20%"): every ordinary gear drop 20% more likely than before (goblin .05, archer .10, orc .22, drake .30, troll .28; the ogre's second piece .5); the ogre's first piece and the troll boss's were already certain
+const DROP={goblin:.075,archer:.15,orc:.33,ogre:1,drake:.45,troll:.42,trollboss:1}, OGRE2=.75;   // build 270 (Matt: "we just need more loot drops cuz we use gold for the upgrades too"): every ordinary gear drop 25% more likely again (goblin .06, archer .12, orc .264, drake .36, troll .336, the ogre's second piece .6), beside the new sludge jars (99g-sludgejars.js). Build 246 (Matt: "we made the fancy loot more rare now increase the trash loot, the random loot gen by 20%"): every ordinary gear drop 20% more likely than before (goblin .05, archer .10, orc .22, drake .30, troll .28; the ogre's second piece .5); the ogre's first piece and the troll boss's were already certain
  const LOOT_HOOK=3.2;   // how close a landed piece has to be before it flies to you
 const STATL={dmg:v=>'+'+v+' dmg',spd:v=>'+'+v+'% swing',hp:v=>'+'+v+' hp',def:v=>'+'+v+'% armor',regen:v=>'+'+v+' hp/s',tow:v=>'+'+v+'% defenses',mana:v=>'+'+v+'% mana',move:v=>'+'+v+'% speed',fdmg:v=>v+' pet dmg',frate:v=>'+'+v+'% pet rate',trate:v=>'+'+v+'% defense speed',tarea:v=>'+'+v+'% defense range',fproj:v=>'+'+v+' pet projectile'+(v===1?'':'s')};
 const STATW={dmg:3,spd:1,hp:.6,def:1.5,regen:4,tow:1.2,mana:.5,move:1.5,fdmg:2.5,frate:.8,trate:1.2,tarea:1.2,fproj:12}; const ROLLABLE=['dmg','spd','hp','def','regen','tow','mana','move','fdmg','frate'];

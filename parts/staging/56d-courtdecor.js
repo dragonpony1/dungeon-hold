@@ -57,13 +57,13 @@ useProp('court-hedge-corner.glb',H_CORNER,wrap=>{ const bb=new THREE.Box3().setF
     t.rotation.y=rot; t.position.set(cw(c.cx)+dx*set,c.base,cwz(c.cz)+dz*set); world.add(t); pieces++; } });
 // the trees, at the four corner spots, facing the Heartroot
 (world.userData.treeProcs||[]).forEach(g=>{ g.visible=false; });
-const TREE_H=7.2;
-useProp('court-tree.glb',TREE_H,wrap=>{ (MAP.trees||[]).forEach(([x,z])=>{ const t=wrap.clone(); t.position.set(cw(x),hgt[idx(x,z)]||0,cwz(z)); t.rotation.y=Math.atan2(cw(MAP.crystal[0])-cw(x),cwz(MAP.crystal[1])-cwz(z)); world.add(t); trees++; }); });
+const TREE_H=7.2, TREE_OBJS=[];
+useProp('court-tree.glb',TREE_H,wrap=>{ (MAP.trees||[]).forEach(([x,z])=>{ const t=wrap.clone(); t.position.set(cw(x),hgt[idx(x,z)]||0,cwz(z)); t.rotation.y=Math.atan2(cw(MAP.crystal[0])-cw(x),cwz(MAP.crystal[1])-cwz(z)); world.add(t); TREE_OBJS.push(t); trees++; }); });
 // the colonnade, the marble column at each stand-in's spot and height (its shaft PH plus the base and capital's own 1)
 (world.userData.pillarProcs||[]).forEach(p=>{ p.visible=false; });
 const PH=MAP.pillarH||6;
 useProp('court-pillar.glb',PH+1,wrap=>{ MAP.pillars.forEach(([px,pz])=>{ const t=wrap.clone(); t.position.set(cw(px),hgt[idx(px,pz)]||0,cwz(pz)); world.add(t); pillars++; }); });
 window.__courtdecor={ info:()=>({cells:CELLS.size,corners:corners.length,runs:runs.length,pieces,trees,pillars,before:Object.assign({},before),after:Object.assign({},after),used:Object.assign({},USED)}),
   loaded:()=>WANT>0&&DONE>=WANT, isHedge:(cx,cz)=>has(cx,cz), top:(cx,cz)=>{ const c=cellOf(cx,cz); return c?c.top:null; }, cells:()=>[...CELLS.values()].map(c=>[c.cx,c.cz]),
-  probe:{ HEDGE, cw, cwz, wc, wcz, solidAt:(x,z,y,h)=>solidAt(x,z,y,h), floorAt:(x,z,y)=>floorAt(x,z,y), hero:()=>hero, flyDist:(cx,cz)=>flowFly.dist[idx(cx,cz)], procs:()=>({trees:world.userData.treeProcs||[],pillars:world.userData.pillarProcs||[]}) } };   // test-only
+  probe:{ HEDGE, cw, cwz, wc, wcz, solidAt:(x,z,y,h)=>solidAt(x,z,y,h), floorAt:(x,z,y)=>floorAt(x,z,y), hero:()=>hero, flyDist:(cx,cz)=>flowFly.dist[idx(cx,cz)], trees:()=>TREE_OBJS, procs:()=>({trees:world.userData.treeProcs||[],pillars:world.userData.pillarProcs||[]}) } };   // test-only
 })();

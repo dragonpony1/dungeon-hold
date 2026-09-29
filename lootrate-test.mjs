@@ -1,4 +1,4 @@
-// ===== ORDINARY LOOT +20% (game.js DROP, build 246). Matt: "we made the fancy loot more rare now increase the trash loot, the random loot gen by 20%". Every ordinary gear drop chance is the old one x1.2
+// ===== ORDINARY LOOT +20% (game.js DROP, build 246), THEN +25% MORE (build 270: goblin .075, archer .15, orc .33, drake .45, troll .42, the ogre's second .75). Matt: "we made the fancy loot more rare now increase the trash loot, the random loot gen by 20%". Every ordinary gear drop chance is the old one x1.2
 // (goblin .05->.06, archer .10->.12, orc .22->.264, drake .30->.36, troll .28->.336, the ogre's second piece .5->.6; the ogre's first and the troll boss's were already 100%), checked as numbers and by rolling
 // thousands of kills and counting the pieces that land.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
@@ -9,11 +9,11 @@ const page=await (await browser.newContext()).newPage(); page.on("pageerror",e=>
 await page.goto("http://127.0.0.1:8886/?silent&nogate",{timeout:90000}); await page.waitForFunction(()=>window.__dd&&window.__lootRates,null,{timeout:90000});
 const t=await page.evaluate(()=>window.__lootRates.table); const o2=await page.evaluate(()=>window.__lootRates.ogre2);
 const near=(a,b)=>Math.abs(a-b)<1e-9;
-check("the table is the old chances x1.2 (goblin, archer, orc, drake, troll) and the ogre's second piece is .6",near(t.goblin,.06)&&near(t.archer,.12)&&near(t.orc,.264)&&near(t.drake,.36)&&near(t.troll,.336)&&near(o2,.6),JSON.stringify({t,o2}));
+check("the table is the old chances x1.2 (goblin, archer, orc, drake, troll) and the ogre's second piece is .75 (build 270: +25% again)",near(t.goblin,.075)&&near(t.archer,.15)&&near(t.orc,.33)&&near(t.drake,.45)&&near(t.troll,.42)&&near(o2,.75),JSON.stringify({t,o2}));
 check("the ogre and the troll boss still always drop",t.ogre===1&&t.trollboss===1);
 check("a mythic set piece is 1% of drops (build 249; it was 2.5% until the trash loot went up 20%)",(await page.evaluate(()=>window.__mythicDrops.rates())).mythic===.01);
 const got=await page.evaluate(()=>{ const L=window.__lootRates, out={}; for(const k of ["goblin","archer","orc","drake","troll"]){ L.clear(); const N=6000; for(let i=0;i<N;i++) L.roll({kind:k,x:0,z:0}); out[k]=L.count()/N; L.clear(); } return out; });
-const want={goblin:.06,archer:.12,orc:.264,drake:.36,troll:.336};
+const want={goblin:.075,archer:.15,orc:.33,drake:.45,troll:.42};
 check("rolling thousands of kills lands about the new rate of pieces for each mob",Object.keys(want).every(k=>Math.abs(got[k]-want[k])<.02),JSON.stringify(got));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");

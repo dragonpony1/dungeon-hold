@@ -41,6 +41,7 @@ await K.ctx.close();
 // a staff hero: the floor shows what the Witch would hold -- the Chaos staff for the set piece, the battle staff for Rootsplitter
 const Wt=await open(9711,"witch");
 const w=await Wt.page.evaluate(async()=>{ const d=window.__dd, h=d.hero, M=window.__mythic; const rs=M.normalize({tier:"named",named:"rootsplitter"}); d.dropLoot({name:"Mythic Staff of Chaos",slot:"weapon",rarity:5,lvl:10,stats:{dmg:5},setId:"crimson",look:"staff",mythic:true},h.x+5,h.z,true); d.dropLoot(rs,h.x-5,h.z,true); d.step(1/60,30);
+  for(let i=0;i<240&&window.__weaponStand.list().length<2;i++){ d.step(1/60,1); await new Promise(r=>setTimeout(r,25)); }   // build 270: the Chaos staff is Matt's real model (build 268), which loads on its first drop; its stand waits for it and stands when it lands
   const names=window.__weaponStand.list().map(s=>s.name).sort(); window.__meta.giveItem(rs); window.__meta.equip(rs.id); for(let i=0;i<120;i++){ d.step(1/60,1); const s=window.__weapons.state(); if(s.mounted&&/^staff-battle\|/.test(s.key)) break; await new Promise(r=>setTimeout(r,25)); } return {names,hand:window.__weapons.state().key.split("|")[0]}; });
 check("the Witch: the floor shows the staff she'd hold (staff-chaos for the set piece, staff-battle for Rootsplitter) and she holds staff-battle for a named weapon",w.names.join()==="staff-battle,staff-chaos"&&w.hand==="staff-battle",JSON.stringify(w));
 await Wt.ctx.close();
