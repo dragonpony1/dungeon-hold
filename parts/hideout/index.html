@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="44">
+<meta name="hideout-build" content="45">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -57,6 +57,7 @@ canvas{display:block}
 .fgear .swatch{width:100%;aspect-ratio:1;border-radius:8px;margin-bottom:6px;object-fit:contain;background:#150c06;box-sizing:border-box;padding:6px}
 .fgear .fname{font-size:0.85em;font-weight:bold;line-height:1.15}
 .fgear .fsub{font-size:0.7em;margin-top:2px;opacity:0.9}
+#coopBar{position:fixed;top:8px;left:50%;transform:translateX(-50%);background:#000b;color:#cfe;font:13px monospace;padding:6px 14px;border-radius:14px;border:1px solid #5ac;z-index:12;display:none;pointer-events:none;white-space:nowrap}
 #buildTag{position:fixed;bottom:6px;left:8px;color:#fff7;font:11px monospace;pointer-events:none;z-index:11}
 
 #lockerWrap{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:20}
@@ -145,6 +146,7 @@ canvas{display:block}
 <div id="prompt"></div>
 <div id="msg"></div>
 <div id="tooltip"></div>
+<div id="coopBar"></div>
 <div id="buildTag"></div>
 <div id="propsBar"><div class="ptext"></div><div class="pbar"><div class="pfill"></div></div></div>
 <div id="rewardBanner"><div class="big">YOU'VE GOT REWARDS</div><div class="small"></div></div>
@@ -228,7 +230,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 44;
+const HIDEOUT_BUILD = 45;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -328,9 +330,97 @@ function loadSave(){
     hotbar: padSlots(STARTER_ITEMS.filter(gid => !STARTER_LAYOUT.some(spot => spot.gid === gid)), HOTBAR_SIZE),
     bag: padSlots([], BAG_SIZE), placed: STARTER_LAYOUT.map(starterRecord) };
 }
-function writeSave(){ localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); }
+function writeSave(){ localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); try { HD.saved(); } catch (e) {} }
 const SAVE = loadSave();
 document.getElementById('sludge').textContent = SAVE.sludge;
+
+// ============= CO-OP (build 45) =============
+// In a co-op run the game opens this page in an iframe with ?coop=host or ?coop=guest and relays messages between us and
+// its network (parts/staging/59b-coophideout.js). A GUEST spawns the HOST's furniture instead of its own and cannot move
+// it (its machines still use its OWN sludge and bag); everyone sees everyone else in the room as an avatar with a name tag.
+// Outside a co-op run (?coop absent, or no parent window) none of this does anything.
+const COOP = new URLSearchParams(location.search).get('coop');   // 'host' | 'guest' | null
+const VISITOR = COOP === 'guest';
+const HERO_COL = { knight: 0x7aa0d8, witch: 0xa070e0, troll: 0x6ea86a, fighter: 0xd8803a };
+const HD = {
+  visiting: false, hostName: '', me: null, peers: new Map(), lastSent: 0, sent: '', layoutResolve: null, layoutP: null, savedT: null,
+  post(msg) { try { if (window.parent && window.parent !== window) window.parent.postMessage(msg, '*'); } catch (e) {} },
+  init() {
+    if (!COOP || window.parent === window) return;
+    if (VISITOR) this.layoutP = new Promise(res => { this.layoutResolve = res; setTimeout(() => res(null), 7000); });
+    const ping = () => { if (!this.me) { this.post({ type: 'hd:ready', build: HIDEOUT_BUILD }); setTimeout(ping, 1500); } };
+    ping(); this.bar();
+  },
+  bar() { const el = document.getElementById('coopBar'); if (!el || !COOP) return;
+    const n = this.peers.size;
+    el.textContent = (this.visiting ? '🏠 Visiting ' + (this.hostName || 'the host') + "'s hideout" : '🏠 Your hideout (co-op)') + ' · ' + (n ? n + ' friend' + (n === 1 ? '' : 's') + ' here' : 'nobody else here');
+    el.style.display = 'block'; },
+  // a guest waits (up to 7 s) for the host's layout; failing that it falls back to its own room and keeps its own rights
+  async enterVisit(own) {
+    if (!VISITOR || !this.layoutP) return own;
+    const L = await this.layoutP;
+    if (L && Array.isArray(L.placed)) { this.visiting = true; this.hostName = String(L.host || '').slice(0, 24); this.bar(); syncSelection(); renderInv(); flashMsg("You're visiting " + (this.hostName || "the host") + "'s hideout — only they can move the furniture"); return L.placed; }
+    flashMsg("Couldn't reach the host's hideout — showing yours"); this.bar(); return own;
+  },
+  onParent(d) {
+    switch (d.type) {
+      case 'hd:me': this.me = { id: String(d.id || ''), name: String(d.name || ''), hero: String(d.hero || '') }; break;
+      case 'hd:layout':
+        if (this.layoutResolve) { this.layoutResolve(d); this.layoutResolve = null; }
+        else if (this.visiting && Array.isArray(d.placed)) { this.hostName = String(d.host || this.hostName).slice(0, 24); applyLayout(d.placed); this.bar(); }
+        break;
+      case 'hd:peers': this.setPeers(Array.isArray(d.list) ? d.list : []); break;
+      case 'hd:trade': if (this.trade) this.trade(d); break;
+    }
+  },
+  setPeers(list) {
+    const seen = new Set();
+    for (const p of list) {
+      if (!p || typeof p.id !== 'string' || (this.me && p.id === this.me.id)) continue;
+      seen.add(p.id);
+      let a = this.peers.get(p.id);
+      if (!a) { a = { id: p.id, name: '', hero: '', group: null, x: +p.x || 0, y: +p.y || 0, z: +p.z || 0, ry: +p.ry || 0, tx: 0, ty: 0, tz: 0, tr: 0 }; this.peers.set(p.id, a); }
+      if (a.name !== String(p.name || '') || a.hero !== String(p.hero || '')) { a.name = String(p.name || '').slice(0, 16); a.hero = String(p.hero || ''); if (a.group) { scene.remove(a.group); a.group = null; } }
+      a.tx = +p.x || 0; a.ty = +p.y || 0; a.tz = +p.z || 0; a.tr = +p.ry || 0;
+    }
+    for (const [id, a] of [...this.peers]) if (!seen.has(id)) { if (a.group) scene.remove(a.group); this.peers.delete(id); }
+    this.bar();
+  },
+  makeAvatar(a) {
+    const col = HERO_COL[a.hero] || 0xb8b8b8, g = new THREE.Group();
+    const mat = c => new THREE.MeshLambertMaterial({ color: c });
+    const robe = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.72, EYE_HEIGHT * 0.62, 14), mat(col)); robe.position.y = EYE_HEIGHT * 0.31; g.add(robe);
+    const headY = EYE_HEIGHT * 0.62 + 0.3;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 16, 12), mat(0xf0c8a0)); head.position.y = headY; g.add(head);
+    const hat = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.9, 14), mat(col)); hat.position.y = headY + 0.66; g.add(hat);
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.06, 14), mat(col)); brim.position.y = headY + 0.28; g.add(brim);
+    for (const sx of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), mat(0x222222)); eye.position.set(sx * 0.12, headY + 0.04, -0.31); g.add(eye); }   // the face looks toward -Z, the way the camera does at yaw 0
+    const beard = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.4, 10), mat(0xf4f0e8)); beard.position.set(0, headY - 0.28, -0.22); beard.rotation.x = -0.35; g.add(beard);
+    const tag = labelSprite(a.name || 'Friend', '#ffffff'); tag.scale.multiplyScalar(0.55); tag.position.y = headY + 1.55; g.add(tag);
+    g.userData.avatar = true; return g;
+  },
+  tick(now, dt) {
+    if (!COOP || window.parent === window) return;
+    if (now - this.lastSent > 110) {
+      const v = [camera.position.x, camera.position.y, camera.position.z, yaw].map(x => +x.toFixed(2)), k = v.join(',');
+      if (k !== this.sent || now - this.lastSent > 1500) { this.sent = k; this.lastSent = now; this.post({ type: 'hd:pos', x: v[0], y: v[1], z: v[2], ry: v[3] }); }
+    }
+    const f = 1 - Math.pow(0.001, dt);   // eases toward the latest report: smooth at 8 reports a second
+    for (const a of this.peers.values()) {
+      if (!a.group) { a.group = this.makeAvatar(a); a.x = a.tx; a.y = a.ty; a.z = a.tz; a.ry = a.tr; scene.add(a.group); }
+      a.x += (a.tx - a.x) * f; a.y += (a.ty - a.y) * f; a.z += (a.tz - a.z) * f;
+      let dr = a.tr - a.ry; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); a.ry += dr * f;
+      a.group.position.set(a.x, GROUND_Y + Math.max(0, a.y - (GROUND_Y + EYE_HEIGHT)), a.z); a.group.rotation.y = a.ry;
+    }
+  },
+  saved() { if (COOP !== 'host' || window.parent === window) return; clearTimeout(this.savedT); this.savedT = setTimeout(() => this.post({ type: 'hd:saved' }), 350); },
+};
+window.addEventListener('message', (e) => {   // the game's messages to us (objects with a type starting hd:); the string commands below are a separate listener
+  if (e.source !== window.parent || window.parent === window) return;
+  const d = e.data; if (!d || typeof d !== 'object' || typeof d.type !== 'string' || d.type.slice(0, 3) !== 'hd:') return;
+  HD.onParent(d);
+});
+HD.init();
 // puts an item in the first free slot — new things (bought, rewards) go to the bag, picked-up furniture back to the
 // hotbar so moving things stays quick; false when both are full
 function giveItem(gid, prefer) {
@@ -894,6 +984,7 @@ function spawnPlacedItem(gid, pos, ry, pid) {
   }
 
   const loaded = placeSource(sourceFor(gid), scale, pos, ry, (obj) => {
+    if (entry.gone) { scene.remove(obj); return; }
     entry.obj = obj;
     if (HOLDER_ITEMS.has(gid)) slotsFor(gid).then(slots => { entry.slots = slots; restyleGearOnHolder(); });
     if (gid === 'vending_machine') {
@@ -948,7 +1039,7 @@ function spawnPlacedItem(gid, pos, ry, pid) {
       hit.position.copy(b.getCenter(new THREE.Vector3()));
       scene.add(hit);
       entry.useHit = hit;
-      interactables.push({ mesh: hit, prompt: 'E: Open the chest', onUse: () => openChest(entry) });
+      interactables.push({ mesh: hit, prompt: 'E: Open the chest', onUse: () => HD.visiting ? flashMsg("The host's chest is locked") : openChest(entry) });
     }
   });
 
@@ -976,6 +1067,28 @@ function usePortal() {
   window.location.href = '/';
 }
 
+// takes a placed piece out of the world (pick-up, or the host's layout changing while a guest is inside)
+function despawnEntry(entry) {
+  entry.gone = true;
+  if (entry.obj) scene.remove(entry.obj);
+  scene.remove(entry.pickHit);
+  if (entry.useHit) { scene.remove(entry.useHit); const i = interactables.findIndex(x => x.mesh === entry.useHit); if (i >= 0) interactables.splice(i, 1); }
+  if (entry.light) releaseLight(entry.light);
+  if (entry.fx) { scene.remove(entry.fx.points); releaseLight(entry.fx.light); const i = arcaneFx.indexOf(entry.fx); if (i >= 0) arcaneFx.splice(i, 1); }
+  if (entry.collider) { const i = colliders.indexOf(entry.collider); if (i >= 0) colliders.splice(i, 1); }
+  const i = pickupables.indexOf(entry); if (i >= 0) pickupables.splice(i, 1);
+}
+// a guest inside the host's hideout: bring the world in line with the host's latest list (pieces that went, moved or arrived)
+function applyLayout(list) {
+  const want = new Map(list.filter(p => p && p.pid).map(p => [p.pid, p]));
+  for (const e of pickupables.slice()) {
+    if (e.isSharedGear || !e.pid) continue;
+    const w = want.get(e.pid);
+    if (w && w.gid === e.gid && Math.abs(w.x - e.x) < 0.01 && Math.abs(w.z - e.z) < 0.01 && w.ry === e.ry) want.delete(e.pid);
+    else despawnEntry(e);
+  }
+  for (const w of want.values()) if (hasModel(w.gid)) spawnPlacedItem(w.gid, { x: w.x, y: w.y ?? GROUND_Y, z: w.z }, w.ry, w.pid);
+}
 function pickupRange(entry) { return entry.isWall ? 7 : 2.5; } // a painting hung high is far from your eyes; you take it down by aiming, not by reaching
 function tryPickup() {
   camera.updateMatrixWorld();
@@ -985,17 +1098,12 @@ function tryPickup() {
   const entry = pickupables.find(p => p.pickHit === hits[0].object);
   if (!entry || hits[0].distance >= pickupRange(entry)) return;
   if (entry.isSharedGear) { pickupSharedGear(entry.dropId); return; }
+  if (HD.visiting) { flashMsg('Only the host can rearrange this hideout'); return; }
   const rec = SAVE.placed.find(p => p.pid && p.pid === entry.pid)
     || SAVE.placed.find(p => p.gid===entry.gid && p.x===entry.x && p.z===entry.z && p.ry===entry.ry);
   if (rec && rec.store && rec.store.some(Boolean)) { flashMsg('Empty the chest before picking it up'); return; }
   if (!giveItem(entry.gid, 'hotbar')) { flashMsg('No room — your hotbar and bag are both full'); return; }
-  if (entry.obj) scene.remove(entry.obj);
-  scene.remove(entry.pickHit);
-  if (entry.useHit) { scene.remove(entry.useHit); interactables.splice(interactables.findIndex(i => i.mesh === entry.useHit), 1); }
-  if (entry.light) releaseLight(entry.light);
-  if (entry.fx) { scene.remove(entry.fx.points); releaseLight(entry.fx.light); arcaneFx.splice(arcaneFx.indexOf(entry.fx), 1); }
-  if (entry.collider) colliders.splice(colliders.indexOf(entry.collider), 1);
-  pickupables.splice(pickupables.indexOf(entry), 1);
+  despawnEntry(entry);
   if (rec) SAVE.placed.splice(SAVE.placed.indexOf(rec), 1);
   syncSelection(); renderInv(); writeSave();
   flashMsg('Picked up ' + GEAR[entry.gid].name);
@@ -1006,7 +1114,8 @@ function tryPickup() {
 // out the things you walk up to first
 async function loadPropsAfterShell() {
   await shellReady;
-  const jobs = SAVE.placed.filter(p => hasModel(p.gid))
+  const placedList = await HD.enterVisit(SAVE.placed);   // build 45: a co-op guest gets the HOST's furniture (its own machines' state stays its own)
+  const jobs = placedList.filter(p => hasModel(p.gid))
     .sort((a, b) => (PROP_PRIORITY[a.gid] ?? 5) - (PROP_PRIORITY[b.gid] ?? 5))
     .map(p => () => spawnPlacedItem(p.gid, {x:p.x, y:p.y ?? GROUND_Y, z:p.z}, p.ry, p.pid));
   jobs.unshift(() => placeProp(PROPS_DIR+'chandelier.glb', 1.0, {x:0, y:GROUND_Y+4.5, z:0}, 0));
@@ -1034,6 +1143,7 @@ function syncSelection() {
   const v = selectedSlot === null ? null : SAVE.hotbar[selectedSlot] || null;
   selectedGear = isGearItem(v) ? null : v;
   selectedDropGearId = isGearItem(v) ? gearKey(v) : null;
+  if (HD.visiting) { selectedGear = null; selectedDropGearId = null; }   // build 45
 }
 function renderInv() {
   const el = document.getElementById('inv'); el.innerHTML = '';
@@ -2507,8 +2617,13 @@ function animate(now) {
   if (now - lastFreshCheck > 2000) { lastFreshCheck = now; refreshRewardsFresh(); }
   updateArcaneFx(dt, now);
   updateGearSpin(dt);
+  HD.tick(now, dt);
   renderer.render(scene, camera);
 }
+window.__hd = { coop: COOP, build: HIDEOUT_BUILD, visiting: () => HD.visiting, host: () => HD.hostName, me: () => HD.me,
+  peers: () => [...HD.peers.values()].map(a => ({ id: a.id, name: a.name, hero: a.hero, x: +a.x.toFixed(2), z: +a.z.toFixed(2), shown: !!a.group })),
+  entries: () => pickupables.filter(p => !p.isSharedGear).map(p => ({ gid: p.gid, pid: p.pid, x: p.x, z: p.z, ry: p.ry })),
+  applyLayout, select: (i) => { selectedSlot = i; syncSelection(); return { gear: selectedGear, drop: selectedDropGearId }; }, teleport: (x, z) => { camera.position.x = x; camera.position.z = z; }, placedCount: () => SAVE.placed.length, active: () => active, camera: () => ({ x: camera.position.x, y: camera.position.y, z: camera.position.z, yaw }) };
 animate(performance.now());
 window.addEventListener('resize', () => { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 </script>

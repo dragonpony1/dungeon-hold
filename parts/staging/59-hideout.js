@@ -40,6 +40,7 @@ const HIDEOUT_NAV=Q.has('hideoutnav')?(Q.get('hideoutnav')||'/hideout.html'):nul
 const BAG_KEY='dd_gear_bag';
 const CARRY_KEY='dd_gear_carried';   // whole items (locked pieces), see the header
 const RARITY_KEY=['common','uncommon','rare','epic','legendary'];   // RNAME, lower-cased, by the game's own numeric rarity 0..4
+const hooks={};   // build 234: 99d-coophideout.js listens for the visit ending (hooks.close)
 let wrap=null, frame=null, shown=false, opens=0, lastCarry=null, preloadT=null, loaded=false, focusT=null;   // one frame for the whole run (hideout build 18: 'hideout:hide' / 'hideout:show' keep it alive between visits), created hidden ahead of the first trip
 const clampR=r=>Math.max(0,Math.min(4,Math.round(+r)||0));
 function readBag(){ let b=null; try{ b=JSON.parse(localStorage.getItem(BAG_KEY)); }catch(e){} return (b&&typeof b==='object'&&!Array.isArray(b))?b:{}; }
@@ -63,7 +64,8 @@ function post(msg){ try{ if(frame&&frame.contentWindow) frame.contentWindow.post
 function makeFrame(){ if(frame) return frame;
   wrap=document.createElement('div'); wrap.id='hideoutWrap'; wrap.style.cssText='position:fixed;inset:0;z-index:20;background:#000;visibility:hidden;'; wrap.inert=true;   /* hidden AND inert: the kept frame must never hold focus or keys while the hall is in charge */
   frame=document.createElement('iframe'); frame.id='hideoutFrame';
-  frame.src=HIDEOUT_URL+'?embed=1'+(HIDEOUT_API?'&api='+encodeURIComponent(HIDEOUT_API):'');
+  const coopRole=window.__net&&window.__net.role?window.__net.role():null;   // build 234: the hideout page learns whether this is a co-op visit (and as whom) from its address
+  frame.src=HIDEOUT_URL+'?embed=1'+(coopRole?'&coop='+coopRole:'')+(HIDEOUT_API?'&api='+encodeURIComponent(HIDEOUT_API):'');
   frame.setAttribute('allow','fullscreen');   /* pointer lock needs no allow entry in a same-origin frame, and 'pointer-lock' is not a feature name Chrome knows (it logged an error) */ frame.style.cssText='width:100%;height:100%;border:0;display:block;';
   frame.addEventListener('load',()=>{ loaded=true; if(!shown) post('hideout:hide'); });   // a frame made ahead of the visit starts hidden the moment its page can listen
   wrap.appendChild(frame); document.body.appendChild(wrap); return frame; }
@@ -81,7 +83,7 @@ function openHideout(){ if(shown) return false;
   document.body.classList.add('inHideout'); opens++; SFX.enter();
   clearTimeout(focusT); focusT=setTimeout(()=>{ focusT=null; try{ if(frame&&shown) frame.contentWindow.focus(); }catch(e){} },50);   // keys go to the hideout, not the hall, from the first press -- and never to a frame already hidden again (a stray late focus was swallowing the hall's next E)
   return true; }
-function closeHideout(why){ if(!shown) return false; shown=false; HIDEOUT_SHOWN=false; clearTimeout(focusT); focusT=null; post('hideout:hide'); wrap.style.visibility='hidden'; wrap.inert=true; try{ frame.blur(); if(document.activeElement&&document.activeElement.blur) document.activeElement.blur(); }catch(e){} document.body.classList.remove('inHideout'); if(why) toast(why); try{ window.focus(); }catch(e){} if(hideoutLite()) setTimeout(teardown,250); return true; }   // keys go back to the hall at once; a lite hideout is torn down as soon as its hide message has gone
+function closeHideout(why){ if(!shown) return false; shown=false; HIDEOUT_SHOWN=false; if(hooks.close){ try{ hooks.close(); }catch(e){} } clearTimeout(focusT); focusT=null; post('hideout:hide'); wrap.style.visibility='hidden'; wrap.inert=true; try{ frame.blur(); if(document.activeElement&&document.activeElement.blur) document.activeElement.blur(); }catch(e){} document.body.classList.remove('inHideout'); if(why) toast(why); try{ window.focus(); }catch(e){} if(hideoutLite()) setTimeout(teardown,250); return true; }   // keys go back to the hall at once; a lite hideout is torn down as soon as its hide message has gone
 addEventListener('message',e=>{ if(frame&&e.source===frame.contentWindow&&e.data&&e.data.type==='hideout:exit') closeHideout(); });
 function go(carry){ if(carry){ const c=carryGear(); const parts=[]; if(c.n) parts.push(c.n+' scrapped for the Cart'); if(c.carried.length) parts.push(c.carried.length+' carried through as gear'); if(parts.length) toast(parts.join(' · ')); } Meta.save(); if(HIDEOUT_NAV){ location.href=HIDEOUT_NAV; return; } openHideout(); }
 // no panel, no choice, no toast worth reading: the split was decided in the bag with the lock, and the hideout's own Cart
@@ -100,5 +102,5 @@ function passThrough(){ go(true); }
 setInterval(()=>{ const ph=hallPhase(); if(shown&&ph!=='build'&&ph!=='start') closeHideout(ph==='wave'?'The horn sounds — back to the hall!':null);
   if(hideoutLite()&&frame&&!shown) teardown();   /* a page that turned lite after a frame was kept (it hosted or joined after a solo start): the kept frame goes now */
   if(!frame&&preloadT===null&&S.phase==='build'&&window.__loadtime&&window.__loadtime().all!==null) preloadT=setTimeout(preload,1500); },250);   // build 142: only once the hall's own loads are all in (the load timer's 'everything'), so its ~33 MB never competes with a map still streaming -- map two needs ~109 MB of its own   // the first build phase of a run: four seconds in (the hall's own priority loads have gone out by then), the hideout starts loading behind the hall
-window.__hideout={lite:hideoutLite,isOpen:()=>shown,open:openHideout,close:()=>closeHideout(),near:portalNear,url:()=>frame?frame.src:null,opens:()=>opens,preloaded:()=>!!frame&&!shown,loaded:()=>loaded,preload,passThrough,carry:carryGear,lastCarry:()=>lastCarry,readBag,readCarried,BAG_KEY,CARRY_KEY,build:()=>HIDEOUT_BUILD};
+window.__hideout={hooks,frameWin:()=>frame?frame.contentWindow:null,lite:hideoutLite,isOpen:()=>shown,open:openHideout,close:()=>closeHideout(),near:portalNear,url:()=>frame?frame.src:null,opens:()=>opens,preloaded:()=>!!frame&&!shown,loaded:()=>loaded,preload,passThrough,carry:carryGear,lastCarry:()=>lastCarry,readBag,readCarried,BAG_KEY,CARRY_KEY,build:()=>HIDEOUT_BUILD};
 })();
