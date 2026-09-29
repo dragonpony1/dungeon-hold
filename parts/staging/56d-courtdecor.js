@@ -36,6 +36,17 @@ BED.forEach((c,i)=>{ grid[i]=HEDGE; });
 reflow();
 const after={}; SP.forEach(([x,z])=>{ after[x+','+z]=flowFree.dist[idx(x,z)]; });
 const cellOf=(cx,cz)=>cx>=0&&cz>=0&&cx<GW&&cz<GH?BED.get(idx(cx,cz)):undefined;
+// ---- build 285 (Matt, killed by drakes: "those guys need a little pathing or something its overwhelming ... hard is good. something in the middle"): flyers still cross the beds, but a bed cell costs them
+// BED_FLY steps instead of one, and they come down into the court by a stair like everyone else (they used to glide round the raised walkway and drop in beside a Heartroot), so they mostly keep to the lanes and only cut across where it saves a lot -- harder than a walker, no longer a straight dash to a Heartroot. A weighted field (a bucket
+// queue: the weights are small whole numbers) replaces game.js's plain one for flyers, rebuilt whenever reflow() is (a defense placed or sold).
+let BED_FLY=3;
+function flyField(){ const N=GW*GH, nxt=new Int16Array(N).fill(-1), dist=new Int16Array(N).fill(-1), best=new Int32Array(N).fill(1e9), buckets=[]; const push=(i,d)=>{ (buckets[d]||(buckets[d]=[])).push(i); };
+  for(const g of [GOAL,GOAL2]) if(g>=0){ best[g]=0; push(g,0); }
+  for(let d=0;d<buckets.length;d++){ const B=buckets[d]; if(!B) continue; for(let k=0;k<B.length;k++){ const i=B[k]; if(best[i]!==d) continue; const x=i%GW, z=(i/GW)|0;
+      for(let q=0;q<4;q++){ const nx=x+[1,-1,0,0][q], nz=z+[0,0,1,-1][q]; if(!inb(nx,nz)) continue; const j=idx(nx,nz), t=grid[j]; if(!(walk(t)||t===T.WATER)) continue; if(Math.abs((hgt[j]||0)-(hgt[i]||0))>.8) continue; const nd=d+(BED.has(j)?BED_FLY:1); if(nd<best[j]){ best[j]=nd; nxt[j]=i; push(j,nd); } } } }
+  for(let i=0;i<N;i++) if(best[i]<1e9) dist[i]=Math.min(32767,best[i]); return {nxt,dist}; }
+flowFly=flyField();
+{ const prev=reflow; reflow=function(){ prev.apply(this,arguments); flowFly=flyField(); }; }
 // ---- the hero climbs hedges and walks through beds; mobs, loot and orbs keep the moat's rules
 { const prev=solidAt; solidAt=function(x,z,y,forHero){ if(forHero){ const c=cellOf(wc(x),wcz(z)); if(c) return y<c.top-.25; } return prev.apply(this,arguments); }; }
 { const prev=floorAt; floorAt=function(x,z,y){ const f=prev.apply(this,arguments); const c=cellOf(wc(x),wcz(z)); return c&&y>=c.top-.25?Math.max(f,c.top):f; }; }
@@ -104,6 +115,6 @@ let last2=null, strip2T=0;
     const strip=document.getElementById('alarm'); if(last2!==null&&c2<last2&&c2>0&&(S.phase==='wave'||S.phase==='build'||guest)&&strip){ strip.textContent='⚠ THE WEST HEARTROOT IS UNDER ATTACK'; strip.classList.add('on'); strip2T=2.5; }
     if(strip2T>0){ strip2T-=dt; if(strip2T<=0&&strip){ strip.classList.remove('on'); strip.textContent='⚠ THE HEARTROOT IS UNDER ATTACK'; } } last2=c2; }; }
 window.__courtdecor={ info:()=>({beds:BED.size,edges:[...BED.values()].filter(c=>c.edge).length,straight:straight.length,corners:corners.length,runs:runs.length,pieces,bushes:BUSHES,flowers:FLOWERS,trees,pillars,heart2:!!H2CG,bar2:!!bar2,before:Object.assign({},before),after:Object.assign({},after),used:Object.assign({},USED)}),
-  loaded:()=>WANT>0&&DONE>=WANT, isBed:(cx,cz)=>!!cellOf(cx,cz), isHedge:(cx,cz)=>{ const c=cellOf(cx,cz); return !!(c&&c.edge); }, top:(cx,cz)=>{ const c=cellOf(cx,cz); return c?c.top:null; }, open:()=>[...OPEN].map(i=>[i%GW,(i/GW)|0]),
+  loaded:()=>WANT>0&&DONE>=WANT, flyCost:n=>{ if(n!=null){ BED_FLY=n; flowFly=flyField(); } return BED_FLY; }, flySteps:(cx,cz)=>{ let i=idx(cx,cz), n=0; while(i>=0&&!isGoal(i)&&n<500){ i=flowFly.nxt[i]; n++; } return i>=0&&isGoal(i)?n:-1; }, isBed:(cx,cz)=>!!cellOf(cx,cz), isHedge:(cx,cz)=>{ const c=cellOf(cx,cz); return !!(c&&c.edge); }, top:(cx,cz)=>{ const c=cellOf(cx,cz); return c?c.top:null; }, open:()=>[...OPEN].map(i=>[i%GW,(i/GW)|0]),
   probe:{ HEDGE, cw, cwz, wc, wcz, solidAt:(x,z,y,h)=>solidAt(x,z,y,h), floorAt:(x,z,y)=>floorAt(x,z,y), hero:()=>hero, flyDist:(cx,cz)=>flowFly.dist[idx(cx,cz)], trees:()=>TREE_OBJS, procs:()=>({pillars:world.userData.pillarProcs||[]}), heart2:()=>({x:C2X,z:C2Z,cell:[GOAL2%GW,(GOAL2/GW)|0]}) } };
 })();
