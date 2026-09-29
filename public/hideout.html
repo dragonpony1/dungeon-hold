@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="42">
+<meta name="hideout-build" content="43">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -228,7 +228,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 42;
+const HIDEOUT_BUILD = 43;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -1273,6 +1273,12 @@ function pieceFromCarried(c) {
     sub: c.reward ? (c.reason || 'Reward') : ra.short + ' ' + c.slot + (c.lvl ? ' · Lv ' + c.lvl : ''),
     tip: desc + (stats ? ' — ' + stats : ''), payload: c };
 }
+// build 43 (Matt: the new Cave Bat "doesn't show up on the floor or in the hideout"): an ordinary familiar carried in from the hall shows as its own 3D pet, by the kind its name spells
+// (the game's famKind rule: Storm Drake / Crystal Owl / Fire Imp / Sprite / Bat, otherwise the Wisp). named3d/fam_<kind>.glb are the game's own pet files -- when a pet is re-made, copy the new file over its fam_ one
+const FAM_3D = [['Storm Drake','fam_drake'],['Crystal Owl','fam_owl'],['Fire Imp','fam_imp'],['Sprite','fam_sprite'],['Bat','fam_bat'],['Wisp','fam_wisp']];
+function famModelId(c) { const n = String((c && c.name) || ''); for (const [k, id] of FAM_3D) if (n.includes(k)) return id; return 'fam_wisp'; }
+const pieceFromCarriedBase = pieceFromCarried;
+pieceFromCarried = function(c) { const p = pieceFromCarriedBase(c); if (p && p.kind === 'carried' && c && c.slot === 'familiar' && !c.named && !p.named3d) p.named3d = famModelId(c); return p; };
 function pieceFromShared(item) { // a row from the Worker's shared table (forged rows carry their record since build 26)
   if (item.kind === 'carried' && item.payload) return pieceFromCarried(item.payload);
   return pieceFromForged(item.payload && item.payload.id ? item.payload : item);
