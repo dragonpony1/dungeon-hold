@@ -716,7 +716,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=276;
+const BUILD=277;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -813,7 +813,8 @@ function tierDone(t){ if(!tierGates[t]) tierGates[t]=new Promise(res=>{ setTimeo
 let loadAllT=null;
 function loadCheck(){ const L=LOADT; if(L.soon===null||L.all!==null||L.inflight>0) return; clearTimeout(loadAllT); loadAllT=setTimeout(()=>{ if(L.inflight>0||L.all!==null) return; L.all=Math.round(performance.now()); heroStatus(); if(S.phase!=='start') toast('⏱ Map loaded: ready in '+fmtS(L.first)+', everything in '+fmtS(L.all)+' · '+fmtMB(L.bytes)); },400); }   // a quiet 0.4 s with nothing in flight after the 'soon' tier: the rest has streamed in
 setTimeout(()=>{ tierDone('first').then(()=>{ LOADT.first=Math.round(performance.now()); heroStatus(); }); tierDone('soon').then(()=>{ LOADT.soon=Math.round(performance.now()); heroStatus(); loadCheck(); }); },0);
-function fetchBytes(url,prio){ if(!HAS_ASSETS) return new Promise(()=>{}); if(prio==='first'){ const p=fetchBytesNow(url); loadTiers.first.push(p.catch(()=>{})); return p; } if(prio==='soon'){ const p=tierDone('first').then(()=>fetchBytesNow(url)); loadTiers.soon.push(p.catch(()=>{})); return p; } return tierDone('soon').then(()=>fetchBytesNow(url)); }
+const LOADQ={asked:new Set(),got:new Set()};   // build 277: every file asked for (whatever its tier, even one still waiting its turn) and every one landed or failed -- the loading screen's percentage (11b-loadscreen.js)
+function fetchBytes(url,prio){ if(!HAS_ASSETS) return new Promise(()=>{}); LOADQ.asked.add(url); const q=p=>{ p.then(()=>LOADQ.got.add(url),()=>LOADQ.got.add(url)); return p; }; if(prio==='first'){ const p=fetchBytesNow(url); loadTiers.first.push(p.catch(()=>{})); return q(p); } if(prio==='soon'){ const p=tierDone('first').then(()=>fetchBytesNow(url)); loadTiers.soon.push(p.catch(()=>{})); return q(p); } return q(tierDone('soon').then(()=>fetchBytesNow(url))); }
 // one download per file at a time: a second ask for a URL that is still coming down gets the same promise (the same bytes,
 // counted once in LOADT) instead of a second copy over the wire -- the throne room used to pull its 10 MB door four times at
 // once. Only while in flight: the entry goes when it lands, so nothing here keeps a model's bytes once its callers are done.
