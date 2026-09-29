@@ -24,7 +24,7 @@ check("every kind spawns its Meshy model and fires at the kind's rate",KINDS.eve
 check("Wisp: spark bolts hit",W.maxBolts>0&&W.dmgDone.some(x=>x>0),JSON.stringify(W));
 check("Cave Bat: swoops out (>1.5 from the shoulder), bites, comes back",B.maxDev>1.5&&B.dmgDone.some(x=>x>0)&&B.backHome&&B.maxBolts===0,JSON.stringify(B));
 check("Moss Sprite: seed pods land and slow the pack",S.maxShots>0&&S.slowed&&S.dmgDone.some(x=>x>0),JSON.stringify(S));
-check("Fire Imp: fireballs burn",I.maxShots>0&&I.burning&&I.dmgDone.some(x=>x>0),JSON.stringify(I));
+check("Fire Imp: no fireball any more (build 227) -- it dives and drops lava that burns (famimp-test.mjs has the numbers)",I.maxShots===0&&I.burning&&I.dmgDone.some(x=>x>0),JSON.stringify(I));
 check("Crystal Owl: one beam chains to both goblins",O.maxFx>0&&O.bothHit&&O.maxBolts===0,JSON.stringify(O));
 check("Storm Drake: lightning forks to both goblins",D.maxFx>0&&D.bothHit&&D.maxBolts===0,JSON.stringify(D));
 // unequip clears everything the pet left behind

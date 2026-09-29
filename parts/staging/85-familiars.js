@@ -12,7 +12,7 @@ const FAM_KIND={
   'Wisp':        {rate:1.0,dmg:1.0,desc:'spark bolts'},
   'Bat':         {rate:.55,dmg:1.7,desc:'swoops and bites'},
   'Sprite':      {rate:.8, dmg:.6, desc:'seed pods · spore cloud slows',slow:2.2,r:1.6},
-  'Fire Imp':    {rate:.7, dmg:.9, desc:'fireballs · splash + burn',splash:1.3,burn:3,burnDmg:.25},
+  'Fire Imp':    {rate:.7, dmg:.9, desc:'dives and drops molten lava · burning pools',splash:1.3,burn:3,burnDmg:.25},
   'Crystal Owl': {rate:.9, dmg:.8, desc:'beam chains to 3 mobs',hops:2,chain:.7,reach:4},
   'Storm Drake': {rate:.5, dmg:1.4,desc:'lightning forks into the pack',fork:.8,r:1.8}};
 const FAM_GLB={}; const famFx=[]; const famShots=[]; let swoop=null; const burnFx=new Map();
@@ -76,9 +76,8 @@ function fireOne(e,extra){ const k=kindOf(), C=FAM_KIND[k]; fam.kick=1;
   if(k==='Sprite'){ const [x,y,z]=muzzle(); const th=thornsOn(); const T=th?.62/THORN.speed:.62, g=th?9:14; const tx=e.x+(e.walking?Math.sin(e.yaw)*mobSpd(e)*T*.6:0), tz=e.z+(e.walking?Math.cos(e.yaw)*mobSpd(e)*T*.6:0); const mesh=th?thornMesh():shotMesh(0x9be36a,.8,.11); mesh.position.set(x,y,z); scene.add(mesh);   /* thorns: under half the flight time and lighter gravity, so the arc tops out near 0.1 m instead of 0.7 -- a skim, not a lob */
     famShots.push({x,y,z,vx:(tx-x)/T,vy:(e.y+.3-y)/T+.5*g*T,vz:(tz-z)/T,g,t:0,mesh,thorn:th,land:(s,h)=>{ const d=dmgOf(C.dmg); for(const m of nearMobs(s.x,s.z,C.r,null)){ famHurt(m,d,0,0,{slow:C.slow}); m.slowT=Math.max(m.slowT||0,C.slow); } SFX.spore(); famLand(s.x,s.z,d);   /* {slow} (build 159, 5/7): a co-op guest's spores reach the host's mob too (famHurt's famHit), not only this page's proxy of it */
       fx((g,mt)=>{ mt.color.set(0x9be36a); for(let i=0;i<7;i++){ const p=glow(0x9be36a,.9+rnd()*.5,.55); const a=rnd()*TAU, r=rnd()*C.r*.8; p.position.set(s.x+Math.cos(a)*r,.25+rnd()*.5,s.z+Math.sin(a)*r); g.add(p); } },.9); }}); SFX.acorn(); return; }
-  if(k==='Fire Imp'){ const [x,y,z]=muzzle(); const tx=e.x, ty=e.y+e.h*.5, tz=e.z; const dx=tx-x, dy=ty-y, dz=tz-z, d=Math.hypot(dx,dy,dz)||1, sp=thornsOn()?13*THORN.speed:13; const mesh=shotMesh(0xff7a20,1.3,.1); mesh.position.set(x,y,z); scene.add(mesh);
-    famShots.push({x,y,z,vx:dx/d*sp,vy:dy/d*sp,vz:dz/d*sp,g:0,t:0,mesh,trail:true,land:(s,h)=>{ const d1=dmgOf(C.dmg), d2=dmgOf(C.dmg*.5), bx={burn:C.burn,burnDmg:dmgOf(C.burnDmg)}; if(h){ famHurt(h,d1,s.vx/sp*.4,s.vz/sp*.4,bx); burn(h,C); } for(const m of nearMobs(s.x,s.z,C.splash,h)){ famHurt(m,d2,0,0,bx); burn(m,C); } SFX.hit(); famLand(h?h.x:s.x,h?h.z:s.z,d1);   /* bx (build 159, 5/7): the burn rides a co-op guest's famHit to the host's mob, whose own burnUpdate ticks it -- it used to be set on the guest's proxy alone and never tick anywhere, a third of the Imp's damage */
-      fx((g,mt)=>{ mt.color.set(0xff7a20); const p=glow(0xffb040,2.2,.9); p.position.set(s.x,s.y,s.z); g.add(p); const q=glow(0xff4a10,1.4,.9); q.position.set(s.x,s.y,s.z); g.add(q); },.35); }}); SFX.harpoon(); return; }
+  if(k==='Fire Imp'){ if(swoop) return; swoop={e,t:0,dur:.85,bit:false,lava:true,x0:fam.x,y0:fam.y,z0:fam.z}; return; }   // build 227 (Matt: "no fire ball just the lava drops"): the Imp dives at the pack like the Bat and drops molten lava -- lavaPool below
+
   if(k==='Crystal Owl'){ famLand(e.x,e.z,dmgOf(C.dmg)); const from=new THREE.Vector3(...muzzle()); let cur=e, prev=from, d=dmgOf(C.dmg);   /* build 178: the beam's first mob is where it lands (the chain hops don't each sprout one) */ const hitList=[]; for(let hop=0;hop<=C.hops+extra&&cur;hop++){ const to=new THREE.Vector3(cur.x,cur.y+cur.h*.55,cur.z); bolt(prev,to,0x9ee8ff,.03+.01*(hop===0),false); famHurt(cur,d,0,0); hitList.push(cur); prev=to; d=dmgOf(C.dmg*Math.pow(C.chain,hop+1));
       let nx=null, nd=C.reach; for(const m of famFoes()){ if(m.dead||hitList.includes(m)) continue; const dd=Math.hypot(m.x-cur.x,m.z-cur.z); if(dd<nd&&los(cur.x,cur.z,m.x,m.z)){ nd=dd; nx=m; } } cur=nx; } beep(1400,.14,'sine',.04,900); noise(.06,.03,6000); return; }
   if(k==='Storm Drake'){ const from=new THREE.Vector3(...muzzle()); const to=new THREE.Vector3(e.x,e.y+e.h*.6,e.z); bolt(from,to,0xd8ecff,.045,true); famHurt(e,dmgOf(C.dmg),0,0); famLand(e.x,e.z,dmgOf(C.dmg)); for(const m of nearMobs(e.x,e.z,C.r+.6*extra,e)){ bolt(to,new THREE.Vector3(m.x,m.y+m.h*.6,m.z),0xd8ecff,.03,true); famHurt(m,dmgOf(C.fork),0,0); }
@@ -88,13 +87,32 @@ function burn(e,C){ e.burnT=C.burn; e.burnDmg=dmgOf(C.burnDmg); e.burnTick=e.bur
 function burnUpdate(dt){ for(const e of enemies){ if(!(e.burnT>0)) continue; if(e.dead){ e.burnT=0; continue; } e.burnT-=dt; e.burnTick=(e.burnTick||0)+dt; if(e.burnTick>=.5){ e.burnTick-=.5; famHurt(e,e.burnDmg,0,0); }
     let s=burnFx.get(e); if(!s){ s=glow(0xff7a20,1.1,.75); scene.add(s); burnFx.set(e,s); } s.position.set(e.x+(rnd()-.5)*.2,e.y+e.h*.6+Math.sin(S.t*23)*.08,e.z+(rnd()-.5)*.2); s.scale.setScalar(.9+Math.sin(S.t*31)*.2); }
   for(const [e,s] of burnFx){ if(!(e.burnT>0)||e.dead){ scene.remove(s); s.material.dispose(); burnFx.delete(e); } } }
+// ---------------------------------------------------------------- the Fire Imp's LAVA (build 227)
+// Matt: "the fire imp flies toward the mobs like the bat only he drops molten lava that does dot fire damage" / "yes no fire ball just the lava drops".
+// The Imp dives over the mob it picked (swoopUpdate, lava:true) and at the top of the dive lets go of a pool: LV.r wide, LV.life seconds, hitting every mob standing
+// in it for LV.mul x pet damage each LV.tick seconds, and setting them burning for LV.linger s after they leave (the burn ticks 0.25 x pet damage every 0.5 s).
+// Numbers are my picks -- easy to retune here. Runs on a co-op guest too: famHurt sends a puppet's hit (and its burn) to the host.
+const LV={r:2,life:4.2,tick:.5,mul:.42,linger:2.4,cap:8}; const LAVA=[]; let lavaMap=null;
+function lavaTexture(){ if(lavaMap) return lavaMap; const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d'); const r=g.createRadialGradient(64,64,4,64,64,62); r.addColorStop(0,'#fff3a8'); r.addColorStop(.22,'#ffb02e'); r.addColorStop(.55,'#ff5a12'); r.addColorStop(.82,'#a3200acc'); r.addColorStop(1,'#3a0e0800'); g.fillStyle=r; g.fillRect(0,0,128,128);
+  for(let i=0;i<14;i++){ const a=rnd()*TAU, d=14+rnd()*36; g.fillStyle='rgba(40,8,2,'+(.25+rnd()*.3)+')'; g.beginPath(); g.ellipse(64+Math.cos(a)*d,64+Math.sin(a)*d,3+rnd()*7,2+rnd()*5,rnd()*PI,0,TAU); g.fill(); }   // dark crust flecks on the molten surface
+  lavaMap=new THREE.CanvasTexture(c); lavaMap.encoding=THREE.sRGBEncoding; return lavaMap; }
+function lavaPool(x,z,y){ if(LAVA.length>=LV.cap){ const o=LAVA.shift(); scene.remove(o.g); o.disc.material.dispose(); o.glow.material.dispose(); o.embers.forEach(m=>m.material.dispose()); }
+  const g=new THREE.Group(); g.position.set(x,(y||0)+.04,z); const disc=new THREE.Mesh(new THREE.CircleGeometry(LV.r,40),new THREE.MeshBasicMaterial({map:lavaTexture(),transparent:true,depthWrite:false,opacity:0})); disc.rotation.x=-PI/2; disc.userData.noOL=true; disc.renderOrder=2; g.add(disc);
+  const gl=glow(0xff7a20,LV.r*1.9,.5); gl.position.y=.35; g.add(gl); const embers=[]; for(let i=0;i<6;i++){ const m=glow(0xffb040,.5,.8); m.userData={a:rnd()*TAU,r:rnd()*LV.r*.8,ph:rnd()}; g.add(m); embers.push(m); }
+  scene.add(g); LAVA.push({g,disc,glow:gl,embers,x,z,t:0,tk:0}); beep(150,.22,'sawtooth',.05,-40); noise(.1,.04,2200); }
+function lavaUpdate(dt){ for(let i=LAVA.length-1;i>=0;i--){ const p=LAVA[i]; p.t+=dt; if(p.t>=LV.life){ scene.remove(p.g); p.disc.material.dispose(); p.glow.material.dispose(); p.embers.forEach(m=>m.material.dispose()); LAVA.splice(i,1); continue; }
+    const fin=Math.min(1,p.t/.25), fout=Math.min(1,(LV.life-p.t)/.9), k=Math.min(fin,fout), pulse=1+Math.sin(p.t*7)*.04; p.disc.material.opacity=k*.95; p.disc.scale.setScalar((.55+.45*fin)*pulse); p.glow.material.opacity=.5*k*(.85+.15*Math.sin(p.t*11));
+    for(const m of p.embers){ const u=(p.t*.55+m.userData.ph)%1; m.position.set(Math.cos(m.userData.a+p.t*.6)*m.userData.r,.15+u*1.2,Math.sin(m.userData.a+p.t*.6)*m.userData.r); m.material.opacity=.8*(1-u)*k; m.scale.setScalar(.35+(1-u)*.35); }
+    p.tk+=dt; if(p.tk>=LV.tick&&p.t>.2){ p.tk-=LV.tick; for(const m of nearMobs(p.x,p.z,LV.r,null)){ if((m.lavaT||-9)>S.t-LV.tick*.85) continue; m.lavaT=S.t; famHurt(m,dmgOf(LV.mul),0,0,{burn:LV.linger,burnDmg:dmgOf(.25)}); burn(m,{burn:LV.linger,burnDmg:.25}); } } } }   // one tick per mob per interval however many pools it stands in: overlapping pools do not stack
+window.__lava={pools:()=>LAVA.length,cfg:LV,drop:(x,z)=>lavaPool(x,z,0),clear:()=>{ while(LAVA.length){ const o=LAVA.pop(); scene.remove(o.g); } }};
 function swoopUpdate(dt){ if(!swoop||!fam) return; const w=swoop; w.t+=dt/w.dur; const e=w.e; if(e.dead&&w.t<.5){ w.t=.5; }
   const k=Math.sin(Math.min(1,w.t)*PI);   // 0 → 1 (at the mob) → 0 (back on the shoulder)
-  const tx=e.dead?w.x0:e.x, ty=e.dead?w.y0:e.y+e.h*.7, tz=e.dead?w.z0:e.z; const px=lerp(fam.x,tx,k), py=lerp(fam.y,ty,k)+Math.sin(w.t*PI)*.3, pz=lerp(fam.z,tz,k);
+  const tx=e.dead?w.x0:e.x, ty=e.dead?w.y0:(w.lava?e.y+e.h+.85:e.y+e.h*.7), tz=e.dead?w.z0:e.z; const px=lerp(fam.x,tx,k), py=lerp(fam.y,ty,k)+Math.sin(w.t*PI)*.3, pz=lerp(fam.z,tz,k);
   fam.g.position.set(px,py,pz); fam.g.rotation.y=Math.atan2((w.t<.5?tx:fam.x)-px,(w.t<.5?tz:fam.z)-pz); fam.g.rotation.x=(w.t<.5?.5:-.35)*k;
-  if(!w.bit&&w.t>=.5&&!e.dead){ w.bit=true; famHurt(e,dmgOf(K().dmg),Math.sin(fam.g.rotation.y)*.6,Math.cos(fam.g.rotation.y)*.6); famLand(e.x,e.z,dmgOf(K().dmg)); const nb=heroStat('fproj')|0; if(nb>0) for(const m of nearMobs(e.x,e.z,1.6,e).slice(0,nb)) famHurt(m,dmgOf(K().dmg*.7),0,0); SFX.hit(); fx((g,mt)=>{ const p=glow(0xffe0a0,1.2,.8); p.position.set(e.x,e.y+e.h*.7,e.z); g.add(p); },.2); }
+  if(w.lava&&!w.bit&&w.t>=.5){ w.bit=true; if(!e.dead) lavaPool(e.x,e.z,e.y||0); }
+  else if(!w.bit&&w.t>=.5&&!e.dead){ w.bit=true; famHurt(e,dmgOf(K().dmg),Math.sin(fam.g.rotation.y)*.6,Math.cos(fam.g.rotation.y)*.6); famLand(e.x,e.z,dmgOf(K().dmg)); const nb=heroStat('fproj')|0; if(nb>0) for(const m of nearMobs(e.x,e.z,1.6,e).slice(0,nb)) famHurt(m,dmgOf(K().dmg*.7),0,0); SFX.hit(); fx((g,mt)=>{ const p=glow(0xffe0a0,1.2,.8); p.position.set(e.x,e.y+e.h*.7,e.z); g.add(p); },.2); }
   if(w.t>=1){ swoop=null; fam.g.rotation.x=0; } }
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(fam){ swoopUpdate(dt); } famShotsUpdate(dt); famFxUpdate(dt); burnUpdate(dt); }; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(fam){ swoopUpdate(dt); } lavaUpdate(dt); famShotsUpdate(dt); famFxUpdate(dt); burnUpdate(dt); }; }
 const famClearProc=famClearBolts; famClearBolts=function(){ famClearProc(); for(const s of famShots){ scene.remove(s.mesh); } famShots.length=0; };
 // the bag / sheet says what each familiar does
 const statStrProc=statStr; statStr=function(it){ const s=statStrProc(it); if(it&&it.slot==='familiar'){ const nk=namedPet(it); if(nk) return s+' · '+NAMED_PET[nk].desc; const C=FAM_KIND[famKind(it)]; if(C) return s+' · '+C.desc; } return s; };
