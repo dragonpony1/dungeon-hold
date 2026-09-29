@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="53">
+<meta name="hideout-build" content="54">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -268,7 +268,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 53;
+const HIDEOUT_BUILD = 54;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -1268,7 +1268,7 @@ function spawnPlacedItem(gid, pos, ry, pid) {
       hit.position.set(pos.x, pos.y+2.1, pos.z);
       scene.add(hit);
       entry.useHit = hit;
-      interactables.push({ mesh: hit, prompt: 'E: Step through the portal', onUse: usePortal });
+      interactables.push({ mesh: hit, prompt: 'E: Step through the portal (your gear comes with you)', onUse: usePortal });
       entry.light = takeLight(0x66ccff, 2.4, 12, pos.x, pos.y+2.2, pos.z);
     }
     if (gid === 'wall_locker') {
@@ -1309,6 +1309,7 @@ function spawnPlacedItem(gid, pos, ry, pid) {
 // when index.html loads. The main game embeds a copy of this file and keys off the exact text of the
 // href line below, so don't reword or reformat that line.
 function usePortal() {
+  sendInventoryToHall();   // build 54: whatever gear is in your inventory goes with you
   writeSave();
   window.location.href = '/';
 }
@@ -1914,7 +1915,7 @@ function openGearPanel() {
   gearWasActive = active;
   if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
   document.getElementById('gearWrap').style.display = 'flex';
-  document.getElementById('invSendWrap').style.display = RETURN_TO_HALL ? 'block' : 'none';
+  document.getElementById('invSendWrap').style.display = 'none';   // build 54: the portal takes your inventory; there is no box to drag things into any more
   buildGearGrid();
   refreshSlotViews();
 }
@@ -2078,6 +2079,16 @@ function sendToHall(arr, i) {
   writeSave(); syncSelection(); refreshSlotViews();
   sfxSuccess();
   flashMsg(gearPiece(v).label + ' goes back to the hall with you — changed your mind? It waits in the wall locker until then');
+}
+// build 54 (Matt: "we shouldnt have to move gear into that little box to bring back to the hall. if its in our inventory it travels with us."): stepping through the portal takes EVERY piece of gear in your inventory -- the hotbar, the
+// bag, and the waiting list a full bag leaves in the I panel -- back to the hall, the way dragging it onto the "Send to the hall" box used to (which is gone from the I panel). What you want to keep here goes on a display stand or into a
+// chest or the wall locker instead. Furniture stays; gear on a stand or in a chest stays.
+function sendInventoryToHall() {
+  const list = loadReturn(); let n = 0;
+  for (const arr of [SAVE.hotbar, SAVE.bag]) arr.forEach((v, i) => { if (isGearItem(v)) { list.push(toGameItem(v)); arr[i] = null; n++; } });
+  for (const g of SAVE.gear.splice(0)) { list.push(toGameItem({ kind: 'forged', rec: g })); n++; }
+  if (n) writeReturn(list);
+  return n;
 }
 function bringBackFromHall(id) {
   const list = loadReturn(), i = list.findIndex(r => r && r.id === id && r.hideout && r.hideout.rec);
