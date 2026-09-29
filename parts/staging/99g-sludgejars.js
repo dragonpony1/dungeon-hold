@@ -53,13 +53,15 @@ function bank(r,x,y,z){ const b=readIn(); b[JR[r].k]++; try{ localStorage.setIte
   RUN[r]++; drawHud(); SFX.mana(); if(r>=2) SFX.loot(r===3?4:2); floatText(x,y+.8,z,'+1 '+JR[r].name+' Sludge',JR[r].css); }
 function updateJars(dt){
   for(let i=JARS.length-1;i>=0;i--){ const j=JARS[i]; j.t+=dt; const it=j.mesh.userData.item;
-    if(hero.dead<=0&&j.t>.45&&j.vy<=.01){ const hd=Math.hypot(hero.x-j.x,hero.z-j.z), hy=Math.abs(hero.y-j.y);
+    // build 272 (Matt: "these jars wont allow me to pick them up"): a jar at rest keeps a tiny bounce, so its vy was never under .01 at this check -- only a jar still falling as you came near ever flew to you; landed once is landed
+    if(hero.dead<=0&&j.t>.45&&(j.landed||j.vy<=.01)){ const hd=Math.hypot(hero.x-j.x,hero.z-j.z), hy=Math.abs(hero.y-j.y);
       if(window.__autoMana||(hd<HOOK&&hy<4)){ const dx=hero.x-j.x, dy=hero.y+.9-j.y, dz=hero.z-j.z, dd=Math.hypot(dx,dy,dz);
         if(dd<.6){ bank(j.r,j.x,j.y,j.z); scene.remove(j.mesh); JARS.splice(i,1); continue; }
         const s=Math.min(1,10*dt/dd); j.x+=dx*s; j.y+=dy*s; j.z+=dz*s; j.vx=j.vz=j.vy=0; j.mesh.position.set(j.x,j.y,j.z); it.rotation.y+=dt*6; continue; } }
     j.vy-=14*dt; const nx=j.x+j.vx*dt, nz=j.z+j.vz*dt; if(!solidAt(nx,nz,0,true)){ j.x=nx; j.z=nz; } else { j.vx=-j.vx*.5; j.vz=-j.vz*.5; }
-    j.y+=j.vy*dt; const fl=baseFloor(j.x,j.z); if(j.y<fl){ j.y=fl; j.vy=-j.vy*.3; j.vx*=.6; j.vz*=.6; }
-    j.mesh.position.set(j.x,j.y,j.z); it.position.y=.45+Math.sin(j.t*3+j.r)*.07; it.rotation.y+=dt*1.6; j.mesh.userData.ring.scale.setScalar(1+Math.sin(j.t*4)*.08); } }
+    j.y+=j.vy*dt; const fl=baseFloor(j.x,j.z); if(j.y<fl){ j.y=fl; j.vy=-j.vy*.3; j.vx*=.6; j.vz*=.6; j.landed=true; if(j.vy<.6) j.vy=0; }
+    j.mesh.position.set(j.x,j.y,j.z); it.position.y=.45+Math.sin(j.t*3+j.r)*.07; it.rotation.y+=dt*1.6; j.mesh.userData.ring.scale.setScalar(1+Math.sin(j.t*4)*.08);
+    if(hero.dead<=0&&j.t>.3&&Math.hypot(hero.x-j.x,hero.z-j.z)<1.2&&Math.abs(hero.y-j.y)<1.6){ bank(j.r,j.x,j.y,j.z); scene.remove(j.mesh); JARS.splice(i,1); } } }   // and walking right over one always takes it, the way loot does
 // the room is over (MOVE ON from a held hall: update() stops the hall there): whatever is still on the floor is banked, with one line to say so
 function sweep(){ if(!JARS.length) return 0; const n=JARS.length, b=readIn(); for(const j of JARS.splice(0)){ scene.remove(j.mesh); b[JR[j.r].k]++; RUN[j.r]++; } try{ localStorage.setItem(KEY,JSON.stringify(b)); }catch(e){} drawHud(); SFX.mana(); try{ toast(n+' sludge jar'+(n===1?'':'s')+' left on the floor, banked in your hideout'); }catch(e){} return n; }
 { const prev=moveOn; moveOn=function(){ try{ if(S.held&&S.phase==='build') sweep(); }catch(e){} return prev.apply(this,arguments); }; }
