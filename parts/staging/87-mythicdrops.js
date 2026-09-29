@@ -21,6 +21,13 @@ const SETS=[['void','of the Void'],['crimson','of Chaos'],['rock','of the Earth'
 const gateOk=id=>{ const g=window.__setGate; return !g||g.mythic(id); };   // 97b-setgate.js: which sets may drop in this room and wave (asked at call time; none gated until it loads)
 const BASE={armor:'Armor',amulet:'Amulet',charm:'Trinket',familiar:'Familiar'};
 const GOLDC='#ffcf3a';
+// build 241 (Matt: the higher-end pieces are rare on purpose and "when one drops a sound comes with it, it's an attention grabber, so you want to stop and go look"): a mythic or a named mythic
+// landing gets a rising four-note fanfare, LOUDER than an ordinary drop chime, and a tall beam of light over it for eight seconds (set-pack pieces already have their own chime and column, 93-gearsets.js)
+let FANCY=0; const fancySynth=named=>{ const g=named?1.25:1; beep(523,.55,'triangle',.2*g,0); setTimeout(()=>beep(659,.55,'triangle',.2*g,0),120); setTimeout(()=>beep(784,.65,'triangle',.22*g,0),240); setTimeout(()=>beep(1047,1.4,'sine',.26*g,0),380); setTimeout(()=>beep(1568,1.1,'sine',.09*g,0),400); if(named){ setTimeout(()=>beep(262,1.6,'sine',.2,0),380); } noise(.18,.05,5200); };
+SFX.fancy=named=>{ FANCY++; if(SFX.fancySample&&SFX.fancySample(!!named)) return; fancySynth(named); };
+const BEAMS=[], BEAM_GEO=new THREE.CylinderGeometry(.16,.36,9,14,1,true);
+function dropBeam(x,z,col){ const m=new THREE.Mesh(BEAM_GEO,new THREE.MeshBasicMaterial({color:C(col),transparent:true,opacity:.5,side:THREE.DoubleSide,depthWrite:false})); m.position.set(x,4.5,z); m.userData.noOL=true; scene.add(m); BEAMS.push({m,t:0}); }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); for(let i=BEAMS.length-1;i>=0;i--){ const b=BEAMS[i]; b.t+=dt; b.m.material.opacity=Math.max(0,.5*(1-b.t/8)); b.m.rotation.y+=dt*1.2; if(b.t>=8){ scene.remove(b.m); b.m.material.dispose(); BEAMS.splice(i,1); } } }; }
 // a mythic's card picture: Matt's art, which ships inside the game with the embedded hideout (dist/hideout/…). it.art is
 // the game's own per-item picture override (93-gearsets.js itemArt → the bag, the shop, the sheet); the weapon's kind
 // rides in it.look (sword/staff/polearm/bow). No bow pictures yet, no familiar ones: those keep the slot's emoji.
@@ -47,14 +54,14 @@ function cardOnFloor(l,it){ const item=l.mesh.userData.item; const tex=new THREE
 // a drop: maybe mythic
 { const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const turned=eligible(it)&&LR()<MYTHIC_DROP; if(turned) mythicize(it); const l=prev(it,x,z,gentle);
     if(l&&l.mesh&&it&&(it.mythic||it.named)&&it.art&&!(Meta.packs&&Meta.packs.of(it))) cardOnFloor(l,it);
-    if(turned||(it&&it.__announce)){ if(it) delete it.__announce; floatText(x,1.9,z,'✦ MYTHIC ✦ '+it.name,GOLDC); if(SFX.setBong) SFX.setBong(); } return l; }; }
+    if(turned||(it&&it.__announce)){ if(it) delete it.__announce; floatText(x,1.9,z,'✦ MYTHIC ✦ '+it.name,GOLDC); SFX.fancy(false); dropBeam(x,z,0xffcf3a); } else if(it&&it.named){ SFX.fancy(true); dropBeam(x,z,0xff7ade); } return l; }; }
 // a wave held: maybe a named mythic by the crystal
 { const prev=Meta.onWaveHeld; Meta.onWaveHeld=function(w){ const r=prev.apply(this,arguments);
-    if(LR()<NAMED_DROP){ const it=namedItem(); if(it){ dropLoot(it,R(-1.6,1.6),4.6,true); floatText(0,2.6,4.6,'✦ A NAMED MYTHIC ✦ '+it.name,GOLDC); if(SFX.setBong) SFX.setBong(); if(typeof toast==='function') toast('A named mythic fell by the Heartroot: '+it.name); } }
+    if(LR()<NAMED_DROP){ const it=namedItem(); if(it){ dropLoot(it,R(-1.6,1.6),4.6,true); floatText(0,2.6,4.6,'✦ A NAMED MYTHIC ✦ '+it.name,GOLDC); if(typeof toast==='function') toast('A named mythic fell by the Heartroot: '+it.name); } }
     return r; }; }
 // a regular mob killed in a regular wave: a very small chance of a named mythic where it fell (host or solo: the kill is real there; a co-op guest's floor gets it only from the wave reward roll)
 const MOB_BOSS=new Set(['trollboss','cyclops','pigflail','pigdagger','pigsling']);
 { const prev=rollDrop; rollDrop=function(e){ prev(e); if(TUTORIAL||S.phase!=='wave'||!e||e.puppet||MOB_BOSS.has(e.kind)) return;
-    if(LR()<NAMED_MOB){ const it=namedItem(); if(it){ dropLoot(it,e.x,e.z); floatText(e.x,2.4,e.z,'✦ A NAMED MYTHIC ✦ '+it.name,GOLDC); if(SFX.setBong) SFX.setBong(); if(typeof toast==='function') toast('A named mythic dropped from a '+(e.kind||'mob')+': '+it.name); } } }; }
-window.__mythicDrops={rates:()=>({mythic:MYTHIC_DROP,named:NAMED_DROP,mob:NAMED_MOB}),set:(m,n,k)=>{ if(Number.isFinite(m)) MYTHIC_DROP=m; if(Number.isFinite(n)) NAMED_DROP=n; if(Number.isFinite(k)) NAMED_MOB=k; },mythicize,namedItem,eligible,art:mythicArt,SETS};
+    if(LR()<NAMED_MOB){ const it=namedItem(); if(it){ dropLoot(it,e.x,e.z); floatText(e.x,2.4,e.z,'✦ A NAMED MYTHIC ✦ '+it.name,GOLDC); if(typeof toast==='function') toast('A named mythic dropped from a '+(e.kind||'mob')+': '+it.name); } } }; }
+window.__mythicDrops={fancy:()=>FANCY,beams:()=>BEAMS.length,rates:()=>({mythic:MYTHIC_DROP,named:NAMED_DROP,mob:NAMED_MOB}),set:(m,n,k)=>{ if(Number.isFinite(m)) MYTHIC_DROP=m; if(Number.isFinite(n)) NAMED_DROP=n; if(Number.isFinite(k)) NAMED_MOB=k; },mythicize,namedItem,eligible,art:mythicArt,SETS};
 })();

@@ -26,7 +26,7 @@
 // only: the single-file dungeon.html has no hideout/ next to it, so there the prompt says so instead of opening a
 // broken page.
 //
-// THE LOCK (10-meta.js, toggleLock): a piece locked in the bag is never scrapped here. It rides through WHOLE instead,
+// THE LOCK (10-meta.js, toggleLock; build 241: set pieces, mythics and named mythics lock themselves on pickup): a piece locked in the bag is never scrapped here, and (build 241, Matt: "locked items should just stay in my inventory on the otherside") it no longer rides through either -- it simply STAYS in the bag. The old text below described the carry-through it used to do,
 // as an item record appended to localStorage 'dd_gear_carried' (the hideout's second contract: an array of items --
 // id, name, slot, rarity 0..4, lvl, tier, stats, value, score, and from:'dungeon-hold', carriedAt -- read-modify-write,
 // appended to, never overwritten, never the same id twice) for the hideout to list in YOUR GEAR and put on display.
@@ -45,15 +45,14 @@ let wrap=null, frame=null, shown=false, opens=0, lastCarry=null, preloadT=null, 
 const clampR=r=>Math.max(0,Math.min(4,Math.round(+r)||0));
 function readBag(){ let b=null; try{ b=JSON.parse(localStorage.getItem(BAG_KEY)); }catch(e){} return (b&&typeof b==='object'&&!Array.isArray(b))?b:{}; }
 function readCarried(){ let a=null; try{ a=JSON.parse(localStorage.getItem(CARRY_KEY)); }catch(e){} return Array.isArray(a)?a.filter(x=>x&&typeof x==='object'):[]; }
-function carryGear(){ const bag=Meta.bag(); const counts={}; RARITY_KEY.forEach(k=>counts[k]=0); const carried=[]; if(!bag.length){ lastCarry={n:0,counts,carried}; return lastCarry; }
-  const b=readBag(); let n=0; RARITY_KEY.forEach(k=>{ b[k]=Math.max(0,Math.floor(+b[k])||0); });   // every rarity present as an integer after a write, even the ones nothing went into -- ready for when the hideout's chain grows past 'common'
-  const list=readCarried(), have=new Set(list.map(x=>x.id));
+function carryGear(){ const bag=Meta.bag(); const counts={}; RARITY_KEY.forEach(k=>counts[k]=0); const carried=[]; let kept=0; if(!bag.length){ lastCarry={n:0,counts,carried,kept}; return lastCarry; }
+  const b=readBag(); let n=0; RARITY_KEY.forEach(k=>{ b[k]=Math.max(0,Math.floor(+b[k])||0); });   // every rarity present as an integer after a write, even the ones nothing went into
   const items=bag.slice(); bag.length=0;   // emptied in place, never a fresh array: Meta.bag() is the live one 10-meta.js saves
   for(const it of items){
-    if(it.locked){ if(!have.has(it.id)){ const rec=JSON.parse(JSON.stringify(it)); delete rec.locked; rec.from='dungeon-hold'; rec.carriedAt=Date.now(); list.push(rec); have.add(it.id); } carried.push(it.id); continue; }   // whole, for the display
+    if(it.locked){ bag.push(it); kept++; continue; }   // build 241: a locked piece stays in the bag, on this side of the portal
     const k=RARITY_KEY[clampR(it.rarity)]; counts[k]++; b[k]++; n++; }   // scrap, for the Cart
-  try{ localStorage.setItem(BAG_KEY,JSON.stringify(b)); if(carried.length) localStorage.setItem(CARRY_KEY,JSON.stringify(list)); }catch(e){}
-  Meta.save(); lastCarry={n,counts,carried}; return lastCarry; }
+  try{ localStorage.setItem(BAG_KEY,JSON.stringify(b)); }catch(e){}
+  Meta.save(); lastCarry={n,counts,carried,kept}; return lastCarry; }
 function bagSummary(){ const c={}; Meta.bag().filter(it=>!it.locked).forEach(it=>{ const k=RARITY_KEY[clampR(it.rarity)]; c[k]=(c[k]||0)+1; }); return RARITY_KEY.filter(k=>c[k]).map(k=>c[k]+' '+k).join(', '); }
 function portalNear(){ if(!window.__portal||window.__portal.state()!=='shown') return false; const p=window.__portal.pos(); return Math.hypot(hero.x-p.x,hero.z-p.z)<NEAR; }
 function canUse(){ return portalNear()&&!placing&&!Meta.isOpen()&&hallPhase()==='build'; }   // hallPhase (58-portal.js, build 159 5/7): the host's phase on a co-op guest, whose own S.phase is 'build' all run
@@ -85,7 +84,7 @@ function openHideout(){ if(shown) return false;
   return true; }
 function closeHideout(why){ if(!shown) return false; shown=false; HIDEOUT_SHOWN=false; if(hooks.close){ try{ hooks.close(); }catch(e){} } clearTimeout(focusT); focusT=null; post('hideout:hide'); wrap.style.visibility='hidden'; wrap.inert=true; try{ frame.blur(); if(document.activeElement&&document.activeElement.blur) document.activeElement.blur(); }catch(e){} document.body.classList.remove('inHideout'); if(why) toast(why); try{ window.focus(); }catch(e){} if(hideoutLite()) setTimeout(teardown,250); return true; }   // keys go back to the hall at once; a lite hideout is torn down as soon as its hide message has gone
 addEventListener('message',e=>{ if(frame&&e.source===frame.contentWindow&&e.data&&e.data.type==='hideout:exit') closeHideout(); });
-function go(carry){ if(carry){ const c=carryGear(); const parts=[]; if(c.n) parts.push(c.n+' scrapped for the Cart'); if(c.carried.length) parts.push(c.carried.length+' carried through as gear'); if(parts.length) toast(parts.join(' · ')); } Meta.save(); if(HIDEOUT_NAV){ location.href=HIDEOUT_NAV; return; } openHideout(); }
+function go(carry){ if(carry){ const c=carryGear(); const parts=[]; if(c.n) parts.push(c.n+' scrapped for the Cart'); if(c.kept) parts.push(c.kept+' locked piece'+(c.kept===1?'':'s')+' stay in your bag'); if(parts.length) toast(parts.join(' · ')); } Meta.save(); if(HIDEOUT_NAV){ location.href=HIDEOUT_NAV; return; } openHideout(); }
 // no panel, no choice, no toast worth reading: the split was decided in the bag with the lock, and the hideout's own Cart
 // and gear panel are where the results show up
 function passThrough(){ go(true); }

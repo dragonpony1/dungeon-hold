@@ -93,7 +93,7 @@ const LESSON={el:null,t:0}; function lesson(text,secs){ if(!LESSON.el){ const st
 window.__lesson={show:lesson,text:()=>LESSON.el?LESSON.el.textContent:'',on:()=>!!(LESSON.el&&LESSON.el.classList.contains('on'))};
 const HINT_KEY='dd_setHint';   // the first set piece a player ever sees lands with a one-line lesson, once per browser
 function setHint(d){ let seen=false; try{ seen=!!localStorage.getItem(HINT_KEY); localStorage.setItem(HINT_KEY,'1'); }catch(e){} if(seen) return false; setTimeout(()=>lesson(d.ic+' A SET PIECE — wear three '+d.name+' for a bonus, all five for its power. Your sheet shows the count.',9),1400); return true; }
-{ const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); const d=packOf(it); if(d){ SFX.setBong(); if(d.sfx) d.sfx(); floatText(x,1.7,z,d.ic+' A PIECE '+d.name.toUpperCase(),d.css); column(x,z,d.col); setHint(d);
+{ const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); const d=packOf(it); if(d){ if(it.mythic||it.named){ /* 87-mythicdrops.js plays the drop sound for these */ } else if(SFX.fancy) SFX.fancy(false); else { SFX.setBong(); if(d.sfx) d.sfx(); } floatText(x,1.7,z,d.ic+' A PIECE '+d.name.toUpperCase(),d.css); column(x,z,d.col); setHint(d);
     const art=itemArt(it), item=l.mesh.userData.item;
     const recolor=()=>l.mesh.traverse(m=>{ if(m.isMesh&&m.material&&m.material.color&&!m.userData.isOL){ m.material=m.material.clone(); m.material.color.set(d.col); if(m.material.emissive) m.material.emissive.set(d.emissive||0); } });
     // a set with an `art` entry but no file there yet (still common: see the "emoji stands in" note above) used to

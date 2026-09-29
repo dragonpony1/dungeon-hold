@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="48">
+<meta name="hideout-build" content="49">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -157,7 +157,7 @@ canvas{display:block}
 #tooltip{position:fixed;display:none;z-index:50;background:#150e08;color:#ffe9b0;border:1px solid #a5762a;border-radius:6px;padding:5px 10px;font:bold 13px Georgia,serif;pointer-events:none;box-shadow:0 4px 12px #000a;max-width:220px}
 </style>
 </head><body>
-<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: inventory<div id="loadWrap"><div id="loadBar" class="indeterminate"><div id="loadFill"></div></div><div id="loadLine">Loading…</div></div></div>
+<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: inventory &middot; Esc: close a menu<br>The portal takes you back to the hall<div id="loadWrap"><div id="loadBar" class="indeterminate"><div id="loadFill"></div></div><div id="loadLine">Loading…</div></div></div>
 <div id="crosshair"></div>
 <div id="hud">Rare Sludge: <b id="sludge">0</b></div>
 <div id="prompt"></div>
@@ -262,7 +262,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 48;
+const HIDEOUT_BUILD = 49;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -281,6 +281,7 @@ const STARTER_LAYOUT = [
   { gid: 'sludge_cauldron', x: -7.61,  z: -12.6,  ry: 0, w: 3.81, d: 2.09 },
   { gid: 'ore_forge',       x: 7.61,   z: -12.25, ry: 0, w: 7.42, d: 2.64 },
   { gid: 'vending_machine', x: -15.22, z: -12.05, ry: 0, w: 3.61, d: 3.06 },
+  { gid: 'portal',          x: 16.8,   z: 6,      ry: -Math.PI / 2, w: 2.4, d: 1.8 },   // build 49: coming back to the hall is through this portal (Escape only closes menus)
 ];
 const OLD_STARTER_FORGE = { x: 7.61, z: -12.76 }; // where builds 22-24 stood the smaller forge
 const FORGE_GROWTH = 0.44; // how much further the 1.5x forge reaches, front and back, from its centre
@@ -350,6 +351,20 @@ function loadSave(){
           s.starterLayout = 1;
         } catch (e) { console.error('starter layout skipped', e); }
       }
+      // build 49: coming back to the hall is through the PORTAL (Escape only closes menus), so every room has one standing. A save that never set its portal down gets it placed
+      // once by the front-right wall (taken out of the hotbar / bag if it holds one); one that already has it placed is left alone. Guarded on its own, like the steps above.
+      if (!s.portalStep) {
+        try {
+          if (!s.placed.some(p => p.gid === 'portal')) {
+            const spots = [[16.8, 6], [16.8, 2], [16.8, 10], [-16.8, 6], [-16.8, 10]];
+            const at = spots.find(([x, z]) => !s.placed.some(p => !String(p.gid).startsWith('painting_') && Math.hypot(p.x - x, p.z - z) < 3.4)) || spots[0];
+            const from = [s.hotbar, s.bag].find(a => a.includes('portal'));
+            if (from) from[from.indexOf('portal')] = null;
+            s.placed.push({ pid: uid(), gid: 'portal', x: at[0], z: at[1], ry: -Math.PI / 2 });
+          }
+          s.portalStep = 1;
+        } catch (e) { console.error('portal step skipped', e); }
+      }
       // forged gear lives in the bag now, like everything else you own; whatever doesn't fit stays in s.gear and is
       // listed in the I panel until there's room. Guarded for the same reason as above.
       try {
@@ -358,7 +373,7 @@ function loadSave(){
       return s;
     }
   } catch(e){}
-  return { sludge: 99999, legendarySludge: 20, commonSludge: 0, uncommonSludge: 0, gear: [], starterLayout: 1, forgeBig: 1,
+  return { sludge: 99999, legendarySludge: 20, commonSludge: 0, uncommonSludge: 0, gear: [], starterLayout: 1, forgeBig: 1, portalStep: 1,
     hotbar: padSlots(STARTER_ITEMS.filter(gid => !STARTER_LAYOUT.some(spot => spot.gid === gid)), HOTBAR_SIZE),
     bag: padSlots([], BAG_SIZE), placed: STARTER_LAYOUT.map(starterRecord) };
 }
@@ -1296,6 +1311,14 @@ function applyLayout(list) {
     else despawnEntry(e);
   }
   for (const w of want.values()) if (hasModel(w.gid)) spawnPlacedItem(w.gid, { x: w.x, y: w.y ?? GROUND_Y, z: w.z }, w.ry, w.pid);
+}
+// the game's embed adds a BACK TO THE HALL button to the entry overlay (assemble.mjs); with a portal standing in the room it is not needed, so it hides -- and comes back if the portal is ever taken down
+let leaveChk = 0;
+function leaveBtnCheck(now) {
+  if (now - leaveChk < 700) return; leaveChk = now;
+  const b = document.getElementById('leaveBtn'); if (!b) return;
+  const has = pickupables.some(p => !p.isSharedGear && p.gid === 'portal');
+  b.style.display = has ? 'none' : 'inline-block';
 }
 function pickupRange(entry) { return entry.isWall ? 7 : 2.5; } // a painting hung high is far from your eyes; you take it down by aiming, not by reaching
 function tryPickup() {
@@ -2829,6 +2852,7 @@ function animate(now) {
   updateArcaneFx(dt, now);
   updateGearSpin(dt);
   HD.tick(now, dt);
+  leaveBtnCheck(now);
   renderer.render(scene, camera);
 }
 window.__hd = { coop: COOP, build: HIDEOUT_BUILD, visiting: () => HD.visiting, host: () => HD.hostName, me: () => HD.me,
@@ -2836,7 +2860,7 @@ window.__hd = { coop: COOP, build: HIDEOUT_BUILD, visiting: () => HD.visiting, h
   entries: () => pickupables.filter(p => !p.isSharedGear).map(p => ({ gid: p.gid, pid: p.pid, x: p.x, z: p.z, ry: p.ry })),
   trade: { state: () => ({ open: TRADE.open, peer: TRADE.peerId, mine: tradeVals(TRADE.mine), theirs: TRADE.theirs, myLock: TRADE.myLock, theirLock: TRADE.theirLock, incoming: !!TRADE.incoming, last: TRADE.lastDone || null }),
     ask: () => HD.tradeKey(), toggle: tradeToggle, lock: tradeLockPress, cancel: tradeCancel, nearest: () => { const a = tradeNearest(); return a ? a.id : null; }, inv: () => ({ bag: SAVE.bag.slice(), hotbar: SAVE.hotbar.slice() }) },
-  applyLayout, select: (i) => { selectedSlot = i; syncSelection(); return { gear: selectedGear, drop: selectedDropGearId }; }, teleport: (x, z) => { camera.position.x = x; camera.position.z = z; }, placedCount: () => SAVE.placed.length, active: () => active, camera: () => ({ x: camera.position.x, y: camera.position.y, z: camera.position.z, yaw }) };
+  leaveBtn: () => { const b = document.getElementById('leaveBtn'); return b ? b.style.display : null; }, portals: () => pickupables.filter(p => !p.isSharedGear && p.gid === 'portal').length, applyLayout, select: (i) => { selectedSlot = i; syncSelection(); return { gear: selectedGear, drop: selectedDropGearId }; }, teleport: (x, z) => { camera.position.x = x; camera.position.z = z; }, placedCount: () => SAVE.placed.length, active: () => active, camera: () => ({ x: camera.position.x, y: camera.position.y, z: camera.position.z, yaw }) };
 animate(performance.now());
 window.addEventListener('resize', () => { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 </script>

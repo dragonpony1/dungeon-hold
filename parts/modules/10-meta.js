@@ -1,6 +1,6 @@
 // ===== 10-meta.js — Meta core: persistent state (ddMeta), bag, gold, xp/levels/points, skills, shop, run accounting =====
 // Same scope as game.js (inside its IIFE). The tavern UI (20-tavern.js) and the familiar (30-familiar.js) build on this.
-const BAG_CAP=48, XP={goblin:2,archer:4,orc:8,ogre:40,drake:12};
+const BAG_CAP=50, XP={goblin:2,archer:4,orc:8,ogre:40,drake:12};
 const SKILLS=[
   {id:'blade',   name:'Blade',    per:.08, keys:['dmg'],        what:'Hero damage',              fmt:v=>'+'+Math.round(v*100)+'% hero damage'},
   {id:'vigor',   name:'Vigor',    per:.08, keys:['hp'],         what:'Hero max health',          fmt:v=>'+'+Math.round(v*100)+'% max health'},
@@ -65,8 +65,9 @@ function onPickup(it,l){ if(!validItem(it)) return false; fixItem(it); if(bagIdx
   let roomMsg=''; if(bagFull()&&precious(it)){ let w=-1; for(let i=0;i<st.bag.length;i++){ const b=st.bag[i]; if(b.locked||precious(b)) continue; if(w<0||(b.value||0)<(st.bag[w].value||0)) w=i; }
     if(w>=0){ const gone=st.bag.splice(w,1)[0]; addGold(gone.value,'auto'); roomMsg='Bag is full — sold '+gone.name+' for '+fmtG(gone.value)+' gold to make room for '+nm; } }
   if(bagFull()){ addGold(it.value,'auto'); SFX.mana(); if(l) floatText(l.x,l.y+.8,l.z,'+'+it.value+' ●',GOLD_CSS); htmlToast('Bag is full — '+nm+' sold for '+fmtG(it.value)+' gold'); return true; }
+  if(precious(it)||(typeof Meta!=='undefined'&&Meta.packs&&Meta.packs.of&&Meta.packs.of(it))) it.locked=true;   // build 241 (Matt: set pieces, mythical gear and named mythical gear all auto lock on pick up): the fancy pieces are the exception, so they are kept safe until you unlock them yourself
   st.bag.push(it); saveMeta(); SFX.loot(it.rarity); if(l) floatText(l.x,l.y+1,l.z,RNAME[it.rarity].toUpperCase()+' '+SICON[it.slot],RCSS[it.rarity]);
-  if(roomMsg) htmlToast(roomMsg); else if(TOUCH) htmlToast(nm+' — bagged'); else lootToast(it,'bagged'); return true; }   // phones: name only, the stat line runs off a 390px screen
+  if(roomMsg) htmlToast(roomMsg); else if(TOUCH) htmlToast(nm+(it.locked?' — bagged, locked':' — bagged')); else lootToast(it,it.locked?'bagged · 🔒 locked':'bagged'); return true; }   // phones: name only, the stat line runs off a 390px screen
 function sellItem(id){ const i=bagIdx(id); if(i<0||st.bag[i].locked) return 0; const it=st.bag.splice(i,1)[0]; addGold(it.value,'sell'); SFX.mana(); return it.value; }
 // junk = not an upgrade: scores below what is worn in that slot, or a Common that does not beat it. With nothing worn it is the only thing the player could wear, and a Common that beats the worn item is an upgrade, never junk
 function isJunk(it){ if(it.locked) return false; const eq=gear[it.slot]; if(!eq||eq.id===it.id) return false; return it.score<eq.score||(it.rarity===0&&it.score<=eq.score); }

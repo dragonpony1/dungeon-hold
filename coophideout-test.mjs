@@ -13,7 +13,7 @@ const peerOpts={ host:"127.0.0.1", port:sigPort, path:"/peerjs" };
 const server=await serve(PORT);
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const errors=[]; const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-const HOST_SAVE={sludge:5000,legendarySludge:20,commonSludge:0,uncommonSludge:0,gear:[],starterLayout:1,forgeBig:1,hotbar:[null,null,null,null,null,null,null,null,null],bag:new Array(27).fill(null),
+const HOST_SAVE={sludge:5000,legendarySludge:20,commonSludge:0,uncommonSludge:0,gear:[],starterLayout:1,forgeBig:1,portalStep:1,hotbar:[null,null,null,null,null,null,null,null,null],bag:new Array(27).fill(null),
   placed:[{pid:"h-vend",gid:"vending_machine",x:-4,z:-3,ry:0},{pid:"h-cauldron",gid:"sludge_cauldron",x:6,z:2,ry:1.57},{pid:"h-locker",gid:"wall_locker",x:0,z:-13.12,ry:0},{pid:"h-forge",gid:"ore_forge",x:9,z:-8,ry:0},{pid:"h-chest",gid:"chest",x:-8,z:6,ry:0,store:["display_pedestal"]}]};
 async function until(p,fn,arg,ms=90000){ try{ await p.waitForFunction(fn,arg,{timeout:ms}); return true; }catch(e){ return false; } }
 async function frameOf(page,part){ for(let i=0;i<400;i++){ const f=page.frames().find(f=>f.url().includes(part)); if(f) return f; await sleep(50); } return null; }
