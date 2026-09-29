@@ -117,4 +117,11 @@ let last2=null, strip2T=0;
 window.__courtdecor={ info:()=>({beds:BED.size,edges:[...BED.values()].filter(c=>c.edge).length,straight:straight.length,corners:corners.length,runs:runs.length,pieces,bushes:BUSHES,flowers:FLOWERS,trees,pillars,heart2:!!H2CG,bar2:!!bar2,before:Object.assign({},before),after:Object.assign({},after),used:Object.assign({},USED)}),
   loaded:()=>WANT>0&&DONE>=WANT, flyCost:n=>{ if(n!=null){ BED_FLY=n; flowFly=flyField(); } return BED_FLY; }, flySteps:(cx,cz)=>{ let i=idx(cx,cz), n=0; while(i>=0&&!isGoal(i)&&n<500){ i=flowFly.nxt[i]; n++; } return i>=0&&isGoal(i)?n:-1; }, isBed:(cx,cz)=>!!cellOf(cx,cz), isHedge:(cx,cz)=>{ const c=cellOf(cx,cz); return !!(c&&c.edge); }, top:(cx,cz)=>{ const c=cellOf(cx,cz); return c?c.top:null; }, open:()=>[...OPEN].map(i=>[i%GW,(i/GW)|0]),
   probe:{ HEDGE, cw, cwz, wc, wcz, solidAt:(x,z,y,h)=>solidAt(x,z,y,h), floorAt:(x,z,y)=>floorAt(x,z,y), hero:()=>hero, flyDist:(cx,cz)=>flowFly.dist[idx(cx,cz)], trees:()=>TREE_OBJS, procs:()=>({pillars:world.userData.pillarProcs||[]}), heart2:()=>({x:C2X,z:C2Z,cell:[GOAL2%GW,(GOAL2/GW)|0]}) } };
+// build 291, Matt: "i was kinda not haveing fun on map 3 then i gave myself some mana and it became more fun. we need about 400 more mana, 20 more roots and you can increase that starting wave mob count
+// by 30" (game.js: mana 520 -> 920, roots du 60 -> 80). The court's FIRST wave brings 30 more goblins, on the gates that wave opens, coming out between and after its own.
+const W1_EXTRA=30;
+{ const prevWC=waveComp; waveComp=function(w){ const c=prevWC(w); if(SURVIVAL||(w-MAP.wbase)!==1) return c; const lanes=[...new Set(c.q.map(x=>x.lane))]; if(!lanes.length) return c;
+  let t=2; for(let i=0;i<W1_EXTRA;i++){ c.q.push({t,kind:'goblin',lane:lanes[i%lanes.length]}); t+=.6; } c.q.sort((a,b)=>a.t-b.t);
+  const g=c.q.filter(x=>x.kind==='goblin').length; if(c.desc) c.desc=String(c.desc).replace(/Goblins ×[0-9]+/,'Goblins ×'+g); return c; }; }
+window.__courtdecor.w1Extra=W1_EXTRA;
 })();

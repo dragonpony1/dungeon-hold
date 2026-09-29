@@ -1,0 +1,22 @@
+// ===== MAP 3 TUNING (build 291). Matt: "i was kinda not haveing fun on map 3 then i gave myself some mana and it became more fun. we need about 400 more mana, 20 more roots and you can increase that
+// starting wave mob count by 30". Checked: the Cloister Court starts with 920 mana (was 520) and 80 roots (was 60); its first wave has 30 more goblins than the formula gives, in time order; its second
+// wave is untouched; and the first map (the hall) is untouched.
+import { chromium } from "playwright"; import { serve } from "./serve.mjs";
+const server=await serve(8943,{dist:process.env.DIST||"./dist"});
+const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
+const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
+const ctx=await browser.newContext({viewport:{width:1280,height:800}}); await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); }catch(e){} });
+const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
+await page.goto("http://127.0.0.1:8943/?silent&nogate&map=2",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__courtdecor&&window.__dd.map()&&window.__dd.map().id==="court",null,{timeout:120000});
+const a=await page.evaluate(()=>{ const d=window.__dd; const M=d.map(); const w1=M.wbase+1, w2=M.wbase+2; const gob=w=>d.waveComp(w).q.filter(x=>x.kind==='goblin').length;
+  const q1=d.waveComp(w1).q; let sorted=true; for(let i=1;i<q1.length;i++) if(q1[i].t<q1[i-1].t) sorted=false;
+  return { mana:d.status().mana, duCap:d.worldInfo().duCap, w1, g1:gob(w1), want1:6+3*w1+30, g2:gob(w2), want2:6+3*w2, total1:q1.length, sorted, desc:d.waveComp(w1).desc }; });
+check("the Cloister Court starts with 920 mana (was 520) and 80 roots (was 60)",a.mana===920&&a.duCap===80,JSON.stringify({mana:a.mana,duCap:a.duCap}));
+check("its first wave brings 30 more goblins than before, coming out in time order",a.g1===a.want1&&a.sorted,JSON.stringify(a));
+check("its second wave is untouched",a.g2===a.want2,JSON.stringify({g2:a.g2,want2:a.want2}));
+const p2=await ctx.newPage(); p2.on("pageerror",e=>errors.push(String(e)));
+await p2.goto("http://127.0.0.1:8943/?silent&nogate&map=0",{timeout:120000}); await p2.waitForFunction(()=>window.__dd&&window.__dd.map(),null,{timeout:120000});
+const h=await p2.evaluate(()=>{ const d=window.__dd; const gob=d.waveComp(1).q.filter(x=>x.kind==='goblin').length; return { id:d.map().id, g1:gob, duCap:d.worldInfo().duCap }; });
+check("the first map is untouched (its first wave is still five goblins)",h.id!=="court"&&h.g1===5,JSON.stringify(h));
+const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
+await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");

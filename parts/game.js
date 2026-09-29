@@ -117,7 +117,7 @@ const MAPS=[
    {cx:6,cz:26,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:26,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:29,up:3.6,c:0xffb05a,i:1.2,d:14},{cx:25,cz:29,up:3.4,c:0xc040ff,i:.9,d:10},
    {cx:6,cz:33,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:20,cz:33,up:3.6,c:0xff8a2a,i:1.4,d:14},{cx:13,cz:36,up:4.4,c:0xffb05a,i:1.0,d:16},{cx:5,cz:40,up:4,c:0xff8a2a,i:1.5,d:15},{cx:21,cz:40,up:4,c:0xff8a2a,i:1.5,d:15},{cx:13,cz:44,up:4,c:0xff8a2a,i:1.3,d:14},{cx:13,cz:47,up:3.4,c:0xc040ff,i:.9,d:10},
    ]},
- {id:'court',name:'THE CLOISTER COURT',sub:'a sunken garden, two Heartroots and the long way round · seven waves',gw:44,gh:52,crystal:[32,15],crystal2:[11,28],waves:7,wallH:9,du:60,mana:520,fog:[34,110],style:{outdoor:true,moss:true},
+ {id:'court',name:'THE CLOISTER COURT',sub:'a sunken garden, two Heartroots and the long way round · seven waves',gw:44,gh:52,crystal:[32,15],crystal2:[11,28],waves:7,wallH:9,du:80,mana:920,fog:[34,110],style:{outdoor:true,moss:true},
   build(f,g,h,ramp){ f(2,41,2,41,T.FLOOR); h(2,41,2,41,1.5); h(5,38,5,38,0);   // the cloister walkway a step and a half up, the court sunken
     f(31,33,13,17,T.CARPET); f(31,33,14,16,T.DAIS); g(32,15,T.CRYSTAL); f(10,12,26,30,T.CARPET); f(10,12,27,29,T.DAIS); g(11,28,T.CRYSTAL);   // build 282 (H2): two Heartroots, at 2 o'clock and 8 o'clock
     f(7,9,5,6,T.FLOOR); ramp(7,9,5,6,1,0,1.5); f(34,36,37,38,T.FLOOR); ramp(34,36,37,38,2,0,1.5);   // two flights down, in the north-west and south-east corners
@@ -722,7 +722,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=290;
+const BUILD=291;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
