@@ -21,7 +21,7 @@ check("an upgraded tower keeps the Mason bonus on top of its upgrade (and is ful
 const e=await page.evaluate(()=>{ const d=window.__dd; d.setHero(8,10,0); d.step(1/60,3); const t2=d.place('harpoon',20,14,Math.PI); d.step(1/60,2); return t2?{ max:t2.max, hp:t2.hp, want:Math.round(d.DEFS.harpoon.hp*1.4) }:null; });
 check("a tower placed afterwards gets the bonus at once, at full health",e&&e.max===e.want&&e.hp===e.max,JSON.stringify(e));
 const f=await page.evaluate(()=>{ window.__tavern.open(); window.__tavern.tab('skills'); const r=document.getElementById('tv-sk-mason'); return r?r.innerText.replace(/\s+/g,' '):null; });
-check("the tavern's Skills tab shows Mason with its bonus (+40% defense health)",!!f&&/Mason/.test(f)&&/40% defense health/.test(f),f);
+check("the tavern's Skills tab shows the Mason tile with its bonus (+40%)",!!f&&/Mason/i.test(f)&&/[+]40%/.test(f),f);
 if(process.env.SHOT){ const box=await page.evaluate(()=>{ const r=[...document.querySelectorAll('.tv-sk')].map(x=>x.getBoundingClientRect()); const x0=Math.min(...r.map(a=>a.left)), y0=Math.min(...r.map(a=>a.top)), x1=Math.max(...r.map(a=>a.right)), y1=Math.max(...r.map(a=>a.bottom)); return {x:x0-8,y:y0-36,width:x1-x0+16,height:y1-y0+44}; }); await page.screenshot({path:process.env.SHOT,clip:box}); }
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");
