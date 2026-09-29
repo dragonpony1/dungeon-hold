@@ -11,6 +11,7 @@ const t=await page.evaluate(()=>window.__lootRates.table); const o2=await page.e
 const near=(a,b)=>Math.abs(a-b)<1e-9;
 check("the table is the old chances x1.2 (goblin, archer, orc, drake, troll) and the ogre's second piece is .6",near(t.goblin,.06)&&near(t.archer,.12)&&near(t.orc,.264)&&near(t.drake,.36)&&near(t.troll,.336)&&near(o2,.6),JSON.stringify({t,o2}));
 check("the ogre and the troll boss still always drop",t.ogre===1&&t.trollboss===1);
+check("a mythic set piece is 1% of drops (build 249; it was 2.5% until the trash loot went up 20%)",(await page.evaluate(()=>window.__mythicDrops.rates())).mythic===.01);
 const got=await page.evaluate(()=>{ const L=window.__lootRates, out={}; for(const k of ["goblin","archer","orc","drake","troll"]){ L.clear(); const N=6000; for(let i=0;i<N;i++) L.roll({kind:k,x:0,z:0}); out[k]=L.count()/N; L.clear(); } return out; });
 const want={goblin:.06,archer:.12,orc:.264,drake:.36,troll:.336};
 check("rolling thousands of kills lands about the new rate of pieces for each mob",Object.keys(want).every(k=>Math.abs(got[k]-want[k])<.02),JSON.stringify(got));

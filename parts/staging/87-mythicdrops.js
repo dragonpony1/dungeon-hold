@@ -16,7 +16,8 @@
 // A mythic scrapped on the way to the hideout counts as legendary scrap (59-hideout.js clamps rarity to 4), so it still
 // feeds the sludge cycle. Rates are two numbers here — tune freely; __mythicDrops.rates() / .set() for tests.
 (function(){
-let MYTHIC_DROP=.025, NAMED_DROP=.05, NAMED_MOB=.00015;   // NAMED_MOB (build 238, Matt: "allow it at .015% on a regular mob in a regular wave"): any ordinary mob kill during a wave -- one in ~6,700 -- may drop a NAMED mythic where it fell; bosses never do
+let MYTHIC_DROP=.01, NAMED_DROP=.05, NAMED_MOB=.00015;   // build 249: MYTHIC_DROP 2.5% -> 1% per drop (Matt, 2026-09-29: a mythic Void armor in the first wave of room 2; at 2.5% a Throne Room wave made a mythic 13-27% of the time, ~70% over waves 1-6, once trash loot was +20%; 1% is about one a room)
+//   // NAMED_MOB (build 238, Matt: "allow it at .015% on a regular mob in a regular wave"): any ordinary mob kill during a wave -- one in ~6,700 -- may drop a NAMED mythic where it fell; bosses never do
 const SETS=[['void','of the Void'],['crimson','of Chaos'],['rock','of the Earth'],['lava','of Fire'],['angelic','of Radiance'],['storm','of the Storm'],['shadow','of Shadow'],['ice','of Ice'],['wind','of the Wind']];
 const gateOk=id=>{ const g=window.__setGate; return !g||g.mythic(id); };   // 97b-setgate.js: which sets may drop in this room and wave (asked at call time; none gated until it loads)
 const BASE={armor:'Armor',amulet:'Amulet',charm:'Trinket',familiar:'Familiar'};
