@@ -10,7 +10,7 @@ const FAM_H={'Wisp':.8,'Bat':.7,'Sprite':.8,'Fire Imp':.85,'Crystal Owl':.8,'Sto
 // per-kind tuning: fire-rate and damage multipliers on the item's stats, plus what the attack does
 const FAM_KIND={
   'Wisp':        {rate:1.0,dmg:1.0,desc:'spark bolts'},
-  'Bat':         {rate:.55,dmg:1.7,desc:'swoops and bites'},
+  'Bat':         {rate:.55,dmg:1.7,desc:'swoops and bites · bloody'},
   'Sprite':      {rate:.8, dmg:.5, desc:'dual thorn darts · each slows',slow:1.2,r:1.0},   // build 242 (Matt: "the sprite will be shooting dual thorn darts"): two thorns a shot, each hitting for .5 pet damage in a 1-unit puff (was one seed pod, .6 in a 1.6 spore cloud)
   'Fire Imp':    {rate:.7, dmg:.9, desc:'dives and drops molten lava · burning pools',splash:1.3,burn:3,burnDmg:.25},
   'Crystal Owl': {rate:.9, dmg:.8, desc:'beam chains to 3 mobs',hops:2,chain:.7,reach:4},
@@ -69,6 +69,12 @@ function dartLoad(){ if(DARTP) return; DARTP=fetchBytes(ASSET('fam-thorn-dart.gl
 function dartMesh(){ if(!DART) return thornMesh(); if(!THORN.glowP) thornMesh();
   const g=new THREE.Group(), inner=new THREE.Group(), m=DART.clone(true); m.rotation.z=PI/2; inner.add(m); g.add(inner); g.userData.thorn=inner;
   const gl=THORN.glowP.clone(); gl.userData.shared=true; g.add(gl); return g; }
+// build 245: Matt's Bat Bleeding Bite model (fam-bat-bite.glb: a flat splash of blood and slash marks, 2.0 wide, thin in Z) is what the Bat's bite leaves on the mob: it appears at the mob's middle turned to face the
+// camera with a random roll, pops in (.2 s), holds and shrinks away (.55 s in all). Fetched once a Bat is worn; self-lit like the Trimaw's effects (tfxMake), one shared material, so it fades by shrinking.
+let BITE=null, BITEP=null, BITE_N=0; const BITES=[];
+function biteLoad(){ if(BITEP) return; BITEP=fetchBytes(ASSET('fam-bat-bite.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(g=>{ BITE=tfxMake(g.scene||g.scenes[0],1.9,null,false); }).catch(e=>console.warn('bat bite model',e)); }
+function biteFx(x,y,z){ BITE_N++; if(!BITE) return; const m=BITE.clone(true); m.position.set(x,y,z); m.scale.setScalar(.001); scene.add(m); BITES.push({m,t:0,roll:rnd()*TAU}); if(BITES.length>12){ const o=BITES.shift(); scene.remove(o.m); } }
+function biteUpdate(dt){ for(let i=BITES.length-1;i>=0;i--){ const b=BITES[i]; b.t+=dt; const k=b.t/.55; if(k>=1){ scene.remove(b.m); BITES.splice(i,1); continue; } b.m.lookAt(camera.position); b.m.rotateZ(b.roll); b.m.scale.setScalar(Math.max(.001,k<.2?.3+.7*(k/.2):1-Math.pow((k-.2)/.8,2)*.9)); } }
 function aimThorn(g,vx,vy,vz){ const c=g&&g.userData.thorn; if(!c) return; const v=new THREE.Vector3(vx,vy,vz); if(v.lengthSq()<1e-6) return; c.quaternion.setFromUnitVectors(THORN.UP,v.normalize()); }
 function thornTrail(x,y,z){ fx((g,mt)=>{ const p=glow(THORN.col,.32,.6); p.position.set(x,y,z); g.add(p); },.18); }
 // the Wisp's sparks come from 30-familiar.js's famBolts: re-dress the bolt it just made, speed it up, and give it a trail
@@ -123,15 +129,16 @@ function lavaUpdate(dt){ if(fam&&kindOf()==='Fire Imp') lavaLoad(); lavaDropUpda
     for(const m of p.embers){ const u=(p.t*.55+m.userData.ph)%1; m.position.set(Math.cos(m.userData.a+p.t*.6)*m.userData.r,.15+u*1.2,Math.sin(m.userData.a+p.t*.6)*m.userData.r); m.material.opacity=.8*(1-u)*k; m.scale.setScalar(.35+(1-u)*.35); }
     p.tk+=dt; if(p.tk>=LV.tick&&p.t>.2){ p.tk-=LV.tick; for(const m of nearMobs(p.x,p.z,LV.r,null)){ if((m.lavaT||-9)>S.t-LV.tick*.85) continue; m.lavaT=S.t; famHurt(m,dmgOf(LV.mul),0,0,{burn:LV.linger,burnDmg:dmgOf(.25)}); burn(m,{burn:LV.linger,burnDmg:.25}); } } } }   // one tick per mob per interval however many pools it stands in: overlapping pools do not stack
 window.__dart={loaded:()=>!!DART,mesh:dartMesh};
+window.__bite={loaded:()=>!!BITE,count:()=>BITE_N,live:()=>BITES.length,ages:()=>BITES.map(b=>+b.t.toFixed(2))};
 window.__lava={pools:()=>LAVA.length,drops:()=>LDROP.length,models:()=>!!(LFX.drop&&LFX.pool),cfg:LV,drop:(x,z)=>lavaPool(x,z,0),clear:()=>{ while(LAVA.length){ const o=LAVA.pop(); scene.remove(o.g); } }};
 function swoopUpdate(dt){ if(!swoop||!fam) return; const w=swoop; w.t+=dt/w.dur; const e=w.e; if(e.dead&&w.t<.5){ w.t=.5; }
   const k=Math.sin(Math.min(1,w.t)*PI);   // 0 → 1 (at the mob) → 0 (back on the shoulder)
   const tx=e.dead?w.x0:e.x, ty=e.dead?w.y0:(w.lava?e.y+e.h+.85:e.y+e.h*.7), tz=e.dead?w.z0:e.z; const px=lerp(fam.x,tx,k), py=lerp(fam.y,ty,k)+Math.sin(w.t*PI)*.3, pz=lerp(fam.z,tz,k);
   fam.g.position.set(px,py,pz); fam.g.rotation.y=Math.atan2((w.t<.5?tx:fam.x)-px,(w.t<.5?tz:fam.z)-pz); fam.g.rotation.x=(w.t<.5?.5:-.35)*k;
   if(w.lava&&!w.bit&&w.t>=.5){ w.bit=true; if(!e.dead) lavaDrop(fam.g.position.x,fam.g.position.y-.1,fam.g.position.z,e.x,e.z,e.y||0); }
-  else if(!w.bit&&w.t>=.5&&!e.dead){ w.bit=true; famHurt(e,dmgOf(K().dmg),Math.sin(fam.g.rotation.y)*.6,Math.cos(fam.g.rotation.y)*.6); famLand(e.x,e.z,dmgOf(K().dmg)); const nb=heroStat('fproj')|0; if(nb>0) for(const m of nearMobs(e.x,e.z,1.6,e).slice(0,nb)) famHurt(m,dmgOf(K().dmg*.7),0,0); SFX.hit(); fx((g,mt)=>{ const p=glow(0xffe0a0,1.2,.8); p.position.set(e.x,e.y+e.h*.7,e.z); g.add(p); },.2); }
+  else if(!w.bit&&w.t>=.5&&!e.dead){ w.bit=true; famHurt(e,dmgOf(K().dmg),Math.sin(fam.g.rotation.y)*.6,Math.cos(fam.g.rotation.y)*.6); famLand(e.x,e.z,dmgOf(K().dmg)); biteFx(e.x,(e.y||0)+(e.h||1.2)*.55,e.z); const nb=heroStat('fproj')|0; if(nb>0) for(const m of nearMobs(e.x,e.z,1.6,e).slice(0,nb)) famHurt(m,dmgOf(K().dmg*.7),0,0); SFX.hit(); fx((g,mt)=>{ const p=glow(0xffe0a0,1.2,.8); p.position.set(e.x,e.y+e.h*.7,e.z); g.add(p); },.2); }
   if(w.t>=1){ swoop=null; fam.g.rotation.x=0; } }
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(fam&&kindOf()==='Sprite') dartLoad(); if(fam){ swoopUpdate(dt); } lavaUpdate(dt); famShotsUpdate(dt); famFxUpdate(dt); burnUpdate(dt); }; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(fam&&kindOf()==='Sprite') dartLoad(); if(fam&&kindOf()==='Bat') biteLoad(); biteUpdate(dt); if(fam){ swoopUpdate(dt); } lavaUpdate(dt); famShotsUpdate(dt); famFxUpdate(dt); burnUpdate(dt); }; }
 const famClearProc=famClearBolts; famClearBolts=function(){ famClearProc(); for(const s of famShots){ scene.remove(s.mesh); } famShots.length=0; };
 // the bag / sheet says what each familiar does
 const statStrProc=statStr; statStr=function(it){ const s=statStrProc(it); if(it&&it.slot==='familiar'){ const nk=namedPet(it); if(nk) return s+' · '+NAMED_PET[nk].desc; const C=FAM_KIND[famKind(it)]; if(C) return s+' · '+C.desc; } return s; };
