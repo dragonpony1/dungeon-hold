@@ -722,7 +722,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=293;
+const BUILD=294;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -864,7 +864,7 @@ function makeMob(kind){ return MOBGLB[kind]?makeMobGLB(kind):makeGoblin(kind); }
 function mobPlay(m,name,o){ const a=m.actions[name]; if(!a) return; o=o||{}; if(m.cur===a&&!o.restart) return; const prev=m.cur; m.cur=a; a.reset(); a.timeScale=o.speed||1; a.setEffectiveWeight(1); if(prev&&prev!==a){ if(o.fade) a.crossFadeFrom(prev,o.fade,false); else prev.stop(); } a.play(); }
 const SHOUT_SPEED=.6;   // the war cry plays slowed so it reads as a roar, not a twitch
 function ogreRoar(e,n){ e.roar=n; e.shoutT=e.mdl.actions.shout.getClip().duration/SHOUT_SPEED; SFX.roar(); camShake=.7;
-  if(n===2){ e.spd*=1.3; e.dmg=Math.round(e.dmg*1.25); e.enraged=true; const g=glow(0xff3020,2.6/e.sc,.6); g.position.y=e.h*.55/e.sc; e.mdl.g.add(g); floatText(e.x,e.y+e.h+.6,e.z,'ENRAGED!','#ff5a3a'); }   // half health: faster, harder, burning red
+  if(n===2){ e.dmg=Math.round(e.dmg*1.1); e.enraged=true; const g=glow(0xff3020,2.6/e.sc,.6); g.position.y=e.h*.55/e.sc; e.mdl.g.add(g); floatText(e.x,e.y+e.h+.6,e.z,'ENRAGED!','#ff5a3a'); }   // half health: a little harder, burning red (build 294, Matt: "we dont need any mobs to speed up anywhere, its just volume and volume boluses" -- was also 30% faster; no mob speeds up by wave either, spawnEnemy)
   else floatText(e.x,e.y+e.h+.6,e.z,'RAAAGH!','#ff9a5a'); }
 function mobAnim(e,dt){ const m=e.mdl, A=m.actions; let st; if(e.dead) st='death'; else if(e.shoutT>0&&A.shout) st='shout'; else if(e.swing>=0&&A.attack) st='attack'; else if(e.walking) st='walk'; else st='idle';
   if(st==='shout'){ if(m.cur!==A.shout) mobPlay(m,'shout',{restart:true,fade:.1,speed:SHOUT_SPEED}); }
@@ -891,9 +891,9 @@ function updateCamera(dt){
 }
 
 // ================= ENEMIES =================
-function spawnEnemy(kind,lane){ const L=LANES[lane]||LANES.N; const m=makeMob(kind); const cfg=MOBS[kind]; const w=Math.max(0,statWave()-1); const hpm=(1+.22*w)*(1+.08*gearScore()/100); /* waves get harder by wave, not by what you wear — good gear should feel good */ const dmm=(1+.08*w)*(S.wave===1?.65:1);   // a map's own wave 1 hits 35% softer — the count and HP still scale off the campaign-wide wave (wbase carries a later map in hard), just not the damage on the wave you're still getting your bearings on
+function spawnEnemy(kind,lane){ const L=LANES[lane]||LANES.N; const m=makeMob(kind); const cfg=MOBS[kind]; const w=Math.max(0,statWave()-1); const hpm=(1+.22*w)*(1+.08*gearScore()/100); /* waves get harder by wave, not by what you wear — good gear should feel good */ const dmm=(1+.01*w)*(S.wave===1?.65:1);   /* build 294 (Matt: "they can do more damage but very little"): +1% a campaign wave, was +8% (map 3 hit more than twice as hard as map 1) */   // a map's own wave 1 hits 35% softer — the count and HP still scale off the campaign-wide wave (wbase carries a later map in hard), just not the damage on the wave you're still getting your bearings on
   const inX=Math.sin(L.face||0), inZ=Math.cos(L.face||0), jit=R(-.5,.5), step=m.r+.35;   /* build 180 (Matt: monsters keep getting stuck "right at one of the spawn points"): the Throne Room's side gates are one cell deep against the outer wall, and a big mob jittered toward the wall spawned half inside it and never moved -- now it appears a body's width in from the gate along the way it faces, jittered only sideways */
-  const e={kind,x:cw(L.cx)+inX*step+inZ*jit,y:0,z:cwz(L.cz)+inZ*step-inX*jit,hp:Math.round(cfg.hp*hpm),max:Math.round(cfg.hp*hpm),spd:cfg.spd*R(.9,1.1)*(1+.02*w),dmg:Math.round(cfg.dmg*dmm),cd:cfg.cd,atk:R(0,.5),r:m.r,h:m.h,mdl:m,sc:m.g.scale.x,ph:rnd()*6,yaw:L.face,dead:0,mana:cfg.mana,ranged:cfg.ranged||0,pop:0,squash:0,swing:-1,walking:false,sx:0,sz:0,shoutT:0,fly:cfg.fly||0}; if(e.fly) e.y=e.fly;
+  const e={kind,x:cw(L.cx)+inX*step+inZ*jit,y:0,z:cwz(L.cz)+inZ*step-inX*jit,hp:Math.round(cfg.hp*hpm),max:Math.round(cfg.hp*hpm),spd:cfg.spd*R(.9,1.1),dmg:Math.round(cfg.dmg*dmm),cd:cfg.cd,atk:R(0,.5),r:m.r,h:m.h,mdl:m,sc:m.g.scale.x,ph:rnd()*6,yaw:L.face,dead:0,mana:cfg.mana,ranged:cfg.ranged||0,pop:0,squash:0,swing:-1,walking:false,sx:0,sz:0,shoutT:0,fly:cfg.fly||0}; if(e.fly) e.y=e.fly;
   e.roar=(m.glb&&m.actions.shout)?0:-1;   // a mini-boss roars when it first comes into view (and again, enraged, at half health) — see ogreRoar
   m.g.position.set(e.x,0,e.z); m.g.rotation.y=e.yaw; scene.add(m.g); enemies.push(e); const p=portals.find(p=>p.k===lane); if(p) p.pulse=1; return e; }
 function hurt(e,dmg,kx,kz){ if(e.dead) return; e.hp-=dmg; e.squash=1; floatText(e.x,e.y+e.h+.4,e.z,String(dmg),'#ffd060'); if(kx||kz) moveCircle(e,kx*.5,kz*.5,e.r*.8,false); if(e.hp<=0) kill(e); }

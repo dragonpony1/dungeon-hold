@@ -1,6 +1,6 @@
 // ===== MAP 3 TUNING (build 291). Matt: "i was kinda not haveing fun on map 3 then i gave myself some mana and it became more fun. we need about 400 more mana, 20 more roots and you can increase that
 // starting wave mob count by 30". Checked: the Cloister Court starts with 920 mana (was 520) and 80 roots (was 60); its first wave has 30 more goblins than the formula gives, in time order; its second
-// wave is untouched; and the first map (the hall) is untouched.
+// wave is untouched; the first map (the hall) is untouched; and (build 294) no mob speeds up by wave and damage climbs only 1% a wave.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 const server=await serve(8943,{dist:process.env.DIST||"./dist"});
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
@@ -14,6 +14,9 @@ const a=await page.evaluate(()=>{ const d=window.__dd; const M=d.map(); const w1
 check("the Cloister Court starts with 920 mana (was 520) and 80 roots (was 60)",a.mana===920&&a.duCap===80,JSON.stringify({mana:a.mana,duCap:a.duCap}));
 check("its first wave brings 30 more goblins than before, coming out in time order",a.g1===a.want1&&a.sorted,JSON.stringify(a));
 check("its second wave is untouched",a.g2===a.want2,JSON.stringify({g2:a.g2,want2:a.want2}));
+const sp=await page.evaluate(()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} d.start(); d.step(1/60,5); d.S.wave=7; const lane=Object.keys(d.lanes())[0]; const out=[];
+  for(const k of ['goblin','orc','ogre']){ const B=d.MOBS[k]; for(let i=0;i<4;i++){ const e=d.spawn(k,lane); out.push({k,spd:+(e.spd/B.spd).toFixed(3),dmg:e.dmg,base:B.dmg,cap:Math.round(B.dmg*1.2)}); d.kill(e); } } d.step(1/60,2); return out; });
+check("build 294 (Matt: \"we dont need any mobs to speed up anywhere\" ... \"they can do more damage but very little\"): on map 3's LAST wave a mob walks at its own speed (within its 10% jitter) and hits at most about 20% harder",sp.every(x=>x.spd>=.9&&x.spd<=1.1&&x.dmg<=x.cap),JSON.stringify(sp));
 const p2=await ctx.newPage(); p2.on("pageerror",e=>errors.push(String(e)));
 await p2.goto("http://127.0.0.1:8943/?silent&nogate&map=0",{timeout:120000}); await p2.waitForFunction(()=>window.__dd&&window.__dd.map(),null,{timeout:120000});
 const h=await p2.evaluate(()=>{ const d=window.__dd; const gob=d.waveComp(1).q.filter(x=>x.kind==='goblin').length; return { id:d.map().id, g1:gob, duCap:d.worldInfo().duCap }; });
