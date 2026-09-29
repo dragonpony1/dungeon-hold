@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="54">
+<meta name="hideout-build" content="55">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -268,7 +268,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 54;
+const HIDEOUT_BUILD = 55;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -304,6 +304,9 @@ function loadSave(){
       if (!s.placed) s.placed = [];
       if (s.legendarySludge === undefined) s.legendarySludge = 20; // testing stockpile
       if (s.commonSludge === undefined) s.commonSludge = 0;
+      // build 55 (Matt: "we need to take my rare sludge out"): every save began with a TESTING STOCKPILE -- 99,999 Rare Sludge (and 20 Legendary) nobody earned -- which is not an economy. A save that still holds exactly that
+      // (Rare 99,999) loses it, once (stockpileCleared): the Rare goes to 0, and the 20 Legendary with it when it is the untouched 20 beside no Common/Uncommon. A save that has earned or spent anything is left alone.
+      if (!s.stockpileCleared) { s.stockpileCleared = 1; if (s.sludge === 99999) { s.sludge = 0; if (s.legendarySludge === 20 && !s.commonSludge && !s.uncommonSludge) s.legendarySludge = 0; s.__cleared = true; } }
       if (s.uncommonSludge === undefined) s.uncommonSludge = 0;
       if (!s.gear) s.gear = []; // mythic gear the player owns — lives on the player's save, never on a machine (multiple players could share one machine)
       s.gear.forEach(g => { if (!g.id) g.id = uid(); }); // stable id so a piece can be selected/removed even as the array shifts
@@ -379,7 +382,7 @@ function loadSave(){
       return s;
     }
   } catch(e){}
-  return { sludge: 99999, legendarySludge: 20, commonSludge: 0, uncommonSludge: 0, gear: [], starterLayout: 1, forgeBig: 1, portalStep: 1,
+  return { sludge: 0, legendarySludge: 0, commonSludge: 0, uncommonSludge: 0, stockpileCleared: 1, gear: [], starterLayout: 1, forgeBig: 1, portalStep: 1,
     hotbar: padSlots(STARTER_ITEMS.filter(gid => !STARTER_LAYOUT.some(spot => spot.gid === gid)), HOTBAR_SIZE),
     bag: padSlots([], BAG_SIZE), placed: STARTER_LAYOUT.map(starterRecord) };
 }
@@ -388,6 +391,7 @@ const SAVE = loadSave();
 // build 52 (Matt: "take away all my sludge so i can feel the economy"): a one-time wipe of all four sludges, asked for by putting ?zerosludge=1 on the address of the page this one is in -- the game address when the hideout is
 // embedded (same origin, so its own address bar can be read), this page own address otherwise. The word is taken out of the address as soon as it has been used, so a later trip through the portal does not wipe again.
 let SLUDGE_WIPED = false;
+if (SAVE.__cleared) { delete SAVE.__cleared; SLUDGE_WIPED = true; try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) {} }   // build 55: the testing stockpile was just cleared by the migration above
 (function () { try {
   const w = (window.parent && window.parent !== window) ? window.parent : window, q = new URLSearchParams(w.location.search);
   if (q.get('zerosludge') !== '1') return;
@@ -395,7 +399,7 @@ let SLUDGE_WIPED = false;
   q.delete('zerosludge'); const qs = q.toString(); w.history.replaceState(null, '', w.location.pathname + (qs ? '?' + qs : '') + w.location.hash);
 } catch (e) {} })();
 document.getElementById('sludge').textContent = SAVE.sludge;
-if (SLUDGE_WIPED) setTimeout(() => { try { flashMsg('All your sludge is gone: earn it back at the Cauldron Cart'); } catch (e) {} }, 2500);
+if (SLUDGE_WIPED) setTimeout(() => { try { flashMsg('Your sludge is gone: earn it at the Cauldron Cart'); } catch (e) {} }, 2500);
 
 // ============= CO-OP (build 45) =============
 // In a co-op run the game opens this page in an iframe with ?coop=host or ?coop=guest and relays messages between us and
