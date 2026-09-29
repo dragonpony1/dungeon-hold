@@ -657,7 +657,8 @@ function hurtGuestHero(id,dmg){
 // local hero's own enemies array stays empty (a guest can't start a wave), so hurtHero() never fires through real
 // local gameplay -- targeted (toId) rather than broadcast, since nobody else needs to know a guest's own raw hp
 window.__combat={ guestHero:id=>{ const g=guestHero.get(id); return g?{x:+g.x.toFixed(2),z:+g.z.toFixed(2),hp:g.hp,max:g.max,dead:g.dead}:null; },
-  guestMana:id=>guestMana.has(id)?guestMana.get(id):null,
+  guestMana:id=>guestMana.has(id)?guestMana.get(id):null, setGuestMana:(id,v)=>{ guestMana.set(id,v); },   // test-only
+
   seatOf:id=>{ const s=seatOf.get(id); return s?s.seat:null; }, seatKept:seat=>seatKept.has(seat)?seatKept.get(seat):null };   // guestHero/guestMana are this module's own private state (not re-exposed anywhere else, deliberately -- other modules reach them only through Meta.heroes()/hostTryPlaceDef etc.); this object is purely a test hook
 // co-op combat, part 1: enemies can now notice and damage a guest's hero, not just the host's own -- Meta.heroes()
 // (game.js) is the hook updateEnemies/landHit read every tick; each entry closes over a live guestHero record, so
@@ -1302,8 +1303,11 @@ onMessage('pickupLoot',(data,fromId)=>hostGuestPickupLoot(data,fromId));
 function hostGuestPickupOrb(data,fromId){
   if(role!=='host') return;
   const i=orbs.findIndex(o=>o.__coopId===data.id); if(i<0) return;
-  const o=orbs[i]; scene.remove(o.mesh); orbs.splice(i,1);
-  const s=guestStats.get(fromId), v=Math.round(5*MANA_ORB_MUL*(1+(s?s.stat.mana:0)/100)*(s?s.mult.mana:1)*10)/10;   // same formula updateOrbs (game.js) uses for the real hero, now read off THIS guest's own reported mana stat
+  const o=orbs[i];
+  // its own spill, still held: tell it to ask again in a moment (a guest asks once per orb, and it stands right on its own pile when it spills)
+  if(o.spill===fromId&&o.t<SPILL_HOLD){ send('orbNo',{id:data.id},fromId); return; }
+  scene.remove(o.mesh); orbs.splice(i,1);
+  const s=guestStats.get(fromId), v=o.val!==undefined?o.val:Math.round(5*MANA_ORB_MUL*(1+(s?s.stat.mana:0)/100)*(s?s.mult.mana:1)*10)/10;   // same formula updateOrbs (game.js) uses for the real hero, now read off THIS guest's own reported mana stat; build 259: a spilled orb (o.val) pays exactly what came out of its owner's pool
   guestMana.set(fromId,Math.round(((guestMana.has(fromId)?guestMana.get(fromId):MAP_MANA)+v)*10)/10);
   SFX.mana(); send('orbGrant',{v},fromId);
 }
@@ -1311,15 +1315,27 @@ onMessage('pickupOrb',(data,fromId)=>hostGuestPickupOrb(data,fromId));
 function guestApplyLoot(it){ Meta.onPickup(it,{x:hero.x,y:hero.y,z:hero.z}); }   // the complete real pickup flow, scoped to THIS client's own Meta/bag/gold entirely for free
 onMessage('lootGrant',data=>{ if(role==='guest') guestApplyLoot(data.it); });
 onMessage('orbGrant',data=>{ if(role!=='guest') return; SFX.mana(); floatText(hero.x,hero.y+1,hero.z,'+'+data.v,'#5ee9ff'); });
-// build 257 (Matt: "in coop drop mana to guests so they can build"): a guest's pool was earned only by walking onto orbs the host's kills dropped, first come first served -- and the host, standing where the kills are, took
-// them. Now every kill's mana is ALSO dropped straight into each guest's own pool, the same amount those orbs are worth to that guest (5 x the orb multiplier x their own mana stat, per orb): a guest earns what a
-// solo player would from the same kills without chasing anything, and can build. The orbs on the floor stay (a guest who walks onto one still gets it, on top). The host's own pool is unchanged. The gifts are
-// added up and sent as one 'manaShare' every .8 s (a +N mana float over the guest, no chime), not one per kill.
-const MANA_SHARE=new Map(); let manaShareT=0;
-{ const prevOrbs=spawnOrbs; spawnOrbs=function(x,z,n){ prevOrbs.apply(this,arguments); if(role!=='host'||!(n>0)||!guestMana.size) return;
-    guestMana.forEach((cur,id)=>{ const s=guestStats.get(id), v=Math.round(5*MANA_ORB_MUL*(1+(s?s.stat.mana:0)/100)*(s?s.mult.mana:1)*10)/10, tot=Math.round(v*n*10)/10; guestMana.set(id,Math.round((cur+tot)*10)/10); MANA_SHARE.set(id,(MANA_SHARE.get(id)||0)+tot); }); }; }
-{ const prevUpd=Meta.update; Meta.update=dt=>{ prevUpd(dt); if(role!=='host'||!MANA_SHARE.size) return; manaShareT+=dt; if(manaShareT<.8) return; manaShareT=0; MANA_SHARE.forEach((v,id)=>{ if(v>0&&guestMana.has(id)) send('manaShare',{v:Math.round(v*10)/10},id); }); MANA_SHARE.clear(); }; }
-onMessage('manaShare',d=>{ if(role==='guest'&&d&&Number.isFinite(+d.v)) floatText(hero.x,hero.y+1.6,hero.z,'+'+d.v+' mana','#5ee9ff'); });   // a float text, no chime: SFX.mana is the orb-landing sound (the room-one guide counts it as 'walked over an orb')
+// build 259 (Matt: "I still want mana to fall on the ground. Picking it up and hearing the tinkling is part of it. So don't auto mana anything. But if tap left alt all my mana spills on the floor for anyone to pick up").
+// Build 257's automatic gift of every kill's mana to each guest is gone: mana comes only from orbs on the floor, as before. Instead, in a co-op room, TAPPING LEFT ALT pours ALL of your mana onto the floor around you as ordinary
+// mana orbs (the same ones a kill leaves, the same chime when they are picked up) for ANYONE to collect -- a player with plenty tops up a teammate who cannot build; you can take it back yourself. The pool is emptied at once.
+// A spilled orb carries its own value (o.val, in game.js updateOrbs and hostGuestPickupOrb below), so what comes off your pool is exactly what lands in whoever collects it, whatever their mana stat: about 6.3 an orb (the value
+// of one a kill leaves), at most 60 orbs (a bigger pool makes each worth more). A guest's tap asks the host ('spillMana'), which holds that guest's pool and pours it at the guest's spot; a host's tap pours its own S.mana.
+// The spiller cannot collect its own spill for the first 4 seconds (o.spill names the owner; game.js updateOrbs and hostGuestPickupOrb both look): standing where you tapped would otherwise suck it straight back into your
+// pool before anyone could reach it. Not in a solo run, not under a menu, dead, or on the title; one spill a second. Touch has no Alt key.
+const SPILL_MAX=60; let lastSpill=-1e9;
+const SPILL_HOLD=4;
+function spillOrbs(x,z,amount,owner){ amount=Math.round(amount*10)/10; if(!(amount>=1)) return 0; const n=Math.max(1,Math.min(SPILL_MAX,Math.ceil(amount/6.3))); const before=orbs.length; spawnOrbs(x,z,n); const made=orbs.slice(before); let left=amount;
+  made.forEach((o,i)=>{ const v=i===made.length-1?Math.round(left*10)/10:Math.round(amount/n*10)/10; o.val=v; o.spill=owner; left-=v; }); return made.length; }
+function spillSound(){ for(let i=0;i<6;i++) setTimeout(()=>beep(1100+rnd()*700,.09,'sine',.03,0),i*65); }   // a scatter of little tinkles (not SFX.mana: the room-one guide counts that one as 'walked over an orb')
+addEventListener('keydown',e=>{ if(e.code!=='AltLeft') return; e.preventDefault(); if(e.repeat||!role) return; const tg=e.target&&e.target.tagName; if(tg==='INPUT'||tg==='TEXTAREA') return;
+  if(Meta.isOpen()||S.phase==='start'||S.phase==='dead'||S.phase==='won'||S.phase==='deathcut'||hero.dead>0) return; const now=performance.now(); if(now-lastSpill<1000) return; lastSpill=now;
+  if(role==='host'){ const A=Math.floor(S.mana*10)/10; if(A<1){ toast('No mana to spill'); return; } S.mana=Math.round((S.mana-A)*10)/10; spillOrbs(hero.x,hero.z,A,'host'); spillSound(); floatText(hero.x,hero.y+2.4,hero.z,'-'+A+' mana spilled','#5ee9ff'); }
+  else if(role==='guest') send('spillMana',{}); },true);
+addEventListener('keyup',e=>{ if(e.code==='AltLeft') e.preventDefault(); },true);   // Alt on its own would otherwise move focus to the browser's menu bar
+onMessage('spillMana',(d,fromId)=>{ if(role!=='host') return; const g=guestHero.get(fromId); if(!g||g.dead>0) return; const now=performance.now(); if(now-(g.spillAt||-1e9)<900) return; g.spillAt=now;
+  const pool=guestMana.has(fromId)?guestMana.get(fromId):0, A=Math.floor(pool*10)/10; if(A<1){ send('manaSpilled',{v:0},fromId); return; } guestMana.set(fromId,Math.round((pool-A)*10)/10); spillOrbs(g.x,g.z,A,fromId); spillSound(); send('manaSpilled',{v:A},fromId); });
+onMessage('orbNo',d=>{ if(role==='guest'&&d) setTimeout(()=>requested.delete(d.id),700); });
+onMessage('manaSpilled',d=>{ if(role!=='guest'||!d) return; if(+d.v>0){ spillSound(); floatText(hero.x,hero.y+2.4,hero.z,'-'+d.v+' mana spilled','#5ee9ff'); } else toast('No mana to spill'); });
 
 // build 159: the host is gone (a guest's one connection is the host's, so any close on a guest is that). Everything of the host's
 // hall goes -- every party puppet (the other guests' too: their only link to this page was through the host, and they stood

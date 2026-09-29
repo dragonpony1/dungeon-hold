@@ -716,7 +716,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=258;
+const BUILD=259;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1174,7 +1174,7 @@ const MANA_ORB_MUL=1.25;   // every mob's mana orbs are worth this much more (a 
 function spawnOrbs(x,z,n){ for(let k=0;k<n;k++){ const a=rnd()*TAU; const o={x,y:.8,z,vx:Math.cos(a)*2.5,vy:4+rnd()*2.5,vz:Math.sin(a)*2.5,mesh:orbMesh(),t:0}; o.mesh.position.set(x,.8,z); scene.add(o.mesh); orbs.push(o); } }
 function updateOrbs(dt){
   for(let i=orbs.length-1;i>=0;i--){ const o=orbs[i]; o.t+=dt; const hd=Math.hypot(hero.x-o.x,hero.z-o.z);
-    if(hero.dead<=0&&hd<(window.__autoMana?1e9:3.6)){ const tx=hero.x, ty=hero.y+1, tz=hero.z; const dx=tx-o.x, dy=ty-o.y, dz=tz-o.z, d=Math.hypot(dx,dy,dz); if(d<.7){ const v=Math.round(5*MANA_ORB_MUL*(1+heroStat('mana')/100)*heroMult('mana')*10)/10; S.mana=Math.round((S.mana+v)*10)/10; SFX.mana(); floatText(o.x,o.y+.4,o.z,'+'+v,'#5ee9ff'); scene.remove(o.mesh); orbs.splice(i,1); continue; } const sp=11*dt/d; o.x+=dx*sp; o.y+=dy*sp; o.z+=dz*sp; }
+    if(hero.dead<=0&&hd<(window.__autoMana?1e9:3.6)&&!(o.spill==='host'&&o.t<4)){ const tx=hero.x, ty=hero.y+1, tz=hero.z; const dx=tx-o.x, dy=ty-o.y, dz=tz-o.z, d=Math.hypot(dx,dy,dz); if(d<.7){ const v=o.val!==undefined?o.val:Math.round(5*MANA_ORB_MUL*(1+heroStat('mana')/100)*heroMult('mana')*10)/10; S.mana=Math.round((S.mana+v)*10)/10; SFX.mana(); floatText(o.x,o.y+.4,o.z,'+'+v,'#5ee9ff'); scene.remove(o.mesh); orbs.splice(i,1); continue; } const sp=11*dt/d; o.x+=dx*sp; o.y+=dy*sp; o.z+=dz*sp; }
     else { o.vy-=14*dt; const nx=o.x+o.vx*dt, nz=o.z+o.vz*dt; if(!solidAt(nx,nz,0,true)){ o.x=nx; o.z=nz; } else { o.vx=-o.vx*.5; o.vz=-o.vz*.5; } o.y+=o.vy*dt; const fl=baseFloor(o.x,o.z)+.3; if(o.y<fl){ o.y=fl; o.vy=-o.vy*.4; o.vx*=.7; o.vz*=.7; } }
     o.mesh.position.set(o.x,o.y+Math.sin(o.t*4)*.05,o.z); o.mesh.userData.o.rotation.y+=dt*3; }
 }
