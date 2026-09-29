@@ -14,8 +14,8 @@
 // (bow-war). The choice is namedModel below, asked before the sets' setModel by swordFor / staffFor / bowFor (80, 82, 83).
 (function(){
 const {V,lit,slab,tube,helix,spike,toward,noOL,pulseGlow,finish}=window.__setweapons.kit;
-const NAMED_WEAPONS=['rootsplitter','last_lantern','subterfuge'];   // build 170: + Subterfuge, a bow (its model and power are 86i-subterfuge.js's)
-const OWN={rootsplitter:'sword',last_lantern:'sword',subterfuge:'bow'}, TOP={sword:'holy',staff:'staff-battle',bow:'bow-war'};   // the hand each is made for; what any other hand holds instead
+const NAMED_WEAPONS=['rootsplitter','last_lantern','subterfuge','sixseven'];   // build 258: + 6/7, Matt's Storm Halberd (a real GLB: 86k-sixseven.js)   // build 170: + Subterfuge, a bow (its model and power are 86i-subterfuge.js's)
+const OWN={rootsplitter:'sword',last_lantern:'sword',subterfuge:'bow',sixseven:'sword'}, TOP={sword:'holy',staff:'staff-battle',bow:'bow-war'};   // the hand each is made for; what any other hand holds instead
 const jitter=(a,b,n,amp,seed)=>{ const pts=[]; for(let i=0;i<=n;i++){ const f=i/n; pts.push([a[0]+(b[0]-a[0])*f+Math.sin(i*2.7+seed)*amp,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f+Math.cos(i*1.9+seed)*amp]); } return pts; }
 function leaf(m,x,y,z,rz,s){ const l=new THREE.Mesh(new THREE.OctahedronGeometry(.016*(s||1),0),m); l.scale.set(.5,1.5,.25); l.position.set(x,y,z); l.rotation.z=rz; return noOL(l); }
 function shard(m,r,x,y,z,rz,sy){ const c=new THREE.Mesh(new THREE.OctahedronGeometry(r,0),m); c.scale.set(1,sy||1.8,.7); c.position.set(x,y,z); c.rotation.set(0,.4,rz||0); return c; }

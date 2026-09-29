@@ -792,6 +792,11 @@ onMessage('roots',(d,fromId)=>{ if(role!=='host'||!d) return; const g=guestHero.
   const now=performance.now(); if(now-(g.rootsAt||-1e9)<300) return; g.rootsAt=now;   // four swings can't come quicker than this
   const ok=typeof d.x==='number'&&typeof d.z==='number'&&Math.hypot(d.x-g.x,d.z-g.z)<6, x=ok?d.x:g.x, z=ok?d.z:g.z, yaw=Number.isFinite(+d.yaw)?+d.yaw:g.yaw;
   if(M.roots(x,g.y,z,yaw,Math.max(0,Math.min(27,+d.reach||0)))) send('powerFx',{k:'roots',x:+x.toFixed(2),z:+z.toFixed(2),yaw:+yaw.toFixed(3)},fromId); });
+// build 258: a guest's 6/7 (97d-sixseven.js). Its own 6th swing has no real mobs on its page, so it asks here: the host strikes the real mobs from where the guest stands (up to 7, 70% of the damage it reports) and sends the bolts back to draw
+onMessage('sixseven',(d,fromId)=>{ if(role!=='host'||!d) return; const g=guestHero.get(fromId), s=guestStats.get(fromId), X=window.__sixseven; if(!g||g.dead>0||!(s&&s.myth.includes('sixseven'))||!X) return;
+  const now=performance.now(); if(now-(g.sixAt||-1e9)<800) return; g.sixAt=now;   // six swings can't come quicker than this
+  const ok=typeof d.x==='number'&&typeof d.z==='number'&&Math.hypot(d.x-g.x,d.z-g.z)<6, x=ok?d.x:g.x, z=ok?d.z:g.z, yaw=Number.isFinite(+d.yaw)?+d.yaw:g.yaw, dmg=Math.max(0,Math.min(1e5,+d.dmg||0));
+  const r=X.strike(x,g.y,z,yaw,dmg); if(r&&r.segs.length) send('powerFx',{k:'chain',s:r.segs.slice(0,8)},fromId); });
 // build 178: a guest's Bramblewhisk. Its pet's shot landed on its own screen, which drew the thorn patch there (85-familiars.js famLand,
 // looks only: that page has no real mobs); the host grows the real one -- the slow and the pricks -- on its own floor. Only for a guest
 // that wears it, alive, near where its pet could reach, at no more than a pet's pace, and never a patch that pricks harder than a shot
@@ -803,7 +808,7 @@ onMessage('bramble',(d,fromId)=>{ if(role!=='host'||!d) return; const g=guestHer
 onMessage('powerFx',d=>{ if(role!=='guest'||!d) return;
   if(d.k==='rift'&&Array.isArray(d.at)){ const P=Meta.packs; d.at.slice(0,24).forEach(p=>{ if(P&&P.ring&&p&&Number.isFinite(+p.x)&&Number.isFinite(+p.z)) P.ring(+p.x,+p.y||0,+p.z,+p.c||0x8a3dff); }); if(SFX.rift) SFX.rift(); }
   else if(d.k==='roots'&&Number.isFinite(+d.x)&&Number.isFinite(+d.z)){ const fx=Math.sin(+d.yaw||0), fz=Math.cos(+d.yaw||0); floatText(+d.x+fx*1.5,hero.y+1.4,+d.z+fz*1.5,'ROOTS','#5ad05a'); }
-  else if(d.k==='chain'&&Array.isArray(d.s)&&window.__subterfuge){ const segs=d.s.slice(0,4).filter(s=>Array.isArray(s)&&s.length===6&&s.every(v=>Number.isFinite(+v))).map(s=>s.map(Number)); if(segs.length) window.__subterfuge.draw(segs); } });   // build 170: the chain lightning this guest's Subterfuge arrow threw across the host's mobs
+  else if(d.k==='chain'&&Array.isArray(d.s)&&window.__subterfuge){ const segs=d.s.slice(0,8).filter(s=>Array.isArray(s)&&s.length===6&&s.every(v=>Number.isFinite(+v))).map(s=>s.map(Number)); if(segs.length) window.__subterfuge.draw(segs); } });   // build 170: the chain lightning this guest's Subterfuge arrow threw across the host's mobs
 Meta.defOwnerStat=(id,k)=>{ const s=guestStats.get(id); return s?s.stat[k]:undefined; };
 Meta.defOwnerMult=(id,k)=>{ const s=guestStats.get(id); return s?s.mult[k]:undefined; };
 Meta.defOwnerKind=(id,kind)=>{ const s=guestStats.get(id); return s?(s.kind&&s.kind[kind])||0:undefined; };   // that guest's own full-set power for this defense kind (94-voidset.js)
