@@ -51,10 +51,10 @@ function clearJars(){ while(JARS.length){ scene.remove(JARS.pop().mesh); } }
 function readIn(){ let b=null; try{ b=JSON.parse(localStorage.getItem(KEY)); }catch(e){} b=(b&&typeof b==='object'&&!Array.isArray(b))?b:{}; JR.forEach(J=>{ b[J.k]=Math.max(0,Math.floor(+b[J.k])||0); }); return b; }
 function bank(r,x,y,z){ const b=readIn(); b[JR[r].k]++; try{ localStorage.setItem(KEY,JSON.stringify(b)); }catch(e){}
   RUN[r]++; drawHud(); SFX.mana(); if(r>=2) SFX.loot(r===3?4:2); floatText(x,y+.8,z,'+1 '+JR[r].name+' Sludge',JR[r].css); }
-// build 275 (Matt: "does it make a unique sound if a legendary jar drops?" -> "hi pitched clink"): a LEGENDARY jar clinks the moment it first touches the floor -- two quick glassy pings high up (G7 then C8, each with a
+// build 275 (Matt: "does it make a unique sound if a legendary jar drops?" -> "hi pitched clink"): a LEGENDARY jar clinks the moment it first touches the floor -- two quick glassy pings high up (build 276: C8 then F8, each with a
 // faint octave above), so it is heard across the room mid-fight. The other jars land quietly as before.
 let CLINKS=0;
-function clink(){ CLINKS++; try{ beep(3136,.09,'sine',.07,0); beep(6272,.05,'sine',.02,0); setTimeout(()=>{ beep(4186,.14,'sine',.055,0); beep(8372,.06,'sine',.015,0); },55); }catch(e){} }
+function clink(){ CLINKS++; try{ beep(4186,.1,'sine',.15,0); beep(8372,.06,'sine',.045,0); setTimeout(()=>{ beep(5588,.16,'sine',.13,0); beep(11175,.07,'sine',.035,0); },55); }catch(e){} }   // build 276 (Matt: "that sound could be higher and louder"): C8 then F8 (was G7, C8), about twice as loud
 function updateJars(dt){
   for(let i=JARS.length-1;i>=0;i--){ const j=JARS[i]; j.t+=dt; const it=j.mesh.userData.item;
     // build 272 (Matt: "these jars wont allow me to pick them up"): a jar at rest keeps a tiny bounce, so its vy was never under .01 at this check -- only a jar still falling as you came near ever flew to you; landed once is landed
