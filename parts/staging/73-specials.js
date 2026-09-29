@@ -144,7 +144,7 @@ function aimSpot(maxRange){
 // or a guest rendering another player's specialFx) -- never touches enemies/defs/hp itself ----
 function playFlourish(hid,p){
   const fl=baseFloor(p.x,p.z);
-  if(hid==='knight'){ shockRing(p.x,fl,p.z,CLEAVE_R); const g=glow(0xcfd8ff,3.2,.85); g.position.set(p.x,fl+1,p.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); floatText(p.x,fl+2.4,p.z,'WHIRLWIND CLEAVE','#dfe8ff'); noise(.25,.15,500); beep(120,.3,'sawtooth',.09,-40); }
+  if(hid==='knight'){ if(window.__whirl) window.__whirl.vortex(p.x,p.z); shockRing(p.x,fl,p.z,CLEAVE_R); const g=glow(0xcfd8ff,3.2,.85); g.position.set(p.x,fl+1,p.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); floatText(p.x,fl+2.4,p.z,'WHIRLWIND CLEAVE','#dfe8ff'); noise(.25,.15,500); beep(120,.3,'sawtooth',.09,-40); }
   else if(hid==='witch'){ spawnRain(p.x,p.z,0x8a5cff,6,'bolt'); shockRing(p.x,fl,p.z,STARFALL_R); floatText(p.x,fl+2.4,p.z,'STARFALL','#c9a8ff'); beep(880,.22,'sine',.07,-260); beep(660,.28,'triangle',.055,-180); }
   else if(hid==='fighter'){ shockRing(p.x,fl,p.z,HALO_RING_R); const g=glow(0xffd27a,2.6,.8); g.position.set(p.x,fl+1,p.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); floatText(p.x,fl+2.4,p.z,'HALO SURGE','#ffd27a'); beep(140,.4,'sawtooth',.1,60); noise(.3,.12,900); }
   else if(hid==='troll'){ spawnRain(p.x,p.z,0x8ef05a,5,'arrow'); floatText(p.x,fl+2.4,p.z,'VOLLEY','#bfe89a'); beep(300,.15,'square',.05,-140); }
@@ -178,6 +178,7 @@ function doFire(){
   const spot=(hid==='witch')?aimSpot(STARFALL_MAXR):(hid==='troll')?aimSpot(VOLLEY_MAXR):{x:hero.x,z:hero.z};
   const dmg=Math.round(heroDmg()*(hid==='fighter'?2:3)*10)/10;
   const p={x:+spot.x.toFixed(2),z:+spot.z.toFixed(2),dmg};
+  if(hid==='knight'&&window.__whirl) window.__whirl.spin();   // build 260 (99f-whirl.js): the Knight's own body spins three turns, on the caster's screen
   playFlourish(hid,p);   // always shown at once on the caster's own screen, win or lose the round trip
   const n=NET(), role=n?n.role():null;
   if(role==='guest') n.send('specialCast',{hero:hid,x:p.x,z:p.z,dmg:p.dmg});
@@ -249,6 +250,7 @@ document.addEventListener('touchcancel',specTouchEnd,{capture:true});
     if(SP.charging&&!canStart()){ SP.charging=false; SP.t=0; }   // dead, a menu opened, placing started, the run ended, etc -- mid-charge
     if(SP.charging){ SP.t+=dt; hero.specialSlow=.5; if(SP.t>=CHARGE_TIME){ SP.charging=false; SP.t=0; SP.cd=COOLDOWN; doFire(); } }
     else hero.specialSlow=1;
+    if(window.__whirl){ if(SP.charging&&heroId()==='knight') window.__whirl.charge(SP.t/CHARGE_TIME); else window.__whirl.release(); }   // the Knight winds up while he charges
     tickChargeGlow(); tickRing(dt); if(HALO_SURGE_T>0) HALO_SURGE_T=Math.max(0,HALO_SURGE_T-dt); tickVolley(); tickFall(dt); tickGroundRing(); updateHUD2(dt);
   }; }
 
