@@ -5,6 +5,7 @@
 // build keeps its flat dark screen. The image is fetched as soon as the page runs, ahead of the models.
 (function(){
 if(!HAS_ASSETS) return;
+if(window.__titleWant&&window.__titleWant()!=='portal') return;   // build 256: the title rotates (19b-titlepick.js, 20b-titlestage.js); this painting is one of six, so the other five never fetch it
 const st=document.getElementById('start'); if(!st) return;
 const im=new Image(); im.onload=()=>{ st.classList.add('art'); }; im.onerror=()=>{}; im.src='assets/title-bg.webp';   // shown only once it has arrived: no flash of a half-drawn background
 window.__titleart={on:()=>st.classList.contains('art'),src:im.src};
