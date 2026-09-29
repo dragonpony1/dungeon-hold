@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="39">
+<meta name="hideout-build" content="40">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -228,7 +228,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 39;
+const HIDEOUT_BUILD = 40;
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -540,7 +540,7 @@ const NAMED_ART_DIR = ITEMS_DIR + 'named/'; // Matt's pictures (named myth thumb
 // then tools/slim-all.js) -- turning slowly on a shelf or table, and in a column of light on the floor like in the hall. The rest keep
 // their picture. NAMED_ALIAS: ids the game spells differently from ours.
 const NAMED_3D_DIR = ITEMS_DIR.slice(0, -'items/'.length) + 'named3d/'; // next to items/, wherever the page is served from
-const NAMED_3D = new Set(['bramblewhisk','gloomcap_censer','mossheart_aegis','old_lamplight','tear_of_the_rootgate','voidwoven_mantle','wardens_oath','hourglass_hollow_sand','gladehart']);
+const NAMED_3D = new Set(['bramblewhisk','gloomcap_censer','mossheart_aegis','old_lamplight','tear_of_the_rootgate','voidwoven_mantle','wardens_oath','hourglass_hollow_sand','gladehart','trimaw']);
 const NAMED_ALIAS = { hourglass_of_hollow_sand:'hourglass_hollow_sand' };
 const NAMED_MYTHICS = {
   rootsplitter:       { type:'weapon',   name:'Rootsplitter',             art:NAMED_ART_DIR+'rootsplitter.jpg', stats:{ dmg:30, hp:90, spd:15 },
@@ -579,6 +579,10 @@ const NAMED_MYTHICS = {
   gladehart:          { type:'familiar', name:'Gladehart',                art:NAMED_ART_DIR+'gladehart.jpg', stats:{ fdmg:34, frate:40, move:12 }, noForge:true,
     power:'Every 8 seconds a bright pink spirit stag charges through the thickest pack, hitting everything for six pet shots and throwing it way back.',
     lore:'The stag of the old hall, gone to spirit. It comes when the wall of the horde is thickest.' },
+  // build 40: the game's thirteenth (game build 222) -- the magma hydra earned at Throne Room survival wave 50; noForge like Gladehart
+  trimaw:             { type:'familiar', name:'Trimaw',                   art:NAMED_ART_DIR+'trimaw.jpg', stats:{ fdmg:28, frate:35, move:10 }, noForge:true,
+    power:'Three heads breathe fire (burn), frost (slow) and venom (poison) at three targets, and everything it hits takes 25% more damage from everything for a few seconds.',
+    lore:'A hydra hatchling of black rock and live magma. Each head has its own opinion, and all three are angry.' },
   subterfuge:         { type:'weapon',   name:'Subterfuge',               art:NAMED_ART_DIR+'subterfuge.jpg', stats:{ dmg:26, spd:18, move:12 }, noForge:true,
     power:'A bow: every shot is five lightning arrows in a 40° wedge, and each one that hits jumps to three more enemies.',
     lore:'Strung with a bolt that never grounded. It never shoots where it seems to aim.' },
