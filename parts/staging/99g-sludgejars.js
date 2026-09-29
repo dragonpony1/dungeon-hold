@@ -51,6 +51,10 @@ function clearJars(){ while(JARS.length){ scene.remove(JARS.pop().mesh); } }
 function readIn(){ let b=null; try{ b=JSON.parse(localStorage.getItem(KEY)); }catch(e){} b=(b&&typeof b==='object'&&!Array.isArray(b))?b:{}; JR.forEach(J=>{ b[J.k]=Math.max(0,Math.floor(+b[J.k])||0); }); return b; }
 function bank(r,x,y,z){ const b=readIn(); b[JR[r].k]++; try{ localStorage.setItem(KEY,JSON.stringify(b)); }catch(e){}
   RUN[r]++; drawHud(); SFX.mana(); if(r>=2) SFX.loot(r===3?4:2); floatText(x,y+.8,z,'+1 '+JR[r].name+' Sludge',JR[r].css); }
+// build 275 (Matt: "does it make a unique sound if a legendary jar drops?" -> "hi pitched clink"): a LEGENDARY jar clinks the moment it first touches the floor -- two quick glassy pings high up (G7 then C8, each with a
+// faint octave above), so it is heard across the room mid-fight. The other jars land quietly as before.
+let CLINKS=0;
+function clink(){ CLINKS++; try{ beep(3136,.09,'sine',.07,0); beep(6272,.05,'sine',.02,0); setTimeout(()=>{ beep(4186,.14,'sine',.055,0); beep(8372,.06,'sine',.015,0); },55); }catch(e){} }
 function updateJars(dt){
   for(let i=JARS.length-1;i>=0;i--){ const j=JARS[i]; j.t+=dt; const it=j.mesh.userData.item;
     // build 272 (Matt: "these jars wont allow me to pick them up"): a jar at rest keeps a tiny bounce, so its vy was never under .01 at this check -- only a jar still falling as you came near ever flew to you; landed once is landed
@@ -59,7 +63,7 @@ function updateJars(dt){
         if(dd<.6){ bank(j.r,j.x,j.y,j.z); scene.remove(j.mesh); JARS.splice(i,1); continue; }
         const s=Math.min(1,10*dt/dd); j.x+=dx*s; j.y+=dy*s; j.z+=dz*s; j.vx=j.vz=j.vy=0; j.mesh.position.set(j.x,j.y,j.z); it.rotation.y+=dt*6; continue; } }
     j.vy-=14*dt; const nx=j.x+j.vx*dt, nz=j.z+j.vz*dt; if(!solidAt(nx,nz,0,true)){ j.x=nx; j.z=nz; } else { j.vx=-j.vx*.5; j.vz=-j.vz*.5; }
-    j.y+=j.vy*dt; const fl=baseFloor(j.x,j.z); if(j.y<fl){ j.y=fl; j.vy=-j.vy*.3; j.vx*=.6; j.vz*=.6; j.landed=true; if(j.vy<.6) j.vy=0; }
+    j.y+=j.vy*dt; const fl=baseFloor(j.x,j.z); if(j.y<fl){ if(!j.landed&&j.r===3) clink(); j.y=fl; j.vy=-j.vy*.3; j.vx*=.6; j.vz*=.6; j.landed=true; if(j.vy<.6) j.vy=0; }
     j.mesh.position.set(j.x,j.y,j.z); it.position.y=.45+Math.sin(j.t*3+j.r)*.07; it.rotation.y+=dt*1.6; j.mesh.userData.ring.scale.setScalar(1+Math.sin(j.t*4)*.08);
     if(hero.dead<=0&&j.t>.3&&Math.hypot(hero.x-j.x,hero.z-j.z)<1.2&&Math.abs(hero.y-j.y)<1.6){ bank(j.r,j.x,j.y,j.z); scene.remove(j.mesh); JARS.splice(i,1); } } }   // and walking right over one always takes it, the way loot does
 // the room is over (MOVE ON from a held hall: update() stops the hall there): whatever is still on the floor is banked, with one line to say so
@@ -82,5 +86,5 @@ if(window.__net&&window.__net.onMessage) window.__net.onMessage('jarDrop',d=>{ c
 let lastWave=S.wave;
 { const prev=updateLoot; updateLoot=function(dt){ prev.apply(this,arguments); try{ if(S.wave===1&&lastWave!==1){ RUN.fill(0); drawHud(); } lastWave=S.wave; updateJars(dt); }catch(err){} }; }
 window.__jars={ list:()=>JARS.map(j=>({r:j.r,x:+j.x.toFixed(2),y:+j.y.toFixed(2),z:+j.z.toFixed(2)})), spawn:(r,x,z)=>spawnJar(r,x,z), roll:k=>jarRoll(k), chance:k=>chance(k), waveW:()=>waveW(),
-  run:()=>RUN.slice(), banked:()=>readIn(), clear:clearJars, sweep, budget:BUDGET, kinds:()=>Object.keys(KIND), bosses:()=>Object.assign({},BOSS), tut:TUT };
+  run:()=>RUN.slice(), clinks:()=>CLINKS, banked:()=>readIn(), clear:clearJars, sweep, budget:BUDGET, kinds:()=>Object.keys(KIND), bosses:()=>Object.assign({},BOSS), tut:TUT };
 })();
