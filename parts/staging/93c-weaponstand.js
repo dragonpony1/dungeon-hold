@@ -33,7 +33,7 @@ const NAMED_REAL={
 };
 // build 226 (Matt: the new bat "is perfect when equipped but it didn't show on the floor or in the hideout"): a plain familiar drop was the generic loot shape -- the pet models only ever
 // loaded once one was EQUIPPED (85-familiars.js). Every kind stands as its own model now, through this same loader: fam_<kind> -> the pet's own file, so a re-made pet updates here for free
-Object.assign(NAMED_REAL,{fam_wisp:{file:'fam-wisp.glb',h:.95,lift:.55},fam_bat:{file:'fam-bat.glb',h:.85,lift:.6},fam_sprite:{file:'fam-sprite.glb',h:.95,lift:.55},fam_imp:{file:'fam-imp.glb',h:1,lift:.55},fam_owl:{file:'fam-owl.glb',h:.95,lift:.55},fam_drake:{file:'fam-drake.glb',h:1.1,lift:.55}});
+Object.assign(NAMED_REAL,{fam_wisp:{file:'fam-wisp.glb',h:.95,lift:.55},fam_bat:{file:'fam-bat.glb',h:.85,lift:.6},fam_sprite:{file:'fam-sprite.glb',h:.95,lift:.55},fam_imp:{file:'fam-imp.glb',h:1,lift:.55},fam_owl:{file:'fam-owl.glb',h:.95,lift:.55},fam_drake:{file:'fam-drake.glb',h:1.35,lift:.55}});
 const FAM_KEY={'Wisp':'fam_wisp','Bat':'fam_bat','Sprite':'fam_sprite','Fire Imp':'fam_imp','Crystal Owl':'fam_owl','Storm Drake':'fam_drake'};
 const NR_GLB={}, NR_P={}, NR_PENDING=[];
 function loadNamedReal(k){ const cfg=NAMED_REAL[k]; if(!cfg||NR_GLB[k]||NR_P[k]) return; NR_P[k]=fetchBytes(ASSET(cfg.file)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ try{

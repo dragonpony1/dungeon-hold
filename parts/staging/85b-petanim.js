@@ -11,7 +11,7 @@
 (function(){
 const PET_T={value:0}; let HOLD=false;
 const KIND_CFG={   // amp: wing-beat angle (rad), spd: beats per second x 2pi, inn/out: how far out (fraction of the half-width) the wing starts / is full, root: height of the wing roots (fraction of the height), sway: 0..1.5
-  'Storm Drake':{amp:.5,spd:7,inn:.12,out:.55,root:.55,sway:.3},
+  'Storm Drake':{amp:.3,spd:8,inn:.3,out:.65,root:.6,sway:.12,tail:.9,pv:.2,top:.9},   // build 248, Matt's new drake: the wings beat about the shoulders, the head and horns (above 'top') and the body stay put, the hanging tail swishes
   'Fire Imp':{amp:.4,spd:15,inn:.34,out:.72,root:.5,sway:.2,tail:.9},
   'Bat':{amp:.2,spd:28,inn:.16,out:.5,root:.52,sway:.08,tail:.6,pv:.16,top:.64},   // smaller, faster; pivot at the shoulder; the ears (above 'top') stay put
   'Sprite':{amp:.45,spd:26,inn:.14,out:.5,root:.6,sway:.3},

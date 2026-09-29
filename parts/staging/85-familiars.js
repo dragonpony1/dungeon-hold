@@ -6,7 +6,7 @@
 // Models come from assets/ (fam-*.glb); until one arrives (or in a single-file build) the procedural pet stands in.
 (function(){
 const FAM_FILES={'Wisp':'fam-wisp.glb','Bat':'fam-bat.glb','Sprite':'fam-sprite.glb','Fire Imp':'fam-imp.glb','Crystal Owl':'fam-owl.glb','Storm Drake':'fam-drake.glb'};
-const FAM_H={'Wisp':.8,'Bat':.7,'Sprite':.8,'Fire Imp':.85,'Crystal Owl':.8,'Storm Drake':.95};   // world height of the pet
+const FAM_H={'Wisp':.8,'Bat':.7,'Sprite':.8,'Fire Imp':.85,'Crystal Owl':.8,'Storm Drake':1.2};   // build 248: the new drake is 2.0 tall with its tail hanging, 1.8 across the wings: 1.2 tall keeps a wingspan a little over the old one's   // world height of the pet
 // per-kind tuning: fire-rate and damage multipliers on the item's stats, plus what the attack does
 const FAM_KIND={
   'Wisp':        {rate:1.0,dmg:1.0,desc:'spark bolts'},
@@ -75,6 +75,25 @@ let BITE=null, BITEP=null, BITE_N=0; const BITES=[];
 function biteLoad(){ if(BITEP) return; BITEP=fetchBytes(ASSET('fam-bat-bite.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(g=>{ BITE=tfxMake(g.scene||g.scenes[0],1.9,null,false); }).catch(e=>console.warn('bat bite model',e)); }
 function biteFx(x,y,z){ BITE_N++; if(!BITE) return; const m=BITE.clone(true); m.position.set(x,y,z); m.scale.setScalar(.001); scene.add(m); BITES.push({m,t:0,roll:rnd()*TAU}); if(BITES.length>12){ const o=BITES.shift(); scene.remove(o.m); } }
 function biteUpdate(dt){ for(let i=BITES.length-1;i>=0;i--){ const b=BITES[i]; b.t+=dt; const k=b.t/.55; if(k>=1){ scene.remove(b.m); BITES.splice(i,1); continue; } b.m.lookAt(camera.position); b.m.rotateZ(b.roll); b.m.scale.setScalar(Math.max(.001,k<.2?.3+.7*(k/.2):1-Math.pow((k-.2)/.8,2)*.9)); } }
+// build 248: Matt's new Storm Drake (fam-drake.glb: a deep-blue drake with gold horns and hanging tail, wings spread, facing +Z) and his Storm Drake Lightning (fam-drake-lightning.glb: one flat jagged bolt with a
+// bright burst at one end and a long sharp tip at the other, lying diagonally in the XY plane, thin in Z). The lightning is what the drake's attack now is: at load the bolt is turned to lie along +X with its sharp tip
+// at +X and fitted to length 1 (found from the model itself: the principal axis of its vertices, and the narrower end is the tip); each strike stretches one copy from the drake's mouth to the mob (burst end at the drake,
+// tip at the mob), turned so its flat face turns to the camera, width scaled to the distance; it crackles (its width jitters), holds .1 s and thins away by .3 s. The forks to the pack are the same bolt, a size smaller.
+// Until the model has landed the old procedural jagged bolt is used. Self-lit like the other effect models (tfxMake), one shared material.
+let LIGHT=null, LIGHTP=null, LIGHT_W=.3, LB_N=0; const LBOLTS=[], LB_TMP={x:new THREE.Vector3(),y:new THREE.Vector3(),z:new THREE.Vector3(),m:new THREE.Matrix4(),c:new THREE.Vector3()};
+function lightLoad(){ if(LIGHTP) return; LIGHTP=fetchBytes(ASSET('fam-drake-lightning.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(g=>{
+    const root=g.scene||g.scenes[0]; root.updateMatrixWorld(true); const pts=[]; root.traverse(o=>{ if(!o.isMesh) return; const a=o.geometry.attributes.position, v=new THREE.Vector3(); for(let i=0;i<a.count;i+=2){ v.fromBufferAttribute(a,i).applyMatrix4(o.matrixWorld); pts.push(v.x,v.y); } });
+    let mx=0,my=0,n=pts.length/2; for(let i=0;i<pts.length;i+=2){ mx+=pts[i]; my+=pts[i+1]; } mx/=n; my/=n; let sxx=0,syy=0,sxy=0; for(let i=0;i<pts.length;i+=2){ const dx=pts[i]-mx, dy=pts[i+1]-my; sxx+=dx*dx; syy+=dy*dy; sxy+=dx*dy; }
+    let ang=.5*Math.atan2(2*sxy,sxx-syy); const c=Math.cos(-ang), s=Math.sin(-ang); let lo=1e9,hi=-1e9; const rp=[]; for(let i=0;i<pts.length;i+=2){ const dx=pts[i]-mx, dy=pts[i+1]-my, x=dx*c-dy*s, y=dx*s+dy*c; rp.push(x,y); lo=Math.min(lo,x); hi=Math.max(hi,x); }
+    const spread=(a,b)=>{ let l=1e9,h=-1e9; for(let i=0;i<rp.length;i+=2) if(rp[i]>=a&&rp[i]<=b){ l=Math.min(l,rp[i+1]); h=Math.max(h,rp[i+1]); } return h-l; };
+    const endW=spread(hi-(hi-lo)*.2,hi), startW=spread(lo,lo+(hi-lo)*.2); let rot=-ang; if(startW<endW) rot+=PI;   // the narrower end is the tip: it goes to +X
+    const holder=new THREE.Group(); holder.add(root); holder.rotation.z=rot; LIGHT=tfxMake(holder,1,null,false); LIGHT_W=.12;   // the bolt's own jagged band is about this thick at length 1 (its stray sparks reach much further: the whole box is nearly 1 tall)
+  }).catch(e=>console.warn('storm drake lightning',e)); }
+function lightBolt(a,b,size){ if(!LIGHT) return false; const len=a.distanceTo(b); if(len<.2) return true; const m=LIGHT.clone(true); LB_N++;
+  LBOLTS.push({m,a:a.clone(),b:b.clone(),len,w:Math.min(.9,Math.max(.5,len*.12))*(size||1),t:0}); scene.add(m); placeBolt(LBOLTS[LBOLTS.length-1],1); if(LBOLTS.length>16){ const o=LBOLTS.shift(); scene.remove(o.m); } return true; }
+function placeBolt(o,widen){ const T=LB_TMP, x=T.x.subVectors(o.b,o.a).normalize(); T.c.copy(o.a).add(o.b).multiplyScalar(.5); const cam=T.z.subVectors(camera.position,T.c); cam.addScaledVector(x,-cam.dot(x)); if(cam.lengthSq()<1e-4) cam.set(0,1,0).addScaledVector(x,-x.y);
+  cam.normalize(); const y=T.y.crossVectors(cam,x); T.m.makeBasis(x,y,cam); o.m.quaternion.setFromRotationMatrix(T.m); o.m.position.copy(T.c); o.m.scale.set(o.len,Math.max(.001,o.w/LIGHT_W*widen),1); }
+function lightUpdate(dt){ for(let i=LBOLTS.length-1;i>=0;i--){ const o=LBOLTS[i]; o.t+=dt; const k=o.t/.3; if(k>=1){ scene.remove(o.m); LBOLTS.splice(i,1); continue; } placeBolt(o,(k<.35?1:1-Math.pow((k-.35)/.65,2))*(.85+.3*rnd())); } }
 function aimThorn(g,vx,vy,vz){ const c=g&&g.userData.thorn; if(!c) return; const v=new THREE.Vector3(vx,vy,vz); if(v.lengthSq()<1e-6) return; c.quaternion.setFromUnitVectors(THORN.UP,v.normalize()); }
 function thornTrail(x,y,z){ fx((g,mt)=>{ const p=glow(THORN.col,.32,.6); p.position.set(x,y,z); g.add(p); },.18); }
 // the Wisp's sparks come from 30-familiar.js's famBolts: re-dress the bolt it just made, speed it up, and give it a trail
@@ -96,7 +115,7 @@ function fireOne(e,extra){ const k=kindOf(), C=FAM_KIND[k]; fam.kick=1;
 
   if(k==='Crystal Owl'){ famLand(e.x,e.z,dmgOf(C.dmg)); const from=new THREE.Vector3(...muzzle()); let cur=e, prev=from, d=dmgOf(C.dmg);   /* build 178: the beam's first mob is where it lands (the chain hops don't each sprout one) */ const hitList=[]; for(let hop=0;hop<=C.hops+extra&&cur;hop++){ const to=new THREE.Vector3(cur.x,cur.y+cur.h*.55,cur.z); bolt(prev,to,0x9ee8ff,.03+.01*(hop===0),false); famHurt(cur,d,0,0); hitList.push(cur); prev=to; d=dmgOf(C.dmg*Math.pow(C.chain,hop+1));
       let nx=null, nd=C.reach; for(const m of famFoes()){ if(m.dead||hitList.includes(m)) continue; const dd=Math.hypot(m.x-cur.x,m.z-cur.z); if(dd<nd&&los(cur.x,cur.z,m.x,m.z)){ nd=dd; nx=m; } } cur=nx; } beep(1400,.14,'sine',.04,900); noise(.06,.03,6000); return; }
-  if(k==='Storm Drake'){ const from=new THREE.Vector3(...muzzle()); const to=new THREE.Vector3(e.x,e.y+e.h*.6,e.z); bolt(from,to,0xd8ecff,.045,true); famHurt(e,dmgOf(C.dmg),0,0); famLand(e.x,e.z,dmgOf(C.dmg)); for(const m of nearMobs(e.x,e.z,C.r+.6*extra,e)){ bolt(to,new THREE.Vector3(m.x,m.y+m.h*.6,m.z),0xd8ecff,.03,true); famHurt(m,dmgOf(C.fork),0,0); }
+  if(k==='Storm Drake'){ const from=new THREE.Vector3(...muzzle()); const to=new THREE.Vector3(e.x,e.y+e.h*.6,e.z); if(!lightBolt(from,to,1)) bolt(from,to,0xd8ecff,.045,true); famHurt(e,dmgOf(C.dmg),0,0); famLand(e.x,e.z,dmgOf(C.dmg)); for(const m of nearMobs(e.x,e.z,C.r+.6*extra,e)){ const mp=new THREE.Vector3(m.x,m.y+m.h*.6,m.z); if(!lightBolt(to,mp,.6)) bolt(to,mp,0xd8ecff,.03,true); famHurt(m,dmgOf(C.fork),0,0); }
     fx((g,mt)=>{ const p=glow(0xffffff,2.6,.8); p.position.set(e.x,e.y+e.h*.5,e.z); g.add(p); },.18); noise(.18,.14,2600); beep(90,.22,'sawtooth',.05,-40); return; }
   const n0=famBolts.length; famFireProc(e); if(thornsOn()&&famBolts.length>n0) thornify(famBolts[famBolts.length-1]); }   // Wisp: the spark bolt (a Forest thorn with the boon)
 function burn(e,C){ e.burnT=C.burn; e.burnDmg=dmgOf(C.burnDmg); e.burnTick=e.burnTick||0; }
@@ -129,6 +148,7 @@ function lavaUpdate(dt){ if(fam&&kindOf()==='Fire Imp') lavaLoad(); lavaDropUpda
     for(const m of p.embers){ const u=(p.t*.55+m.userData.ph)%1; m.position.set(Math.cos(m.userData.a+p.t*.6)*m.userData.r,.15+u*1.2,Math.sin(m.userData.a+p.t*.6)*m.userData.r); m.material.opacity=.8*(1-u)*k; m.scale.setScalar(.35+(1-u)*.35); }
     p.tk+=dt; if(p.tk>=LV.tick&&p.t>.2){ p.tk-=LV.tick; for(const m of nearMobs(p.x,p.z,LV.r,null)){ if((m.lavaT||-9)>S.t-LV.tick*.85) continue; m.lavaT=S.t; famHurt(m,dmgOf(LV.mul),0,0,{burn:LV.linger,burnDmg:dmgOf(.25)}); burn(m,{burn:LV.linger,burnDmg:.25}); } } } }   // one tick per mob per interval however many pools it stands in: overlapping pools do not stack
 window.__dart={loaded:()=>!!DART,mesh:dartMesh};
+window.__drakebolt={model:()=>LIGHT,loaded:()=>!!LIGHT,count:()=>LB_N,live:()=>LBOLTS.length,ages:()=>LBOLTS.map(b=>+b.t.toFixed(2)),width:()=>LIGHT_W};
 window.__bite={loaded:()=>!!BITE,count:()=>BITE_N,live:()=>BITES.length,ages:()=>BITES.map(b=>+b.t.toFixed(2))};
 window.__lava={pools:()=>LAVA.length,drops:()=>LDROP.length,models:()=>!!(LFX.drop&&LFX.pool),cfg:LV,drop:(x,z)=>lavaPool(x,z,0),clear:()=>{ while(LAVA.length){ const o=LAVA.pop(); scene.remove(o.g); } }};
 function swoopUpdate(dt){ if(!swoop||!fam) return; const w=swoop; w.t+=dt/w.dur; const e=w.e; if(e.dead&&w.t<.5){ w.t=.5; }
@@ -138,7 +158,7 @@ function swoopUpdate(dt){ if(!swoop||!fam) return; const w=swoop; w.t+=dt/w.dur;
   if(w.lava&&!w.bit&&w.t>=.5){ w.bit=true; if(!e.dead) lavaDrop(fam.g.position.x,fam.g.position.y-.1,fam.g.position.z,e.x,e.z,e.y||0); }
   else if(!w.bit&&w.t>=.5&&!e.dead){ w.bit=true; famHurt(e,dmgOf(K().dmg),Math.sin(fam.g.rotation.y)*.6,Math.cos(fam.g.rotation.y)*.6); famLand(e.x,e.z,dmgOf(K().dmg)); biteFx(e.x,(e.y||0)+(e.h||1.2)*.55,e.z); const nb=heroStat('fproj')|0; if(nb>0) for(const m of nearMobs(e.x,e.z,1.6,e).slice(0,nb)) famHurt(m,dmgOf(K().dmg*.7),0,0); SFX.hit(); fx((g,mt)=>{ const p=glow(0xffe0a0,1.2,.8); p.position.set(e.x,e.y+e.h*.7,e.z); g.add(p); },.2); }
   if(w.t>=1){ swoop=null; fam.g.rotation.x=0; } }
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(fam&&kindOf()==='Sprite') dartLoad(); if(fam&&kindOf()==='Bat') biteLoad(); biteUpdate(dt); if(fam){ swoopUpdate(dt); } lavaUpdate(dt); famShotsUpdate(dt); famFxUpdate(dt); burnUpdate(dt); }; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(fam&&kindOf()==='Sprite') dartLoad(); if(fam&&kindOf()==='Bat') biteLoad(); biteUpdate(dt); if(fam&&kindOf()==='Storm Drake') lightLoad(); lightUpdate(dt); if(fam){ swoopUpdate(dt); } lavaUpdate(dt); famShotsUpdate(dt); famFxUpdate(dt); burnUpdate(dt); }; }
 const famClearProc=famClearBolts; famClearBolts=function(){ famClearProc(); for(const s of famShots){ scene.remove(s.mesh); } famShots.length=0; };
 // the bag / sheet says what each familiar does
 const statStrProc=statStr; statStr=function(it){ const s=statStrProc(it); if(it&&it.slot==='familiar'){ const nk=namedPet(it); if(nk) return s+' · '+NAMED_PET[nk].desc; const C=FAM_KIND[famKind(it)]; if(C) return s+' · '+C.desc; } return s; };
