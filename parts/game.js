@@ -716,7 +716,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=221;
+const BUILD=223;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1227,6 +1227,7 @@ function applyGear(){ const oldMax=hero.max; hero.max=Math.round((100+heroStat('
 function saveGear(){ try{ localStorage.setItem('ddGear',JSON.stringify(gear)); }catch(e){} }
 function loadGear(){ try{ const g=JSON.parse(localStorage.getItem('ddGear')); if(g&&typeof g==='object'){ for(const s of SLOTS){ const it=g[s]; if(it&&it.stats&&SLOTS.includes(it.slot)&&it.rarity>=0&&it.rarity<=4) gear[s]=it; } } }catch(e){} applyGear(); hero.hp=hero.max; }
 function resetGear(){ gear={weapon:null,armor:null,charm:null,amulet:null,familiar:null}; saveGear(); applyGear(); }
+function holdNag(l){ const d=Math.hypot(hero.x-l.x,hero.z-l.z); if(d<2.4&&S.t-(l.nagT===undefined?-99:l.nagT)>6){ l.nagT=S.t; toast('Bag is full of pieces you kept — make room to pick up '+l.it.name); } return true; }   // build 223: see Meta.holdsOnFloor
 function pickup(l){ const it=l.it, cur=gear[it.slot];
   if(Meta.onPickup(it,l)) return;
   if(!cur||it.score>cur.score){ if(cur) S.mana+=cur.value; gear[it.slot]=it; applyGear(); saveGear(); SFX.loot(it.rarity); floatText(l.x,l.y+1,l.z,RNAME[it.rarity].toUpperCase()+' '+SICON[it.slot],RCSS[it.rarity]); lootToast(it,cur?'equipped (old one sold for '+cur.value+' mana)':'equipped'); }
@@ -1234,11 +1235,11 @@ function pickup(l){ const it=l.it, cur=gear[it.slot];
 function updateLoot(dt){
   for(let i=loot.length-1;i>=0;i--){ const l=loot[i]; l.t+=dt;
     // the hook: a piece within reach flies to the hero's hands once it has landed (no need to stand on it; the pull grows with pet-less patience: 3.2 units, or anywhere with the test magnet)
-    if(hero.dead<=0&&l.t>.5&&l.vy<=.01){ const hd=Math.hypot(hero.x-l.x,hero.z-l.z), hy=Math.abs(hero.y-l.y); if(hd<(window.__autoMana?1e9:LOOT_HOOK)&&hy<4){ const tx=hero.x, ty=hero.y+.9, tz=hero.z, dx=tx-l.x, dy=ty-l.y, dz=tz-l.z, dd=Math.hypot(dx,dy,dz); if(dd<.6){ pickup(l); scene.remove(l.mesh); loot.splice(i,1); continue; } const sp=Math.min(1,10*dt/dd); l.x+=dx*sp; l.y+=dy*sp; l.z+=dz*sp; l.vx=0; l.vz=0; l.vy=0; l.mesh.position.set(l.x,l.y,l.z); l.mesh.userData.item.rotation.y+=dt*6; continue; } }
+    if(hero.dead<=0&&l.t>.5&&l.vy<=.01&&!(Meta.holdsOnFloor&&Meta.holdsOnFloor(l.it)&&holdNag(l))){ const hd=Math.hypot(hero.x-l.x,hero.z-l.z), hy=Math.abs(hero.y-l.y); if(hd<(window.__autoMana?1e9:LOOT_HOOK)&&hy<4){ const tx=hero.x, ty=hero.y+.9, tz=hero.z, dx=tx-l.x, dy=ty-l.y, dz=tz-l.z, dd=Math.hypot(dx,dy,dz); if(dd<.6){ pickup(l); scene.remove(l.mesh); loot.splice(i,1); continue; } const sp=Math.min(1,10*dt/dd); l.x+=dx*sp; l.y+=dy*sp; l.z+=dz*sp; l.vx=0; l.vz=0; l.vy=0; l.mesh.position.set(l.x,l.y,l.z); l.mesh.userData.item.rotation.y+=dt*6; continue; } }
     l.vy-=14*dt; const nx=l.x+l.vx*dt, nz=l.z+l.vz*dt; if(!solidAt(nx,nz,0,true)){ l.x=nx; l.z=nz; } else { l.vx=-l.vx*.5; l.vz=-l.vz*.5; } l.y+=l.vy*dt; const fl=baseFloor(l.x,l.z); if(l.y<fl){ l.y=fl; l.vy=-l.vy*.3; l.vx*=.6; l.vz*=.6; }
     l.mesh.position.set(l.x,l.y,l.z); l.mesh.userData.item.position.y=.55+Math.sin(l.t*3)*.08; l.mesh.userData.item.rotation.y+=dt*2; l.mesh.userData.ring.scale.setScalar(1+Math.sin(l.t*4)*.08);
     if(l.mesh.userData.artSprite) l.mesh.userData.artSprite.position.y=.55+Math.sin(l.t*3)*.08;   // a set piece's card art bobs the same as the placeholder it replaced (a sprite always faces the camera, so no spin to match)
-    if(hero.dead<=0&&Math.hypot(hero.x-l.x,hero.z-l.z)<1.15&&Math.abs(hero.y-l.y)<1.6){ pickup(l); scene.remove(l.mesh); loot.splice(i,1); } }
+    if(hero.dead<=0&&Math.hypot(hero.x-l.x,hero.z-l.z)<1.15&&Math.abs(hero.y-l.y)<1.6&&!(Meta.holdsOnFloor&&Meta.holdsOnFloor(l.it)&&holdNag(l))){ pickup(l); scene.remove(l.mesh); loot.splice(i,1); } }
 }
 let gearHTML='';
 function updateGearHUD(){ let h=''; for(const s of SLOTS){ const it=gear[s]; h+='<div class="gr"><span class="gi">'+SICON[s]+'</span>'+(it?'<span class="gn" style="color:'+RCSS[it.rarity]+'">'+it.name+'</span><span class="gs">'+statStr(it)+'</span>':'<span class="ge">no '+s+' yet</span>')+'</div>'; } if(h!==gearHTML){ gearHTML=h; $('gear').innerHTML=h; } }

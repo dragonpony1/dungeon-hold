@@ -41,6 +41,8 @@ function canRespec(){ return spentPoints()>0&&st.gold>=respecCost(); }
 function respec(){ if(!canRespec()) return false; addGold(-respecCost(),'respec'); SKILLS.forEach(s=>st.skills[s.id]=0); applyGear(); saveMeta(); SFX.mana(); toast('Skill points refunded — '+points()+' to spend'); return true; }
 // ---- bag ----
 function bagFull(){ return st.bag.length>=BAG_CAP; }
+const precious=it=>!!(it&&(it.named||it.mythic||(it.rarity|0)>=5));   // never auto-sold for a full bag
+function holdsOnFloor(it){ return bagFull()&&precious(it)&&bagIdx(it.id)<0&&!st.bag.some(b=>!b.locked&&!precious(b)); }   // a precious piece with nothing sellable to make room: stays on the floor
 // how the bag is SHOWN: 'type' groups by slot (weapon · armor · charm · amulet · familiar), best rarity first within
 // each; 'rarity' is best-first across the lot; 'newest' is the latest pickup first. The bag itself stays in pickup order
 // (equip() and the armory splice by id, and saves stay stable) -- the views ask sortedBag() for their order. Remembered
@@ -57,9 +59,14 @@ function bagIdx(id){ return st.bag.findIndex(b=>b.id===id); }
 function bagItem(it,why){ if(!validItem(it)) return false; fixItem(it); if(bagIdx(it.id)>=0||bagFull()) return false; st.bag.push(it); saveMeta(); return true; }
 function htmlToast(h,t){ $('toast').innerHTML=h; $('toast').style.opacity=1; toastT=t||3.4; }
 function onPickup(it,l){ if(!validItem(it)) return false; fixItem(it); if(bagIdx(it.id)>=0) return true; run.drops++; run.items.push(it); const nm='<b style="color:'+RCSS[it.rarity]+'">'+it.name+'</b>';
+  // build 223 (Matt: Subterfuge "drops in the world but cant equip and doesnt show up in hideout" -- a full bag sold it for gold the moment he walked over it,
+  // with only a passing toast): a named mythic, a mythic or a rarity-5 piece is never the one that gets sold. It sells your cheapest unlocked ordinary piece
+  // instead; and when there is nothing of that kind to sell, game.js leaves it on the floor (holdsOnFloor)
+  let roomMsg=''; if(bagFull()&&precious(it)){ let w=-1; for(let i=0;i<st.bag.length;i++){ const b=st.bag[i]; if(b.locked||precious(b)) continue; if(w<0||(b.value||0)<(st.bag[w].value||0)) w=i; }
+    if(w>=0){ const gone=st.bag.splice(w,1)[0]; addGold(gone.value,'auto'); roomMsg='Bag is full — sold '+gone.name+' for '+fmtG(gone.value)+' gold to make room for '+nm; } }
   if(bagFull()){ addGold(it.value,'auto'); SFX.mana(); if(l) floatText(l.x,l.y+.8,l.z,'+'+it.value+' ●',GOLD_CSS); htmlToast('Bag is full — '+nm+' sold for '+fmtG(it.value)+' gold'); return true; }
   st.bag.push(it); saveMeta(); SFX.loot(it.rarity); if(l) floatText(l.x,l.y+1,l.z,RNAME[it.rarity].toUpperCase()+' '+SICON[it.slot],RCSS[it.rarity]);
-  if(TOUCH) htmlToast(nm+' — bagged'); else lootToast(it,'bagged'); return true; }   // phones: name only, the stat line runs off a 390px screen
+  if(roomMsg) htmlToast(roomMsg); else if(TOUCH) htmlToast(nm+' — bagged'); else lootToast(it,'bagged'); return true; }   // phones: name only, the stat line runs off a 390px screen
 function sellItem(id){ const i=bagIdx(id); if(i<0||st.bag[i].locked) return 0; const it=st.bag.splice(i,1)[0]; addGold(it.value,'sell'); SFX.mana(); return it.value; }
 // junk = not an upgrade: scores below what is worn in that slot, or a Common that does not beat it. With nothing worn it is the only thing the player could wear, and a Common that beats the worn item is an upgrade, never junk
 function isJunk(it){ if(it.locked) return false; const eq=gear[it.slot]; if(!eq||eq.id===it.id) return false; return it.score<eq.score||(it.rarity===0&&it.score<=eq.score); }
@@ -117,7 +124,7 @@ Object.assign(Meta,{
   BAG_CAP, XP, SKILLS, SKILL_MAX, xpToNext, fmtG, isJunk, bagKey,
   gold:()=>st.gold, addGold, level:()=>st.level, xp:()=>st.xp, points, spentPoints, canRespec, respecCost, respec, spend,
   skill:id=>st.skills[id]||0, skills:()=>Object.assign({},st.skills), skillValue:id=>{ const s=SKILLS.find(s=>s.id===id); return s?s.fmt(s.per*st.skills[id]):''; },
-  bag:()=>st.bag, sortedBag, bagSort:()=>bagSort, setBagSort, BAG_SORTS, toggleLock, isLocked:id=>{ const i=bagIdx(id); return i>=0&&!!st.bag[i].locked; }, bagFull, sell:sellItem, sellJunk, equip, unequip,
+  bag:()=>st.bag, sortedBag, bagSort:()=>bagSort, setBagSort, BAG_SORTS, toggleLock, isLocked:id=>{ const i=bagIdx(id); return i>=0&&!!st.bag[i].locked; }, bagFull, holdsOnFloor, sell:sellItem, sellJunk, equip, unequip,
   stock:()=>st.stock, stockTier:()=>st.stockTier, tierLine, restockCost, restock, buyPrice, canBuy, buy,
   best:()=>st.best, runs:()=>st.runs, summary, version:()=>metaVer, save:saveMeta,
   state:()=>JSON.parse(JSON.stringify(st)), reset:metaReset, addXP, giveGold:n=>addGold(n,'refund'), giveItem:it=>bagItem(it,'give') });

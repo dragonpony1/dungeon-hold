@@ -10,7 +10,7 @@ const UPCAP={def:60,move:50,spd:150,fproj:[0,1,1,2,3,3]};             // total-v
 const UPKEYS={weapon:['dmg','spd','tow','trate'],armor:['hp','def','regen','tow'],charm:['tow','trate','tarea','mana'],amulet:['hp','regen','def','spd','move'],familiar:['fdmg','frate','fproj','tow']};
 const UPLBL={dmg:'⚔ Hero damage',spd:'⚡ Swing speed',hp:'❤ Max health',def:'🛡 Armor',regen:'✚ Regen',tow:'🏹 Defense damage',trate:'🔁 Defense attack speed',tarea:'◎ Defense range & area',mana:'◆ Mana from orbs',move:'👟 Move speed',fdmg:'✨ Pet damage',frate:'✨ Pet attack speed',fproj:'✨ Pet projectiles'};
 const UPFMT={dmg:v=>'+'+v,spd:v=>'+'+v+'%',hp:v=>'+'+v,def:v=>'+'+v+'%',regen:v=>'+'+v+'/s',tow:v=>'+'+v+'%',trate:v=>'+'+v+'%',tarea:v=>'+'+v+'%',mana:v=>'+'+v+'%',move:v=>'+'+v+'%',fdmg:v=>'+'+v,frate:v=>'+'+v+'%',fproj:v=>'+'+v};
-function upMax(it){ return UP_MAX[clamp(it.rarity|0,0,5)]; }
+function upMax(it){ if(it&&it.named==='trimaw') return 400; /* Matt: "give it high upgrade cap like 400" -- the survival-wave-50 hydra (85-familiars.js) */ return UP_MAX[clamp(it.rarity|0,0,5)]; }
 function upUsed(it){ return it.up|0; }
 function upLeft(it){ return Math.max(0,upMax(it)-upUsed(it)); }
 function upCost(it){ return Math.max(1,Math.round((3+2*(it.rarity|0))*(1+.06*upUsed(it))*(1+.1*((it.tier||tierOf(it.lvl||1))-1)))); }

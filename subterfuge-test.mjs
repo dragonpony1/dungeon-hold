@@ -94,6 +94,8 @@ else {
   check("co-op: the guest's screen draws the chain lightning its arrows threw (powerFx 'chain')",gd>gd0,JSON.stringify({before:gd0,after:gd}));
   sig.close?.();
 }
+const lim=await P.evaluate(()=>{ const M=window.__meta, d=window.__dd; d.resetGear(); const mk=k=>{ const it=window.__mythic.normalize({tier:"named",named:k}); M.giveItem(it); return it; }; const a=mk("mossheart_aegis"), b=mk("bramblewhisk"), sub=mk("subterfuge"); M.equip(a.id); M.equip(b.id); const r=M.equip(sub.id); return {refused:r===false,stillInBag:M.bag().some(x=>x.id===sub.id),toast:document.getElementById("toast").textContent}; });
+check("with two named mythics on, a third is refused and the message names them and says why (build 223)",lim.refused&&lim.stillInBag&&/Mossheart Aegis/.test(lim.toast)&&/Bramblewhisk/.test(lim.toast)&&/Take one off to wear Subterfuge/.test(lim.toast),JSON.stringify(lim));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
 check("no page errors",realErrors.length===0,realErrors.slice(0,5).join(" | "));
 await browser.close(); server.close();

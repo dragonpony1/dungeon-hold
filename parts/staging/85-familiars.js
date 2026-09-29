@@ -27,7 +27,7 @@ function ensureFam(k){ if(!FAM_FILES[k]||FAM_ASKED[k]) return; FAM_ASKED[k]=true
 // build 215 (Matt: "the wisp in game has been named bramblewhisk when we have an all new model and thumbs for bramblewhisk"): a named pet wears its
 // own body -- the same real model its floor stand shows (93c-weaponstand.js NAMED_REAL) -- instead of the Wisp's it used to borrow (famKind reads
 // words in the name, and neither name has one, so both fell back to 'Wisp'). How it fights doesn't change: kind stays what famKind says
-const NAMED_PET={bramblewhisk:{file:'named-bramblewhisk.glb',h:.8,desc:'thorn shots'},old_lamplight:{file:'named-old_lamplight.glb',h:.85,desc:'lantern sparks'},gladehart:{file:'named-gladehart.glb',h:.9,desc:'spirit stag charge'}};
+const NAMED_PET={bramblewhisk:{file:'named-bramblewhisk.glb',h:.8,desc:'thorn shots'},old_lamplight:{file:'named-old_lamplight.glb',h:.85,desc:'lantern sparks'},gladehart:{file:'named-gladehart.glb',h:.9,desc:'spirit stag charge'},trimaw:{file:'named-trimaw.glb',h:.85,desc:'fire, frost and venom breaths'}};
 const NP_GLB={}, NP_ASKED={};
 function namedPet(it){ return it&&it.named&&NAMED_PET[it.named]?it.named:null; }
 function ensureNamedPet(k){ if(NP_ASKED[k]) return; NP_ASKED[k]=true; const c=NAMED_PET[k]; fetchBytes(ASSET(c.file),'soon').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,c.h); toonify(root,fit.scale); const w=fit.wrap; w.children[0].position.y-=c.h*.5; NP_GLB[k]=w;
@@ -51,7 +51,7 @@ function famFxUpdate(dt){ for(let i=famFx.length-1;i>=0;i--){ const f=famFx[i]; 
 function shotMesh(col,scale,core){ const g=new THREE.Group(); const c=M(G.sph(core||.09,8,6),basic(0xffffff),0,0,0); c.userData.noOL=true; g.add(c); g.add(glow(col,scale,.9)); return g; }
 function muzzle(){ const fx=Math.sin(fam.yaw), fz=Math.cos(fam.yaw); return [fam.x+fx*.3,fam.y-.02,fam.z+fz*.3]; }
 function nearMobs(x,z,r,skip){ const out=[]; for(const e of famFoes()){ if(e.dead||e===skip) continue; if(Math.hypot(e.x-x,e.z-z)<r+e.r*.5) out.push(e); } return out; }
-function famShotsUpdate(dt){ for(let i=famShots.length-1;i>=0;i--){ const s=famShots[i]; s.t+=dt; s.vy-=s.g*dt; s.x+=s.vx*dt; s.y+=s.vy*dt; s.z+=s.vz*dt; s.mesh.position.set(s.x,s.y,s.z); if(s.thorn){ aimThorn(s.mesh,s.vx,s.vy,s.vz); if((s.t*30|0)!==((s.t-dt)*30|0)) thornTrail(s.x,s.y,s.z); } if(s.trail&&(s.t*30|0)!==((s.t-dt)*30|0)){ fx((g,mt)=>{ const p=glow(0xff8a2a,.55,.7); p.position.set(s.x,s.y,s.z); g.add(p); },.25); }
+function famShotsUpdate(dt){ for(let i=famShots.length-1;i>=0;i--){ const s=famShots[i]; s.t+=dt; s.vy-=s.g*dt; s.x+=s.vx*dt; s.y+=s.vy*dt; s.z+=s.vz*dt; s.mesh.position.set(s.x,s.y,s.z); if(s.spin) s.mesh.rotation.z+=dt*s.spin; if(s.thorn){ aimThorn(s.mesh,s.vx,s.vy,s.vz); if((s.t*30|0)!==((s.t-dt)*30|0)) thornTrail(s.x,s.y,s.z); } if(s.trail&&(s.t*30|0)!==((s.t-dt)*30|0)){ fx((g,mt)=>{ const p=glow(s.trailCol||0xff8a2a,.55,.7); p.position.set(s.x,s.y,s.z); g.add(p); },.25); }
     let hit=null; for(const e of famFoes()){ if(e.dead) continue; if(Math.hypot(e.x-s.x,e.z-s.z)<e.r+.45&&s.y>e.y-.3&&s.y<e.y+e.h+.6){ hit=e; break; } }
     const floor=s.y<=.12; if(hit||floor||s.t>2.2||s.y<-2){ if(hit||floor) s.land(s,hit); scene.remove(s.mesh); s.mesh.traverse(o=>{ if(o.userData.shared) return; if(o.isSprite) o.material.dispose(); else if(o.geometry) o.geometry.dispose(); }); famShots.splice(i,1); } } }
 // ---- the Forest set's thorns (build 141): "the pet shots are like slow ping pong balls ... they seem to lob". With the
@@ -196,7 +196,7 @@ function thickest(){ const fx0=fam?fam.x:hero.x, fz0=fam?fam.z:hero.z; let best=
 function scPop(x,y,z,size,life,grow){ const s=glow(SC.pink,size,.9); s.position.set(x,y,z); scene.add(s); if(SC.pops.length>240){ const o=SC.pops.shift(); scene.remove(o.s); o.s.material.dispose(); } SC.pops.push({s,t:0,life,size,grow}); }
 function ghostMesh(){ const g=new THREE.Group(), mats=[]; const T=NP_GLB.gladehart;
   if(T){ const m=T.clone(true); m.scale.setScalar(1.7); const ol=[]; m.traverse(o=>{ if(o.userData.isOL) ol.push(o); }); ol.forEach(o=>o.parent.remove(o));
-    m.traverse(o=>{ if(o.isMesh){ const old=Array.isArray(o.material)?o.material[0]:o.material; o.material=new THREE.MeshBasicMaterial({color:0xff2fa8,transparent:true,opacity:.82,depthWrite:false});   /* flat hot pink, normal blending: the stag's brown texture turned it dull red, and additive washed it to white over the pink light */ mats.push(o.material); } }); g.add(m); }
+    m.traverse(o=>{ if(o.isMesh){ const old=Array.isArray(o.material)?o.material[0]:o.material; o.material=new THREE.MeshBasicMaterial({color:C(0xff2fa8),transparent:true,opacity:.82,depthWrite:false});   /* flat hot pink, normal blending: the stag's brown texture turned it dull red, and additive washed it to white over the pink light */ mats.push(o.material); } }); g.add(m); }
   const gl=glow(SC.pink,3.4,.6); gl.position.y=.7; g.add(gl); mats.push(gl.material); return {g,mats}; }
 function scLaunch(t){ const sx=fam?fam.x:hero.x, sz=fam?fam.z:hero.z; let dx=t.x-sx, dz=t.z-sz; const d=Math.hypot(dx,dz)||1; dx/=d; dz/=d; const run=Math.max(8,Math.min(15,d+5)); const {g,mats}=ghostMesh();
   g.rotation.y=Math.atan2(dx,dz); g.position.set(sx,(t.y||0)+.35,sz); scene.add(g); SC.ghosts.push({g,mats,x:sx,z:sz,y:t.y||0,dx,dz,run,age:0,tr:0,hit:new Set(),dying:0}); SC.count++;
@@ -216,4 +216,35 @@ function gladeReward(){ const M=window.__mythic; if(!M||!M.NAMED||!M.NAMED.glade
   const it=M.normalize({tier:'named',named:'gladehart',lvl:Math.max(1,effWave())}); if(!it) return false; it.from='dungeon-hold'; const pic=window.__mythicDrops&&window.__mythicDrops.art&&window.__mythicDrops.art(it); if(pic) it.art=pic;
   dropLoot(it,R(-1.6,1.6),4.6,true); floatText(0,2.6,4.6,'✦ GLADEHART ✦ the spirit stag','#ff7ade'); toast('Gladehart, the spirit stag, fell by the crystal — pick it up'); return true; }
 window.__gladehart={worn:gladeWorn,charges:()=>SC.count,ghosts:()=>SC.ghosts.length,hits:()=>SC.hits,cd:()=>+SC.t.toFixed(2),fire:()=>{ const t=thickest(); if(!t) return false; scLaunch(t); return true; },thickest,reward:gladeReward,cfg:SC,ghostPos:()=>{ const G=SC.ghosts[0]; return G?{x:G.x,y:G.y,z:G.z}:null; }};
+// ---------------------------------------------------------------- TRIMAW, the magma hydra (build 222)
+// Matt's reward pet for Throne Room SURVIVAL wave 50 (Gladehart's is wave 20). Three heads, three breaths at up to three targets each volley:
+// FIRE (burns), FROST (slows), VENOM (poison over time); every hit MARKS the mob so it takes 25% more damage from everything for a few seconds.
+// Delivered at baseline; its forge upgrade cap is 400 (90-forge.js upMax) so it can grow. The shots are glowing stand-ins until Matt's own
+// breath projectiles arrive. Solo / host only, like Gladehart's charge (a guest's page has puppet mobs).
+const TM={heads:[{name:'fire',col:0xff7a20,mul:.9},{name:'frost',col:0x7fd8ff,mul:.8},{name:'venom',col:0x7bff3a,mul:.75}],speed:14,burn:{burn:3,burnDmg:.25},slow:2.2,poisonT:4,poisonDmg:.22,markT:3,markMul:1.25,fired:0,hits:0};
+function trimawWorn(){ return !!fam&&namedPet(gear.familiar)==='trimaw'; }
+{ const prev=hurt; hurt=function(e,dmg,kx,kz){ if(e&&e.markT>0) dmg=Math.round(dmg*TM.markMul*10)/10; return prev(e,dmg,kx,kz); }; }   // marked: +25% from everything (hero, towers, pets, burns)
+const stFx=new Map();
+function statusUpdate(dt){
+  for(const e of enemies){ if(e.dead){ e.poisonT=0; e.markT=0; continue; } if(e.poisonT>0){ e.poisonT-=dt; e.poisonTick=(e.poisonTick||0)+dt; if(e.poisonTick>=.5){ e.poisonTick-=.5; famHurt(e,e.poisonDmg,0,0); } } if(e.markT>0) e.markT-=dt; }
+  for(const e of enemies){ if(e.dead) continue; const want={p:e.poisonT>0,m:e.markT>0}; let o=stFx.get(e); if(!o&&(want.p||want.m)){ o={p:null,m:null}; stFx.set(e,o); }
+    if(o) for(const [k,col,size,dy] of [['p',0x7bff3a,.95,.5],['m',0xffd24a,1.35,1.05]]){ if(want[k]&&!o[k]){ o[k]=glow(col,size,.7); scene.add(o[k]); } if(o[k]){ if(want[k]) o[k].position.set(e.x+(rnd()-.5)*.1,e.y+e.h*dy+Math.sin(S.t*18)*.06,e.z); else { scene.remove(o[k]); o[k].material.dispose(); o[k]=null; } } } }
+  for(const [e,o] of stFx){ if(e.dead||(!o.p&&!o.m)){ [o.p,o.m].forEach(s=>{ if(s){ scene.remove(s); s.material.dispose(); } }); stFx.delete(e); } } }
+const RING={geo:null,mats:{}};   // one shared torus and one material per colour: famShotsUpdate frees a shot's geometry unless it is marked shared
+function ringMesh(col){ if(!RING.geo) RING.geo=new THREE.TorusGeometry(.2,.045,8,20); if(!RING.mats[col]) RING.mats[col]=new THREE.MeshBasicMaterial({color:C(col),transparent:true,opacity:.95,depthWrite:false}); const g=new THREE.Group(); const r=new THREE.Mesh(RING.geo,RING.mats[col]); r.userData.shared=true; r.userData.noOL=true; g.add(r); const r2=new THREE.Mesh(RING.geo,RING.mats[col]); r2.scale.setScalar(.62); r2.userData.shared=true; r2.userData.noOL=true; g.add(r2); g.add(glow(col,.55,.3)); return g; }   // a solid coloured ring (additive blending washed it to white) with a smaller one inside it, and a glow
+function trimawFire(e){ fam.kick=1; const tg=[e,...extraTargets(e,2)]; const [x,y,z]=muzzle();
+  TM.heads.forEach((H,i)=>{ const t=tg[i]||e; const dx=t.x-x, dy=t.y+t.h*.5-y, dz=t.z-z; const d=Math.hypot(dx,dy,dz)||1, h2=Math.hypot(dx,dz)||1; const off=(i-1)*.24;
+    const mesh=ringMesh(H.col); mesh.position.set(x-dz/h2*off,y+(i===1?.12:0),z+dx/h2*off); mesh.lookAt(mesh.position.x+dx,mesh.position.y+dy,mesh.position.z+dz); scene.add(mesh);
+    famShots.push({x:mesh.position.x,y:mesh.position.y,z:mesh.position.z,vx:dx/d*TM.speed,vy:dy/d*TM.speed,vz:dz/d*TM.speed,g:0,t:0,mesh,spin:9,trail:true,trailCol:H.col,land:(s,h)=>{ if(!h) return; const dm=dmgOf(H.mul); famHurt(h,dm,s.vx/TM.speed*.3,s.vz/TM.speed*.3,H.name==='frost'?{slow:TM.slow}:undefined);
+      if(!h.puppet){ if(H.name==='fire') burn(h,TM.burn); else if(H.name==='frost') h.slowT=Math.max(h.slowT||0,TM.slow); else { h.poisonT=TM.poisonT; h.poisonDmg=dmgOf(TM.poisonDmg); } h.markT=TM.markT; }
+      TM.hits++; famLand(h.x,h.z,dm); } }); });
+  TM.fired++; }
+{ const prev=famFire; famFire=function(e){ if(trimawWorn()){ trimawFire(e); return; } return prev(e); }; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); statusUpdate(dt); }; }
+// the reward: holding Throne Room survival wave 50 (winMap) drops Trimaw by the crystal, once -- never if you already own it. Solo/host only.
+function trimawReward(){ const M=window.__mythic; if(!M||!M.NAMED||!M.NAMED.trimaw||isGuest()) return false; const has=M.has('trimaw')||Meta.bag().some(b=>b&&M.id(b)==='trimaw')||((Meta.armory&&Meta.armory())||[]).some(b=>b&&M.id(b)==='trimaw'); if(has) return false;
+  const it=M.normalize({tier:'named',named:'trimaw',lvl:Math.max(1,effWave())}); if(!it) return false; it.from='dungeon-hold'; const pic=window.__mythicDrops&&window.__mythicDrops.art&&window.__mythicDrops.art(it); if(pic) it.art=pic;
+  dropLoot(it,R(-1.6,1.6),4.6,true); floatText(0,2.6,4.6,'✦ TRIMAW ✦ the magma hydra','#ff7ade'); toast('Trimaw, the magma hydra, fell by the crystal — pick it up'); return true; }
+{ const prev=winMap; winMap=function(){ const r=prev.apply(this,arguments); if(SURVIVAL&&MAPI===1) trimawReward(); return r; }; }   // Throne Room (index 1) survival's fiftieth wave
+window.__trimaw={worn:trimawWorn,fired:()=>TM.fired,hits:()=>TM.hits,reward:trimawReward,cfg:TM,fire:e=>{ if(!trimawWorn()||!e) return false; trimawFire(e); return true; }};
 })();
