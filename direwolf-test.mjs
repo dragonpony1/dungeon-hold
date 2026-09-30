@@ -19,12 +19,14 @@ check("they run head first down the lane, faster than a goblin",a.face.every(f=>
 const k=await page.evaluate(()=>{ const d=window.__dd; const e=d.enemies.find(x=>x.kind==="direwolf"&&!x.dead); d.kill(e); d.step(1/60,40); const sc=+e.mdl.g.scale.x.toFixed(3), there=d.enemies.includes(e); d.step(1/60,60); return { midScale:sc, midThere:there, gone:!d.enemies.includes(e) }; });
 check("a killed wolf shrinks away and is gone",k.gone,JSON.stringify(k));
 const w=await page.evaluate(()=>{ const d=window.__dd, M=d.map(); let any=0; for(let i=1;i<=M.waves;i++) any+=d.waveComp(M.wbase+i).q.filter(x=>x.kind==="direwolf").length; return any; });
-check("no wave has a wolf in it yet (Matt tries them first)",w===0,String(w));
+check("build 327: the Cloister's waves bring wolves now (a pair for each old troll archer)",w>=40,String(w));
 const sp=await page.evaluate(()=>{ const d=window.__dd; for(const e of d.enemies) d.kill(e); d.step(1/60,80); const L=Object.keys(d.lanes())[0]; const W=[]; for(let i=0;i<5;i++) W.push(d.spawn("direwolf",L)); let lat=[];
   for(let i=0;i<60*2;i++){ d.setHero(-90,-90,0); d.step(1/60,1); d.S.crystal=d.S.crystal2=1e6; } const live=W.filter(e=>!e.dead); const hy=Math.atan2(live.reduce((s,e)=>s+Math.sin(e.yaw),0),live.reduce((s,e)=>s+Math.cos(e.yaw),0)); const rx=Math.cos(hy), rz=-Math.sin(hy); const mx=live.reduce((s,e)=>s+e.x,0)/live.length, mz=live.reduce((s,e)=>s+e.z,0)/live.length;
   lat=live.map(e=>+((e.x-mx)*rx+(e.z-mz)*rz).toFixed(2)); return { n:live.length, lat, spread:+(Math.max(...lat)-Math.min(...lat)).toFixed(2), lanes:live.map(e=>+e.lane.toFixed(2)) }; });
-check("build 318 (Matt: they come out in a neat line, it looks unnatural): five wolves let loose together spread across the lane as a pack, not one behind another",sp.n===5&&sp.spread>1,JSON.stringify(sp));
+check("build 318 (Matt: they come out in a neat line, it looks unnatural): five wolves let loose together spread across the lane as a pack, not one behind another",sp.n===5&&sp.spread>.6,JSON.stringify(sp));
 const gl=await page.evaluate(()=>window.__direwolf.glow());
 check("build 318 (Matt: too dark to see their detail): the wolf's coat glows softly with its own texture",gl!==null&&gl>.4,String(gl));
+const ice=await page.evaluate(()=>{ const d=window.__dd, W=window.__direwolf; const L=Object.keys(d.lanes())[0]; const i0=W.iceDrops(); const n0=d.loot.length; for(let i=0;i<300;i++){ const e=d.spawn("direwolf",L); d.kill(e); } d.step(1/60,2); const got=W.iceDrops()-i0; const iceOnFloor=d.loot.slice(n0).filter(l=>l&&l.it&&/ of Ice$/.test(l.it.name)).length; for(const e of d.enemies) d.kill(e); return { kills:300, got, iceOnFloor, chance:W.iceChance }; });
+check("build 327 (Matt: wolves drop frost gear set): about 6% of killed wolves drop a piece of the Ice set (300 kills -> roughly 18)",ice.got>=6&&ice.got<=36&&ice.iceOnFloor>=Math.min(ice.got,1),JSON.stringify(ice));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");

@@ -25,5 +25,10 @@ const SPOTS=[-.8,.4,-.4,.8,0]; let wolfN=0;   // each new wolf takes the next pl
 { const prev=updateEnemies; updateEnemies=function(dt){ prev(dt); for(const e of enemies){ if(e.kind!==K||e.dead) continue; if(e.lane===undefined){ e.lane=SPOTS[(wolfN++)%SPOTS.length]+R(-.12,.12); e.wph=Math.random()*TAU; e.spd*=R(.92,1.1); }
     if(!e.walking||e.swing>=0) continue; const fx=Math.sin(e.yaw), fz=Math.cos(e.yaw), rx=fz, rz=-fx; const off=(e.x-cw(wc(e.x)))*rx+(e.z-cwz(wcz(e.z)))*rz; const want=e.lane+Math.sin(S.t*1.3+e.wph)*.3;
     const push=clamp(want-off,-1,1)*2.4*dt; moveCircle(e,rx*push,rz*push,e.r*.8,false); } }; }
-window.__direwolf={load,loaded:()=>!!MOBGLB[K],kind:K,glow:()=>{ let v=null; if(MOBGLB[K]) MOBGLB[K].wrap.traverse(o=>{ if(v===null&&o.isMesh&&!o.userData.isOL&&o.material&&o.material.emissiveMap) v=o.material.emissive.r; }); return v; }};
+// build 327 (Matt: "wolves drop frost gear set"): the court's waves bring them from wave one, so the model loads when the court opens (behind everything else); and a wolf that
+// dies drops a piece of the Ice set (Rare or better) 6% of the time
+if(MAP&&MAP.id==='court') setTimeout(load,1500);
+const ICE_CHANCE=.06; let iceDrops=0;
+{ const prev=kill; kill=function(e){ const was=e&&!e.dead; const r=prev.apply(this,arguments); if(was&&e.kind===K&&e.dead&&Math.random()<ICE_CHANCE){ try{ const it=rollItem(2); it.name=String(it.name).replace(/ of (the )?[A-Z]\w*( [A-Z]\w*)?$/,'')+' of Ice'; it.value=Math.round((it.value||0)*2); if(Meta.packs&&Meta.packs.of) Meta.packs.of(it); dropLoot(it,e.x,e.z); iceDrops++; }catch(err){ console.warn('wolf ice drop',err); } } return r; }; }
+window.__direwolf={iceDrops:()=>iceDrops,iceChance:ICE_CHANCE,load,loaded:()=>!!MOBGLB[K],kind:K,glow:()=>{ let v=null; if(MOBGLB[K]) MOBGLB[K].wrap.traverse(o=>{ if(v===null&&o.isMesh&&!o.userData.isOL&&o.material&&o.material.emissiveMap) v=o.material.emissive.r; }); return v; }};
 })();

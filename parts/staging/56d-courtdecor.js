@@ -146,11 +146,13 @@ const W1_EXTRA=30;
   const g=c.q.filter(x=>x.kind==='goblin').length; if(c.desc) c.desc=String(c.desc).replace(/Goblins ×[0-9]+/,'Goblins ×'+g); return c; }; }
 // build 313 (Matt: "take out all bandits from entire map"; and for the Archhag's wave, "keep the goblins and orcs take out ranged mobs"): no bandit on any court wave, and her wave (the last)
 // has no troll archers either -- each one taken out comes out as a goblin instead, in its place in the line, so the crowd stays the same size (drakes stay: they bite, they don't shoot)
-const NO_RANGED=x=>x.kind==='archer', NO_RANGED_LAST=x=>x.kind==='archer'||x.kind==='troll';
+const NO_RANGED=x=>x.kind==='archer', NO_RANGED_LAST=x=>x.kind==='archer'||x.kind==='troll', WOLF='direwolf';
 { const prevWC=waveComp; waveComp=function(w){ const c=prevWC(w); if(!MAP||MAP.id!=='court') return c; const out=(!SURVIVAL&&(w-MAP.wbase)===MAP.waves)?NO_RANGED_LAST:NO_RANGED;
-    // build 314 (Matt: "decreases the troll archers in the cloister by half"): on the other waves every second troll archer comes out as a goblin too (3 or 4 a wave -> 2)
-    let n=0, tr=0; for(const x of c.q){ if(out(x)){ x.kind='goblin'; n++; } else if(x.kind==='troll'&&(tr++)%2===1){ x.kind='goblin'; n++; } } if(!n||!c.desc) return c;
-    const g=c.q.filter(x=>x.kind==='goblin').length, t=c.q.filter(x=>x.kind==='troll').length; c.desc=String(c.desc).replace(/Goblins ×[0-9]+/,'Goblins ×'+g).replace(/ · Bandits ×[0-9]+/,'').replace(/ · Troll Archers ×[0-9]+/,t?' · Troll Archers ×'+t:''); return c; }; }
+    // build 327 (Matt, after a full run: "lets basically trad out all the trol archers for dire wolves"): every troll archer (all seven waves) comes out as a PAIR of dire wolves, together on its
+    // lane -- a pack, not a lone wolf (the build-314 halving is gone with them); bandits are still goblins
+    let n=0; const packs=[]; for(const x of c.q){ if(x.kind==='troll'){ x.kind=WOLF; packs.push({t:x.t+.15,kind:WOLF,lane:x.lane}); n++; } else if(out(x)){ x.kind='goblin'; n++; } }
+    if(packs.length){ c.q.push(...packs); c.q.sort((a,b)=>a.t-b.t); } if(!n||!c.desc) return c;
+    const g=c.q.filter(x=>x.kind==='goblin').length, wv=c.q.filter(x=>x.kind===WOLF).length; c.desc=String(c.desc).replace(/Goblins ×[0-9]+/,'Goblins ×'+g).replace(/ · Bandits ×[0-9]+/,'').replace(/ · Troll Archers ×[0-9]+/,wv?' · Dire Wolves ×'+wv:''); return c; }; }
 window.__courtdecor.w1Extra=W1_EXTRA;
 window.__courtdecor.topiList=()=>TOPI;   // build 308: the Archhag (95f-archhag.js) wakes them
 window.__courtdecor.topiaries=()=>({placed:TOPI.length,cells:TOPI_CELLS.map(c=>[c.cx,c.cz]),h:TOPI_H,kinds:TOPI.reduce((o,t)=>{ o[t.kind]=(o[t.kind]||0)+1; return o; },{})});

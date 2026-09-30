@@ -20,7 +20,11 @@ if(TUTORIAL) return;
 const K='archhag', TK='topiary', SK='stickman';
 const FILES={walk:'archhag-walk.glb',attack:'archhag-cast.glb',idle:'archhag-idle.glb',death:'archhag-death.glb'};
 MOBDIM[K]={fit:3.6,h:3.4,r:.75,nat:{walk:1.0,run:2.0}};
-MOBS[K]={hp:1400,spd:1.25,dmg:18,cd:4.6,mana:40,ranged:16,heroShot:true,swingT:2.33,hitT:1.55};   // both bars together; she walks slowly (a goblin is 3.4); the whole cast clip over its own 2.33 s, the spell leaving her hands at two thirds
+MOBS[K]={hp:1400,spd:1.25,dmg:18,cd:4.6,mana:40,swingT:2.33,hitT:1.55};   // build 327: no longer a ranged mob -- she walks on (her hex, below, reaches 16 as she goes)
+// build 327 (Matt, after a full run: "she only becaem less menacing when she stopped walking, she got to an auroa and stopped"): a ranged mob stops for anything in reach -- she no longer does.
+// Her hex fires as she walks, every 4.6 s: it curses the nearest uncursed tower within 16 (never an aura ring or the cage: nothing stops for those), or failing one, throws a bolt at a hero she
+// can see. Only her big spells (the raises, GROW, the garden's wake) stop her for the whole cast.
+const HEX_R=16, HEX_EVERY=4.6;   // both bars together; she walks slowly (a goblin is 3.4); the whole cast clip over its own 2.33 s, the spell leaving her hands at two thirds
 MOBDIM[TK]={fit:3.3,h:3.1,r:.7,nat:{walk:1.0,run:1.0}};
 MOBS[TK]={hp:70,spd:2.1,dmg:9,cd:1.7,mana:6};   // a hedge gnome: sturdier than a goblin, no faster
 MOBDIM[SK]={fit:1.9,h:1.8,r:.34,nat:{walk:1.0,run:2.2}};   // run: his Running clip covers about 2.2 body-heights a second
@@ -124,6 +128,13 @@ function wakeAll(){ const D=window.__courtdecor; if(!D||!D.topiList) return 0; l
 // ---------------------------------------------------------------- her arrival cast: ten stickmen climb out of the ground round her
 let sticks=[];
 let raisedOnce=false;
+// build 327 (Matt: "make sure that she can cast some [dire wolves] in when she comes in. alternating with stickmen"): every second raise is a pack of five wolves climbing out of the ground
+// round her (at most 15 of hers alive at once); if the wolf model has not landed yet, that raise is stickmen instead
+const WOLVES=5, WOLF_CAP=15; let hwolves=[];
+function raiseWolves(h){ const lk=Object.keys(LANES); let n=0; const cx=wc(h.x), cz=wcz(h.z); const want=Math.max(0,Math.min(WOLVES,WOLF_CAP-hwolves.filter(x=>!x.dead).length));
+  for(let i=0;i<want;i++){ const a=i/Math.max(1,want)*TAU+.4, r=2.2+(i%2)*.9; const cell=laneNear(wc(h.x+Math.cos(a)*r),wcz(h.z+Math.sin(a)*r),3)||laneNear(cx,cz,4); if(!cell) continue;
+    const e=spawnEnemy('direwolf',lk[0]); e.x=cw(cell.x)+(Math.random()-.5)*.8; e.z=cwz(cell.z)+(Math.random()-.5)*.8; e.rise=0; e.mdl.g.position.set(e.x,-1.4,e.z); hwolves.push(e); n++; flash(e.x,.5,e.z,0x7aff5a,2); }
+  if(n){ floatText(h.x,h.y+h.h+1.2,h.z,'🐺 ×'+n,'#b8ff6a'); if(typeof noise==='function') noise(.5,.05,260); } return n; }
 // build 322 (Matt: "lets make sure she comes out with pleanty of base mobs as well, when she comes out wait about 10 seconds when she calls her first stickment the give a bolus of 30 mobs. no
 // ranged mobs"): with her first raise, 30 of the plain horde (20 goblins, 10 orcs -- nothing that shoots) pour in through every door over about 3 s. Game-time queue, so it runs in any phase
 const BOLUS=[['goblin',20],['orc',10]];
@@ -140,6 +151,11 @@ function raiseStickmen(h){ const lk=Object.keys(LANES); let n=0; const cx=wc(h.x
 function chains(d){ const g=new THREE.Group(); const m=new THREE.MeshBasicMaterial({color:C(0xb050ff),transparent:true,opacity:.85,depthWrite:false});
   for(let k=0;k<3;k++){ const ring=new THREE.Mesh(new THREE.TorusGeometry(1.05,.07,6,20),m); ring.rotation.x=PI/2; ring.position.y=.6+k*.85; ring.userData.noOL=true; g.add(ring); }
   const gl=glow(0xa040ff,3,.5); gl.position.y=1.4; g.add(gl); g.position.set(d.x,d.base||0,d.z); scene.add(g); return g; }
+function hex(e){ let best=null, bd=HEX_R+.5; for(const d of defs){ if(d.curseT>0||NOWALK_DEF[d.kind]) continue; const dd=Math.hypot(d.x-e.x,d.z-e.z); if(dd<bd){ bd=dd; best=d; } }
+  const hy=e.y+e.h*.8; if(best){ curse(best); flash(e.x,hy,e.z,0x9a40ff,2.6); SFX.implode&&SFX.implode(); return true; }
+  const cand=[]; if(hero.dead<=0) cand.push({x:hero.x,y:hero.y,z:hero.z}); try{ for(const h of Meta.heroes()||[]) if(h&&!(h.isDead&&h.isDead())) cand.push({x:h.x,y:h.y,z:h.z}); }catch(err){}
+  let tg=null, td=HEX_R; for(const h of cand){ const dd=Math.hypot(h.x-e.x,h.z-e.z); if(dd<td&&los(e.x,e.z,h.x,h.z)){ td=dd; tg=h; } }
+  if(tg){ fireArrow(e,tg.x,(tg.y||0)+1,tg.z,{kind:'hero'}); flash(e.x,hy,e.z,0x9a40ff,2); return true; } return false; }
 function curse(d){ d.curseT=CURSE_T; d.cd=Math.max(d.cd,CURSE_T); if(!d.curseFx) d.curseFx=chains(d); }
 { const prev=updateDefs; updateDefs=function(dt){ for(const d of defs){ if(d.curseT>0){ d.curseT-=dt; d.cd=Math.max(d.cd,d.curseT); if(d.curseFx){ d.curseFx.rotation.y+=dt*1.6; d.curseFx.children.forEach((c,i)=>{ if(c.material) c.material.opacity=.45+.4*Math.abs(Math.sin(S.t*3+i)); }); }
         if(d.curseT<=0&&d.curseFx){ scene.remove(d.curseFx); d.curseFx=null; } } } return prev.apply(this,arguments); }; }
@@ -148,9 +164,9 @@ function curse(d){ d.curseT=CURSE_T; d.cd=Math.max(d.cd,CURSE_T); if(!d.curseFx)
 function castSpecial(e,what){ e.special=what; e.swing=0; e.pending={kind:'special'}; e.atk=MOBS[K].cd; }
 { const prev=landHit; landHit=function(e,tg){ if(e.kind!==K) return prev.apply(this,arguments);
     flash(e.x,e.y+e.h*.8,e.z,0x9a40ff,2.6);
-    if(e.special){ const w=e.special; e.special=null; if(w==='raise') raiseStickmen(e); else if(w==='wake'){ wakeAll(); e.shield=0; } else if(w==='grow') growMobs(e); return; }
+    if(e.special){ const w=e.special; e.special=null; if(w==='raise'){ const n=e.raiseN=(e.raiseN||0)+1; if(n%2===0&&window.__direwolf&&window.__direwolf.loaded()) raiseWolves(e); else raiseStickmen(e); } else if(w==='wake'){ wakeAll(); e.shield=0; } else if(w==='grow') growMobs(e); return; }
     if(e.phase===2&&window.__courtdecor&&window.__courtdecor.topiList&&window.__courtdecor.topiList().some(t=>!t.mesh.userData.awake&&!t.mesh.userData.stump&&t.mesh.userData.growing===undefined&&t.mesh.userData.regrown)){ wakeAll(); return; }   // a regrown one: this cast wakes it
-    let best=null, bd=MOBS[K].ranged+.5; for(const d of defs){ if(d.curseT>0) continue; const dd=Math.hypot(d.x-e.x,d.z-e.z); if(dd<bd){ bd=dd; best=d; } }
+    let best=null, bd=HEX_R+.5; for(const d of defs){ if(d.curseT>0||NOWALK_DEF[d.kind]) continue; const dd=Math.hypot(d.x-e.x,d.z-e.z); if(dd<bd){ bd=dd; best=d; } }
     if(best){ curse(best); SFX.implode&&SFX.implode(); return; }
     if(tg&&tg.kind==='special') return;
     return prev.apply(this,arguments); }; }
@@ -164,6 +180,7 @@ function castSpecial(e,what){ e.special=what; e.swing=0; e.pending={kind:'specia
 // no hit-squash (every blow squashed her whole body), no hold (Rootsplitter's roots), no crawl (the Hourglass), no chill, no slow
 { const prev=updateEnemies; updateEnemies=function(dt){ for(const e of enemies) if(!e.dead&&e.kind===K){ e.slowT=0; e.squash=0; e.holdT=0; e.crawlT=0; e.chillT=0; if(e.shield>0) e.shield-=dt;
       // build 317 (Matt: "oh dear, mabye that stikmen didnt load all the way"): if his moss stickmen are still on the way when she casts, she holds the spell until they land (at most 6 s more) rather than raise the twig stand-ins
+      if(e.hagRise>=1){ e.hexT=(e.hexT===undefined?2:e.hexT)-dt; if(e.hexT<=0&&!(e.swing>=0)&&!e.special){ e.hexT=hex(e)?HEX_EVERY:.5; } }   // build 327: her hex, cast on the move
       if(e.hagRise>=1){ e.growT=(e.growT===undefined?GROW_FIRST:e.growT)-dt; if(e.growT<=0&&!(e.swing>=0)&&!e.special&&!(e.shield>0)){ e.growT=GROW_EVERY; castSpecial(e,'grow'); } }   // build 318: GROW on her own clock
       if(e.raiseT>0){ e.raiseT-=dt; if(e.raiseT<=0){ if(!MOBGLB[SK].real&&!stickDone&&(e.raiseWait=(e.raiseWait||0)+dt)<6){ loadSticks(); e.raiseT=.001; } else if(e.special||e.swing>=0){ e.raiseT=.001; } else { castSpecial(e,'raise'); if(e.phase===1) e.raiseT=RAISE_EVERY; } } }   // another cast still running: the raise waits for it
       if(e.phase===1&&e.hp<=e.max/2+.01){ e.phase=2; e.hp=e.max/2; e.shield=4; e.raiseT=0; castSpecial(e,'wake'); banner('🌑 THE ARCHHAG RAGES','her second life -- the garden stirs'); camShake=Math.max(camShake,.7); } }   // any damage that skipped hurt() (a poison tick) still turns the page
@@ -176,6 +193,8 @@ function castSpecial(e,what){ e.special=what; e.swing=0; e.pending={kind:'specia
       const L=n=>{ const c=e.limbs=e.limbs||{}; return n in c?c[n]:(c[n]=g.getObjectByName(n)||null); }; const lL=L('legL'), lR=L('legR'), aL=L('armL'), aR=L('armR');
       if(lL){ lL.rotation.x=Math.sin(run)*.9*w; lR.rotation.x=-Math.sin(run)*.9*w; aL.rotation.x=-Math.sin(run)*.8*w; aR.rotation.x=Math.sin(run)*.8*w; } }
     sticks=sticks.filter(e=>!e.dead||e.dead<.4);
+    for(const e of hwolves){ if(e.dead||e.rise===undefined||e.rise>=1) continue; e.rise=Math.min(1,e.rise+dt/.8); e.mdl.g.position.y=e.y-1.4*(1-e.rise); }
+    hwolves=hwolves.filter(e=>!e.dead||e.dead<1.3);
     for(const e of awake){ if(e.dead) continue; const g=e.mdl.g;
       if(e.leap){ const L=e.leap; L.t+=dt; const k=Math.min(1,L.t/L.dur); e.x=L.from.x+(L.to.x-L.from.x)*k; e.z=L.from.z+(L.to.z-L.from.z)*k; const fy=baseFloor(e.x,e.z); g.position.set(e.x,fy+Math.sin(k*PI)*2.2+(1-k)*(L.from.y-fy),e.z); if(k>=1) e.leap=null; continue; }
       lurch(e,g,dt); }
@@ -258,6 +277,6 @@ function tickGrow(dt){ for(const e of enemies){ const G=e.grow, B=e.gBase; if(!G
 const bar=document.createElement('div'); bar.id='hagbar'; bar.innerHTML='🌑 THE ARCHHAG<div class="bars"><div class="track p2"><i class="fill"></i></div><div class="track p1"><i class="fill"></i></div></div>'; document.body.appendChild(bar);
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); const e=enemies.find(x=>x.kind===K&&!x.dead); bar.style.display=e?'block':'none'; if(!e){ if(musicMode==='archhag') setMusic(S.phase==='wave'?'wave':'build'); return; } const half=e.max/2;
     bar.querySelector('.p1 .fill').style.width=Math.max(0,100*(e.hp-half)/half)+'%'; bar.querySelector('.p2 .fill').style.width=Math.max(0,Math.min(100,100*e.hp/half))+'%'; bar.querySelector('.p1').classList.toggle('done',e.hp<=half+.01); }; }
-window.__archhag={loaded:()=>!!MOBGLB[K],poofs:()=>poofs.map(p=>({t:+p.t.toFixed(2),bits:p.bits.length,body:p.g.visible?+(p.mats.length?p.mats[0][0].opacity:1).toFixed(2):0})),bolusLeft:()=>bolusQ.length,rigsReady:()=>rigN===3,loadTopiRigs,loadSticks,sticksReady:()=>!!MOBGLB[SK].real,castGrow:()=>{ const h=enemies.find(x=>x.kind===K&&!x.dead); if(h){ h.swing=-1; h.special=null; castSpecial(h,'grow'); } return !!h; },grown:()=>enemies.filter(e=>(e.grow||e.big)&&e.gBase&&!e.dead).map(e=>({kind:e.kind,f:+(e.sc/e.gBase.sc).toFixed(2)})),sparks:()=>sparks.length,plinths:()=>{ const D=window.__courtdecor; return D&&D.topiList?D.topiList().filter(t=>t.plinth&&t.plinth.visible&&t.plinth.parent).length:0; },topiCut:TOPI_CUT,stickModel:()=>({real:!!MOBGLB[SK].real,clips:Object.keys(MOBGLB[SK].map),attack:MOBGLB[SK].map.attack?MOBGLB[SK].map.attack.name:''}),ensure:load,spawn:()=>{ ensureTopiKinds(); return spawnHag(); },wake:wakeAll,awake:()=>awake.filter(e=>!e.dead).length,asleep:()=>asleep.length,curse,
+window.__archhag={loaded:()=>!!MOBGLB[K],poofs:()=>poofs.map(p=>({t:+p.t.toFixed(2),bits:p.bits.length,body:p.g.visible?+(p.mats.length?p.mats[0][0].opacity:1).toFixed(2):0})),bolusLeft:()=>bolusQ.length,rigsReady:()=>rigN===3,hwolves:()=>hwolves.filter(x=>!x.dead).length,hex:()=>{ const h=enemies.find(x=>x.kind===K&&!x.dead); return h?hex(h):false; },loadTopiRigs,loadSticks,sticksReady:()=>!!MOBGLB[SK].real,castGrow:()=>{ const h=enemies.find(x=>x.kind===K&&!x.dead); if(h){ h.swing=-1; h.special=null; castSpecial(h,'grow'); } return !!h; },grown:()=>enemies.filter(e=>(e.grow||e.big)&&e.gBase&&!e.dead).map(e=>({kind:e.kind,f:+(e.sc/e.gBase.sc).toFixed(2)})),sparks:()=>sparks.length,plinths:()=>{ const D=window.__courtdecor; return D&&D.topiList?D.topiList().filter(t=>t.plinth&&t.plinth.visible&&t.plinth.parent).length:0; },topiCut:TOPI_CUT,stickModel:()=>({real:!!MOBGLB[SK].real,clips:Object.keys(MOBGLB[SK].map),attack:MOBGLB[SK].map.attack?MOBGLB[SK].map.attack.name:''}),ensure:load,spawn:()=>{ ensureTopiKinds(); return spawnHag(); },wake:wakeAll,awake:()=>awake.filter(e=>!e.dead).length,asleep:()=>asleep.length,curse,
   sticks:()=>sticks.filter(e=>!e.dead).length,cursed:()=>defs.filter(d=>d.curseT>0).length,kind:K};
 })();
