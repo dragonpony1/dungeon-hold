@@ -14,7 +14,8 @@ const FORCE=Q.has('loadscreen');
 window.__loadscreen={on:()=>false,frac:()=>1,line:()=>'',next:()=>{},model:()=>null,closed:()=>true,sayings:()=>[],quotes:()=>[]};
 if(!HAS_ASSETS||(navigator.webdriver&&!FORCE)) return;
 const MIN_MS=3500, ROT_S=10, SAY_S=7, GOAL=.9, HANG_MS=45000;
-const MODELS=[{file:'bow-fire.glb',name:'DRACONIC FIRE BOW',sub:'',spin:.32},{file:'fam-wisp-projectile.glb',name:'WISP PROJECTILE',sub:'',spin:.4},{file:'fam-imp.glb',name:'FIRE IMP',sub:'',spin:.36},
+// build 311 (Matt, with his Archhag portrait: "put that in the loading screen rotation"): an entry may be a picture (img) instead of a model -- shown framed where the model spins; his Archhag joins the rotation (which starts at a random entry, as ever)
+const MODELS=[{img:'assets/loading-archhag.jpg',name:'THE ARCHHAG',sub:'boss of the Cloister Court',spin:0},{file:'bow-fire.glb',name:'DRACONIC FIRE BOW',sub:'',spin:.32},{file:'fam-wisp-projectile.glb',name:'WISP PROJECTILE',sub:'',spin:.4},{file:'fam-imp.glb',name:'FIRE IMP',sub:'',spin:.36},
   {file:'fam-drake.glb',name:'STORM DRAKE',sub:'',spin:.34},{file:'named-trimaw.glb',name:'TRIMAW',sub:'named mythic',spin:.3},{file:'named-sixseven.glb',name:'6/7',sub:'named mythic',spin:.3}];
 const SAYINGS=[
   'Gnomes do not retreat. They relocate forward.',
@@ -38,7 +39,7 @@ const QUOTES=[];
 const lines=[]; (function build(){ const s=SAYINGS.slice().sort(()=>Math.random()-.5), q=QUOTES.slice().sort(()=>Math.random()-.5); let qi=0; for(let i=0;i<s.length;i++){ lines.push({text:s[i]}); if(q.length&&i%2===1){ lines.push(q[qi%q.length]); qi++; } } if(!lines.length) lines.push({text:'Loading…'}); })();
 // ---- the screen
 const css=document.createElement('style'); css.textContent='#loadScreen{position:fixed;inset:0;z-index:70;background:radial-gradient(ellipse 42% 58% at 50% 44%,#4c515f 0%,#23262d 46%,#060607 100%),#000;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:6vh;opacity:1;transition:opacity .8s;color:#f3ead6;font-family:Georgia,serif;overflow:hidden}'
-  +'#loadScreen.out{opacity:0;pointer-events:none}#loadScreen canvas{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .7s;z-index:0}#loadScreen canvas.on{opacity:1}'
+  +'#loadScreen.out{opacity:0;pointer-events:none}#loadScreen canvas{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .7s;z-index:0}#loadScreen canvas.on{opacity:1}#loadScreen .ls-pic{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);height:min(46vh,70vw);width:auto;border-radius:6px;box-shadow:0 12px 44px #000,0 0 0 1px #0008;opacity:0;transition:opacity .7s;z-index:0;pointer-events:none}#loadScreen .ls-pic.on{opacity:1}'
   +'#loadScreen .ls-title{position:absolute;top:5vh;left:0;right:0;text-align:center;font:700 clamp(30px,6vw,64px)/1 "Cinzel Decorative",Georgia,serif;letter-spacing:.14em;color:#e8b94a;text-shadow:0 0 22px #000,0 3px 0 #000;z-index:1}'
   +'#loadScreen .ls-name{position:relative;z-index:1;text-align:center;margin-bottom:3.2vh;opacity:0;transition:opacity .7s}#loadScreen .ls-name.on{opacity:1}#loadScreen .ls-name b{display:block;font:700 clamp(15px,2vw,24px)/1.1 "Cinzel Decorative",Georgia,serif;letter-spacing:.24em;color:#e8b94a;text-shadow:0 0 16px #000,0 2px 0 #000}#loadScreen .ls-name i{display:block;margin-top:4px;font:italic 13px Georgia,serif;letter-spacing:.14em;color:#b9a77c}'
   +'#loadScreen .ls-line{position:relative;z-index:1;max-width:min(760px,88vw);min-height:3.4em;text-align:center;font-size:clamp(16px,2vw,22px);line-height:1.4;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .6s}#loadScreen .ls-line.on{opacity:1}#loadScreen .ls-line .by{display:block;margin-top:6px;font-size:.78em;font-style:italic;color:#e8b94a}'
@@ -46,9 +47,9 @@ const css=document.createElement('style'); css.textContent='#loadScreen{position
   +'#loadScreen .ls-pct{position:relative;z-index:1;margin-top:8px;font:700 14px "Cinzel Decorative",Georgia,serif;letter-spacing:.2em;color:#e8b94a;text-shadow:0 1px 3px #000}#loadScreen .ls-skip{position:relative;z-index:1;margin-top:6px;font-size:12px;letter-spacing:.12em;color:#b9a77c;opacity:0;transition:opacity .6s}#loadScreen .ls-skip.on{opacity:.9}';
 document.head.appendChild(css);
 const el=document.createElement('div'); el.id='loadScreen';
-el.innerHTML='<div class="ls-title">ROOTGATE</div><div class="ls-name"><b></b><i></i></div><div class="ls-line"></div><div class="ls-bar"><div class="ls-fill"></div></div><div class="ls-pct">LOADING 0%</div><div class="ls-skip">press any key or click to skip</div>';
+el.innerHTML='<img class="ls-pic" alt=""><div class="ls-title">ROOTGATE</div><div class="ls-name"><b></b><i></i></div><div class="ls-line"></div><div class="ls-bar"><div class="ls-fill"></div></div><div class="ls-pct">LOADING 0%</div><div class="ls-skip">press any key or click to skip</div>';
 document.body.appendChild(el);
-const nameEl=el.querySelector('.ls-name'), lineEl=el.querySelector('.ls-line'), fillEl=el.querySelector('.ls-fill'), pctEl=el.querySelector('.ls-pct'), skipEl=el.querySelector('.ls-skip');
+const picEl=el.querySelector('.ls-pic'), nameEl=el.querySelector('.ls-name'), lineEl=el.querySelector('.ls-line'), fillEl=el.querySelector('.ls-fill'), pctEl=el.querySelector('.ls-pct'), skipEl=el.querySelector('.ls-skip');
 const T_OPEN=performance.now(); let closed=false, li=-1, mi=-1, sayT=null, rotT=null, pollT=null, soonAt=null;
 // ---- the 3D rotation (20b-titlestage.js's look: a spotlight, a key and a cool rim, the model spinning and bobbing)
 let R=null, scene=null, cam=null, cv=null, raf=0, cur=null, RAD=1, T0=0; const CACHE={};
@@ -58,9 +59,11 @@ function ensure(){ if(R) return true; cv=document.createElement('canvas'); el.in
   scene=new THREE.Scene(); scene.add(new THREE.HemisphereLight(0xffffff,0x555566,1.15)); const key=new THREE.DirectionalLight(0xffffff,1.0); key.position.set(2,3,4); scene.add(key); const rim=new THREE.DirectionalLight(0xa8c8ff,.9); rim.position.set(-3,2,-4); scene.add(rim);
   cam=new THREE.PerspectiveCamera(30,1,.05,200); place(); return true; }
 function place(){ if(!R) return; const w=Math.max(2,innerWidth), h=Math.max(2,innerHeight); R.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix(); const th=Math.tan(cam.fov*Math.PI/360), dist=RAD/(th*Math.min(1,cam.aspect))/.42; cam.position.set(0,RAD*.1,dist); cam.lookAt(0,-RAD*.3,0); }   // about 42% of the screen tall, standing a little high so its name and the line below stay clear
-function loadModel(i){ const M=MODELS[i]; if(CACHE[i]) return CACHE[i]; return CACHE[i]=fetchBytesNow(ASSET(M.file)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(g=>{ const m=g.scene||g.scenes[0]; m.updateMatrixWorld(true);
+function loadModel(i){ const M=MODELS[i]; if(CACHE[i]) return CACHE[i]; if(M.img) return CACHE[i]=new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res({img:M.img}); im.onerror=rej; im.src=M.img; });   // a picture entry: just the image, decoded
+  return CACHE[i]=fetchBytesNow(ASSET(M.file)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(g=>{ const m=g.scene||g.scenes[0]; m.updateMatrixWorld(true);
     const box=new THREE.Box3().setFromObject(m), sz=box.getSize(new THREE.Vector3()), c=box.getCenter(new THREE.Vector3()); m.position.sub(c); const root=new THREE.Group(); root.add(m); root.userData.rad=Math.max(sz.x,sz.y,sz.z)/2*1.02; root.userData.model=m; root.userData.y0=m.position.y; return root; }); }
-function show(i){ if(closed) return; mi=i; const M=MODELS[i]; if(cv) cv.classList.remove('on'); nameEl.classList.remove('on');
+function show(i){ if(closed) return; mi=i; const M=MODELS[i]; if(cv) cv.classList.remove('on'); picEl.classList.remove('on'); nameEl.classList.remove('on');
+  if(M.img){ loadModel(i).then(()=>{ if(closed||mi!==i) return; setTimeout(()=>{ if(closed||mi!==i) return; picEl.src=M.img; nameEl.querySelector('b').textContent=M.name; nameEl.querySelector('i').textContent=M.sub; nameEl.classList.add('on'); picEl.classList.add('on'); },450); }).catch(e=>console.warn('loading screen picture',e)); loadModel((i+1)%MODELS.length).catch(()=>{}); return; }
   loadModel(i).then(root=>{ if(closed||mi!==i) return; setTimeout(()=>{ if(closed||mi!==i||!ensure()) return; if(cur) scene.remove(cur); cur=root; RAD=root.userData.rad; scene.add(cur); place(); T0=0;
     nameEl.querySelector('b').textContent=M.name; nameEl.querySelector('i').textContent=M.sub; nameEl.classList.add('on'); cv.classList.add('on'); if(!raf) raf=requestAnimationFrame(frame); },cv&&cur?450:0); }).catch(e=>console.warn('loading screen model',e));
   loadModel((i+1)%MODELS.length).catch(()=>{}); }   // the next one comes down while this one spins
@@ -84,6 +87,6 @@ addEventListener('keydown',skip,true); el.addEventListener('pointerdown',skip);
 addEventListener('resize',()=>{ if(R) place(); });
 sayNext(); show(Math.floor(Math.random()*MODELS.length));
 sayT=setInterval(sayNext,SAY_S*1000); rotT=setInterval(()=>show((mi+1)%MODELS.length),ROT_S*1000); pollT=setInterval(poll,200); poll();
-window.__loadscreen={on:()=>!closed,frac,line:()=>lineEl.textContent,next:sayNext,model:()=>mi>=0?MODELS[mi].name:null,closed:()=>closed,why:()=>closeWhy,shown:()=>!!(cur&&cv&&cv.classList.contains('on')),
+window.__loadscreen={on:()=>!closed,frac,line:()=>lineEl.textContent,next:sayNext,show:i=>show(i),model:()=>mi>=0?MODELS[mi].name:null,closed:()=>closed,why:()=>closeWhy,shown:()=>!!((cur&&cv&&cv.classList.contains('on'))||picEl.classList.contains('on')),
   sayings:()=>SAYINGS.slice(),quotes:()=>QUOTES.slice(),lines:()=>lines.map(l=>l.by?l.text+' — '+l.by:l.text),skipReady:()=>soonAt!==null,counts:()=>({asked:LOADQ.asked.size,got:LOADQ.got.size})};
 })();
