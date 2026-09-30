@@ -100,7 +100,9 @@ Promise.all([load('prison-wall-intact.glb'),load('prison-wall-fragments.glb'),lo
     const w=new BreakableWall(meshy?wall2.clone(true):intact.clone(true),meshy?shards:frag.clone(true),{ onHit:(ww,pt)=>{ cnt.hits++; try{ SFX.hit&&SFX.hit(); }catch(e){} puff(pt?pt.x:0,1.4,pt?pt.z:0,1); },
       onBreak:(ww,pt)=>{ cnt.broken++; try{ SFX.boom&&SFX.boom(); SFX.hit&&SFX.hit(); }catch(e){} const x=cw(sp.cx)+sp.nx*CELL/2, z=cwz(sp.cz); puff(x,1.2,z,10); timers.push({ t:.8, fn:()=>openAlcove(sp) }); } });
     const face=cw(sp.cx)+sp.nx*CELL/2, back=.47*wScale/2;   // the wall's front on the opening's plane, its thickness behind it, in the alcove
-    w.group.scale.setScalar(wScale); w.group.position.set(face-sp.nx*back,0,cwz(sp.cz)); w.group.rotation.y=sp.nx>0?PI/2:-PI/2; world.add(w.group); w.spot=sp; w.kind=meshy?'meshy':'hi3d'; sp.wall=w; walls.push(w); cnt.built++; }
+    w.group.scale.setScalar(wScale); w.group.position.set(face-sp.nx*back,0,cwz(sp.cz)); w.group.rotation.y=sp.nx>0?PI/2:-PI/2; world.add(w.group); w.spot=sp; w.kind=meshy?'meshy':'hi3d';
+    // a soft gold glow (green on the Meshy wall's glowing crack) breathes over the wall until it breaks
+    { const col=meshy?0x70ff90:0xffc860, gs=glow(col,7.5,.5); gs.position.set(face+sp.nx*.7,2.0,cwz(sp.cz)); world.add(gs); const gl=new THREE.PointLight(C(col),1.6,11,2); gl.position.set(face+sp.nx*1.2,2.0,cwz(sp.cz)); world.add(gl); w.beacon={ gs, gl, ph:Math.random()*6 }; } sp.wall=w; walls.push(w); cnt.built++; }
 }).catch(e=>console.warn('prison walls',e));
 // ---------------- what breaks them: your sword's swing, or a staff bolt of yours
 function nearPlane(sp,x,z,r){ return Math.hypot(x-(cw(sp.cx)+sp.nx*CELL/2),z-cwz(sp.cz))<r; }
@@ -112,12 +114,14 @@ function meleeWalls(){ if(isGuest()) return; const fx=Math.sin(hero.yaw), fz=Mat
 { const prevSell=sell; sell=function(pos){ const d=typeof pickDef==='function'?pickDef(pos):null; if(d&&d.secret){ toast('🔒 A secret weapon'); return; } return prevSell.apply(this,arguments); }; }
 { const prevRemove=removeDef; removeDef=function(d){ const s=d&&d.secret; prevRemove.apply(this,arguments); if(s) S.du+=DEFS[d.kind].du; }; }
 // ---------------- per frame: the walls, the dust, the light flash, the opening timers, the staff bolts
-WORLDANIM.push(dt=>{ for(const w of walls) w.update(dt);
+let clock=0;
+WORLDANIM.push(dt=>{ clock+=dt; for(const w of walls) w.update(dt);
+  for(const w of walls){ const b=w.beacon; if(!b) continue; if(w.broken){ world.remove(b.gs); world.remove(b.gl); w.beacon=null; continue; } const k=.5+.5*Math.sin(clock*2.2+b.ph); b.gs.material.opacity=.3+.5*k; b.gl.intensity=.9+1.6*k; }
   for(let i=timers.length-1;i>=0;i--){ const t=timers[i]; t.t-=dt; if(t.t<=0){ timers.splice(i,1); try{ t.fn(); }catch(e){ console.warn('prison walls',e); } } }
   for(let i=dust.length-1;i>=0;i--){ const p=dust[i]; p.t+=dt; const k=p.t/p.life; if(k>=1){ world.remove(p.s); dust.splice(i,1); continue; } p.s.position.x+=p.vx*dt; p.s.position.y+=p.vy*dt; p.s.position.z+=p.vz*dt; p.s.material.opacity=.5*Math.sin(Math.min(1,k*1.6)*PI)*(1-k*.4); p.s.scale.setScalar(p.s.scale.x+dt*2.2); }
   for(const sp of SPOTS) if(sp.flash>0){ sp.flash=Math.max(0,sp.flash-dt*.5); if(sp.light) sp.light.intensity=2.4+sp.flash*3.5; }
   if(!isGuest()&&walls.some(w=>!w.broken)&&window.__staff&&window.__staff.boltList){ const bl=window.__staff.boltList(); if(bl.length) for(const b of bl){ if(!b.mine||b.y>5.5) continue; for(const w of walls){ if(w.broken) continue; const sp=w.spot; if(nearPlane(sp,b.x,b.z,2.1)) w.hit(HIT,new THREE.Vector3(cw(sp.cx)+sp.nx*CELL/2,1.4,cwz(sp.cz)),new THREE.Vector3(-sp.nx,0,0)); } } } });
-window.__prisonwalls={ walls:()=>walls.map(w=>({ id:w.spot.id, kind:w.kind, health:w.health, broken:w.broken, x:+w.group.position.x.toFixed(2), z:+w.group.position.z.toFixed(2), chunks:w.chunks.length, debris:w.fragments.visible })),
+window.__prisonwalls={ walls:()=>walls.map(w=>({ id:w.spot.id, kind:w.kind, health:w.health, broken:w.broken, x:+w.group.position.x.toFixed(2), z:+w.group.position.z.toFixed(2), chunks:w.chunks.length, debris:w.fragments.visible, glow:!!(w.beacon&&w.beacon.gs.parent) })),
   hit:(id,n)=>{ const w=walls.find(x=>x.spot.id===id); if(!w) return false; const sp=w.spot; w.time+=1; return w.hit(n||HIT,new THREE.Vector3(cw(sp.cx)+sp.nx*CELL/2,1.2,cwz(sp.cz)),new THREE.Vector3(-sp.nx,0,0)); },
   spots:()=>SPOTS.map(s=>({ id:s.id, open:!!s.def, def:s.def?{ kind:s.def.kind, lvl:s.def.lvl, secret:!!s.def.secret, hp:s.def.hp, max:s.def.max }:null })), info:()=>Object.assign({},cnt) };
 })();
