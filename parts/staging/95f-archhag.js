@@ -262,11 +262,12 @@ function lurch(e,g,dt){ if(e.mdl.actions&&e.mdl.actions.walk){ if(e.walking){ e.
 // ---------------------------------------------------------------- GROW (build 318, Matt: "shell do a spell animation sequice that will poof green and gold particles and mobs will temorarily double in
 // size"): every ~15 s (the first ~9 s after she stands up) she casts -- her whole cast clip -- and a green-and-gold poof bursts off her; every mob within her reach (16) poofs too and swells to twice its
 // size over half a second, stays big for about 7 s, then shrinks back. Size only (its hit box grows with it); a mob still big when she casts again just stays big longer.
-const GROW_R=16, GROW_DUR=8, GROW_EVERY=15, GROW_FIRST=9, GROW_COLS=[0x5aff4a,0xffd23a,0x8aff6a,0xffe98a];
+const WOLF_GROW_HP=1.3, GROW_R=16, GROW_DUR=8, GROW_EVERY=15, GROW_FIRST=9, GROW_COLS=[0x5aff4a,0xffd23a,0x8aff6a,0xffe98a];
 function poofAt(x,y,z,n,sz){ for(let i=0;i<n;i++){ const a=Math.random()*TAU, sp=1.2+Math.random()*2.4; spark(x,y,z,GROW_COLS[i%4],sz*(.6+Math.random()*.6),Math.cos(a)*sp,.6+Math.random()*2.4,Math.sin(a)*sp,.9+Math.random()*.6,1.6,i%2===0); } }   // greens blend over the scene, golds glow
 // build 321 (Matt: "when she makes these guys big its awesome especially on the ogres, lets not have them shrink back down leave big"): a grown mob stays twice its size for the rest of its life; one already big is left as it is (never past 2x)
 function growMobs(h){ let n=0; for(const e of enemies){ if(e.dead||e===h||e.kind===K||e.grow||e.big) continue; if(Math.hypot(e.x-h.x,e.z-h.z)>GROW_R) continue;
-    e.gBase={sc:e.sc,r:e.r,h:e.h}; e.grow={t:0}; n++; poofAt(e.x,e.y+e.h*.6,e.z,10,.55); }
+    e.gBase={sc:e.sc,r:e.r,h:e.h}; e.grow={t:0}; n++; poofAt(e.x,e.y+e.h*.6,e.z,10,.55);
+    if(e.kind==='direwolf'){ e.max=Math.round(e.max*WOLF_GROW_HP); e.hp=Math.round(e.hp*WOLF_GROW_HP); } }   // build 328 (Matt: "when she makes wolves bigger they have 30% more health"): a grown wolf is tougher too (only wolves)
   poofAt(h.x,h.y+h.h*.7,h.z,40,1.1); flash(h.x,h.y+h.h*.6,h.z,0xffd23a,5); floatText(h.x,h.y+h.h+1.2,h.z,'⬆ GROW ⬆','#ffd23a'); if(typeof noise==='function') noise(.35,.05,700); return n; }
 function tickGrow(dt){ for(const e of enemies){ const G=e.grow, B=e.gBase; if(!G||!B) continue; G.t+=dt; if(e.dead) continue;
     const f=Math.min(2,1+G.t/.5); e.sc=B.sc*f; e.r=B.r*f; e.h=B.h*f;
