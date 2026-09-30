@@ -35,7 +35,7 @@
 const NEAR=2.8;
 const HIDEOUT_URL='hideout/index.html';
 const HIDEOUT_WORKER='https://dungeon-hold.52bulls.workers.dev';   // where the hideout's shared-gear Durable Object lives; its Worker allows CORS from dragonpony1.github.io
-const HIDEOUT_API=Q.get('hideoutapi')||(location.hostname==='dragonpony1.github.io'?HIDEOUT_WORKER:'');   // the API base handed to the derived page: the Worker from GitHub Pages, same-origin everywhere else (the Worker's own deployment, local tests)
+const HIDEOUT_API=Q.get('hideoutapi')||(location.hostname==='dragonpony1.github.io'||location.hostname==='rootgate.52bulls.workers.dev'?HIDEOUT_WORKER:'');   // build 307: the game's own Cloudflare site too   // the API base handed to the derived page: the Worker from GitHub Pages, same-origin everywhere else (the Worker's own deployment, local tests)
 const HIDEOUT_NAV=Q.has('hideoutnav')?(Q.get('hideoutnav')||'/hideout.html'):null;   // full-page navigation instead of the overlay (see the header)
 const BAG_KEY='dd_gear_bag';
 const CARRY_KEY='dd_gear_carried';   // whole items (locked pieces), see the header
@@ -100,6 +100,6 @@ function passThrough(){ go(true); }
 // the host's phase (hallPhase, 58-portal.js; build 159 5/7) -- its own never left 'build', so the host's horn never called it back
 setInterval(()=>{ const ph=hallPhase(); if(shown&&ph!=='build'&&ph!=='start') closeHideout(ph==='wave'?'The horn sounds — back to the hall!':null);
   if(hideoutLite()&&frame&&!shown) teardown();   /* a page that turned lite after a frame was kept (it hosted or joined after a solo start): the kept frame goes now */
-  if(!frame&&preloadT===null&&S.phase==='build'&&window.__loadtime&&window.__loadtime().all!==null) preloadT=setTimeout(preload,1500); },250);   // build 142: only once the hall's own loads are all in (the load timer's 'everything'), so its ~33 MB never competes with a map still streaming -- map two needs ~109 MB of its own   // the first build phase of a run: four seconds in (the hall's own priority loads have gone out by then), the hideout starts loading behind the hall
+  if(!frame&&preloadT===null&&(S.phase==='build'||S.phase==='start')&&window.__loadtime&&window.__loadtime().all!==null) preloadT=setTimeout(preload,1500);   /* build 307 (Matt: "the waiting isn't good"): the title screen too, once the game's own loads are all in, so a first trip from the title's HIDEOUT button is ready as well */ },250);   // build 142: only once the hall's own loads are all in (the load timer's 'everything'), so its ~33 MB never competes with a map still streaming -- map two needs ~109 MB of its own   // the first build phase of a run: four seconds in (the hall's own priority loads have gone out by then), the hideout starts loading behind the hall
 window.__hideout={hooks,frameWin:()=>frame?frame.contentWindow:null,lite:hideoutLite,isOpen:()=>shown,open:openHideout,close:()=>closeHideout(),near:portalNear,url:()=>frame?frame.src:null,opens:()=>opens,preloaded:()=>!!frame&&!shown,loaded:()=>loaded,preload,passThrough,carry:carryGear,lastCarry:()=>lastCarry,readBag,readCarried,BAG_KEY,CARRY_KEY,build:()=>HIDEOUT_BUILD};
 })();

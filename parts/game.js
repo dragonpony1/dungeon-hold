@@ -723,7 +723,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=306;
+const BUILD=307;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -734,7 +734,7 @@ const fmtS=ms=>(ms/1000).toFixed(1)+' s', fmtMB=b=>(b/1048576).toFixed(b<1048576
 function loadLine(){ const L=LOADT; if(L.all!==null) return '⏱ ready '+fmtS(L.first)+' · everything '+fmtS(L.all)+' · '+fmtMB(L.bytes); if(L.first!==null) return '⏱ ready '+fmtS(L.first)+' · still loading'; return ''; }
 let HIDEOUT_SHOWN=false, RENDERS=0;   // 59-hideout.js raises HIDEOUT_SHOWN while its overlay covers the hall: the hall keeps simulating (a co-op host must) but stops drawing under it
 const HIDEOUT_BUILD=/*HIDEOUT*/0;   // the embedded hideout page's own build number (its <meta name="hideout-build">), stamped in by assemble.mjs when the hideout rides along; 0 in a page without it
-{ const sa=$('standalone'); if(sa&&/github\.io$/i.test(location.hostname)) sa.style.display='none'; }
+{ const sa=$('standalone'); if(sa&&/github\.io$|rootgate\.52bulls\.workers\.dev$/i.test(location.hostname)) sa.style.display='none'; }
 { const es=$('essentials'); if(es){ const deskHtml=es.innerHTML, touchHtml='<kbd>joystick</kbd> move &nbsp;·&nbsp; <kbd>drag</kbd> look &nbsp;·&nbsp; <kbd>⚔</kbd> swing &nbsp;·&nbsp; <kbd>tap a hotbar slot</kbd> to place a defense &nbsp;·&nbsp; <kbd>📯</kbd> sounds the horn &nbsp;·&nbsp; the tutorial teaches the rest'; const fit=()=>{ es.innerHTML=TOUCH?touchHtml:deskHtml; }; fit(); addEventListener('inputmode',fit); } }   // the one line a new player needs; the rest is folded below the buttons   // the link to the standalone build shows everywhere but on that build
 const WASM_OK=(()=>{ try{ new WebAssembly.Module(new Uint8Array([0,97,115,109,1,0,0,0])); return true; }catch(e){ return false; } })();   /* does this host let a page compile WebAssembly? (a Content-Security-Policy without 'wasm-unsafe-eval' refuses it) -- shown on the build line so a playtest can say; the hideout's models are decoded at build time either way (unmeshopt.mjs) */ window.__wasm=WASM_OK;
 let lastStatus='';
@@ -802,8 +802,10 @@ addEventListener('drop',e=>{ e.preventDefault(); const f=e.dataTransfer&&e.dataT
 // HAS_ASSETS is stamped by the assembler: true for the folder build (index.html + assets/), false for the single file,
 // where every asset fetch simply never resolves and the baked-in models / procedural music stay in use.
 const HAS_ASSETS=/*ASSETS*/false;
+// build 307: on Cloudflare (rootgate.52bulls.workers.dev) models ship as plain .glb (assemble.mjs RAWGLB=1 flips ASSET_TXT): the base64 .glb.txt form was a third bigger and only the old artifact host needed it
+const ASSET_TXT=/*TXT*/true;
 const ASSET_STAMPS=/*STAMPS*/{};   // per-file content stamps, filled in by the assembler for the folder build: a changed model gets a new URL, so no browser keeps serving the old one
-const ASSET=n=>ASSET_STAMPS[n]&&/\.glb$/.test(n)?'assets/'+n.replace(/\.glb$/,'')+'.'+ASSET_STAMPS[n]+'.glb.txt':'assets/'+n+(/\.glb$/.test(n)?'.txt':'');   // a model's file name carries its content stamp (witch.1a2b3c4d.glb.txt): a re-export is a new file, and no cache anywhere can hand out the old one
+const ASSET=n=>ASSET_STAMPS[n]&&/\.glb$/.test(n)?'assets/'+n.replace(/\.glb$/,'')+'.'+ASSET_STAMPS[n]+'.glb'+(ASSET_TXT?'.txt':''):'assets/'+n+(/\.glb$/.test(n)&&ASSET_TXT?'.txt':'');   // a model's file name carries its content stamp (witch.1a2b3c4d.glb.txt): a re-export is a new file, and no cache anywhere can hand out the old one
 function fetchRetry(url,tries){ return fetch(url).then(r=>{ if(!r.ok&&tries>1&&r.status!==404) throw new Error('HTTP '+r.status); return r; }).catch(e=>{ if(tries<=1) throw e; return new Promise(res=>setTimeout(res,600*(4-tries))).then(()=>fetchRetry(url,tries-1)); }); }   // three goes at each file, a beat apart: one dropped fetch must not cost the hero model
 // Load order matters more than load size: some sixty models (~80MB of base64) are requested the moment the page runs,
 // and a browser only keeps ~6 connections open per host, so whatever is asked for last waits for everything before it.
@@ -840,7 +842,7 @@ function fetchBytesNow(url){ const had=INFLIGHT.get(url); if(had){ had.joins++; 
   const stale=new Promise(res=>{ tm=setTimeout(res,SHARE_MS); }).then(()=>{ if(INFLIGHT.get(url)===e) INFLIGHT.delete(url); return e.joins?fetchBytesNow(url):new Promise(()=>{}); });   // only fires while raw is still out (done clears it)
   e.p=Promise.race([raw,stale]); INFLIGHT.set(url,e); raw.then(done,done); return e.p; }
 window.__fetchlayer={now:fetchBytesNow,asset:ASSET,inflight:()=>[...INFLIGHT.keys()],shareMs:SHARE_MS};   // test hook (throneload-test.mjs): the shared in-flight download, checked directly
-function fetchBytesRaw(url){ const plain=url.replace(/\.[0-9a-f]{8}\.glb\.txt$/,'.glb.txt'); return fetchRetry(url,3).then(r=>r.ok||plain===url?r:fetchRetry(plain,2)).catch(()=>fetchRetry(plain,2)).then(r=>{   /* the unstamped file is kept alongside as a fallback */ if(!r.ok) throw new Error('HTTP '+r.status+' '+url); if(!/\.txt(\?|$)/.test(url)) return r.arrayBuffer().then(ab=>{ LOADT.bytes+=ab.byteLength; return ab; }); return r.text().then(t=>{ LOADT.bytes+=t.length; const b=atob(t.replace(/\s+/g,'')); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u.buffer; }); }); }
+function fetchBytesRaw(url){ const plain=url.replace(/\.[0-9a-f]{8}\.glb(\.txt)?$/,'.glb$1'); return fetchRetry(url,3).then(r=>r.ok||plain===url?r:fetchRetry(plain,2)).catch(()=>fetchRetry(plain,2)).then(r=>{   /* the unstamped file is kept alongside as a fallback */ if(!r.ok) throw new Error('HTTP '+r.status+' '+url); if(!/\.txt(\?|$)/.test(url)) return r.arrayBuffer().then(ab=>{ LOADT.bytes+=ab.byteLength; return ab; }); return r.text().then(t=>{ LOADT.bytes+=t.length; const b=atob(t.replace(/\s+/g,'')); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u.buffer; }); }); }
 // the hero model itself is fetched by installHero() (70-hero2.js, runs right after this) — H.g (the plain
 // primitive hero) covers the moment before that fetch resolves, same as it always covers a hero switch mid-game.
 // A second, separate fetch here used to race it for a "faster" placeholder (an embedded, synchronous blob in the

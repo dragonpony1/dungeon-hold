@@ -4,7 +4,7 @@
 // A small pill in the title screen's top corner (the centre is already full, and on a phone the button row sits below the fold),
 // plus a button on the pause card (97-pause.js) so it's reachable mid-game.
 (function(){
-const PUBLIC='https://dragonpony1.github.io/dungeon-hold/';
+const PUBLIC='https://rootgate.52bulls.workers.dev/';   // build 307: the game lives on Cloudflare now (GitHub served it at ~0.4 MB/s)
 function link(){ const h=location.hostname; return (location.protocol==='file:'||!h||h==='localhost'||h==='127.0.0.1')?PUBLIC:location.origin+location.pathname; }   // origin+path: no ?silent / ?v= rides along; a local copy shares the real one
 function message(){ return ['ROOTGATE — a gnome tower-defense game that plays right in your browser. Hold the Heartroot against the horde!','',link(),'','Best on a computer. On a phone: open it, then Share → Add to Home Screen so it opens like an app.'].join('\n'); }
 function fallbackCopy(t){ const ta=document.createElement('textarea'); ta.value=t; ta.style.cssText='position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); }
