@@ -20,5 +20,11 @@ const k=await page.evaluate(()=>{ const d=window.__dd; const e=d.enemies.find(x=
 check("a killed wolf shrinks away and is gone",k.gone,JSON.stringify(k));
 const w=await page.evaluate(()=>{ const d=window.__dd, M=d.map(); let any=0; for(let i=1;i<=M.waves;i++) any+=d.waveComp(M.wbase+i).q.filter(x=>x.kind==="direwolf").length; return any; });
 check("no wave has a wolf in it yet (Matt tries them first)",w===0,String(w));
+const sp=await page.evaluate(()=>{ const d=window.__dd; for(const e of d.enemies) d.kill(e); d.step(1/60,80); const L=Object.keys(d.lanes())[0]; const W=[]; for(let i=0;i<5;i++) W.push(d.spawn("direwolf",L)); let lat=[];
+  for(let i=0;i<60*2;i++){ d.setHero(-90,-90,0); d.step(1/60,1); d.S.crystal=d.S.crystal2=1e6; } const live=W.filter(e=>!e.dead); const hy=Math.atan2(live.reduce((s,e)=>s+Math.sin(e.yaw),0),live.reduce((s,e)=>s+Math.cos(e.yaw),0)); const rx=Math.cos(hy), rz=-Math.sin(hy); const mx=live.reduce((s,e)=>s+e.x,0)/live.length, mz=live.reduce((s,e)=>s+e.z,0)/live.length;
+  lat=live.map(e=>+((e.x-mx)*rx+(e.z-mz)*rz).toFixed(2)); return { n:live.length, lat, spread:+(Math.max(...lat)-Math.min(...lat)).toFixed(2), lanes:live.map(e=>+e.lane.toFixed(2)) }; });
+check("build 318 (Matt: they come out in a neat line, it looks unnatural): five wolves let loose together spread across the lane as a pack, not one behind another",sp.n===5&&sp.spread>1,JSON.stringify(sp));
+const gl=await page.evaluate(()=>window.__direwolf.glow());
+check("build 318 (Matt: too dark to see their detail): the wolf's coat glows softly with its own texture",gl!==null&&gl>.4,String(gl));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");

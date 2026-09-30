@@ -67,8 +67,25 @@ function loadSticks(){ if(stickP) return stickP;
   return stickP; }
 // ---------------------------------------------------------------- the topiary mobs: each kind's own statue, as a static model the mob system can carry (no clips: they hop in code)
 function topiKind(file){ return TK+'-'+file.replace('topiary-','').replace('.glb',''); }
+// build 318 (Matt: "the topiiaries came to life wich was cool. but,.... they bounce along the way ... we need to do something about the pedestle" -> "lets try your pick with the lurching"): each
+// topiary is cut at the top of its pedestal (the grass disc on the stone drum; heights read off each model's profile). The figure is the mob, the stone stays in the flower bed -- the empty plinth
+// shows where it came from, and a regrown one grows back up out of it. The mob stands its feet on the ground on a pivot at foot level, which its lurch sways and leans (no more hopping).
+const TOPI_CUT={'topiary-witch.glb':.62,'topiary-fighter.glb':.78,'topiary-ranger.glb':.70};
+const cutOf=t=>TOPI_CUT[t.kind]||.7;
+const cutGeo=new Map();
+// keep only the triangles above (or below) a height in the root's own space; each cut geometry is made once and shared
+function cutModel(root,cut,above){ root.updateMatrixWorld(true); const inv=new THREE.Matrix4().copy(root.matrixWorld).invert(), m=new THREE.Matrix4(), A=new THREE.Vector3(), B=new THREE.Vector3(), C=new THREE.Vector3();
+  root.traverse(o=>{ if(!o.isMesh||!o.geometry||!o.geometry.attributes.position) return; m.multiplyMatrices(inv,o.matrixWorld);
+    const key=o.geometry.uuid+'|'+cut+'|'+above+'|'+m.elements.map(v=>v.toFixed(3)).join(','); let g=cutGeo.get(key);
+    if(!g){ const src=o.geometry, pos=src.attributes.position, ix=src.index, n=ix?ix.count:pos.count, keep=[];
+      for(let i=0;i<n;i+=3){ const a=ix?ix.getX(i):i, b=ix?ix.getX(i+1):i+1, c=ix?ix.getX(i+2):i+2; A.fromBufferAttribute(pos,a).applyMatrix4(m); B.fromBufferAttribute(pos,b).applyMatrix4(m); C.fromBufferAttribute(pos,c).applyMatrix4(m); if(((A.y+B.y+C.y)/3>=cut)===above) keep.push(a,b,c); }
+      g=src.clone(); g.setIndex(keep); const bb=new THREE.Box3(), P=new THREE.Vector3(); for(const i of keep){ P.fromBufferAttribute(pos,i); bb.expandByPoint(P); } if(keep.length){ g.boundingBox=bb; g.boundingSphere=bb.getBoundingSphere(new THREE.Sphere()); }   // bounds of what is kept (the unused points stay in the buffer)
+      cutGeo.set(key,g); }
+    o.geometry=g; });
+  return root; }
 function ensureTopiKinds(){ const D=window.__courtdecor; if(!D||!D.topiList) return; for(const t of D.topiList()){ const k=topiKind(t.kind); if(MOBGLB[k]) continue;
-    const wrap=new THREE.Group(); const inner=t.mesh.clone(); inner.position.set(0,0,0); inner.rotation.set(0,0,0); inner.scale.setScalar(1); inner.visible=true; wrap.add(inner);
+    const wrap=new THREE.Group(); const inner=t.mesh.clone(); inner.position.set(0,0,0); inner.rotation.set(0,0,0); inner.scale.setScalar(1); inner.visible=true; cutModel(inner,cutOf(t),true); inner.position.y=-cutOf(t);
+    const pivot=new THREE.Group(); pivot.name='topiPivot'; pivot.add(inner); wrap.add(pivot);
     MOBDIM[k]=MOBDIM[TK]; MOBS[k]=MOBS[TK]; MOBGLB[k]={wrap,map:{},scale:1}; if(Meta.XP) Meta.XP[k]=Meta.XP[k]||3; } }
 // the nearest cell a mob can walk from towards a Heartroot, within r cells of (cx,cz)
 function laneNear(cx,cz,r,minD){ let best=null, bd=1e9; for(let dx=-r;dx<=r;dx++) for(let dz=-r;dz<=r;dz++){ const x=cx+dx, z=cz+dz; if(x<0||z<0||x>=GW||z>=GH) continue; const i=idx(x,z); if(!walk(grid[i])) continue; const fd=flowFree.dist[i]; if(!(fd>0&&fd<1e5)) continue; const d=Math.hypot(dx,dz); if(minD&&d<minD) continue; if(d<bd){ bd=d; best={x,z}; } } return best; }   // minD (cells): at least that far out
@@ -76,7 +93,8 @@ let awake=[], wokeOnce=false;
 const asleep=[];   // statues frozen where a topiary stood when she fell
 function wakeOne(t){ if(t.mesh.userData.awake) return null; ensureTopiKinds(); const k=topiKind(t.kind); const lk=Object.keys(LANES);
   const best=laneNear(t.c.cx,t.c.cz,10); if(!best) return null;
-  const e=spawnEnemy(k,lk[0]); const from={x:t.mesh.position.x,y:t.mesh.position.y,z:t.mesh.position.z}, to={x:cw(best.x),z:cwz(best.z)};
+  if(!t.plinth){ const pl=cutModel(t.mesh.clone(),cutOf(t),false); pl.visible=true; pl.scale.setScalar(1); (t.mesh.parent||world).add(pl); t.plinth=pl; cutModel(t.mesh,cutOf(t),true); }   // build 318: the stone stays in the bed
+  const e=spawnEnemy(k,lk[0]); const from={x:t.mesh.position.x,y:t.mesh.position.y+cutOf(t),z:t.mesh.position.z}, to={x:cw(best.x),z:cwz(best.z)};
   e.x=from.x; e.z=from.z; e.yaw=t.mesh.rotation.y; e.topi=t; e.leap={t:0,dur:.8,from,to}; e.mdl.g.position.set(e.x,from.y,e.z);
   t.mesh.visible=false; t.mesh.userData.awake=true; t.mesh.userData.stump=false; t.mesh.userData.regrown=false; awake.push(e); return e; }
 function flash(x,y,z,col,r){ const g=glow(col,r||3,.9); g.position.set(x,y,z); scene.add(g); let a=.9; const f=()=>{ a-=.04; g.material.opacity=Math.max(0,a); if(a>0) requestAnimationFrame(f); else { scene.remove(g); g.material.dispose(); } }; requestAnimationFrame(f); }
@@ -101,7 +119,7 @@ function curse(d){ d.curseT=CURSE_T; d.cd=Math.max(d.cd,CURSE_T); if(!d.curseFx)
 function castSpecial(e,what){ e.special=what; e.swing=0; e.pending={kind:'special'}; e.atk=MOBS[K].cd; }
 { const prev=landHit; landHit=function(e,tg){ if(e.kind!==K) return prev.apply(this,arguments);
     flash(e.x,e.y+e.h*.8,e.z,0x9a40ff,2.6);
-    if(e.special){ const w=e.special; e.special=null; if(w==='raise') raiseStickmen(e); else if(w==='wake'){ wakeAll(); e.shield=0; } return; }
+    if(e.special){ const w=e.special; e.special=null; if(w==='raise') raiseStickmen(e); else if(w==='wake'){ wakeAll(); e.shield=0; } else if(w==='grow') growMobs(e); return; }
     if(e.phase===2&&window.__courtdecor&&window.__courtdecor.topiList&&window.__courtdecor.topiList().some(t=>!t.mesh.userData.awake&&!t.mesh.userData.stump&&t.mesh.userData.growing===undefined&&t.mesh.userData.regrown)){ wakeAll(); return; }   // a regrown one: this cast wakes it
     let best=null, bd=MOBS[K].ranged+.5; for(const d of defs){ if(d.curseT>0) continue; const dd=Math.hypot(d.x-e.x,d.z-e.z); if(dd<bd){ bd=dd; best=d; } }
     if(best){ curse(best); SFX.implode&&SFX.implode(); return; }
@@ -109,12 +127,15 @@ function castSpecial(e,what){ e.special=what; e.swing=0; e.pending={kind:'specia
     return prev.apply(this,arguments); }; }
 // the two bars: a blow never carries her past the line between them, and she is untouchable while she casts the garden awake
 { const prev=hurt; hurt=function(e,dmg,kx,kz){ if(e&&e.kind===K&&!e.dead){ if(e.shield>0) return; if(e.phase===1&&e.hp-dmg<e.max/2){ dmg=Math.max(0,e.hp-e.max/2); } }
-    const r=prev.apply(this,arguments);
+    const r=prev.apply(this,arguments); if(e&&e.kind===K) e.squash=0;   // no flinch
     if(e&&e.kind===K&&!e.dead&&e.phase===1&&e.hp<=e.max/2+.01){ e.phase=2; e.hp=e.max/2; e.shield=4; castSpecial(e,'wake'); banner('🌑 THE ARCHHAG RAGES','her second life -- the garden stirs'); camShake=Math.max(camShake,.7); }
     return r; }; }
 // ---------------------------------------------------------------- each frame: stickmen rising and running, the leaps, the hops, no slow on her, the regrowth, her fall held, the sleep when she falls
-{ const prev=updateEnemies; updateEnemies=function(dt){ for(const e of enemies) if(!e.dead&&e.kind===K){ e.slowT=0; if(e.shield>0) e.shield-=dt;
+// build 318 (Matt: "shes doing a knock back or some kind of intruputionevery time she gets hit. she needs to ignore any of that"): no shove (99e-bossgrit.js), and now nothing pins or flinches her either --
+// no hit-squash (every blow squashed her whole body), no hold (Rootsplitter's roots), no crawl (the Hourglass), no chill, no slow
+{ const prev=updateEnemies; updateEnemies=function(dt){ for(const e of enemies) if(!e.dead&&e.kind===K){ e.slowT=0; e.squash=0; e.holdT=0; e.crawlT=0; e.chillT=0; if(e.shield>0) e.shield-=dt;
       // build 317 (Matt: "oh dear, mabye that stikmen didnt load all the way"): if his moss stickmen are still on the way when she casts, she holds the spell until they land (at most 6 s more) rather than raise the twig stand-ins
+      if(e.hagRise>=1&&!(e.raiseT>0)){ e.growT=(e.growT===undefined?GROW_FIRST:e.growT)-dt; if(e.growT<=0&&!(e.swing>=0)&&!e.special&&!(e.shield>0)){ e.growT=GROW_EVERY; castSpecial(e,'grow'); } }   // build 318: GROW on her own clock
       if(e.raiseT>0){ e.raiseT-=dt; if(e.raiseT<=0){ if(!MOBGLB[SK].real&&!stickDone&&(e.raiseWait=(e.raiseWait||0)+dt)<6){ loadSticks(); e.raiseT=.001; } else castSpecial(e,'raise'); } }
       if(e.phase===1&&e.hp<=e.max/2+.01){ e.phase=2; e.hp=e.max/2; e.shield=4; castSpecial(e,'wake'); banner('🌑 THE ARCHHAG RAGES','her second life -- the garden stirs'); camShake=Math.max(camShake,.7); } }   // any damage that skipped hurt() (a poison tick) still turns the page
     prev(dt);
@@ -128,7 +149,7 @@ function castSpecial(e,what){ e.special=what; e.swing=0; e.pending={kind:'specia
     sticks=sticks.filter(e=>!e.dead||e.dead<.4);
     for(const e of awake){ if(e.dead) continue; const g=e.mdl.g;
       if(e.leap){ const L=e.leap; L.t+=dt; const k=Math.min(1,L.t/L.dur); e.x=L.from.x+(L.to.x-L.from.x)*k; e.z=L.from.z+(L.to.z-L.from.z)*k; const fy=baseFloor(e.x,e.z); g.position.set(e.x,fy+Math.sin(k*PI)*2.2+(1-k)*(L.from.y-fy),e.z); if(k>=1) e.leap=null; continue; }
-      const hop=Math.abs(Math.sin(S.t*6.5+(e.ph||0))); g.position.y=e.y+hop*.45; const sq=1+.08*(1-hop); g.scale.set(e.sc*sq,e.sc/sq,e.sc*sq); }
+      lurch(e,g,dt); }
     awake=awake.filter(e=>!e.dead||e.dead<1.3);
     const hag=enemies.find(x=>x.kind===K&&!x.dead);
     for(const e of enemies){ if(!e.topi||!e.dead||e.topiGone) continue; e.topiGone=true; const u=e.topi.mesh.userData; u.awake=false; u.stump=true; u.regrowT=REGROW_T; }
@@ -137,7 +158,7 @@ function castSpecial(e,what){ e.special=what; e.swing=0; e.pending={kind:'specia
       if(u.growing!==undefined){ u.growing+=dt; const s=Math.min(1,u.growing/2.5); t.mesh.scale.setScalar(Math.max(.05,s)); if(s>=1){ delete u.growing; u.regrown=true; } } }   // regrown: her next cast wakes it
     for(const e of enemies){ if(e.kind!==K||!e.dead) continue; if(e.deathHold===undefined){ e.deathHold=DEATH_HOLD; sleepAll(e); } if(e.deathHold>0){ e.deathHold-=dt; e.dead=Math.min(e.dead,.5); } } }; }
 function sleepAll(hagE){ const list=enemies.filter(e=>e.topi&&!e.dead);   // collected first: removing from enemies while walking it would skip every other one
-  for(const e of list){ const t=e.topi; const st=t.mesh.clone(); st.visible=true; st.scale.setScalar(1); st.position.set(e.x,baseFloor(e.x,e.z),e.z); st.rotation.y=e.yaw||0; world.add(st); asleep.push(st);
+  for(const e of list){ const t=e.topi; const st=t.mesh.clone(); st.visible=true; st.scale.setScalar(1); st.position.set(e.x,baseFloor(e.x,e.z)-(t.plinth?cutOf(t):0),e.z); st.rotation.y=e.yaw||0; world.add(st); asleep.push(st);
     scene.remove(e.mdl.g); const i=enemies.indexOf(e); if(i>=0) enemies.splice(i,1); t.mesh.userData.awake=false; }
   awake=awake.filter(e=>enemies.includes(e)); if(list.length) floatText(hagE.x,hagE.y+hagE.h+1,hagE.z,'the garden sleeps','#9aff7a'); return list.length; }
 // ---------------------------------------------------------------- her arrival in the court's last wave, once ~75 of its mobs are out
@@ -172,11 +193,37 @@ function poofStick(e){ const g=e.mdl.g, y0=(e.y||0)+.95; const grp=new THREE.Gro
       for(const b of p.bits){ const d=Math.max(0,1-p.t*1.6); b.sp.position.x+=b.vx*dt*d; b.sp.position.y+=b.vy*dt; b.sp.position.z+=b.vz*dt*d; const s=b.s0*(1+k*1.8); b.sp.scale.set(s,s,1); b.sp.material.opacity=b.op*(1-k)*(1-k); }
       const c=Math.max(0,1-p.t/.35); p.core.material.opacity=.75*c; p.core.scale.setScalar(1.2*(1+p.t*2)); }
     poofs=poofs.filter(p=>{ if(p.t<1.1) return true; scene.remove(p.grp); for(const b of p.bits) b.sp.material.dispose(); p.core.material.dispose(); for(const [m] of p.mats) m.dispose(); return false; }); }; }
+// ---------------------------------------------------------------- sparks: small glowing bits that fly, fall and fade (the grow spell's green-and-gold poof, the leaves a lurching topiary sheds)
+let sparks=[];
+function spark(x,y,z,col,size,vx,vy,vz,life,grav,blend){ if(sparks.length>500) return; const sp=glow(col,size,.9); if(blend) sp.material.blending=THREE.NormalBlending; sp.position.set(x,y,z); scene.add(sp); sparks.push({sp,vx,vy,vz,life,grav:grav||0,t:0,op:.9}); }
+function tickSparks(dt){ for(const p of sparks){ p.t+=dt; p.vy-=p.grav*dt; const dr=Math.max(0,1-dt*1.8); p.vx*=dr; p.vz*=dr; p.sp.position.x+=p.vx*dt; p.sp.position.y+=p.vy*dt; p.sp.position.z+=p.vz*dt; const k=p.t/p.life; p.sp.material.opacity=p.op*(1-k)*(k<.12?k/.12:1); }
+  sparks=sparks.filter(p=>{ if(p.t<p.life) return true; scene.remove(p.sp); p.sp.material.dispose(); return false; }); }
+// ---------------------------------------------------------------- the lurch (build 318): a statue that should not move -- a heavy side-to-side sway on its foot-level pivot, leaning into the walk, a
+// small lift between steps (no bounce), and a few leaves shaken off at each step with a soft rustle
+const LEAF=[0x3f9a3a,0x5ab84a,0x2e7a30];
+let rustleT=-9;
+function lurch(e,g,dt){ const pv=e.pivot||(e.pivot=g.getObjectByName('topiPivot')); const mv=!!e.walking; e.lph=(e.lph===undefined?(e.ph||0):e.lph)+dt*(mv?4.4:1.1); const sw=Math.sin(e.lph);
+  if(pv){ pv.rotation.z=sw*(mv?.17:.035); pv.rotation.x=mv?.13:0; }
+  g.position.y=e.y+(mv?(1-Math.abs(sw))*.06:0); g.scale.setScalar(e.sc);
+  const step=Math.floor(e.lph/PI+.5); if(mv&&step!==e.lstep){ e.lstep=step; for(let i=0;i<3;i++) spark(e.x+R(-.45,.45),e.y+.3+Math.random()*.9,e.z+R(-.45,.45),LEAF[i],.24,R(-.35,.35),R(.2,.7),R(-.35,.35),1.2,1.4,true);
+    if(S.t-rustleT>.3&&typeof noise==='function'){ rustleT=S.t; noise(.12,.018,2600); } } }
+// ---------------------------------------------------------------- GROW (build 318, Matt: "shell do a spell animation sequice that will poof green and gold particles and mobs will temorarily double in
+// size"): every ~15 s (the first ~9 s after she stands up) she casts -- her whole cast clip -- and a green-and-gold poof bursts off her; every mob within her reach (16) poofs too and swells to twice its
+// size over half a second, stays big for about 7 s, then shrinks back. Size only (its hit box grows with it); a mob still big when she casts again just stays big longer.
+const GROW_R=16, GROW_DUR=8, GROW_EVERY=15, GROW_FIRST=9, GROW_COLS=[0x5aff4a,0xffd23a,0x8aff6a,0xffe98a];
+function poofAt(x,y,z,n,sz){ for(let i=0;i<n;i++){ const a=Math.random()*TAU, sp=1.2+Math.random()*2.4; spark(x,y,z,GROW_COLS[i%4],sz*(.6+Math.random()*.6),Math.cos(a)*sp,.6+Math.random()*2.4,Math.sin(a)*sp,.9+Math.random()*.6,1.6,i%2===0); } }   // greens blend over the scene, golds glow
+function growMobs(h){ let n=0; for(const e of enemies){ if(e.dead||e===h||e.kind===K) continue; if(Math.hypot(e.x-h.x,e.z-h.z)>GROW_R) continue;
+    if(e.grow) e.grow.t=Math.min(e.grow.t,.5); else { e.gBase={sc:e.sc,r:e.r,h:e.h}; e.grow={t:0}; } n++; poofAt(e.x,e.y+e.h*.6,e.z,10,.55); }
+  poofAt(h.x,h.y+h.h*.7,h.z,40,1.1); flash(h.x,h.y+h.h*.6,h.z,0xffd23a,5); floatText(h.x,h.y+h.h+1.2,h.z,'⬆ GROW ⬆','#ffd23a'); if(typeof noise==='function') noise(.35,.05,700); return n; }
+function tickGrow(dt){ for(const e of enemies){ const G=e.grow, B=e.gBase; if(!G||!B) continue; G.t+=dt; if(e.dead) continue;
+    const f=G.t<.5?1+G.t/.5:G.t<GROW_DUR-.6?2:Math.max(1,2-(G.t-(GROW_DUR-.6))/.6); e.sc=B.sc*f; e.r=B.r*f; e.h=B.h*f;
+    if(G.t>=GROW_DUR){ e.sc=B.sc; e.r=B.r; e.h=B.h; delete e.grow; delete e.gBase; } } }
+{ const prev=updateEnemies; updateEnemies=function(dt){ tickGrow(dt); prev(dt); tickSparks(dt); }; }
 // ---------------------------------------------------------------- her two-phase health bar
 { const css=document.createElement('style'); css.textContent='#hagbar{position:fixed;left:50%;top:66px;transform:translateX(-50%);width:min(460px,74vw);z-index:20;text-align:center;pointer-events:none;display:none;font:bold 13px Georgia,serif;color:#e6d2ff;text-shadow:0 2px 3px #000;letter-spacing:2px}#hagbar .bars{display:flex;gap:6px;margin-top:3px}#hagbar .track{flex:1;height:12px;background:#140c1a;border:2px solid #3e2450;border-radius:6px;overflow:hidden;box-shadow:0 3px 8px #000a}#hagbar .fill{display:block;height:100%;width:100%;transition:width .2s}#hagbar .p1 .fill{background:linear-gradient(#b070ff,#5a1c9a)}#hagbar .p2 .fill{background:linear-gradient(#8aff6a,#2a8a1a)}#hagbar .track.done{opacity:.35}'; document.head.appendChild(css); }
 const bar=document.createElement('div'); bar.id='hagbar'; bar.innerHTML='🌑 THE ARCHHAG<div class="bars"><div class="track p2"><i class="fill"></i></div><div class="track p1"><i class="fill"></i></div></div>'; document.body.appendChild(bar);
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); const e=enemies.find(x=>x.kind===K&&!x.dead); bar.style.display=e?'block':'none'; if(!e){ if(musicMode==='archhag') setMusic(S.phase==='wave'?'wave':'build'); return; } const half=e.max/2;
     bar.querySelector('.p1 .fill').style.width=Math.max(0,100*(e.hp-half)/half)+'%'; bar.querySelector('.p2 .fill').style.width=Math.max(0,Math.min(100,100*e.hp/half))+'%'; bar.querySelector('.p1').classList.toggle('done',e.hp<=half+.01); }; }
-window.__archhag={loaded:()=>!!MOBGLB[K],poofs:()=>poofs.map(p=>({t:+p.t.toFixed(2),bits:p.bits.length,body:p.g.visible?+(p.mats.length?p.mats[0][0].opacity:1).toFixed(2):0})),loadSticks,sticksReady:()=>!!MOBGLB[SK].real,stickModel:()=>({real:!!MOBGLB[SK].real,clips:Object.keys(MOBGLB[SK].map),attack:MOBGLB[SK].map.attack?MOBGLB[SK].map.attack.name:''}),ensure:load,spawn:()=>{ ensureTopiKinds(); return spawnHag(); },wake:wakeAll,awake:()=>awake.filter(e=>!e.dead).length,asleep:()=>asleep.length,curse,
+window.__archhag={loaded:()=>!!MOBGLB[K],poofs:()=>poofs.map(p=>({t:+p.t.toFixed(2),bits:p.bits.length,body:p.g.visible?+(p.mats.length?p.mats[0][0].opacity:1).toFixed(2):0})),loadSticks,sticksReady:()=>!!MOBGLB[SK].real,castGrow:()=>{ const h=enemies.find(x=>x.kind===K&&!x.dead); if(h){ h.swing=-1; h.special=null; castSpecial(h,'grow'); } return !!h; },grown:()=>enemies.filter(e=>e.grow&&!e.dead).map(e=>({kind:e.kind,f:+(e.sc/e.gBase.sc).toFixed(2)})),sparks:()=>sparks.length,plinths:()=>{ const D=window.__courtdecor; return D&&D.topiList?D.topiList().filter(t=>t.plinth&&t.plinth.visible&&t.plinth.parent).length:0; },topiCut:TOPI_CUT,stickModel:()=>({real:!!MOBGLB[SK].real,clips:Object.keys(MOBGLB[SK].map),attack:MOBGLB[SK].map.attack?MOBGLB[SK].map.attack.name:''}),ensure:load,spawn:()=>{ ensureTopiKinds(); return spawnHag(); },wake:wakeAll,awake:()=>awake.filter(e=>!e.dead).length,asleep:()=>asleep.length,curse,
   sticks:()=>sticks.filter(e=>!e.dead).length,cursed:()=>defs.filter(d=>d.curseT>0).length,kind:K};
 })();

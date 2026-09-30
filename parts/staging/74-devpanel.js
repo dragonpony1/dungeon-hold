@@ -68,7 +68,7 @@ function ensure(){ if(el) return; css();
   $('dp-x').onclick=()=>toggle(false);
   $('dp-wave-go').onclick=()=>jumpWave(+$('dp-wave').value||1);
   $('dp-mob-go').onclick=()=>spawnNow($('dp-mob').value);
-  $('dp-mob-5').onclick=()=>{ for(let i=0;i<5;i++) setTimeout(()=>spawnNow($('dp-mob').value),i*180); };   // build 316: a pack at a time (Matt trying the dire wolves)
+  $('dp-mob-5').onclick=()=>{ const k=$('dp-mob').value; for(let i=0;i<5;i++){ if(k==='direwolf') spawnNow(k); else setTimeout(()=>spawnNow(k),i*180); } };   // wolves come out together, as a pack (build 318)   // build 316: a pack at a time (Matt trying the dire wolves)
   el.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>Meta.addGold(+b.dataset.g));
   el.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ S.mana+=+b.dataset.m; });
   // build 314 (Matt: "add to dev hud change chatcter level"): set it outright, or step it one at a time
