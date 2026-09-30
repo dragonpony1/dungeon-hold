@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="75">
+<meta name="hideout-build" content="76">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -163,6 +163,7 @@ canvas{display:block}
 #gearClose{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:#000c;color:#fff;border:2px solid #a55;font:16px monospace;cursor:pointer;z-index:2}
 #tooltip{position:fixed;display:none;z-index:50;background:#150e08;color:#ffe9b0;border:1px solid #a5762a;border-radius:6px;padding:5px 10px;font:bold 13px Georgia,serif;pointer-events:none;box-shadow:0 4px 12px #000a;max-width:220px}
 .gamegrid{max-height:156px;overflow-y:auto}
+.islot.worn{border-color:#ffd27a!important;box-shadow:0 0 8px #ffd27a66}
 </style>
 </head><body>
 <div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: inventory &middot; B: bag &middot; H: hero &middot; T: trade &middot; Esc: close a menu<br>The portal takes you back to the hall<div id="loadWrap"><div id="loadBar" class="indeterminate"><div id="loadFill"></div></div><div id="loadLine">Loading…</div></div></div>
@@ -218,7 +219,7 @@ canvas{display:block}
     <p>Drag things between your bag and hotbar. Select gear in the hotbar, then click to put it on display.</p>
   </div>
   <div id="gearBody">
-    <div id="invGameWrap" style="display:none"><div class="isection">Your gear — the bag you carry in the hall. Click a piece to put it on your hotbar for display</div><div id="invGame" class="islotgrid gamegrid"></div></div>
+    <div id="invGameWrap" style="display:none"><div class="isection">Your gear — click a piece to hold it, then click a table, shelf or pedestal to put it on display</div><div id="invGame" class="islotgrid gamegrid"></div><div><div class="isection">What you are wearing — click to take it off and hold it</div><div id="invWorn" class="islotgrid"></div></div></div>
     <div class="isection" id="invBagTitle">Bag</div><div id="invBag" class="islotgrid"></div>
     <div class="isection">Hotbar — keys 1 to 9</div><div id="invHot" class="islotgrid"></div>
     <div id="invSendWrap" style="display:none"><div class="isection">Send to the hall — drag gear here and it goes into your hero's bag when you head back</div>
@@ -273,7 +274,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 75;   // build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 76;   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -716,10 +717,25 @@ function cleanGameItem(v) { const it = v.kind === 'carried' ? Object.assign({}, 
 function gameGive(v) { const M = gameMeta(); if (!M || !isGearItem(v) || !gameRoom()) return false; try { return !!M.giveItem(cleanGameItem(v)); } catch (e) { return false; } }
 function gameTake(id) { const M = gameMeta(); if (!M) return null; const bag = M.bag(); const i = bag.findIndex(b => b && b.id === id); if (i < 0) return null; const it = bag.splice(i, 1)[0]; try { M.save && M.save(); } catch (e) {} return it; }
 function gameGear() { const M = gameMeta(); return M ? M.bag().map(it => ({ kind: 'carried', rec: it })) : []; }
-function gameToHotbar(i) { const g = gameGear()[i]; if (!g) return; const h = SAVE.hotbar.indexOf(null); if (h < 0) { flashMsg('Your hotbar is full — make room first'); return; }
-  const it = gameTake(g.rec.id); if (!it) return; SAVE.hotbar[h] = { kind: 'carried', rec: it }; writeSave(); refreshSlotViews(); sfxClick();
-  flashMsg((it.name || 'It') + ' is on your hotbar — select it and click to put it on display. Anything left on the hotbar goes back to your bag when you leave'); }
+// build 76 (Matt: "I need to be able to come from the hall with a sweet sword and I need to be able to put that sword on the table"): a click on a piece now HOLDS it -- it takes a hotbar slot (a full hotbar
+// moves its last furniture into the room's bag to make room), the panel closes and that slot is selected, so the ghost is in your hands: aim at a table, shelf or pedestal and click. A WORN piece works too (it
+// comes off you first). Nothing is lost: if the piece is not put down, it goes back to your bag when you leave (sendInventoryToHall).
+function holdToHotbar(it) {
+  let h = SAVE.hotbar.indexOf(null);
+  if (h < 0) { const b = SAVE.bag.indexOf(null); let mv = -1; for (let k = SAVE.hotbar.length - 1; k >= 0; k--) if (!isGearItem(SAVE.hotbar[k])) { mv = k; break; }
+    if (b < 0 || mv < 0) { flashMsg('Your hotbar and bag are full — put something down first'); return false; } SAVE.bag[b] = SAVE.hotbar[mv]; SAVE.hotbar[mv] = null; h = mv; }
+  SAVE.hotbar[h] = { kind: 'carried', rec: it }; writeSave();
+  document.getElementById('gearWrap').style.display = 'none'; selectedSlot = h; syncSelection(); renderInv(); refreshSlotViews(); sfxClick();
+  if (gearWasActive) canvas.requestPointerLock();
+  flashMsg((it.name || 'It') + ' is in your hands — aim at a table, shelf or pedestal and click to put it on display');
+  return true; }
+function gameToHotbar(i) { const g = gameGear()[i]; if (!g) return; const it = gameTake(g.rec.id); if (!it) return; if (!holdToHotbar(it)) gameGive({ kind: 'carried', rec: it }); }
+function wornToHotbar(slot) { const M = gameMeta(); if (!M) return; const worn = GAME && GAME.__dd && GAME.__dd.gear ? GAME.__dd.gear()[slot] : null; if (!worn) return;
+  if (gameRoom() < 1) { flashMsg('Your bag is full — make room for it first'); return; } if (!M.unequip || !M.unequip(slot)) { flashMsg('It would not come off'); return; }
+  const it = gameTake(worn.id); if (!it) return; if (!holdToHotbar(it)) gameGive({ kind: 'carried', rec: it }); }
+function wornGear() { const g = GAME && GAME.__dd && GAME.__dd.gear ? GAME.__dd.gear() : {}; return ['weapon', 'armor', 'charm', 'amulet', 'familiar'].map(k => g[k] ? { slot: k, kind: 'carried', rec: g[k] } : null); }
 function renderGameGear() { const wrap = document.getElementById('invGameWrap'); if (!wrap) return; wrap.style.display = GAME ? '' : 'none'; if (!GAME) return;
+  { const wv = wornGear(), el = document.getElementById('invWorn'); if (el) { el.parentElement.style.display = wv.some(Boolean) ? '' : 'none'; tradeGridTo(el, wv, 5, i => wornToHotbar(['weapon', 'armor', 'charm', 'amulet', 'familiar'][i]), (v) => v ? 'worn' : ''); } }
   document.getElementById('invBagTitle').textContent = 'Hideout bag — furniture'; tradeGridTo(document.getElementById('invGame'), gameGear(), 9, i => gameToHotbar(i)); }
 function oneBagMigrate() { if (!GAME) return 0; let n = 0;
   SAVE.bag.forEach((v, i) => { if (isGearItem(v) && gameGive(v)) { SAVE.bag[i] = null; n++; } });
@@ -727,7 +743,7 @@ function oneBagMigrate() { if (!GAME) return 0; let n = 0;
   if (n) { writeSave(); setTimeout(() => { try { flashMsg(n + ' piece' + (n === 1 ? '' : 's') + ' of gear moved into your bag — one bag now, in the hall and here'); } catch (e) {} }, 1600); }
   return n; }
 let ONEBAG_MOVED = 0;
-window.__onebag = { on: () => !!GAME, moved: () => ONEBAG_MOVED, gear: () => gameGear().length, give: v => giveItem(v, 'bag'), toHotbar: gameToHotbar, hotbarGear: () => SAVE.hotbar.filter(isGearItem).length, bagGear: () => SAVE.bag.filter(isGearItem).length, tradeArr: n => tradeArr(n).length }; setTimeout(() => { ONEBAG_MOVED = oneBagMigrate(); try { refreshSlotViews(); } catch (e) {} }, 0);   // once the whole page has run (the Forge's constants live further down)
+window.__onebag = { on: () => !!GAME, moved: () => ONEBAG_MOVED, gear: () => gameGear().length, give: v => giveItem(v, 'bag'), toHotbar: gameToHotbar, wornToHotbar, holding: () => ({ slot: selectedSlot, dropId: selectedDropGearId }), worn: () => wornGear().filter(Boolean).length, hotbarGear: () => SAVE.hotbar.filter(isGearItem).length, bagGear: () => SAVE.bag.filter(isGearItem).length, tradeArr: n => tradeArr(n).length }; setTimeout(() => { ONEBAG_MOVED = oneBagMigrate(); try { refreshSlotViews(); } catch (e) {} }, 0);   // once the whole page has run (the Forge's constants live further down)
 function slotIcon(v) { return isGearItem(v) ? cutoutIcon(gearPiece(v).icon) : GEAR[v].icon; }
 function slotTip(v) { if (!isGearItem(v)) return GEAR[v].name; const p = gearPiece(v); return p.tip || p.desc; }
 function slotColor(v) { return isGearItem(v) ? gearPiece(v).color : null; }
