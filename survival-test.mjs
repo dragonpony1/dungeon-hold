@@ -62,7 +62,7 @@ let shotDesk=null, shotPhone=null;
   console.log("      curve (map one): "+[7,8,10,20,30,40,50].map(w=>"w"+w+"="+at(w).total+(at(w).boss?"☠":"")).join(" "));
   check("past the map the waves only grow: the horde never shrinks wave to wave, and waves 10/20/30/40/50 each outnumber the last ("+[7,10,20,30,40,50].map(w=>at(w).total).join(' → ')+")",grows&&at(50).total>=5*at(7).total,JSON.stringify([7,10,20,30,40,50].map(w=>at(w).total)));
   check("a mob's own hp climbs at half the campaign's pace past the map (wave 8 fights like 7.5, wave 50 like 28.5)",at(7).stat===7&&at(8).stat===7.5&&at(50).stat===28.5,JSON.stringify([at(7).stat,at(8).stat,at(50).stat]));
-  check("every tenth wave is a boss wave, led out by a troll boss (10, 20 ... 50), and only those",curve.filter(c=>c.boss).map(c=>c.sw).join()==='10,20,30,40,50'&&curve.filter(c=>c.boss).every(c=>c.first==='trollboss'&&c.k.ogre>=Math.floor(c.sw/10)),JSON.stringify(curve.filter(c=>c.boss).map(c=>({sw:c.sw,first:c.first,ogre:c.k.ogre}))));
+  check("every tenth wave is a boss wave, led out by an ogre (10, 20 ... 50; build 326: the troll boss is out), and only those",curve.filter(c=>c.boss).map(c=>c.sw).join()==='10,20,30,40,50'&&curve.filter(c=>c.boss).every(c=>c.first==='ogre'&&c.k.ogre>=Math.floor(c.sw/10)),JSON.stringify(curve.filter(c=>c.boss).map(c=>({sw:c.sw,first:c.first,ogre:c.k.ogre}))));
   await ctx.close(); }
 { const {ctx,p}=await page("?nogate",{ddMapsCleared:'1',ddMode:'survival'});
   const r=await row(p);
@@ -97,7 +97,7 @@ let shotDesk=null, shotPhone=null;
   check("wave 8 held: the map's best (dd_survivalBest) is 8, saved as it happened",h8.phase==='build'&&JSON.parse(h8.best||'{}').hall===8,JSON.stringify(h8));
   // wave 10: the boss
   const b10=await p.evaluate(()=>{ const d=window.__dd; d.S.wave=9; d.startWave(); const banner=document.getElementById('banner').textContent; let first=null; for(let i=0;i<600&&!first;i++){ d.step(1/60,1); const e=d.enemies.find(e=>!e.dead); if(e) first=e.kind; } return {banner,first}; });
-  check("wave 10 is a BOSS WAVE: the banner says so and the first thing through the gate is the troll boss",/BOSS WAVE 10 OF 50/.test(b10.banner)&&b10.first==='trollboss',JSON.stringify(b10));
+  check("wave 10 is a BOSS WAVE: the banner says so and the first thing through the gate is an ogre (build 326: the troll boss is out)",/BOSS WAVE 10 OF 50/.test(b10.banner)&&b10.first==='ogre',JSON.stringify(b10));
   await clearWave(p);
   // the live cap on a big late wave: nobody killed, the crystal made unbreakable for the count
   const cap=await p.evaluate(()=>{ const d=window.__dd; d.S.wave=39; d.S.crystal=1e9; d.startWave(); const q0=d.S.phase==='wave'?d.status().queue:0; let max=0, held=0; for(let i=0;i<60*50;i++){ d.step(1/60,1); const a=d.enemies.filter(e=>!e.dead).length; if(a>max) max=a; if(a>=60&&d.status().queue>0) held++; }

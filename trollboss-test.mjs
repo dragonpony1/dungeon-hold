@@ -29,7 +29,7 @@ check("the heal-pulse mends a wounded mob within its ring but leaves one far out
 const r4=await page.evaluate(()=>{ const d=window.__dd; d.S.wave=11; d.startWave(); const b12=document.getElementById("banner").textContent; const q12=d.status().queue;
   d.S.phase="build"; d.S.wave=12; d.startWave(); const b13=document.getElementById("banner").textContent; const q13=d.status().queue;
   return {b12,q12,b13,q13}; });
-check("wave 12 (the 12th) banners A TROLL BOSS; wave 13, off the five-wave cadence, does not",/TROLL BOSS/.test(r4.b12)&&!/TROLL BOSS/.test(r4.b13),JSON.stringify(r4));
+check("build 326 (Matt: \"you can take the troll boss out, hes a miss\"): wave 12 no longer banners A TROLL BOSS (nor does 13); he only comes from the dev panel",!/TROLL BOSS/.test(r4.b12)&&!/TROLL BOSS/.test(r4.b13),JSON.stringify(r4));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon/i.test(e));
 check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");
