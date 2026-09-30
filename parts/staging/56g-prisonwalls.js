@@ -9,11 +9,12 @@ if(!MAP||MAP.id!=='prison') return;
 const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
 const OPEN_H=8.0, SCALE=OPEN_H/1.91, HIT=25, HP=100;
 // the two alcoves: the solid cell, the pit cell in front of it, which way the opening faces (toward the pit), and the weapon behind each wall
-// two kinds of breakable wall (Matt: "we have 2 types of destrucable wall"): the west one is Bob's (48 modelled pieces), the east one is Matt's Meshy wall with the glowing crack (one solid model -- shattered here, at load, into
+// build 360 (Matt: "on the good guys end we use bobs breakable doors with the shackles and the other end the big barrier use meshys breakable door skin"): BOTH rooms by the Heartroot now wear Bob's shackled wall; the Meshy wall with the glowing crack is kept (shatter() below, one solid model cut at load into
+// shards along organic lines, which fall with the same scripted tumble) for the BIG BARRIER at the far end -- the rim wall the boss breaks -- when that is built. (Earlier: 'we have 2 types of destrucable wall': west Bob's, east Meshy's; the Meshy shards were cut into
 // shards along organic lines, which fall with the same scripted tumble)
 // build 348 (Matt: "Make it 4x4 on both sides to start with"): each wall is now 4 squares wide and 4 tall (8 x 8), over an alcove 4 squares long and 2 deep. cin: the alcove column against the wall, cout: the one behind it, fcx: the pit column in front, z0-z1: its rows
 // build 356 (Matt: "rework the whole room so its turned downfield"): both rooms now sit in the apex's NORTH wall, one each side of the Heartroot, opening SOUTH down the triangle. n: the way the opening faces (into the pit); c0-c1: the four columns it spans; rin/rout: the alcove's two rows (against the wall, behind it); front: the pit row in front
-const SPOTS=[{id:'W',nx:0,nz:1,c0:16,c1:19,rin:3,rout:2,front:4,kind:'ball',src:'hi3d'},{id:'E',nx:0,nz:1,c0:27,c1:30,rin:3,rout:2,front:4,kind:'ball',src:'meshy'}];
+const SPOTS=[{id:'W',nx:0,nz:1,c0:16,c1:19,rin:3,rout:2,front:4,kind:'ball',src:'hi3d'},{id:'E',nx:0,nz:1,c0:27,c1:30,rin:3,rout:2,front:4,kind:'ball',src:'hi3d'}];
 for(const sp of SPOTS){ sp.tx=sp.nz; sp.tz=-sp.nx; const ac=(cw(sp.c0)+cw(sp.c1))/2; sp.half=(sp.c1-sp.c0)/2*CELL+CELL/2; if(sp.nz!==0){ sp.cx0=ac; sp.cz0=cwz(sp.front)-sp.nz*CELL/2; } else { sp.cz0=(cwz(sp.c0)+cwz(sp.c1))/2; sp.cx0=cw(sp.front)-sp.nx*CELL/2; } sp.yaw=Math.atan2(sp.nx,sp.nz); }
 const along=(sp,x,z)=>Math.max(-sp.half,Math.min(sp.half,(x-sp.cx0)*sp.tx+(z-sp.cz0)*sp.tz));
 const nearPt=(sp,x,z)=>{ const s=along(sp,x,z); return { x:sp.cx0+sp.tx*s, z:sp.cz0+sp.tz*s }; };
