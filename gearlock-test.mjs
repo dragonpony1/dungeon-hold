@@ -66,7 +66,7 @@ check("UNLOCK from the sheet unlocks it",await page.evaluate(id=>!window.__meta.
 await page.evaluate(()=>window.__doll.close());
 
 // ---- the portal: the split prompt, the two contracts ----
-await page.waitForFunction(()=>window.__portal.loaded(),null,{timeout:60000}); await page.evaluate(()=>window.__dd.step(1/60,40));
+await page.waitForFunction(()=>window.__portal.loaded(),null,{timeout:60000}); await page.evaluate(()=>window.__hideout.scrapAtDoor&&window.__hideout.scrapAtDoor(true));   /* build 340: the door no longer scraps (one bag, build 325); this suite checks the lock against the old door-scrap, so it switches that back on */ await page.evaluate(()=>window.__dd.step(1/60,40));
 await page.evaluate(()=>{ localStorage.setItem('dd_gear_bag',JSON.stringify({common:2})); localStorage.setItem('dd_gear_carried',JSON.stringify([{id:'theirs-1',name:'Already Displayed',slot:'charm',rarity:3,from:'hideout'}])); });
 const ppos=await page.evaluate(()=>window.__portal.pos());
 await page.evaluate(p=>{ window.__dd.setHero(p.x+.6,p.z+.6); window.__dd.step(1/60,3); },ppos);
