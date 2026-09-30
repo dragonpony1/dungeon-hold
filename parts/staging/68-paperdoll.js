@@ -95,7 +95,7 @@ const SNAME={weapon:'weapon',armor:'armor',charm:'charm',amulet:'amulet',familia
 const FLAVOR=['Plain, honest work. It will do until something better falls.','Made by a careful hand, and it shows.','Worked with a touch of the old craft; the runes still hold.','Etched with lines that glow faintly in the dark of the hall.','Forged in the founding fire. Things like this are not made any more.'];
 const MDC={dps:'#e0413a',dmg:'#ff8a2a',aps:'#e6b662',magic:'#b26fe0',armor:'#5f8fd8',tow:'#5aa85a',hp:'#e06a8a'};
 function tierN(it){ return it.tier||tierOf(it.lvl); }
-const pic=(it,s)=>(Meta.packs&&Meta.packs.artHtml)?Meta.packs.artHtml(it,s):SICON[(it&&it.slot)||s];   // a set piece's card art, else the slot's emoji
+const pic=(it,s)=>(Meta.packs&&Meta.packs.artHtml)?Meta.packs.artHtml(it,s):slotIcon(it,s);   // a set piece's card art, else the slot's emoji
 function icon(it,s,extra){ if(!it) return '<div class="ic-box empty">'+SICON[s]+'</div>'; return '<div class="ic-box r'+it.rarity+'" '+(extra||'')+'>'+pic(it,s)+'<em class="tb">T'+tierN(it)+'</em></div>'; }
 function slotPanel(s){ const it=gear[s], F=Meta.forge; let inner;
   if(!it) inner='<div class="sl-head">'+icon(null,s)+'<div><div class="em">no '+SNAME[s]+' yet</div><button class="dl-mini" data-act="bag" data-slot="'+s+'">PICK ONE FROM THE INVENTORY</button></div></div>';

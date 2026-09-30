@@ -48,7 +48,8 @@ const CHARGE_COLOR={knight:0xcfd8ff,witch:0x9a6bff,fighter:0xffd27a,troll:0x9be0
 const CLEAVE_R=4, CLEAVE_KB=3.0;
 const STARFALL_R=5, STARFALL_MAXR=12, STARFALL_SLOW=2.5;
 const HALO_RING_R=8, HALO_RING_DUR=.6, HALO_SURGE_DUR=6, HALO_KINDS=['zap','venom','ember','dazzle'];
-const VOLLEY_R=2.5, VOLLEY_MAXR=16, VOLLEY_WAVES=5, VOLLEY_DUR=1.0;
+// build 314 (Matt: "change gnome archers secondary skill to tripple the amount of raining arrows"): 15 arrows (was 5), each still a fifth of the 3x heroDmg() cast -- three times the arrows, three times the hurt
+const VOLLEY_R=2.5, VOLLEY_MAXR=16, VOLLEY_WAVES=15, VOLLEY_PER=5, VOLLEY_DUR=1.0;
 function heroId(){ return window.__heroes?window.__heroes.pick():'knight'; }
 function NET(){ return window.__net||null; }
 
@@ -121,9 +122,10 @@ function tickVolley(){ for(let i=VOLLEY_Q.length-1;i>=0;i--){ const w=VOLLEY_Q[i
 // grenadeMesh()/arrowMesh() already spend per throw in the base game, not a per-frame cost) tweened by hand and
 // cleaned up on landing, never touching game.js's own projs/updateProj switch ----
 let FALL=[];
-function spawnRain(x,z,color,n,style){ for(let i=0;i<n;i++){ const ox=(rnd()-.5)*1.8, oz=(rnd()-.5)*1.8; const m=style==='arrow'?M(new THREE.ConeGeometry(.09,.55,6),mat(color)):M(new THREE.OctahedronGeometry(.14,0),basic(color));
+// arrows fill the Volley's whole circle and fall one after another across its second (build 314); bolts keep their tight handful
+function spawnRain(x,z,color,n,style){ for(let i=0;i<n;i++){ const arrow=style==='arrow', ra=arrow?VOLLEY_R*.85*Math.sqrt(rnd()):0, aa=rnd()*TAU, ox=arrow?Math.cos(aa)*ra:(rnd()-.5)*1.8, oz=arrow?Math.sin(aa)*ra:(rnd()-.5)*1.8; const m=style==='arrow'?M(new THREE.ConeGeometry(.09,.55,6),mat(color)):M(new THREE.OctahedronGeometry(.14,0),basic(color));
     m.userData.noOL=true; if(style==='arrow') m.rotation.x=PI; m.add(glow(color,.9,.7)); m.visible=false; scene.add(m);
-    FALL.push({mesh:m,x:x+ox,z:z+oz,y0:6+rnd()*1.5,y1:baseFloor(x+ox,z+oz)+.05,dur:.32,t:0,delay:rnd()*.55}); } }
+    FALL.push({mesh:m,x:x+ox,z:z+oz,y0:6+rnd()*1.5,y1:baseFloor(x+ox,z+oz)+.05,dur:.32,t:0,delay:arrow?i/n*VOLLEY_DUR*.9+rnd()*.06:rnd()*.55}); } }
 function tickFall(dt){ for(let i=FALL.length-1;i>=0;i--){ const f=FALL[i]; if(f.delay>0){ f.delay-=dt; continue; } f.mesh.visible=true; f.t+=dt; const k=Math.min(1,f.t/f.dur); f.mesh.position.set(f.x,lerp(f.y0,f.y1,k),f.z);
     if(k>=1){ scene.remove(f.mesh); FALL.splice(i,1); fallImpact(f.x,f.z); } } }
 function fallImpact(x,z){ const fl=baseFloor(x,z); const g=glow(0xf4ffb0,1.5,.8); g.position.set(x,fl+.25,z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); }
@@ -147,7 +149,7 @@ function playFlourish(hid,p){
   if(hid==='knight'){ if(window.__whirl) window.__whirl.vortex(p.x,p.z); shockRing(p.x,fl,p.z,CLEAVE_R); const g=glow(0xcfd8ff,3.2,.85); g.position.set(p.x,fl+1,p.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); floatText(p.x,fl+2.4,p.z,'WHIRLWIND CLEAVE','#dfe8ff'); noise(.25,.15,500); beep(120,.3,'sawtooth',.09,-40); }
   else if(hid==='witch'){ spawnRain(p.x,p.z,0x8a5cff,6,'bolt'); shockRing(p.x,fl,p.z,STARFALL_R); floatText(p.x,fl+2.4,p.z,'STARFALL','#c9a8ff'); beep(880,.22,'sine',.07,-260); beep(660,.28,'triangle',.055,-180); }
   else if(hid==='fighter'){ shockRing(p.x,fl,p.z,HALO_RING_R); const g=glow(0xffd27a,2.6,.8); g.position.set(p.x,fl+1,p.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); floatText(p.x,fl+2.4,p.z,'HALO SURGE','#ffd27a'); beep(140,.4,'sawtooth',.1,60); noise(.3,.12,900); }
-  else if(hid==='troll'){ spawnRain(p.x,p.z,0x8ef05a,5,'arrow'); floatText(p.x,fl+2.4,p.z,'VOLLEY','#bfe89a'); beep(300,.15,'square',.05,-140); }
+  else if(hid==='troll'){ spawnRain(p.x,p.z,0x8ef05a,VOLLEY_WAVES,'arrow'); floatText(p.x,fl+2.4,p.z,'VOLLEY','#bfe89a'); beep(300,.15,'square',.05,-140); }
 }
 
 // ---- the real effect: mutates the REAL enemies/defs/RING_FX/HALO_SURGE_T -- only ever correct to call on the page
@@ -155,7 +157,7 @@ function playFlourish(hid,p){
 function realCleave(p){ let n=0; for(const e of enemies){ if(e.dead) continue; const dx=e.x-p.x, dz=e.z-p.z, d=Math.hypot(dx,dz); if(d<CLEAVE_R+e.r){ const l=Math.max(d,.01); hurt(e,p.dmg,dx/l*CLEAVE_KB,dz/l*CLEAVE_KB); n++; } } if(n) SFX.hit(); }
 function realStarfall(p){ let n=0; for(const e of enemies){ if(e.dead) continue; const d=Math.hypot(e.x-p.x,e.z-p.z); if(d<STARFALL_R+e.r*.5){ hurt(e,p.dmg,0,0); e.slowT=Math.max(e.slowT||0,STARFALL_SLOW); n++; } } if(n) SFX.hit(); }
 function realHaloSurge(p){ RING_FX={x:p.x,z:p.z,r:0,R:HALO_RING_R,DUR:HALO_RING_DUR,t:0,dmg:p.dmg,hit:new Set()}; HALO_SURGE_T=HALO_SURGE_DUR; const n=NET(); if(n) n.send('toast','⚡ Halo Surge! Every halo tower pulses at double strength for a few seconds!'); }
-function realVolley(p){ const per=Math.round(p.dmg/VOLLEY_WAVES*10)/10; for(let i=0;i<VOLLEY_WAVES;i++) VOLLEY_Q.push({x:p.x,z:p.z,dmg:per,at:S.t+i*(VOLLEY_DUR/VOLLEY_WAVES)}); }
+function realVolley(p){ const per=Math.round(p.dmg/VOLLEY_PER*10)/10; for(let i=0;i<VOLLEY_WAVES;i++) VOLLEY_Q.push({x:p.x,z:p.z,dmg:per,at:S.t+i*(VOLLEY_DUR/VOLLEY_WAVES)}); }
 function applyReal(hid,p){ if(hid==='knight') realCleave(p); else if(hid==='witch') realStarfall(p); else if(hid==='fighter') realHaloSurge(p); else if(hid==='troll') realVolley(p); }
 
 // ---- co-op relay: window.__net's already-public surface, no changes needed to 99-network.js itself. 99-network.js

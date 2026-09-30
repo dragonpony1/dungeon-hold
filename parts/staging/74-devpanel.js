@@ -55,6 +55,7 @@ function ensure(){ if(el) return; css();
     <div class="sect"><label>jump to wave (current map)</label><div class="row"><input id="dp-wave" type="number" min="1" value="1" style="width:60px"><button id="dp-wave-go">Go</button></div></div>
     <div class="sect"><label>spawn now, at the door</label><div class="row"><select id="dp-mob">${mobOpts}</select><button id="dp-mob-go">Spawn</button></div></div>
     <div class="sect"><label>give yourself</label><div class="row"><button data-g="1000">+1000g</button><button data-g="10000">+10000g</button></div><div class="row"><button data-m="500">+500◆</button><button data-m="99999">+99999◆</button></div></div>
+    <div class="sect"><label>character level</label><div class="row"><button id="dp-lv-dn">−1</button><input id="dp-lv" type="number" min="1" max="99" value="1" style="width:48px"><button id="dp-lv-up">+1</button><button id="dp-lv-go">Set</button></div></div>
     <div class="sect"><label>hero</label><div class="row"><select id="dp-hero">${heroOpts}</select><button id="dp-hero-go">Switch</button></div></div>
     <div class="sect"><label>set piece</label><div class="row"><select id="dp-slot">${slotOpts}</select></div><div class="row"><select id="dp-set">${setOpts}</select></div>
       <div class="row" id="dp-famrow"><select id="dp-fam">${famOpts}</select></div>
@@ -69,6 +70,9 @@ function ensure(){ if(el) return; css();
   $('dp-mob-go').onclick=()=>spawnNow($('dp-mob').value);
   el.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>Meta.addGold(+b.dataset.g));
   el.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ S.mana+=+b.dataset.m; });
+  // build 314 (Matt: "add to dev hud change chatcter level"): set it outright, or step it one at a time
+  const setLv=n=>{ const v=Meta.setLevel(n); $('dp-lv').value=v; toast('Level '+v); };
+  $('dp-lv-go').onclick=()=>setLv(+$('dp-lv').value||1); $('dp-lv-up').onclick=()=>setLv(Meta.level()+1); $('dp-lv-dn').onclick=()=>setLv(Meta.level()-1);
   $('dp-hero-go').onclick=()=>{ if(window.__heroes) window.__heroes.select($('dp-hero').value); };
   const syncFamRow=()=>{ const w=$('dp-slot').value==='weapon'; $('dp-famrow').style.display=$('dp-slot').value==='familiar'?'flex':'none'; $('dp-lookrow').style.display=w?'flex':'none'; if(w) $('dp-look').value=weaponLook(); }; $('dp-slot').onchange=syncFamRow; syncFamRow();   // defaults to the current hero's own mount, same as before this control existed -- just now overridable
   const lookVal=()=>$('dp-slot').value==='weapon'?$('dp-look').value:undefined;
@@ -105,7 +109,7 @@ function spawnNow(kind){ const k=Object.keys(LANES)[0]; if(!k){ toast('no lane o
   if(kind==='archhag'&&window.__archhag&&window.__archhag.ensure){ if(!window.__archhag.loaded()){ toast('loading the Archhag…'); window.__archhag.ensure().then(()=>window.__archhag.spawn()); } else window.__archhag.spawn(); return; }   // build 308: her real entrance (the garden wakes)
   if((kind==='pigflail'||kind==='pigdagger'||kind==='pigsling')&&window.__pigbosses){ if(!window.__pigbosses.loaded()){ toast('loading the pig bosses…'); window.__pigbosses.ensure().then(()=>window.__pigbosses.spawn()); } else window.__pigbosses.spawn(); return; }
   spawnEnemy(kind,k); toast('spawned a '+kind); }
-function toggle(v){ ensure(); open=v===undefined?!open:v; el.classList.toggle('hide',!open); }
+function toggle(v){ ensure(); open=v===undefined?!open:v; el.classList.toggle('hide',!open); if(open&&$('dp-lv')) $('dp-lv').value=Meta.level(); }
 addEventListener('keydown',e=>{ if(e.code==='F9'){ e.preventDefault(); toggle(); } });
 window.__devpanel={toggle,isOpen:()=>open};
 })();

@@ -21,14 +21,17 @@ function statRows(it,before){ const keys=Object.keys(it.stats); if(before) for(c
     const dl=!before?'<span class="nu">new</span>':d>0?'<span class="up">▲ '+fmt(k,d)+'</span>':d<0?'<span class="dn">▼ '+fmt(k,-d)+'</span>':'<span class="nu">=</span>';
     return '<div class="pc-s"><span>'+lab+'</span>'+dl+'</div>'; }).join(''); }
 function footer(){ const it=CS.it; if(!it) return ''; if(CS.outcome==='equipped') return 'Equipped!'; if(CS.outcome==='sold') return 'sold for '+it.value+' '+(Meta.bag?'gold':'mana');
+  // build 314 (Matt: "the pop up tool that says level 7 required, i dont understand it and it just keeps coming up"): a better piece you are too low to wear no longer offers E (E used to
+  // try it, get refused and throw the LEVEL card -- again on every E press while this card stood); it shows its lock instead
+  if(CS.lock) return '<span style="color:#ff8a6a">🔒 <b>Lv '+CS.lock+'</b></span>  ·  you: Lv '+(Meta.level?Meta.level():1)+'  ·  🎒 in your bag';
   if(CS.keep) return 'in your bag  ·  your set '+CS.keep.name+' stays whole ('+CS.keep.count+' worn)  ·  swap it from the bag if you mean to';
   return CS.canEquip?'<b>E</b> equip now  ·  in your bag':(CS.better?'in your bag':'in your bag  ·  not better than yours'); }
 // a worn piece that is holding a set bonus (three or more of its set on) is never swapped by the card's quick E: a better
 // loose piece would break the set the player built, so it goes to the bag with a note instead (swap it from the bag or the
 // sheet on purpose). A better piece of the SAME set still gets the offer -- that only makes the set stronger. (build 147)
 function keepsSet(it,before){ if(!before||!Meta.sets) return null; const n=Meta.sets.setOf(before); if(!n||Meta.sets.setOf(it)===n) return null; const a=Meta.sets.active().find(x=>x.name===n); return a?{name:n,count:a.count}:null; }
-function showCard(it,before,outcome){ CS.it=it; CS.before=before; CS.outcome=outcome; CS.better=!before||it.score>before.score; CS.keep=CS.better?keepsSet(it,before):null; CS.canEquip=outcome==='bagged'&&CS.better&&!!Meta.equip&&!CS.keep;
-  card.innerHTML='<div class="pc-h"><div class="pc-ic">'+SICON[it.slot]+'</div><div><div class="pc-n" style="color:'+RCSS[it.rarity]+'">'+it.name+'</div><div class="pc-t">T'+(it.tier||tierOf(it.lvl))+' · '+RNAME[it.rarity].toUpperCase()+(before?' · vs '+before.name:' · new slot')+'</div></div></div>'+statRows(it,before)+'<div class="pc-f">'+footer()+'</div>';
+function showCard(it,before,outcome){ CS.it=it; CS.before=before; CS.outcome=outcome; CS.better=!before||it.score>before.score; CS.keep=CS.better?keepsSet(it,before):null; CS.lock=(CS.better&&Meta.canWear&&!Meta.canWear(it))?(it.req|0):0; CS.canEquip=outcome==='bagged'&&CS.better&&!!Meta.equip&&!CS.keep&&!CS.lock;
+  card.innerHTML='<div class="pc-h"><div class="pc-ic">'+slotIcon(it)+'</div><div><div class="pc-n" style="color:'+RCSS[it.rarity]+'">'+it.name+'</div><div class="pc-t">T'+(it.tier||tierOf(it.lvl))+' · '+RNAME[it.rarity].toUpperCase()+(before?' · vs '+before.name:' · new slot')+'</div></div></div>'+statRows(it,before)+'<div class="pc-f">'+footer()+'</div>';
   card.classList.remove('eq'); card.classList.add('show'); if(CS.timer) clearTimeout(CS.timer); CS.timer=setTimeout(hideCard,4800); }
 function hideCard(){ card.classList.remove('show'); CS.it=null; CS.canEquip=false; CS.keep=null; }
 function equipFromCard(){ if(!CS.it||!CS.canEquip||!Meta.equip) return false; if(!Meta.equip(CS.it.id)) return false; CS.canEquip=false; CS.outcome='equipped'; card.querySelector('.pc-f').innerHTML='Equipped!'; card.classList.add('eq'); if(CS.timer) clearTimeout(CS.timer); CS.timer=setTimeout(hideCard,2200); refreshGear(true); return true; }

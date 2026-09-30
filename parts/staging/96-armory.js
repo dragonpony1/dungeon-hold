@@ -14,7 +14,11 @@ function ensureReq(it){ if(it&&typeof it==='object') it.req=reqFor(it); return i
 for(const it of Meta.bag()) ensureReq(it); for(const s of SLOTS) if(gear[s]) ensureReq(gear[s]); (Meta.stock()||[]).forEach(ensureReq);
 let GATE=!new URLSearchParams(location.search).has('nogate');   // ?nogate: no level gate (the test suites that only care about the piece, not the level)
 const canWear=it=>!GATE||MAPI===0||!it||!it.req||Meta.level()>=it.req;   // map one, the training ground, has no gate: its guide says 'equip it' and the game must not say no
-{ const prev=Meta.equip; Meta.equip=id=>{ const it=Meta.bag().find(b=>b.id===id); if(it&&!canWear(it)){ const msg='Needs level '+it.req+' — you are level '+Meta.level(); toast(msg); if(window.__lesson&&window.__lesson.flow) window.__lesson.flow({ic:'🔒',title:'LEVEL '+it.req+' NEEDED',css:'#ffd27a',steps:[{ic:'⚔',t:'Kills'},{ic:'🛡',t:'Waves held'},{ic:'⬆',t:'Level up'},{ic:'🎒',t:'Wear it'}],note:'You are level '+Meta.level()+' · it waits in your bag'},7); else if(window.__lesson) window.__lesson.show(msg+'. Levels come from kills and waves held; the piece keeps in your bag until then.',7); return false; }   /* build 284: a card */ return prev(id); }; }
+// build 314 (Matt: "i dont understand it and it just keeps coming up"): the big card comes once per piece a session (after that a trying hand just gets the one-line toast), and it reads as
+// pictures -- you, the piece's level, how you get there, where it waits
+const lvlCardSeen=new Set();
+{ const prev=Meta.equip; Meta.equip=id=>{ const it=Meta.bag().find(b=>b.id===id); if(it&&!canWear(it)){ const msg='🔒 Needs level '+it.req+' — you are level '+Meta.level(); toast(msg); if(lvlCardSeen.has(it.id)) return false; lvlCardSeen.add(it.id);
+    if(window.__lesson&&window.__lesson.flow) window.__lesson.flow({ic:'🔒',title:'LEVEL '+it.req+' GEAR',css:'#ffd27a',steps:[{ic:'🧍',t:'You · Lv '+Meta.level()},{ic:'🔒',t:'This · Lv '+it.req},{ic:'⚔',t:'Kills level you up'},{ic:'🎒',t:'Waits in your bag'}]},6); else if(window.__lesson) window.__lesson.show(msg+'. Kills and waves held level you up; the piece keeps in your bag until then.',6); return false; }   /* build 284: a card */ return prev(id); }; }
 if(typeof tvTier==='function'){ const prev=tvTier; tvTier=function(it){ return prev(it)+(it.req?'<span class="tb'+(canWear(it)?'':' no')+'">Lv '+it.req+'</span>':''); }; }
 // --- the store ---
 let ARM=[]; try{ const a=JSON.parse(localStorage.getItem('ddArmory')); if(Array.isArray(a)) ARM=a.filter(validItem).map(fixItem).slice(0,CAP); }catch(e){}
@@ -23,7 +27,7 @@ function save(){ try{ localStorage.setItem('ddArmory',JSON.stringify(ARM)); }cat
 function stash(id){ const bag=Meta.bag(); const i=bag.findIndex(b=>b.id===id); if(i<0) return false; if(ARM.length>=CAP){ toast('The armory is full — '+CAP+' stands'); return false; } const it=bag.splice(i,1)[0]; ARM.push(it); save(); SFX.place(); return true; }
 function unstash(id){ const i=ARM.findIndex(b=>b.id===id); if(i<0) return false; if(Meta.bagFull()){ toast('Bag is full'); return false; } const it=ARM.splice(i,1)[0]; if(!Meta.giveItem(it)){ ARM.splice(i,0,it); return false; } save(); return true; }
 { const prev=Meta.reset; Meta.reset=()=>{ prev(); ARM=[]; save(); }; }
-Meta.levelGate=v=>{ if(v!==undefined) GATE=!!v; return GATE; }; Meta.armory=()=>ARM; Meta.armoryCap=CAP; Meta.stash=stash; Meta.unstash=unstash; Meta.canWear=canWear; Meta.reqFor=reqFor;
+Meta.lvlCardSeen=()=>lvlCardSeen.size; Meta.levelGate=v=>{ if(v!==undefined) GATE=!!v; return GATE; }; Meta.armory=()=>ARM; Meta.armoryCap=CAP; Meta.stash=stash; Meta.unstash=unstash; Meta.canWear=canWear; Meta.reqFor=reqFor;
 // --- the stands in the tavern: six along the north wall west of the door, two east of it — skipped on a map with
 // no physical tavern room (MAP.noTavern): there's nowhere to stand them, and they were showing up in open air
 // where the room used to be. KEEP / TAKE still works from the character sheet either way (Meta.armory above).

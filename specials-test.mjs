@@ -94,8 +94,8 @@ const r4=await page.evaluate(async()=>{
   const total=9999-target.hp;
   return {dmg,soon,total};
 });
-check("Troll: Volley delivers its 3x heroDmg() total in waves over about a second, not as one instant hit (some damage very early, the rest arrives after)",
-  r4.soon>0&&r4.soon<r4.total*.85&&Math.abs(r4.total-r4.dmg*3)<r4.dmg*.35,JSON.stringify(r4));
+check("Troll: Volley delivers its arrows in waves over about a second, not as one instant hit (some damage very early, the rest arrives after); build 314 (Matt: triple the raining arrows): 15 arrows, each a fifth of 3x heroDmg(), so 9x in all",
+  r4.soon>0&&r4.soon<r4.total*.85&&Math.abs(r4.total-r4.dmg*9)<r4.dmg*.6,JSON.stringify(r4));
 
 // ---- 5) refusals: dead, a menu open, the wrong phase -- each on its own hero/state, each checked as "never even started charging" ----
 const r5=await page.evaluate(async()=>{

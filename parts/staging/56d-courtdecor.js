@@ -148,8 +148,9 @@ const W1_EXTRA=30;
 // has no troll archers either -- each one taken out comes out as a goblin instead, in its place in the line, so the crowd stays the same size (drakes stay: they bite, they don't shoot)
 const NO_RANGED=x=>x.kind==='archer', NO_RANGED_LAST=x=>x.kind==='archer'||x.kind==='troll';
 { const prevWC=waveComp; waveComp=function(w){ const c=prevWC(w); if(!MAP||MAP.id!=='court') return c; const out=(!SURVIVAL&&(w-MAP.wbase)===MAP.waves)?NO_RANGED_LAST:NO_RANGED;
-    let n=0; for(const x of c.q) if(out(x)){ x.kind='goblin'; n++; } if(!n||!c.desc) return c;
-    const g=c.q.filter(x=>x.kind==='goblin').length; c.desc=String(c.desc).replace(/Goblins ×[0-9]+/,'Goblins ×'+g).replace(/ · Bandits ×[0-9]+/,'').replace(out===NO_RANGED_LAST?/ · Troll Archers ×[0-9]+/:/$^/,''); return c; }; }
+    // build 314 (Matt: "decreases the troll archers in the cloister by half"): on the other waves every second troll archer comes out as a goblin too (3 or 4 a wave -> 2)
+    let n=0, tr=0; for(const x of c.q){ if(out(x)){ x.kind='goblin'; n++; } else if(x.kind==='troll'&&(tr++)%2===1){ x.kind='goblin'; n++; } } if(!n||!c.desc) return c;
+    const g=c.q.filter(x=>x.kind==='goblin').length, t=c.q.filter(x=>x.kind==='troll').length; c.desc=String(c.desc).replace(/Goblins ×[0-9]+/,'Goblins ×'+g).replace(/ · Bandits ×[0-9]+/,'').replace(/ · Troll Archers ×[0-9]+/,t?' · Troll Archers ×'+t:''); return c; }; }
 window.__courtdecor.w1Extra=W1_EXTRA;
 window.__courtdecor.topiList=()=>TOPI;   // build 308: the Archhag (95f-archhag.js) wakes them
 window.__courtdecor.topiaries=()=>({placed:TOPI.length,cells:TOPI_CELLS.map(c=>[c.cx,c.cz]),h:TOPI_H,kinds:TOPI.reduce((o,t)=>{ o[t.kind]=(o[t.kind]||0)+1; return o; },{})});

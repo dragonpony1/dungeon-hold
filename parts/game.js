@@ -723,7 +723,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=313;
+const BUILD=314;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1203,6 +1203,13 @@ function updateOrbs(dt){
 const LR=()=>Math.random();   // loot uses real randomness, not the seeded world rng
 const RCOL=[0xcfcfcf,0x5ad05a,0x4a90ff,0xb050ff,0xffb830,0xff7ade], RCSS=['#d8d8d8','#5ad05a','#6aa8ff','#c070ff','#ffc040','#ff7ade'], RNAME=['Common','Uncommon','Rare','Epic','Legendary','Mythic'];   // Mythic (rarity 5, build 152): the hideout's forge alone makes it; the hall never drops it
 const SLOTS=['weapon','armor','charm','amulet','familiar'], SICON={weapon:'⚔',armor:'🛡',charm:'🔮',amulet:'📿',familiar:'🦉'};
+// build 314 (Matt: "on the bag, on the card, weapons are represented by crossing swords i need that to show bow, sword, staff or stave" -- "just that little emblem"): a weapon becomes whatever the hand
+// holding it uses (80-weapons.js), so its emblem is the current hero's: the Ranger's bow, the Witch's and Fighter's staff, the Knight's sword -- or, on the Knight, a polearm piece's polearm (slotIcon)
+const WEAPON_EMBLEM={sword:'🗡️',bow:'🏹',staff:'🪄',polearm:'🔱'};
+function weaponKind(it){ const h=window.__heroes?window.__heroes.pick():'knight'; if(h==='troll') return 'bow'; if(h==='witch'||h==='fighter') return 'staff'; return it&&(it.look==='polearm'||/\bpolearm\b/i.test(it.name||''))?'polearm':'sword'; }
+Object.defineProperty(SICON,'weapon',{get:()=>WEAPON_EMBLEM[weaponKind(null)],enumerable:true});
+function slotIcon(it,slot){ const s=(it&&it.slot)||slot; return s==='weapon'?WEAPON_EMBLEM[weaponKind(it)]:SICON[s]; }
+window.__emblem={slotIcon,kind:weaponKind,sicon:s=>SICON[s],card:(it,from)=>typeof tvCard==='function'?tvCard(it,from||'bag'):''};   // emblem-test.mjs
 const BASES={weapon:['Shortsword','Broadsword','Cleaver','Warhammer','Halberd','Gnome Blade'],armor:['Jerkin','Chainmail','Breastplate','Plate Harness','Tower Plate','Warden Mail'],charm:['Charm','Talisman','Idol','Sigil','Lantern','Relic'],amulet:['Pendant','Amulet','Locket','Torc','Medallion','Heartstone'],familiar:['Wisp','Cave Bat','Moss Sprite','Fire Imp','Crystal Owl','Storm Drake']};
 const PREFIX=[['Rusty','Plain','Worn','Sturdy','Old'],['Fine','Hardened','Keen','Polished'],['Gleaming','Runed','Tempered','Silvered'],['Ancient','Stormforged','Dragonbone','Moonlit'],['Mythic','Eternal','Goblinbane','Crystalheart']];
 const SUFFIX=['of Goblin Slaying','of Embers','of Fury','of Stone','of Vigil','of Thorns'];   // flavour only; "of the …" names that mean a set come from 93-gearsets.js
@@ -1254,7 +1261,7 @@ function resetGear(){ gear={weapon:null,armor:null,charm:null,amulet:null,famili
 function holdNag(l){ const d=Math.hypot(hero.x-l.x,hero.z-l.z); if(d<2.4&&S.t-(l.nagT===undefined?-99:l.nagT)>6){ l.nagT=S.t; toast('Bag is full of pieces you kept — make room to pick up '+l.it.name); } return true; }   // build 223: see Meta.holdsOnFloor
 function pickup(l){ const it=l.it, cur=gear[it.slot];
   if(Meta.onPickup(it,l)) return;
-  if(!cur||it.score>cur.score){ if(cur) S.mana+=cur.value; gear[it.slot]=it; applyGear(); saveGear(); SFX.loot(it.rarity); floatText(l.x,l.y+1,l.z,RNAME[it.rarity].toUpperCase()+' '+SICON[it.slot],RCSS[it.rarity]); lootToast(it,cur?'equipped (old one sold for '+cur.value+' mana)':'equipped'); }
+  if(!cur||it.score>cur.score){ if(cur) S.mana+=cur.value; gear[it.slot]=it; applyGear(); saveGear(); SFX.loot(it.rarity); floatText(l.x,l.y+1,l.z,RNAME[it.rarity].toUpperCase()+' '+slotIcon(it),RCSS[it.rarity]); lootToast(it,cur?'equipped (old one sold for '+cur.value+' mana)':'equipped'); }
   else { S.mana+=it.value; SFX.mana(); floatText(l.x,l.y+.8,l.z,'+'+it.value,'#5ee9ff'); lootToast(it,'sold for '+it.value+' mana'); } }
 function updateLoot(dt){
   for(let i=loot.length-1;i>=0;i--){ const l=loot[i]; l.t+=dt;
@@ -1266,7 +1273,7 @@ function updateLoot(dt){
     if(hero.dead<=0&&Math.hypot(hero.x-l.x,hero.z-l.z)<1.15&&Math.abs(hero.y-l.y)<1.6&&!(Meta.holdsOnFloor&&Meta.holdsOnFloor(l.it)&&holdNag(l))){ pickup(l); scene.remove(l.mesh); loot.splice(i,1); } }
 }
 let gearHTML='';
-function updateGearHUD(){ let h=''; for(const s of SLOTS){ const it=gear[s]; h+='<div class="gr"><span class="gi">'+SICON[s]+'</span>'+(it?'<span class="gn" style="color:'+RCSS[it.rarity]+'">'+it.name+'</span><span class="gs">'+statStr(it)+'</span>':'<span class="ge">no '+s+' yet</span>')+'</div>'; } if(h!==gearHTML){ gearHTML=h; $('gear').innerHTML=h; } }
+function updateGearHUD(){ let h=''; for(const s of SLOTS){ const it=gear[s]; h+='<div class="gr"><span class="gi">'+slotIcon(it,s)+'</span>'+(it?'<span class="gn" style="color:'+RCSS[it.rarity]+'">'+it.name+'</span><span class="gs">'+statStr(it)+'</span>':'<span class="ge">no '+s+' yet</span>')+'</div>'; } if(h!==gearHTML){ gearHTML=h; $('gear').innerHTML=h; } }
 loadGear();
 
 // ================= WAVES =================

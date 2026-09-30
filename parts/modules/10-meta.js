@@ -33,6 +33,8 @@ function points(){ let sum=0; SKILLS.forEach(s=>sum+=st.skills[s.id]); return Ma
 function addXP(n){ n=Math.round(+n||0); if(!(n>0)||!Number.isFinite(n)) return; n=Math.min(n,1e9); st.xp+=n; run.xp+=n; let ups=0; while(st.xp>=xpToNext(st.level)){ st.xp-=xpToNext(st.level); st.level++; ups++; }
   if(ups){ run.levels+=ups; const p=points(); toast('LEVEL '+st.level+' — '+p+' skill point'+(p===1?'':'s')+' for the trainer ('+bagKey()+')'); SFX.held(); if(S.phase!=='start') floatText(hero.x,hero.y+2.4,hero.z,'LEVEL '+st.level+'!','#ffd060'); }
   saveMeta(); }
+// build 314 (Matt: "add to dev hud change chatcter level"): the dev panel sets the level outright (xp back to the start of it); going below the skill points already spent hands them back to re-spend
+function setLevel(n){ n=clamp(Math.round(+n||1),1,99); st.level=n; st.xp=0; if(spentPoints()>n-1){ SKILLS.forEach(s=>st.skills[s.id]=0); applyGear(); } saveMeta(); return st.level; }
 // ---- skills ----
 function skillMult(k){ let v=0; for(const s of SKILLS){ if(s.keys.includes(k)) v+=s.per*st.skills[s.id]; } return v; }
 function spend(id){ const s=SKILLS.find(s=>s.id===id); if(!s||points()<=0||st.skills[id]>=SKILL_MAX) return false; st.skills[id]++; applyGear(); saveMeta(); SFX.place(); return true; }
@@ -67,7 +69,7 @@ function onPickup(it,l){ if(!validItem(it)) return false; fixItem(it); if(bagIdx
     if(w>=0){ const gone=st.bag.splice(w,1)[0]; addGold(gone.value,'auto'); roomMsg='Bag is full — sold '+gone.name+' for '+fmtG(gone.value)+' gold to make room for '+nm; } }
   if(bagFull()){ addGold(it.value,'auto'); SFX.mana(); if(l) floatText(l.x,l.y+.8,l.z,'+'+it.value+' ●',GOLD_CSS); htmlToast('Bag is full — '+nm+' sold for '+fmtG(it.value)+' gold'); return true; }
   if(precious(it)||(typeof Meta!=='undefined'&&Meta.packs&&Meta.packs.of&&Meta.packs.of(it))) it.locked=true;   // build 241 (Matt: set pieces, mythical gear and named mythical gear all auto lock on pick up): the fancy pieces are the exception, so they are kept safe until you unlock them yourself
-  st.bag.push(it); saveMeta(); SFX.loot(it.rarity); if(l) floatText(l.x,l.y+1,l.z,RNAME[it.rarity].toUpperCase()+' '+SICON[it.slot],RCSS[it.rarity]);
+  st.bag.push(it); saveMeta(); SFX.loot(it.rarity); if(l) floatText(l.x,l.y+1,l.z,RNAME[it.rarity].toUpperCase()+' '+slotIcon(it),RCSS[it.rarity]);
   if(roomMsg) htmlToast(roomMsg); else if(TOUCH) htmlToast(nm+(it.locked?' — bagged, locked':' — bagged')); else lootToast(it,it.locked?'bagged · 🔒 locked':'bagged'); return true; }   // phones: name only, the stat line runs off a 390px screen
 function sellItem(id){ const i=bagIdx(id); if(i<0||st.bag[i].locked) return 0; const it=st.bag.splice(i,1)[0]; addGold(it.value,'sell'); SFX.mana(); return it.value; }
 // junk = not an upgrade: scores below what is worn in that slot, or a Common that does not beat it. With nothing worn it is the only thing the player could wear, and a Common that beats the worn item is an upgrade, never junk
@@ -124,7 +126,7 @@ function metaReset(){ try{ localStorage.removeItem('ddMeta'); }catch(e){} st=fre
 Object.assign(Meta,{
   mult:skillMult, onPickup, onKill, onWaveHeld, onRunEnd, onMapHeld, open:metaOpen, hud:metaHud,
   BAG_CAP, XP, SKILLS, SKILL_MAX, xpToNext, fmtG, isJunk, bagKey,
-  gold:()=>st.gold, addGold, level:()=>st.level, xp:()=>st.xp, points, spentPoints, canRespec, respecCost, respec, spend,
+  gold:()=>st.gold, addGold, level:()=>st.level, setLevel, xp:()=>st.xp, points, spentPoints, canRespec, respecCost, respec, spend,
   skill:id=>st.skills[id]||0, skills:()=>Object.assign({},st.skills), skillValue:id=>{ const s=SKILLS.find(s=>s.id===id); return s?s.fmt(s.per*st.skills[id]):''; },
   bag:()=>st.bag, sortedBag, bagSort:()=>bagSort, setBagSort, BAG_SORTS, toggleLock, isLocked:id=>{ const i=bagIdx(id); return i>=0&&!!st.bag[i].locked; }, bagFull, holdsOnFloor, sell:sellItem, sellJunk, equip, unequip,
   stock:()=>st.stock, stockTier:()=>st.stockTier, tierLine, restockCost, restock, buyPrice, canBuy, buy,
