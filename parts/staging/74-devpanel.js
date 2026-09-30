@@ -53,7 +53,7 @@ function ensure(){ if(el) return; css();
   const named=(window.__mythic&&window.__mythic.NAMED)||{}; const namedOpts=Object.keys(named).map(id=>`<option value="${id}">${named[id].name}</option>`).join('');
   el.innerHTML=`<h3>⚙ DEV PANEL <span class="x" id="dp-x">✕</span></h3>
     <div class="sect"><label>jump to wave (current map)</label><div class="row"><input id="dp-wave" type="number" min="1" value="1" style="width:60px"><button id="dp-wave-go">Go</button></div></div>
-    <div class="sect"><label>spawn now, at the door</label><div class="row"><select id="dp-mob">${mobOpts}</select><button id="dp-mob-go">Spawn</button></div></div>
+    <div class="sect"><label>spawn now, at the door</label><div class="row"><select id="dp-mob">${mobOpts}</select><button id="dp-mob-go">Spawn</button><button id="dp-mob-5" title="a pack of five">×5</button></div></div>
     <div class="sect"><label>give yourself</label><div class="row"><button data-g="1000">+1000g</button><button data-g="10000">+10000g</button></div><div class="row"><button data-m="500">+500◆</button><button data-m="99999">+99999◆</button></div></div>
     <div class="sect"><label>character level</label><div class="row"><button id="dp-lv-dn">−1</button><input id="dp-lv" type="number" min="1" max="99" value="1" style="width:48px"><button id="dp-lv-up">+1</button><button id="dp-lv-go">Set</button></div></div>
     <div class="sect"><label>hero</label><div class="row"><select id="dp-hero">${heroOpts}</select><button id="dp-hero-go">Switch</button></div></div>
@@ -68,6 +68,7 @@ function ensure(){ if(el) return; css();
   $('dp-x').onclick=()=>toggle(false);
   $('dp-wave-go').onclick=()=>jumpWave(+$('dp-wave').value||1);
   $('dp-mob-go').onclick=()=>spawnNow($('dp-mob').value);
+  $('dp-mob-5').onclick=()=>{ for(let i=0;i<5;i++) setTimeout(()=>spawnNow($('dp-mob').value),i*180); };   // build 316: a pack at a time (Matt trying the dire wolves)
   el.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>Meta.addGold(+b.dataset.g));
   el.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ S.mana+=+b.dataset.m; });
   // build 314 (Matt: "add to dev hud change chatcter level"): set it outright, or step it one at a time
@@ -108,6 +109,8 @@ function spawnNow(kind){ const k=Object.keys(LANES)[0]; if(!k){ toast('no lane o
   // three the way the real wave-7 trigger does, not just that one alone
   if(kind==='archhag'&&window.__archhag&&window.__archhag.ensure){ if(!window.__archhag.loaded()){ toast('loading the Archhag…'); window.__archhag.ensure().then(()=>window.__archhag.spawn()); } else window.__archhag.spawn(); return; }   // build 308: her real entrance (the garden wakes)
   if((kind==='pigflail'||kind==='pigdagger'||kind==='pigsling')&&window.__pigbosses){ if(!window.__pigbosses.loaded()){ toast('loading the pig bosses…'); window.__pigbosses.ensure().then(()=>window.__pigbosses.spawn()); } else window.__pigbosses.spawn(); return; }
+  // build 316: the dire wolf's model loads the first time one is asked for (95g-direwolf.js); wait for it rather than send out a goblin-bodied stand-in
+  if(kind==='direwolf'&&window.__direwolf&&!window.__direwolf.loaded()){ toast('loading the dire wolf…'); window.__direwolf.load().then(()=>{ if(window.__direwolf.loaded()) spawnNow(kind); }); return; }
   spawnEnemy(kind,k); toast('spawned a '+kind); }
 function toggle(v){ ensure(); open=v===undefined?!open:v; el.classList.toggle('hide',!open); if(open&&$('dp-lv')) $('dp-lv').value=Meta.level(); }
 addEventListener('keydown',e=>{ if(e.code==='F9'){ e.preventDefault(); toggle(); } });
