@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="74">
+<meta name="hideout-build" content="75">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -165,7 +165,7 @@ canvas{display:block}
 .gamegrid{max-height:156px;overflow-y:auto}
 </style>
 </head><body>
-<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: inventory &middot; Esc: close a menu<br>The portal takes you back to the hall<div id="loadWrap"><div id="loadBar" class="indeterminate"><div id="loadFill"></div></div><div id="loadLine">Loading…</div></div></div>
+<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: inventory &middot; B: bag &middot; H: hero &middot; T: trade &middot; Esc: close a menu<br>The portal takes you back to the hall<div id="loadWrap"><div id="loadBar" class="indeterminate"><div id="loadFill"></div></div><div id="loadLine">Loading…</div></div></div>
 <div id="crosshair"></div>
 <div id="hud">Rare Sludge: <b id="sludge">0</b></div>
 <div id="prompt"></div>
@@ -273,7 +273,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 74;   // builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 75;   // build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -2893,6 +2893,7 @@ document.addEventListener('keydown', e => {
   if (k === 'i' && active) openGearPanel();
   if (k === 't' && active) HD.tradeKey();
   if (k === 'b' && active) openHallBag();
+  if (k === 'h' && active) openHeroPick();
   if (k === 'f9' && window.parent !== window) {   // build 70 (Matt: "is the dev hud not working anymore?" -- in here this page has the keyboard): F9 asks the game for its dev panel; the mouse is let go so it can be clicked
     e.preventDefault(); if (document.pointerLockElement) document.exitPointerLock();
     try { window.parent.postMessage('hideout:devpanel', '*'); } catch (err) {}
@@ -2900,6 +2901,13 @@ document.addEventListener('keydown', e => {
 });
 // build 69 (Matt: "while in the hideout you need to be able to see what you have on ... why cant b for bag just work in the hide out"): B asks the game to open its own bag (the tavern's, with what every
 // slot has on, salvage into the Cauldron and the forge on each card) over this page (game build 298, 96g-hideoutbag.js). The standalone page has no game around it: B opens the I panel there.
+// build 75 (Matt: "oh we need a way to change heros in the hideout"): H asks the game for its hero picker, over this page (game build 329, 96k-hideouthero.js) -- the same key the co-op lobby
+// changes hero with. It hands the room back the way the bag does ('hideout:bagClosed'). The standalone page has no heroes: it says where to change them.
+function openHeroPick() {
+  if (window.parent === window) { flashMsg('Change heroes on the title screen, in the hall'); return; }
+  if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
+  try { window.parent.postMessage('hideout:hero', '*'); } catch (e) {}
+}
 function openHallBag() {
   if (window.parent === window) { openGearPanel(); return; }
   if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
