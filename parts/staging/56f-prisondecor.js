@@ -11,7 +11,7 @@ const PROTO={};
 function protoOf(name,size){ const key=name+'|'+size; return PROTO[key]||(PROTO[key]=fetchBytes(ASSET(name),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',gl=>{ try{
     const root=gl.scene||gl.scenes[0]; const fit=fitModel(root,size); toonify(root,fit.scale); fit.wrap.userData.clips=gl.animations||[]; res(fit.wrap); }catch(e){ rej(e); } },rej)))); }
 const use=(name,size,cb)=>protoOf(name,size).then(p=>cb(p)).catch(e=>console.warn('prison decor '+name,e));
-const PLAIN_ROWS=7;   // the wall faces of the apex's first rows -- behind the Heartroot and down its two sides -- are plain prison wall, no cells (Matt)
+const PLAIN_ROWS=9;   // the wall faces of the apex's first rows -- behind the Heartroot and down its two sides -- are plain prison wall, no cells (Matt)
 const CX=23, WIDEN=1, HW=z=>Math.min(20+WIDEN,Math.ceil((z-1)/2)+WIDEN);   // the triangle's half-width at row z (the same rule the map is built by)
 // ---------------- THE RIM WALL: rows of cells, painted (four different doors, repeated every four cells along the wall)
 function paintCells(){ const W=1280,H=256, c=cv(W,H), g=c.getContext('2d'); g.fillStyle='#0d110c'; g.fillRect(0,0,W,H);
@@ -84,7 +84,7 @@ function instanceAll(wrap,mats){ if(!mats.length) return; wrap.updateMatrixWorld
 // smaller one frames each breakable wall, and two of his corner pillars stand behind the Heartroot's dais. 26K triangles in all.
 { const FL=[[8,38,6],[33,27,4],[18,16,2]];   // [the flight's centre column, the first row of the upper floor past its head, that floor's height]
   use('prison-arch.glb',4.95,p=>{ for(const [cx,cz,y] of FL){ const t=p.clone(); t.position.set(cw(cx),y,cwz(cz)); world.add(t); bump('flightArch'); }
-    for(const sd of [-1,1]){ const t=p.clone(); t.scale.setScalar(.84); const plane=cw(sd<0?18:28)-sd*CELL/2; t.position.set(plane-sd*.35,0,cwz(6)); t.rotation.y=-sd*PI/2; world.add(t); bump('alcoveArch'); } });
+    for(const sd of [-1,1]){ const t=p.clone(); t.scale.setScalar(1.6); const plane=cw(sd<0?18:28)-sd*CELL/2; t.position.set(plane-sd*.9,0,(cwz(5)+cwz(8))/2); t.rotation.y=-sd*PI/2; world.add(t); bump('alcoveArch'); } });
   use('prison-pillar.glb',8,p=>{ for(const cxx of [21,25]){ const t=p.clone(); t.position.set(cw(cxx),0,cwz(2)); world.add(t); bump('pillar'); } }); }
 // ---------------- the test hook
 window.__prisondecor={reach:()=>Object.fromEntries(Object.entries(LANES).map(([k,l])=>[k,flowFree.dist[idx(l.cx,l.cz)]])),info:()=>Object.assign({},counts)};

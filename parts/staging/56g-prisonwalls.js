@@ -7,16 +7,19 @@
 window.__prisonwalls={info:()=>null};
 if(!MAP||MAP.id!=='prison') return;
 const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
-const OPEN_H=4.0, SCALE=OPEN_H/1.91, HIT=25, HP=100;
+const OPEN_H=8.0, SCALE=OPEN_H/1.91, HIT=25, HP=100;
 // the two alcoves: the solid cell, the pit cell in front of it, which way the opening faces (toward the pit), and the weapon behind each wall
 // two kinds of breakable wall (Matt: "we have 2 types of destrucable wall"): the west one is Bob's (48 modelled pieces), the east one is Matt's Meshy wall with the glowing crack (one solid model -- shattered here, at load, into
 // shards along organic lines, which fall with the same scripted tumble)
-const SPOTS=[{id:'W',cx:18,cz:6,fcx:19,nx:1,kind:'harpoon',src:'hi3d'},{id:'E',cx:28,cz:6,fcx:27,nx:-1,kind:'acorn',src:'meshy'}];
+// build 348 (Matt: "Make it 4x4 on both sides to start with"): each wall is now 4 squares wide and 4 tall (8 x 8), over an alcove 4 squares long and 2 deep. cin: the alcove column against the wall, cout: the one behind it, fcx: the pit column in front, z0-z1: its rows
+const SPOTS=[{id:'W',nx:1,cin:18,cout:17,fcx:19,z0:5,z1:8,kind:'harpoon',src:'hi3d'},{id:'E',nx:-1,cin:28,cout:29,fcx:27,z0:5,z1:8,kind:'acorn',src:'meshy'}];
+for(const sp of SPOTS){ sp.px=cw(sp.cin)+sp.nx*CELL/2; sp.zc=(cwz(sp.z0)+cwz(sp.z1))/2; sp.zh=(cwz(sp.z1)-cwz(sp.z0))/2+CELL/2; }
+const clampZ=(sp,z)=>Math.max(sp.zc-sp.zh,Math.min(sp.zc+sp.zh,z));
 const LVL=6, TOUGH=2;
 // ---------------- Bob's breakable wall (hi3d-breakable-wall.js), as he wrote it, in this game's own scope
 class BreakableWall {
   constructor(intact,fragments,o){
-    this.o=Object.assign({ maxHealth:HP, impulse:1, debrisLifetime:9, onHit:()=>{}, onBreak:()=>{} },o);
+    this.o=Object.assign({ maxHealth:HP, impulse:1, gravity:9.81, debrisLifetime:11, onHit:()=>{}, onBreak:()=>{} },o);
     this.group=new THREE.Group(); this.intact=intact; this.fragments=fragments;
     intact.position.y-=new THREE.Box3().setFromObject(intact).min.y; fragments.position.y-=new THREE.Box3().setFromObject(fragments).min.y;
     this.group.add(intact,fragments); this.group.updateMatrixWorld(true); this.chunks=[];
@@ -39,7 +42,7 @@ class BreakableWall {
     if(!this.broken){ this.shake=Math.max(0,this.shake-dt); const a=this.shake*.08; this.intact.position.x=Math.sin(this.time*100)*a; this.intact.rotation.z=Math.sin(this.time*83)*a*.3; return; }
     this.acc+=dt; while(this.acc>=1/120){ this._step(1/120); this.acc-=1/120; } }
   _step(dt){ this.age+=dt; const fade=Math.max(0,Math.min(1,this.o.debrisLifetime-this.age)); if(fade===0){ this.fragments.visible=false; return; }
-    for(const p of this.chunks){ if(!p.settled){ p.velocity.y-=9.81*dt; p.node.position.addScaledVector(p.velocity,dt); const sp=p.spin.length();
+    for(const p of this.chunks){ if(!p.settled){ p.velocity.y-=this.o.gravity*dt; p.node.position.addScaledVector(p.velocity,dt); const sp=p.spin.length();
         if(sp>.0001) p.node.quaternion.premultiply(this._q.setFromAxisAngle(this._axis.copy(p.spin).normalize(),sp*dt));
         let minY=Infinity; for(const c of p.corners){ this._tmp.copy(c).multiply(p.scale).applyQuaternion(p.node.quaternion); minY=Math.min(minY,this._tmp.y+p.node.position.y+this.fragments.position.y); }
         if(minY<.006){ p.node.position.y+=.006-minY; p.velocity.y=Math.abs(p.velocity.y)*.18; p.velocity.x*=.72; p.velocity.z*=.72; p.spin.multiplyScalar(.55); if(this.age>.8&&p.velocity.length()<.22){ p.settled=true; p.velocity.set(0,0,0); p.spin.set(0,0,0); } } }
@@ -51,9 +54,10 @@ const walls=[]; let cellWall=null; const dust=[]; const timers=[]; const cnt={ b
 function faceIndex(cx,cz,nx){ return wallFaces.findIndex(f=>f.cx===cx&&f.cz===cz&&f.nx===nx&&f.nz===0); }
 // the wall face in front of the alcove is drawn from the top of the opening up (so the opening itself is clear to open); until it breaks, Bob's wall fills it
 function lowerQuad(i,y){ if(!cellWall||i<0) return; const g=cellWall.geometry, p=g.attributes.position, uv=g.attributes.uv; for(const k of [0,3]){ p.setY(4*i+k,y); uv.setY(4*i+k,y/CELL); } p.needsUpdate=true; uv.needsUpdate=true; }
-function puff(x,y,z,n){ for(let i=0;i<n;i++){ const s=glow(0xd8c8a8,4+Math.random()*3,.0); s.position.set(x+(Math.random()-.5)*2.2,y+Math.random()*1.4,z+(Math.random()-.5)*2.2); world.add(s); dust.push({ s, t:0, life:1.3+Math.random()*.8, vy:.5+Math.random()*.8, vx:(Math.random()-.5)*1.2, vz:(Math.random()-.5)*1.2 }); } }
+function lowerFaces(sp,y){ for(let r=sp.z0;r<=sp.z1;r++) lowerQuad(faceIndex(sp.fcx,r,sp.nx),y); }
+function puff(x,y,z,n,spread){ const sw=spread||2.2; for(let i=0;i<n;i++){ const s=glow(0xd8c8a8,5+Math.random()*4,.0); s.position.set(x+(Math.random()-.5)*2.2,y+Math.random()*3,z+(Math.random()-.5)*sw); world.add(s); dust.push({ s, t:0, life:1.3+Math.random()*.8, vy:.5+Math.random()*.8, vx:(Math.random()-.5)*1.2, vz:(Math.random()-.5)*1.2 }); } }
 // ---------------- opening the alcove and rolling the weapon out
-function openAlcove(sp){ const cx=sp.cx, cz=sp.cz, x=cw(cx), z=cwz(cz), nx=sp.nx;
+function openAlcoveOld(sp){ const cx=sp.cx, cz=sp.cz, x=cw(cx), z=cwz(cz), nx=sp.nx;
   grid[idx(cx,cz)]=T.FLOOR; hgt[idx(cx,cz)]=0; reflow();
   const dark=mat(0x2c3628,{side:THREE.DoubleSide}); const add=(w,h,px,py,pz,ry,rx)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),dark); m.position.set(px,py,pz); m.rotation.set(rx||0,ry||0,0); m.userData.noOL=true; world.add(m); };
   add(CELL,CELL,x,.03,z,0,-PI/2); add(CELL,CELL,x,OPEN_H-.03,z,0,PI/2); add(CELL,OPEN_H,x-nx*CELL/2,OPEN_H/2,z,nx>0?PI/2:-PI/2); add(CELL,OPEN_H,x,OPEN_H/2,z-CELL/2,0); add(CELL,OPEN_H,x,OPEN_H/2,z+CELL/2,0);   // the alcove's floor, ceiling, back and two sides
@@ -62,6 +66,16 @@ function openAlcove(sp){ const cx=sp.cx, cz=sp.cz, x=cw(cx), z=cwz(cz), nx=sp.nx
   // the weapon: a real defense, placed free (its mana and defense units handed straight back), Mark VI, tougher than a built one, not for sale
   const m0=S.mana; const d=placeDefAt(sp.kind,x,z,nx>0?PI/2:-PI/2); S.mana=m0; S.du-=DEFS[sp.kind].du; d.spent=0; d.secret=true; d.lvl=LVL; d.max=Math.round(DEFS[sp.kind].hp*(1+.4*(LVL-1)))*TOUGH; d.hp=d.max; d.pop=0; sp.def=d; cnt.weapons++;
   floatText(x,d.top+1.6,z,'🔓 '+DEFS[sp.kind].ic,'#e8b94a'); try{ SFX.place&&SFX.place(); }catch(e){} }
+function openAlcove(sp){ const nx=sp.nx, px=sp.px, zc=sp.zc, zh=sp.zh, dep=2*CELL, xm=px-nx*dep/2;
+  for(const cc of [sp.cin,sp.cout]) for(let r=sp.z0;r<=sp.z1;r++){ grid[idx(cc,r)]=T.FLOOR; hgt[idx(cc,r)]=0; } reflow();
+  const dark=mat(0x2c3628,{side:THREE.DoubleSide}); const add=(w,h,pxx,py,pz,ry,rx)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),dark); m.position.set(pxx,py,pz); m.rotation.set(rx||0,ry||0,0); m.userData.noOL=true; world.add(m); };
+  // the alcove's floor, ceiling, back and two sides
+  add(dep,2*zh,xm,.03,zc,0,-PI/2); add(dep,2*zh,xm,OPEN_H-.03,zc,0,PI/2); add(2*zh,OPEN_H,px-nx*dep,OPEN_H/2,zc,nx>0?PI/2:-PI/2); add(dep,OPEN_H,xm,OPEN_H/2,zc-zh,0); add(dep,OPEN_H,xm,OPEN_H/2,zc+zh,0);
+  const l=new THREE.PointLight(C(0xffc870),3.2,20,2); l.position.set(px-nx*1.5,4,zc); world.add(l); sp.light=l; sp.flash=1;
+  puff(px+nx*1.4,1,zc,18,2*zh);
+  // the weapon: a real defense, placed free (its mana and defense units handed straight back), Mark VI, tougher than a built one, not for sale
+  const x=cw(sp.cin), m0=S.mana; const d=placeDefAt(sp.kind,x,zc,nx>0?PI/2:-PI/2); S.mana=m0; S.du-=DEFS[sp.kind].du; d.spent=0; d.secret=true; d.lvl=LVL; d.max=Math.round(DEFS[sp.kind].hp*(1+.4*(LVL-1)))*TOUGH; d.hp=d.max; d.pop=0; sp.def=d; cnt.weapons++;
+  floatText(x,d.top+1.6,zc,'🔓 '+DEFS[sp.kind].ic,'#e8b94a'); try{ SFX.place&&SFX.place(); }catch(e){} }
 // ---------------- the plain prison wall around the apex (Matt: "first from behind the heartroot to the exterior of it about 3 squares, no cells so all prison wall"): the same shackled wall instanced over every wall face: five high (ten up -- Matt: "take those wall upward 3 squares") along the back wall behind the Heartroot, two high down the sides
 // of the first rows (the painted plain-wall tile carries the rest of the height), so the breakable walls sit in a wall made of their own kind
 // (the rest of the height, and the sides above their two rows, is that same wall drawn flat: the model's front rendered once into the plain wall's tile -- the real look at no triangles)
@@ -72,8 +86,8 @@ function bakeTile(root){ const cw0=world.userData.cellWall; if(!cw0||!cw0.materi
   const c=document.createElement('canvas'); c.width=c.height=size; const g=c.getContext('2d'), id=g.createImageData(size,size); for(let y=0;y<size;y++) id.data.set(px.subarray((size-1-y)*size*4,(size-y)*size*4),y*size*4); g.putImageData(id,0,0);
   const dst=cw0.material.map.image.getContext('2d'); dst.drawImage(c,1024,0); cw0.material.map.needsUpdate=true; cnt.baked=1; }
 function plainWall(root){ const PR=world.userData.plainRows||7; root.updateMatrixWorld(true); const box=new THREE.Box3().setFromObject(root), sz=box.getSize(new THREE.Vector3()), c=box.getCenter(new THREE.Vector3());
-  const s=OPEN_H/(2*sz.y), depth=sz.z*s, skip=new Set(SPOTS.map(p=>faceIndex(p.fcx,p.cz,p.nx))), mats=[], m=new THREE.Matrix4(), Q=new THREE.Quaternion(), V=new THREE.Vector3(), Sc=new THREE.Vector3(s,s,s), up=new THREE.Vector3(0,1,0);
-  wallFaces.forEach((f,q)=>{ if(f.cz>PR) return; const y0=hgt[idx(f.cx,f.cz)]||0; Q.setFromAxisAngle(up,Math.atan2(f.nx,f.nz));
+  const s=OPEN_H/(2*sz.y), depth=sz.z*s, skip=new Set(SPOTS.flatMap(p=>{ const a=[]; for(let r=p.z0;r<=p.z1;r++) a.push(faceIndex(p.fcx,r,p.nx)); return a; })), mats=[], m=new THREE.Matrix4(), Q=new THREE.Quaternion(), V=new THREE.Vector3(), Sc=new THREE.Vector3(s,s,s), up=new THREE.Vector3(0,1,0);
+  wallFaces.forEach((f,q)=>{ if(f.cz>PR||skip.has(q)) return; const y0=hgt[idx(f.cx,f.cz)]||0; Q.setFromAxisAngle(up,Math.atan2(f.nx,f.nz));
     const rows=(f.nz===1&&f.nx===0&&f.cz===2)?5:2;   // behind the Heartroot the real wall goes five high (ten up); down the sides two, with the same wall drawn flat above it
     for(let r=0;r<rows;r++){ V.set(f.x+f.nx*.12,y0+r*sz.y*s,f.z+f.nz*.12); mats.push(new THREE.Matrix4().compose(V,Q,Sc).multiply(new THREE.Matrix4().makeTranslation(-c.x,-box.min.y,-c.z))); } });
   root.traverse(ob=>{ if(!ob.isMesh||ob.userData.isOL) return; const im=new THREE.InstancedMesh(ob.geometry,ob.material,mats.length); mats.forEach((M4,i)=>{ m.multiplyMatrices(M4,ob.matrixWorld); im.setMatrixAt(i,m); }); im.instanceMatrix.needsUpdate=true; im.frustumCulled=false; im.userData.noOL=true; world.add(im); });
@@ -94,21 +108,21 @@ function shatter(root){ root.updateMatrixWorld(true); let mesh=null; root.traver
 Promise.all([load('prison-wall-intact.glb'),load('prison-wall-fragments.glb'),load('prison-wall2.glb')]).then(([intact,frag,wall2])=>{
   let shards=null; try{ shards=shatter(wall2); }catch(e){ console.warn('prison walls shatter',e); }
   try{ plainWall(intact); bakeTile(intact); }catch(e){ console.warn('prison walls plain',e); }
-  for(const sp of SPOTS){ const i=faceIndex(sp.fcx,sp.cz,sp.nx); if(i<0){ console.warn('prison walls: no wall face at',sp.fcx,sp.cz); continue; }
-    cellWall=cellWall||world.userData.cellWall; lowerQuad(i,OPEN_H);
+  for(const sp of SPOTS){ if(faceIndex(sp.fcx,sp.z0,sp.nx)<0){ console.warn('prison walls: no wall face at',sp.fcx,sp.z0); continue; }
+    cellWall=cellWall||world.userData.cellWall; lowerFaces(sp,OPEN_H);
     const meshy=sp.src==='meshy'&&shards, wScale=meshy?OPEN_H/1.925:SCALE;
-    const w=new BreakableWall(meshy?wall2.clone(true):intact.clone(true),meshy?shards:frag.clone(true),{ onHit:(ww,pt)=>{ cnt.hits++; try{ SFX.hit&&SFX.hit(); }catch(e){} puff(pt?pt.x:0,1.4,pt?pt.z:0,1); },
-      onBreak:(ww,pt)=>{ cnt.broken++; try{ SFX.boom&&SFX.boom(); SFX.hit&&SFX.hit(); }catch(e){} const x=cw(sp.cx)+sp.nx*CELL/2, z=cwz(sp.cz); puff(x,1.2,z,10); timers.push({ t:.8, fn:()=>openAlcove(sp) }); } });
-    const face=cw(sp.cx)+sp.nx*CELL/2, back=.47*wScale/2;   // the wall's front on the opening's plane, its thickness behind it, in the alcove
-    w.group.scale.setScalar(wScale); w.group.position.set(face-sp.nx*back,0,cwz(sp.cz)); w.group.rotation.y=sp.nx>0?PI/2:-PI/2; world.add(w.group); w.spot=sp; w.kind=meshy?'meshy':'hi3d';
+    const w=new BreakableWall(meshy?wall2.clone(true):intact.clone(true),meshy?shards:frag.clone(true),{ gravity:9.81/wScale, onHit:(ww,pt)=>{ cnt.hits++; try{ SFX.hit&&SFX.hit(); }catch(e){} puff(pt?pt.x:0,2.5,pt?pt.z:0,2,sp.zh*1.6); },
+      onBreak:(ww,pt)=>{ cnt.broken++; try{ SFX.boom&&SFX.boom(); SFX.hit&&SFX.hit(); }catch(e){} puff(sp.px,2.5,sp.zc,22,sp.zh*2); timers.push({ t:.8, fn:()=>openAlcove(sp) }); } });
+    const face=sp.px, back=.47*wScale/2;   // the wall's front on the opening's plane, its thickness behind it, in the alcove
+    w.group.scale.setScalar(wScale); w.group.position.set(face-sp.nx*back,0,sp.zc); w.group.rotation.y=sp.nx>0?PI/2:-PI/2; world.add(w.group); w.spot=sp; w.kind=meshy?'meshy':'hi3d';
     // a soft gold glow (green on the Meshy wall's glowing crack) breathes over the wall until it breaks
-    { const col=meshy?0x70ff90:0xffc860, gs=glow(col,7.5,.5); gs.position.set(face+sp.nx*.7,2.0,cwz(sp.cz)); world.add(gs); const gl=new THREE.PointLight(C(col),1.6,11,2); gl.position.set(face+sp.nx*1.2,2.0,cwz(sp.cz)); world.add(gl); w.beacon={ gs, gl, ph:Math.random()*6 }; } sp.wall=w; walls.push(w); cnt.built++; }
+    { const col=meshy?0x70ff90:0xffc860, gs=glow(col,13,.5); gs.position.set(face+sp.nx*.8,OPEN_H/2,sp.zc); world.add(gs); const gl=new THREE.PointLight(C(col),2.2,16,2); gl.position.set(face+sp.nx*1.6,OPEN_H/2,sp.zc); world.add(gl); w.beacon={ gs, gl, ph:Math.random()*6 }; } sp.wall=w; walls.push(w); cnt.built++; }
 }).catch(e=>console.warn('prison walls',e));
 // ---------------- what breaks them: your sword's swing, or a staff bolt of yours
-function nearPlane(sp,x,z,r){ return Math.hypot(x-(cw(sp.cx)+sp.nx*CELL/2),z-cwz(sp.cz))<r; }
+function nearPlane(sp,x,z,r){ return Math.hypot(x-sp.px,z-clampZ(sp,z))<r; }
 function meleeWalls(){ if(isGuest()) return; const fx=Math.sin(hero.yaw), fz=Math.cos(hero.yaw);
-  for(const w of walls){ if(w.broken) continue; const sp=w.spot, wx=cw(sp.cx)+sp.nx*CELL/2, wz=cwz(sp.cz), dx=wx-hero.x, dz=wz-hero.z, d=Math.hypot(dx,dz);
-    if(d<Math.min(hero.reach||2.4,3.2)+1.8&&(dx*fx+dz*fz)/Math.max(d,.01)>.25) w.hit(HIT,new THREE.Vector3(wx,1.2,wz),new THREE.Vector3(fx,0,fz)); } }
+  for(const w of walls){ if(w.broken) continue; const sp=w.spot, wx=sp.px, wz=clampZ(sp,hero.z), dx=wx-hero.x, dz=wz-hero.z, d=Math.hypot(dx,dz);
+    if(d<Math.min(hero.reach||2.4,3.2)+1.8&&(dx*fx+dz*fz)/Math.max(d,.01)>.25) w.hit(HIT,new THREE.Vector3(wx,1.5,wz),new THREE.Vector3(fx,0,fz)); } }
 { const prev=hitCone; hitCone=function(){ prev.apply(this,arguments); meleeWalls(); }; }
 // the secret weapons are not for sale, and giving one back hands back the defense units it never took
 { const prevSell=sell; sell=function(pos){ const d=typeof pickDef==='function'?pickDef(pos):null; if(d&&d.secret){ toast('🔒 A secret weapon'); return; } return prevSell.apply(this,arguments); }; }
@@ -120,8 +134,8 @@ WORLDANIM.push(dt=>{ clock+=dt; for(const w of walls) w.update(dt);
   for(let i=timers.length-1;i>=0;i--){ const t=timers[i]; t.t-=dt; if(t.t<=0){ timers.splice(i,1); try{ t.fn(); }catch(e){ console.warn('prison walls',e); } } }
   for(let i=dust.length-1;i>=0;i--){ const p=dust[i]; p.t+=dt; const k=p.t/p.life; if(k>=1){ world.remove(p.s); dust.splice(i,1); continue; } p.s.position.x+=p.vx*dt; p.s.position.y+=p.vy*dt; p.s.position.z+=p.vz*dt; p.s.material.opacity=.5*Math.sin(Math.min(1,k*1.6)*PI)*(1-k*.4); p.s.scale.setScalar(p.s.scale.x+dt*2.2); }
   for(const sp of SPOTS) if(sp.flash>0){ sp.flash=Math.max(0,sp.flash-dt*.5); if(sp.light) sp.light.intensity=2.4+sp.flash*3.5; }
-  if(!isGuest()&&walls.some(w=>!w.broken)&&window.__staff&&window.__staff.boltList){ const bl=window.__staff.boltList(); if(bl.length) for(const b of bl){ if(!b.mine||b.y>5.5) continue; for(const w of walls){ if(w.broken) continue; const sp=w.spot; if(nearPlane(sp,b.x,b.z,2.1)) w.hit(HIT,new THREE.Vector3(cw(sp.cx)+sp.nx*CELL/2,1.4,cwz(sp.cz)),new THREE.Vector3(-sp.nx,0,0)); } } } });
+  if(!isGuest()&&walls.some(w=>!w.broken)&&window.__staff&&window.__staff.boltList){ const bl=window.__staff.boltList(); if(bl.length) for(const b of bl){ if(!b.mine||b.y>OPEN_H+1) continue; for(const w of walls){ if(w.broken) continue; const sp=w.spot; if(nearPlane(sp,b.x,b.z,2.1)) w.hit(HIT,new THREE.Vector3(sp.px,1.6,clampZ(sp,b.z)),new THREE.Vector3(-sp.nx,0,0)); } } } });
 window.__prisonwalls={ walls:()=>walls.map(w=>({ id:w.spot.id, kind:w.kind, health:w.health, broken:w.broken, x:+w.group.position.x.toFixed(2), z:+w.group.position.z.toFixed(2), chunks:w.chunks.length, debris:w.fragments.visible, glow:!!(w.beacon&&w.beacon.gs.parent) })),
-  hit:(id,n)=>{ const w=walls.find(x=>x.spot.id===id); if(!w) return false; const sp=w.spot; w.time+=1; return w.hit(n||HIT,new THREE.Vector3(cw(sp.cx)+sp.nx*CELL/2,1.2,cwz(sp.cz)),new THREE.Vector3(-sp.nx,0,0)); },
+  hit:(id,n)=>{ const w=walls.find(x=>x.spot.id===id); if(!w) return false; const sp=w.spot; w.time+=1; return w.hit(n||HIT,new THREE.Vector3(sp.px,1.5,sp.zc),new THREE.Vector3(-sp.nx,0,0)); },
   spots:()=>SPOTS.map(s=>({ id:s.id, open:!!s.def, def:s.def?{ kind:s.def.kind, lvl:s.def.lvl, secret:!!s.def.secret, hp:s.def.hp, max:s.def.max }:null })), info:()=>Object.assign({},cnt) };
 })();
