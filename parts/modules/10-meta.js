@@ -31,7 +31,8 @@ function saveMeta(){ metaVer++; try{ localStorage.setItem('ddMeta',JSON.stringif
 function addGold(n,why){ n=Math.round(+n||0); if(!n||!Number.isFinite(n)) return st.gold; st.gold=clamp(st.gold+n,0,GOLD_MAX); if(!Number.isFinite(st.gold)) st.gold=0; if(why!=='refund'){ if(n>0) run.gold+=n; else run.spent-=n; } saveMeta(); return st.gold; }
 function points(){ let sum=0; SKILLS.forEach(s=>sum+=st.skills[s.id]); return Math.max(0,st.level-1-sum); }
 function addXP(n){ n=Math.round(+n||0); if(!(n>0)||!Number.isFinite(n)) return; n=Math.min(n,1e9); st.xp+=n; run.xp+=n; let ups=0; while(st.xp>=xpToNext(st.level)){ st.xp-=xpToNext(st.level); st.level++; ups++; }
-  if(ups){ run.levels+=ups; const p=points(); toast('LEVEL '+st.level+' — '+p+' skill point'+(p===1?'':'s')+' for the trainer ('+bagKey()+')'); SFX.held(); if(S.phase!=='start') floatText(hero.x,hero.y+2.4,hero.z,'LEVEL '+st.level+'!','#ffd060'); }
+  // build 336: talents (96l-talents.js) -- Meta.points below is the hero's own count
+  if(ups){ run.levels+=ups; const p=(typeof Meta!=='undefined'&&Meta.points)?Meta.points():points(); toast('LEVEL '+st.level+' — '+p+' talent point'+(p===1?'':'s')+' (N)'); SFX.held(); if(S.phase!=='start') floatText(hero.x,hero.y+2.4,hero.z,'LEVEL '+st.level+'!','#ffd060'); }
   saveMeta(); }
 // build 314 (Matt: "add to dev hud change chatcter level"): the dev panel sets the level outright (xp back to the start of it); going below the skill points already spent hands them back to re-spend
 function setLevel(n){ n=clamp(Math.round(+n||1),1,99); st.level=n; st.xp=0; if(spentPoints()>n-1){ SKILLS.forEach(s=>st.skills[s.id]=0); applyGear(); } saveMeta(); return st.level; }
@@ -119,7 +120,7 @@ function ensureMetaHud(){ if(!$('gold')){ const res=document.querySelector('.res
   // #hud-prefixed: the game's <style> sits in <body>, after this one in the cascade. .res may wrap (phone .bars is 170px): gold takes its own line instead of each span breaking mid-word; #toast wraps inside the viewport; HUD buttons reach 44px
   if(!$('metacss')){ const s=document.createElement('style'); s.id='metacss'; s.textContent='#hud .res{flex-wrap:wrap;row-gap:0}#hud .res>span{white-space:nowrap}#hud .res .gold{color:#ffd060}#hud #xpline{margin-top:4px;font-size:12px;color:#ffd060;text-shadow:0 1px 2px #000;white-space:nowrap}#hud #toast{left:16px;right:16px;max-width:none;transform:none;white-space:normal;line-height:1.3;text-align:center}#hud #bagbtn,#hud #sndbtn{min-height:44px;min-width:44px}'; document.head.appendChild(s); } }
 function metaHud(){ const g=fmtG(st.gold), el=$('gold'); if(el&&mhud.gold!==g){ mhud.gold=g; el.textContent=g; }
-  const p=points(), x='Lv '+st.level+' · '+fmtG(st.xp)+' / '+fmtG(xpToNext(st.level))+' xp'+(p?' · ✦ '+p+' skill pt'+(p===1?'':'s')+' for the trainer':''), xl=$('xpline'); if(xl&&mhud.xp!==x){ mhud.xp=x; xl.textContent=x; } }
+  const p=(typeof Meta!=='undefined'&&Meta.points)?Meta.points():points(), x='Lv '+st.level+' · '+fmtG(st.xp)+' / '+fmtG(xpToNext(st.level))+' xp'+(p?' · ✦ '+p+' talent pt'+(p===1?'':'s')+' · N':''), xl=$('xpline'); if(xl&&mhud.xp!==x){ mhud.xp=x; xl.textContent=x; } }
 // ---- test / debug helpers ----
 function metaReset(){ try{ localStorage.removeItem('ddMeta'); }catch(e){} st=freshMeta(); run={xp:0,gold:0,spent:0,payout:0,levels:0,drops:0,items:[],ended:false,settled:false,newBest:false,started:run.started}; resetGear(); st.stockTier=1; rollStock(); saveMeta(); }
 { const prevU=Meta.update; Meta.update=dt=>{ prevU(dt); metaUpdate(dt); }; }

@@ -1,7 +1,7 @@
 // ===== 20-tavern.js — the tavern overlay: bag · shop · skills · run summary. UI only; every rule lives in Meta (10-meta.js) =====
 // Same scope as game.js. Injects its own <style> + <div id="tavern"> at load. Opened by Meta.open() (keys I/B, 🎒, #tavbtn), closed by ✕ / Escape / DEFEND THE HALL.
 const TV={open:false,sum:false,tab:'bag',sel:null,built:{bag:-1,shop:-1,skills:-1},head:{},gold:{shown:0,from:0,to:0,t:0,dur:.6,tick:0,dir:0},lastT:0,msg:'',msgT:0,raf:0};
-const TV_TABS=[['bag','🎒 BAG'],['shop','🛒 SHOP'],['skills','✦ SKILLS']];
+const TV_TABS=[['bag','🎒 BAG'],['shop','🛒 SHOP'],['skills','✦ TALENTS']];   // build 336: the spec tree (96l-talents.js); a hero without a tree yet still sees the flat skills under it
 const tvEsc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const tvG=n=>Math.round(n).toLocaleString('en-US');
 const TVCSS=`
@@ -126,7 +126,7 @@ function tvRenderTab(force){ const v=Meta.version(); const t=TV.tab; if(force||T
   TV_TABS.forEach(([k])=>{ $('tv-tab-'+k).classList.toggle('on',k===t); $('tv-'+k).classList.toggle('on',k===t); }); }
 function tvRenderHead(){ const h=TV.head, L=Meta.level(), x=Meta.xp(), n=Meta.xpToNext(L), p=Meta.points(), b=Meta.best();
   const lv='Lv '+L; if(h.lv!==lv){ h.lv=lv; $('tv-lv').textContent=lv; } const xt=tvG(x)+' / '+tvG(n)+' xp'; if(h.xt!==xt){ h.xt=xt; $('tv-xpt').textContent=xt; $('tv-xpi').style.width=Math.round(100*x/n)+'%'; }
-  const pt=p?'✦ '+p+' skill point'+(p===1?'':'s'):''; if(h.pt!==pt){ h.pt=pt; $('tv-pts').textContent=pt; } const bt=b?'Best wave '+b:'No runs yet'; if(h.bt!==bt){ h.bt=bt; $('tv-best').textContent=bt; }
+  const pt=p?'✦ '+p+' talent point'+(p===1?'':'s'):''; if(h.pt!==pt){ h.pt=pt; $('tv-pts').textContent=pt; } const bt=b?'Best wave '+b:'No runs yet'; if(h.bt!==bt){ h.bt=bt; $('tv-best').textContent=bt; }
   const ph=S.phase, dl=ph==='start'?'⚔ DEFEND THE HALL':ph==='dead'?'⚔ DEFEND THE HALL AGAIN':'⚔ BACK TO THE HALL'; if(h.dl!==dl){ h.dl=dl; $('tv-defend').textContent=dl; } }
 // the feedback line floats at the top of the list (sticky, no layout space) so it never hides the detail panel or the DEFEND button and can wrap to two lines on a phone
 // ---- the gold counter: counts up/down over ~0.6 s with coin ticks ----

@@ -13,7 +13,11 @@ function rangedKind(){ const w=window.__weapons&&window.__weapons.mounted(); if(
 function fullT(){ return FULL_BASE*swingDur()/swingBase(); }
 function charge(){ return HOLD.on?clamp(HOLD.t/fullT(),0,1):0; }
 function aimYaw(){ return cam.yaw; }
-const PITCH0=.42, UP_SCALE=1.9, DOWN_SCALE=.85, ELEV_MAX=.85;   // pitch0: the camera's own resting pitch, read as level aim; scaled so the full mouse-up range reaches a hovering drake (they sit only ~2.6 up) without overshooting past it
+// build 337 (Matt: "did we ever bring the aiming reticle down a little" / "here i am with a flat eye level view but you can see the reticle is way above"): measured on a 760-high screen, the free crosshair sat at
+// y=158 at the normal pitch (.42) and OFF THE TOP (y=-76) at the flattest view (.1): a flat camera read as a 35-degree look-up (UP_SCALE 1.9). Now UP_SCALE .45 (a flat view aims only ~8 degrees up; drakes are
+// taken by the lock cone anyway), and the crosshair is drawn at most RET_S out along the aim ray (still exactly on the arrow's path; it only sits lower on screen): ~y=270 at the normal view, ~y=350 flat.
+const RET_S=4.5;
+const PITCH0=.42, UP_SCALE=.45, DOWN_SCALE=.85, ELEV_MAX=.85;   // pitch0: the camera's own resting pitch, read as level aim; scaled so the full mouse-up range reaches a hovering drake (they sit only ~2.6 up) without overshooting past it
 function aimElev(){ const d=PITCH0-cam.pitch; return clamp(d*(d>0?UP_SCALE:DOWN_SCALE),-ELEV_MAX,ELEV_MAX); }
 function aimDir3(){ const yaw=aimYaw(), el=aimElev(), c=Math.cos(el); return {fx:Math.sin(yaw)*c,fy:Math.sin(el),fz:Math.cos(yaw)*c,yaw,el}; }
 // the mob a shot would take: nearest the aim line in full 3D (within ~28°, or ~60° up close), within reach, not behind a
@@ -73,12 +77,12 @@ function drawAim(){ LAST.shown=false; const k=rangedKind(); if(!k||placing||hero
     stroke2(g,cc,2,()=>{ g.moveTo(cx-4,cy); g.lineTo(cx+4,cy); g.moveTo(cx,cy-4); g.lineTo(cx,cy+4); });
     Object.assign(LAST,{x:cx,y:cy,locked:true}); }
   else { const d3=aimDir3(), reach=hero.reach||9, y0=hero.y+1.3; let s=1; for(;s<reach;s+=.5){ const px=hero.x+d3.fx*s, pz=hero.z+d3.fz*s; if(wallAt(px,pz)) break; if(d3.fy<-1e-4&&y0+d3.fy*s<=baseFloor(px,pz)+.1) break; }
-    const p=proj(hero.x+d3.fx*s,y0+d3.fy*s,hero.z+d3.fz*s); if(!p){ g.restore(); return; } cx=p[0]; cy=p[1]; r=16;   // nothing in reach: a point along the real 3D aim ray, clipped to the floor when it dips that low, so a steep downward look lands nearby instead of projecting far off underground
+    const sd=Math.min(s,RET_S); const p=proj(hero.x+d3.fx*sd,y0+d3.fy*sd,hero.z+d3.fz*sd); if(!p){ g.restore(); return; } cx=p[0]; cy=p[1]; r=16;   // nothing in reach: a point along the real 3D aim ray, clipped to the floor when it dips that low, so a steep downward look lands nearby instead of projecting far off underground
     g.globalAlpha=.75; stroke2(g,col,2,()=>{ g.arc(cx,cy,7,0,TAU); }); stroke2(g,col,2,()=>{ for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ g.moveTo(cx+dx*10,cy+dy*10); g.lineTo(cx+dx*15,cy+dy*15); } }); g.globalAlpha=1;
     Object.assign(LAST,{x:cx,y:cy,locked:false}); }
   if(HOLD.on){ g.globalAlpha=.35; stroke2(g,col,3,()=>{ g.arc(cx,cy,r,0,TAU); }); g.globalAlpha=1; if(c>0) stroke2(g,full?'#ffffff':col,3.5,()=>{ g.arc(cx,cy,r,-PI/2,-PI/2+c*TAU); }); }   // the charge ring fills as the string comes back
   LAST.shown=true; LAST.charge=c; g.restore(); }
 { const prev=drawOverlay; drawOverlay=function(){ prev(); drawAim(); }; }
-window.__aim={kind:rangedKind,holding:()=>HOLD.on,charge,lastCharge:()=>LAST_C,pick:y=>pick(y===undefined?aimYaw():y),yaw:aimYaw,elev:aimElev,dir3:aimDir3,shot,fullT,
+window.__aim={last:()=>Object.assign({},LAST),kind:rangedKind,holding:()=>HOLD.on,charge,lastCharge:()=>LAST_C,pick:y=>pick(y===undefined?aimYaw():y),yaw:aimYaw,elev:aimElev,dir3:aimDir3,shot,fullT,
   press:()=>{ API_HOLD=true; swing(); }, release:()=>{ API_HOLD=false; }, reticle:()=>Object.assign({},LAST), point:()=>+PT.w.toFixed(2), paused:()=>!!HOLD.paused};
 })();

@@ -184,7 +184,7 @@ function doFire(){
   playFlourish(hid,p);   // always shown at once on the caster's own screen, win or lose the round trip
   const n=NET(), role=n?n.role():null;
   if(role==='guest') n.send('specialCast',{hero:hid,x:p.x,z:p.z,dmg:p.dmg});
-  else { applyReal(hid,p); if(role==='host') broadcastFx(hid,p,null); }
+  else { applyReal(hid,p); if(role==='host') broadcastFx(hid,p,null); if(window.__talents&&window.__talents.onSpecial) window.__talents.onSpecial(hid,p); }   // build 336: the Witch's Tempest
 }
 
 // ---- the HUD: a small icon near the hotbar (desktop) and the ✦ touch button both carry the same cooldown ring, a
