@@ -50,6 +50,7 @@ class BreakableWall {
 }
 // ---------------- the models: fetched, parsed and toon-shaded once; each wall gets its own clone
 const load=name=>fetchBytes(ASSET(name),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',gl=>{ try{ const root=gl.scene||gl.scenes[0]; toonify(root,SCALE); res(root); }catch(e){ rej(e); } },rej)));
+world.userData.alcoveFaces=new Set(SPOTS.flatMap(p=>{ const a=[]; for(let r=p.z0;r<=p.z1;r++) a.push(wallFaces.findIndex(f=>f.cx===p.fcx&&f.cz===r&&f.nx===p.nx&&f.nz===0)); return a; }));
 const walls=[]; let cellWall=null; const dust=[]; const timers=[]; const cnt={ built:0, hits:0, broken:0, weapons:0 };
 function faceIndex(cx,cz,nx){ return wallFaces.findIndex(f=>f.cx===cx&&f.cz===cz&&f.nx===nx&&f.nz===0); }
 // the wall face in front of the alcove is drawn from the top of the opening up (so the opening itself is clear to open); until it breaks, Bob's wall fills it
@@ -107,7 +108,6 @@ function shatter(root){ root.updateMatrixWorld(true); let mesh=null; root.traver
 // ---------------- the walls
 Promise.all([load('prison-wall-intact.glb'),load('prison-wall-fragments.glb'),load('prison-wall2.glb')]).then(([intact,frag,wall2])=>{
   let shards=null; try{ shards=shatter(wall2); }catch(e){ console.warn('prison walls shatter',e); }
-  try{ plainWall(intact); bakeTile(intact); }catch(e){ console.warn('prison walls plain',e); }
   for(const sp of SPOTS){ if(faceIndex(sp.fcx,sp.z0,sp.nx)<0){ console.warn('prison walls: no wall face at',sp.fcx,sp.z0); continue; }
     cellWall=cellWall||world.userData.cellWall; lowerFaces(sp,OPEN_H);
     const meshy=sp.src==='meshy'&&shards, wScale=meshy?OPEN_H/1.925:SCALE;
