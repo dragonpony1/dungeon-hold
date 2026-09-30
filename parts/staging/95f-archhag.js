@@ -34,15 +34,29 @@ if(Meta.XP){ Meta.XP[K]=Meta.XP[K]||90; Meta.XP[SK]=Meta.XP[SK]||1; }
 const CURSE_T=5, REGROW_T=18, DEATH_HOLD=5.6, STICKMEN=10;
 // build 320 (Matt: "the first round of stickmen come after about 10 seconds not right away then repeat until initial hp bar is gone"): a raise every 10 s through her first bar, none after it; at most
 // 30 of hers on the field at once (a raise tops up to that) so a long first bar cannot bury the court
-const RAISE_FIRST=10, RAISE_EVERY=10, STICK_CAP=30;
+const RAISE_FIRST=10, RAISE_EVERY=10, STICK_CAP=30, RAISE_WOLVES_FIRST=5;   // build 330 (Matt: "shes not making wolves"): the first pack 5 s after the first stickmen, so a quick first bar still sees wolves
 // ---------------------------------------------------------------- her model: four clip files on one rig, fetched once
 function fixMats(root){ root.traverse(o=>{ if(o.isMesh&&o.material){ o.material.metalness=0; o.material.roughness=.85; if(o.material.emissive) o.material.emissive.setRGB(0,0,0); } }); }
 let loadP=null;
+// build 330 (Matt: "the archag kinda blends in with the other mobs, you couldnt find her unless you got up close. can we put a light on her or out line, or some color on her garb?"): all three --
+// a thick glowing violet rim instead of everyone's dark ink line, a faint violet glow in her robes, and (per spawn) a pool of violet light on the ground round her with a turning sigil at her feet.
+// The "light" is a glow laid on the floor, not a real light: adding a real one when she appears would make every material in the hall rebuild at that moment (a hitch at her entrance).
+const HAG_RIM=0xb44cff, HAG_ROBE=0x2c0a4a;
+function hagLook(root){ root.traverse(o=>{ if(!o.isMesh||!o.material) return;
+  if(o.userData.isOL&&o.material.uniforms&&o.material.uniforms.col){ o.material.uniforms.col.value=C(HAG_RIM); if(o.material.uniforms.t) o.material.uniforms.t.value*=2.4; }
+  else if(o.material.emissive){ o.material.emissive.setHex(HAG_ROBE); o.material.emissiveIntensity=1; } }); }
+function hagAura(e){ const g=e.mdl.g; if(g.userData.hagAura) return; const grp=new THREE.Group(); grp.name='hagAura';
+  const pool=new THREE.Mesh(new THREE.PlaneGeometry(8,8),new THREE.MeshBasicMaterial({map:GLOWT,color:C(0xa040ff),transparent:true,opacity:.75,blending:THREE.AdditiveBlending,depthWrite:false}));
+  pool.rotation.x=-PI/2; pool.position.y=.05; pool.userData.noOL=true; grp.add(pool);
+  const ring=new THREE.Mesh(new THREE.RingGeometry(1.25,1.55,48),new THREE.MeshBasicMaterial({color:C(0xd08aff),transparent:true,opacity:.8,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+  ring.rotation.x=-PI/2; ring.position.y=.07; ring.userData.noOL=true; grp.add(ring);
+  for(let i=0;i<6;i++){ const r=new THREE.Mesh(new THREE.CircleGeometry(.13,5),ring.material); const a=i/6*TAU; r.position.set(Math.cos(a)*1.4,.075,Math.sin(a)*1.4); r.rotation.x=-PI/2; r.userData.noOL=true; grp.add(r); }   // runes on the ring
+  g.add(grp); g.userData.hagAura=grp; }
 if(typeof TRACKS!=='undefined') TRACKS.archhag='assets/music-archhag.mp3';   // build 310: his drumline, fetched with her model (never at start)
-function load(){ if(typeof musFetch==='function'&&typeof TRACKS!=='undefined'&&TRACKS.archhag) musFetch('archhag'); loadSticks(); loadTopiRigs(); if(MOBGLB[K]) return Promise.resolve(); if(loadP) return loadP;
+function load(){ if(typeof musFetch==='function'&&typeof TRACKS!=='undefined'&&TRACKS.archhag) musFetch('archhag'); loadSticks(); loadTopiRigs(); if(window.__direwolf&&window.__direwolf.load) window.__direwolf.load();   // build 330: her wolves too, wherever she comes if(MOBGLB[K]) return Promise.resolve(); if(loadP) return loadP;
   const names=['walk','attack','idle','death'];
   loadP=Promise.all(names.map(k=>fetchBytes(ASSET(FILES[k])).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej)))))
-    .then(gs=>{ try{ const root=gs[0].scene||gs[0].scenes[0]; fixMats(root); const fit=fitModel(root,MOBDIM[K].fit); toonify(root,fit.scale);
+    .then(gs=>{ try{ const root=gs[0].scene||gs[0].scenes[0]; fixMats(root); const fit=fitModel(root,MOBDIM[K].fit); toonify(root,fit.scale); hagLook(root);
         const clip=i=>(gs[i].animations||[])[0]; const map={walk:clip(0),run:clip(0),attack:clip(1),idle:clip(2),death:clip(3)};
         MOBGLB[K]={wrap:fit.wrap,map,scale:fit.scale}; }catch(e){ console.warn('archhag model',e); } })
     .catch(e=>console.warn('archhag model',e));
@@ -180,9 +194,10 @@ function castSpecial(e,what){ e.special=what; e.swing=0; e.pending={kind:'specia
 // no hit-squash (every blow squashed her whole body), no hold (Rootsplitter's roots), no crawl (the Hourglass), no chill, no slow
 { const prev=updateEnemies; updateEnemies=function(dt){ for(const e of enemies) if(!e.dead&&e.kind===K){ e.slowT=0; e.squash=0; e.holdT=0; e.crawlT=0; e.chillT=0; if(e.shield>0) e.shield-=dt;
       // build 317 (Matt: "oh dear, mabye that stikmen didnt load all the way"): if his moss stickmen are still on the way when she casts, she holds the spell until they land (at most 6 s more) rather than raise the twig stand-ins
+      { const A=e.mdl.g.userData.hagAura; if(A){ A.rotation.y+=dt*.6; A.children[0].material.opacity=.62+.14*Math.sin(S.t*2.2); A.visible=!e.dead||e.dead<.6; } }
       if(e.hagRise>=1){ e.hexT=(e.hexT===undefined?2:e.hexT)-dt; if(e.hexT<=0&&!(e.swing>=0)&&!e.special){ e.hexT=hex(e)?HEX_EVERY:.5; } }   // build 327: her hex, cast on the move
       if(e.hagRise>=1){ e.growT=(e.growT===undefined?GROW_FIRST:e.growT)-dt; if(e.growT<=0&&!(e.swing>=0)&&!e.special&&!(e.shield>0)){ e.growT=GROW_EVERY; castSpecial(e,'grow'); } }   // build 318: GROW on her own clock
-      if(e.raiseT>0){ e.raiseT-=dt; if(e.raiseT<=0){ if(!MOBGLB[SK].real&&!stickDone&&(e.raiseWait=(e.raiseWait||0)+dt)<6){ loadSticks(); e.raiseT=.001; } else if(e.special||e.swing>=0){ e.raiseT=.001; } else { castSpecial(e,'raise'); if(e.phase===1) e.raiseT=RAISE_EVERY; } } }   // another cast still running: the raise waits for it
+      if(e.raiseT>0){ e.raiseT-=dt; if(e.raiseT<=0){ if(!MOBGLB[SK].real&&!stickDone&&(e.raiseWait=(e.raiseWait||0)+dt)<6){ loadSticks(); e.raiseT=.001; } else if(e.special||e.swing>=0){ e.raiseT=.001; } else { castSpecial(e,'raise'); if(e.phase===1) e.raiseT=(e.raiseN||0)===0?RAISE_WOLVES_FIRST:RAISE_EVERY; } } }   // another cast still running: the raise waits for it
       if(e.phase===1&&e.hp<=e.max/2+.01){ e.phase=2; e.hp=e.max/2; e.shield=4; e.raiseT=0; castSpecial(e,'wake'); banner('🌑 THE ARCHHAG RAGES','her second life -- the garden stirs'); camShake=Math.max(camShake,.7); } }   // any damage that skipped hurt() (a poison tick) still turns the page
     prev(dt);
     for(const e of enemies){ if(e.kind!==K||e.dead||e.hagRise===undefined||e.hagRise>=1) continue; e.hagRise=Math.min(1,e.hagRise+dt/1.4); e.mdl.g.position.y=e.y-4*(1-e.hagRise)*(1-e.hagRise); }   // rising out of the ground, slowing as she stands clear
@@ -223,6 +238,7 @@ function spawnHag(){ const lk=Object.keys(LANES); if(!lk.length) return null; do
   // build 319 (Matt: "spawn her in further away cuz the tree is right next to a ... heartroot"): the tree stands halfway between the two Heartroots (~25 units from each), so a spot just beside it
   // was on the way to one of them -- she rises on the reachable lane cell near the tree (4-9 cells out) that is farthest from BOTH Heartroots, out to the side of the line between them
   // build 320 (Matt: "lets move the arch hag back near one of the doors and let her walk again, that will be scary"): she rises just inside the door with the longest walk to a Heartroot, and walks it
+  hagAura(e);
   const at=hagDoor()||hagSpot()||laneNear(21,21,10,4)||laneNear(21,21,8); if(at){ e.x=cw(at.x); e.z=cwz(at.z); } e.hagRise=0; e.mdl.g.position.set(e.x,-4,e.z); flash(e.x,1.5,e.z,0x9a40ff,7); flash(e.x,.4,e.z,0x6aff5a,4);
   return e; }
 { const prev=updateWave; updateWave=function(dt){ if(court()&&S.phase==='wave'&&S.wave===MAP.waves&&doneWave!==S.wave&&waveTotal>0&&MOBGLB[K]&&waveTotal-spawnQ.length>=Math.min(75,Math.floor(waveTotal*.66))) spawnHag(); prev(dt); }; }
@@ -278,6 +294,6 @@ function tickGrow(dt){ for(const e of enemies){ const G=e.grow, B=e.gBase; if(!G
 const bar=document.createElement('div'); bar.id='hagbar'; bar.innerHTML='🌑 THE ARCHHAG<div class="bars"><div class="track p2"><i class="fill"></i></div><div class="track p1"><i class="fill"></i></div></div>'; document.body.appendChild(bar);
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); const e=enemies.find(x=>x.kind===K&&!x.dead); bar.style.display=e?'block':'none'; if(!e){ if(musicMode==='archhag') setMusic(S.phase==='wave'?'wave':'build'); return; } const half=e.max/2;
     bar.querySelector('.p1 .fill').style.width=Math.max(0,100*(e.hp-half)/half)+'%'; bar.querySelector('.p2 .fill').style.width=Math.max(0,Math.min(100,100*e.hp/half))+'%'; bar.querySelector('.p1').classList.toggle('done',e.hp<=half+.01); }; }
-window.__archhag={loaded:()=>!!MOBGLB[K],poofs:()=>poofs.map(p=>({t:+p.t.toFixed(2),bits:p.bits.length,body:p.g.visible?+(p.mats.length?p.mats[0][0].opacity:1).toFixed(2):0})),bolusLeft:()=>bolusQ.length,rigsReady:()=>rigN===3,hwolves:()=>hwolves.filter(x=>!x.dead).length,hex:()=>{ const h=enemies.find(x=>x.kind===K&&!x.dead); return h?hex(h):false; },loadTopiRigs,loadSticks,sticksReady:()=>!!MOBGLB[SK].real,castGrow:()=>{ const h=enemies.find(x=>x.kind===K&&!x.dead); if(h){ h.swing=-1; h.special=null; castSpecial(h,'grow'); } return !!h; },grown:()=>enemies.filter(e=>(e.grow||e.big)&&e.gBase&&!e.dead).map(e=>({kind:e.kind,f:+(e.sc/e.gBase.sc).toFixed(2)})),sparks:()=>sparks.length,plinths:()=>{ const D=window.__courtdecor; return D&&D.topiList?D.topiList().filter(t=>t.plinth&&t.plinth.visible&&t.plinth.parent).length:0; },topiCut:TOPI_CUT,stickModel:()=>({real:!!MOBGLB[SK].real,clips:Object.keys(MOBGLB[SK].map),attack:MOBGLB[SK].map.attack?MOBGLB[SK].map.attack.name:''}),ensure:load,spawn:()=>{ ensureTopiKinds(); return spawnHag(); },wake:wakeAll,awake:()=>awake.filter(e=>!e.dead).length,asleep:()=>asleep.length,curse,
+window.__archhag={loaded:()=>!!MOBGLB[K],poofs:()=>poofs.map(p=>({t:+p.t.toFixed(2),bits:p.bits.length,body:p.g.visible?+(p.mats.length?p.mats[0][0].opacity:1).toFixed(2):0})),bolusLeft:()=>bolusQ.length,rigsReady:()=>rigN===3,look:()=>{ const h=enemies.find(x=>x.kind===K&&!x.dead); if(!h) return null; let rim=null, t=null, robe=null; h.mdl.g.traverse(o=>{ if(!o.isMesh||!o.material) return; if(o.userData.isOL&&o.material.uniforms&&o.material.uniforms.col&&rim===null){ rim=o.material.uniforms.col.value.getHex(); t=o.material.uniforms.t.value; } else if(o.material.emissive&&robe===null&&!o.userData.noOL) robe=o.material.emissive.getHex(); }); return { rim, t, robe, aura:!!h.mdl.g.userData.hagAura }; },hwolves:()=>hwolves.filter(x=>!x.dead).length,hex:()=>{ const h=enemies.find(x=>x.kind===K&&!x.dead); return h?hex(h):false; },loadTopiRigs,loadSticks,sticksReady:()=>!!MOBGLB[SK].real,castGrow:()=>{ const h=enemies.find(x=>x.kind===K&&!x.dead); if(h){ h.swing=-1; h.special=null; castSpecial(h,'grow'); } return !!h; },grown:()=>enemies.filter(e=>(e.grow||e.big)&&e.gBase&&!e.dead).map(e=>({kind:e.kind,f:+(e.sc/e.gBase.sc).toFixed(2)})),sparks:()=>sparks.length,plinths:()=>{ const D=window.__courtdecor; return D&&D.topiList?D.topiList().filter(t=>t.plinth&&t.plinth.visible&&t.plinth.parent).length:0; },topiCut:TOPI_CUT,stickModel:()=>({real:!!MOBGLB[SK].real,clips:Object.keys(MOBGLB[SK].map),attack:MOBGLB[SK].map.attack?MOBGLB[SK].map.attack.name:''}),ensure:load,spawn:()=>{ ensureTopiKinds(); return spawnHag(); },wake:wakeAll,awake:()=>awake.filter(e=>!e.dead).length,asleep:()=>asleep.length,curse,
   sticks:()=>sticks.filter(e=>!e.dead).length,cursed:()=>defs.filter(d=>d.curseT>0).length,kind:K};
 })();
