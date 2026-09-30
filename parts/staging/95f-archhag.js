@@ -56,14 +56,14 @@ function makeStick(){ const g=new THREE.Group(), twig=mat(0x8a6a44), dark=mat(0x
 MOBGLB[SK]={wrap:makeStick(),map:{},scale:1};
 // build 312: Matt's moss stickman (rigged, Walking 1.07 s + Running 0.67 s on one 24-joint skeleton; stickman-walk/-run.glb, 512 textures) replaces the code-built twig man once it lands (fetched with
 // her model); his Punch_Forward_with_Both_Fists is their attack (Running stands in if it can't load). Until they land (or if they can't), the twig man above stands in.
-let stickP=null;
+let stickP=null, stickDone=false;   // stickDone: the fetch has settled (his model in, or given up on)
 function loadSticks(){ if(stickP) return stickP;
   stickP=Promise.all(['stickman-walk.glb','stickman-run.glb','stickman-punch.glb'].map((f,i)=>fetchBytes(ASSET(f)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).catch(e=>{ if(i<2) throw e; console.warn('stickman punch',e); return null; })))
     .then(([wg,rg,pg])=>{ try{ const root=wg.scene||wg.scenes[0]; fixMats(root); const fit=fitModel(root,MOBDIM[SK].fit); toonify(root,fit.scale);
         const walkC=(wg.animations||[])[0]||(rg.animations||[])[0], runC=(rg.animations||[])[0]||walkC;
         // the stand (and a Running stand-in for the punch) get their own copies: one clip on one rig is one action, and an attack is set to play once and hold -- shared, it froze their running legs after a stride
         MOBGLB[SK]={wrap:fit.wrap,map:{walk:walkC,run:runC,attack:(pg&&(pg.animations||[])[0])||runC.clone(),idle:walkC.clone()},scale:fit.scale,real:true}; }catch(e){ console.warn('stickman model',e); } })
-    .catch(e=>console.warn('stickman model',e));
+    .catch(e=>console.warn('stickman model',e)).then(()=>{ stickDone=true; });
   return stickP; }
 // ---------------------------------------------------------------- the topiary mobs: each kind's own statue, as a static model the mob system can carry (no clips: they hop in code)
 function topiKind(file){ return TK+'-'+file.replace('topiary-','').replace('.glb',''); }
@@ -114,7 +114,8 @@ function castSpecial(e,what){ e.special=what; e.swing=0; e.pending={kind:'specia
     return r; }; }
 // ---------------------------------------------------------------- each frame: stickmen rising and running, the leaps, the hops, no slow on her, the regrowth, her fall held, the sleep when she falls
 { const prev=updateEnemies; updateEnemies=function(dt){ for(const e of enemies) if(!e.dead&&e.kind===K){ e.slowT=0; if(e.shield>0) e.shield-=dt;
-      if(e.raiseT>0){ e.raiseT-=dt; if(e.raiseT<=0) castSpecial(e,'raise'); }
+      // build 317 (Matt: "oh dear, mabye that stikmen didnt load all the way"): if his moss stickmen are still on the way when she casts, she holds the spell until they land (at most 6 s more) rather than raise the twig stand-ins
+      if(e.raiseT>0){ e.raiseT-=dt; if(e.raiseT<=0){ if(!MOBGLB[SK].real&&!stickDone&&(e.raiseWait=(e.raiseWait||0)+dt)<6){ loadSticks(); e.raiseT=.001; } else castSpecial(e,'raise'); } }
       if(e.phase===1&&e.hp<=e.max/2+.01){ e.phase=2; e.hp=e.max/2; e.shield=4; castSpecial(e,'wake'); banner('🌑 THE ARCHHAG RAGES','her second life -- the garden stirs'); camShake=Math.max(camShake,.7); } }   // any damage that skipped hurt() (a poison tick) still turns the page
     prev(dt);
     for(const e of enemies){ if(e.kind!==K||e.dead||e.hagRise===undefined||e.hagRise>=1) continue; e.hagRise=Math.min(1,e.hagRise+dt/1.4); e.mdl.g.position.y=e.y-4*(1-e.hagRise)*(1-e.hagRise); }   // rising out of the ground, slowing as she stands clear
@@ -174,6 +175,6 @@ function poofStick(e){ const g=e.mdl.g, y0=(e.y||0)+.95; const grp=new THREE.Gro
 const bar=document.createElement('div'); bar.id='hagbar'; bar.innerHTML='🌑 THE ARCHHAG<div class="bars"><div class="track p2"><i class="fill"></i></div><div class="track p1"><i class="fill"></i></div></div>'; document.body.appendChild(bar);
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); const e=enemies.find(x=>x.kind===K&&!x.dead); bar.style.display=e?'block':'none'; if(!e){ if(musicMode==='archhag') setMusic(S.phase==='wave'?'wave':'build'); return; } const half=e.max/2;
     bar.querySelector('.p1 .fill').style.width=Math.max(0,100*(e.hp-half)/half)+'%'; bar.querySelector('.p2 .fill').style.width=Math.max(0,Math.min(100,100*e.hp/half))+'%'; bar.querySelector('.p1').classList.toggle('done',e.hp<=half+.01); }; }
-window.__archhag={loaded:()=>!!MOBGLB[K],poofs:()=>poofs.map(p=>({t:+p.t.toFixed(2),bits:p.bits.length,body:p.g.visible?+(p.mats.length?p.mats[0][0].opacity:1).toFixed(2):0})),stickModel:()=>({real:!!MOBGLB[SK].real,clips:Object.keys(MOBGLB[SK].map),attack:MOBGLB[SK].map.attack?MOBGLB[SK].map.attack.name:''}),ensure:load,spawn:()=>{ ensureTopiKinds(); return spawnHag(); },wake:wakeAll,awake:()=>awake.filter(e=>!e.dead).length,asleep:()=>asleep.length,curse,
+window.__archhag={loaded:()=>!!MOBGLB[K],poofs:()=>poofs.map(p=>({t:+p.t.toFixed(2),bits:p.bits.length,body:p.g.visible?+(p.mats.length?p.mats[0][0].opacity:1).toFixed(2):0})),loadSticks,sticksReady:()=>!!MOBGLB[SK].real,stickModel:()=>({real:!!MOBGLB[SK].real,clips:Object.keys(MOBGLB[SK].map),attack:MOBGLB[SK].map.attack?MOBGLB[SK].map.attack.name:''}),ensure:load,spawn:()=>{ ensureTopiKinds(); return spawnHag(); },wake:wakeAll,awake:()=>awake.filter(e=>!e.dead).length,asleep:()=>asleep.length,curse,
   sticks:()=>sticks.filter(e=>!e.dead).length,cursed:()=>defs.filter(d=>d.curseT>0).length,kind:K};
 })();

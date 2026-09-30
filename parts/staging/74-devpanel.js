@@ -109,6 +109,8 @@ function spawnNow(kind){ const k=Object.keys(LANES)[0]; if(!k){ toast('no lane o
   // three the way the real wave-7 trigger does, not just that one alone
   if(kind==='archhag'&&window.__archhag&&window.__archhag.ensure){ if(!window.__archhag.loaded()){ toast('loading the Archhag…'); window.__archhag.ensure().then(()=>window.__archhag.spawn()); } else window.__archhag.spawn(); return; }   // build 308: her real entrance (the garden wakes)
   if((kind==='pigflail'||kind==='pigdagger'||kind==='pigsling')&&window.__pigbosses){ if(!window.__pigbosses.loaded()){ toast('loading the pig bosses…'); window.__pigbosses.ensure().then(()=>window.__pigbosses.spawn()); } else window.__pigbosses.spawn(); return; }
+  // build 317 (Matt: "mabye that stikmen didnt load all the way"): his moss stickmen only came down with the Archhag's model, so one spawned here was the code-built twig stand-in -- fetch them first
+  if(kind==='stickman'&&window.__archhag&&window.__archhag.loadSticks&&!window.__archhag.sticksReady()){ toast('loading the stickmen…'); window.__archhag.loadSticks().then(()=>{ spawnEnemy(kind,k); toast('spawned a stickman'); }); return; }
   // build 316: the dire wolf's model loads the first time one is asked for (95g-direwolf.js); wait for it rather than send out a goblin-bodied stand-in
   if(kind==='direwolf'&&window.__direwolf&&!window.__direwolf.loaded()){ toast('loading the dire wolf…'); window.__direwolf.load().then(()=>{ if(window.__direwolf.loaded()) spawnNow(kind); }); return; }
   spawnEnemy(kind,k); toast('spawned a '+kind); }
