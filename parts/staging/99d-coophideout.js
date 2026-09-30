@@ -54,7 +54,7 @@ addEventListener('message',e=>{ const w=H.frameWin&&H.frameWin(); if(!w||e.sourc
   else if(d.type==='hd:pos'){ selfPos={x:num(d.x),y:num(d.y),z:num(d.z),ry:num(d.ry)}; if(role()==='guest'){ N.send('hdpos',Object.assign({name:myName(),hero:heroId()},selfPos)); stats.sent++; } }
   else if(d.type==='hd:saved'){ hostLayoutChanged(); }
   else if(d.type==='hd:trade'){ if(!d.to||typeof d.to!=='string') return; if(role()==='host') N.send('hdtrade',{from:myId(),to:d.to,msg:d.msg},d.to); else if(role()==='guest') N.send('hdtrade',{to:d.to,msg:d.msg}); } });
-H.hooks.close=()=>{ selfPos=null; if(role()==='guest') N.send('hdout',{}); };
+{ const prevClose=H.hooks.close; H.hooks.close=()=>{ if(typeof prevClose==='function'){ try{ prevClose(); }catch(e){} } selfPos=null; if(role()==='guest') N.send('hdout',{}); }; }   // build 329: chained -- 96k-hideouthero.js closes its picker on the same hook
 // the host broadcasts who is inside, about 8 times a second while anyone is
 setInterval(()=>{ const r=role(); if(r) lastRole=r; if(r!=='host'||!N.peers().length){ wasList=false; return; }
   const list=peerList(); if(!list.length){ if(wasList){ wasList=false; N.send('hdpeers',{list:[]}); post({type:'hd:peers',list:[]}); } return; }
