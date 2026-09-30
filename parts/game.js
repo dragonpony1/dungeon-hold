@@ -172,17 +172,18 @@ const MAPS=[
  // is at the west end, the middle terrace's at the east end, the lower terrace's at the west end again -- every terrace is walked its full width, and the flights are seen all around. Feeder gates in the side walls
  // join on later waves (the middle terrace's west wall, the lower terrace's east wall). A flight is three cells long and five wide, sitting in the north rows of the terrace above it. The hero starts in the pit,
  // looking down the triangle. z counts from the apex (row 2) to the rim's south wall (row 46); a row's half-width is the smaller of 20 and half the rows down from the apex.
- {id:'prison',name:'THE DEEP PRISON',sub:'a triangular cavern of cells narrowing to the Heartroot in its corner: the horde breaks out along the wide rim and zigzags down the flights · four breakouts · seven waves',gw:45,gh:48,crystal:[22,4],waves:7,wallH:19,du:90,mana:560,fog:[46,135],style:{moss:true},
-  build(f,g,h,ramp){ const hw=z=>Math.min(20,Math.ceil((z-1)/2)), Y=z=>z<=12?0:z<=23?2:z<=34?4:6;
-    for(let z=2;z<=45;z++){ const w=hw(z); f(22-w,22+w,z,z,T.FLOOR); h(22-w,22+w,z,z,Y(z)); }   // the triangle, row by row, each row at its terrace's height
-    f(21,23,3,5,T.DAIS); g(22,4,T.CRYSTAL);   // the Heartroot in the apex, on its dais
-    ramp(6,10,35,37,2,4,6); ramp(29,33,24,26,2,2,4); ramp(16,20,13,15,2,0,2);   // the flights (rising south): rim to middle at the west end, middle to lower at the east end, lower to pit at the west end
-    g(43,44,T.SPAWN); h(43,43,44,44,6); g(22,46,T.SPAWN); h(22,22,46,46,6); g(7,28,T.SPAWN); h(7,7,28,28,4); g(32,19,T.SPAWN); h(32,32,19,19,2); },   // the busted cells: the rim's east end and south wall, the middle terrace's west wall, the lower terrace's east wall
-  lanes:{E:{cx:43,cz:44,face:-PI/2,name:'East cells',from:1}, S:{cx:22,cz:46,face:PI,name:'South cells',from:2}, W:{cx:7,cz:28,face:PI/2,name:'West landing',from:3}, NE:{cx:32,cz:19,face:-PI/2,name:'Lower east',from:4}},
+ {id:'prison',name:'THE DEEP PRISON',sub:'a triangular cavern of cells narrowing to the Heartroot in its corner: the horde breaks out along the wide rim and zigzags down the flights · four breakouts · seven waves',gw:49,gh:48,crystal:[24,4],waves:7,wallH:19,du:90,mana:560,fog:[46,135],style:{moss:true},
+  // build 344 (Matt: "widen the whole thing out top to bottom by a couple squares"): WIDEN cells more on each side of every row than the first triangle had; the apex is that much blunter and the dais, flights and gates moved with it
+  build(f,g,h,ramp){ const WIDEN=2, hw=z=>Math.min(20+WIDEN,Math.ceil((z-1)/2)+WIDEN), Y=z=>z<=12?0:z<=23?2:z<=34?4:6;
+    for(let z=2;z<=45;z++){ const w=hw(z); f(24-w,24+w,z,z,T.FLOOR); h(24-w,24+w,z,z,Y(z)); }   // the triangle, row by row, each row at its terrace's height
+    f(23,25,3,5,T.DAIS); g(24,4,T.CRYSTAL);   // the Heartroot in the apex, on its dais
+    ramp(6,10,35,37,2,4,6); ramp(33,37,24,26,2,2,4); ramp(16,20,13,15,2,0,2);   // the flights (rising south): rim to middle at the west end, middle to lower at the east end, lower to pit at the west end
+    g(47,44,T.SPAWN); h(47,47,44,44,6); g(24,46,T.SPAWN); h(24,24,46,46,6); g(7,28,T.SPAWN); h(7,7,28,28,4); g(36,19,T.SPAWN); h(36,36,19,19,2); },   // the busted cells: the rim's east end and south wall, the middle terrace's west wall, the lower terrace's east wall
+  lanes:{E:{cx:47,cz:44,face:-PI/2,name:'East cells',from:1}, S:{cx:24,cz:46,face:PI,name:'South cells',from:2}, W:{cx:7,cz:28,face:PI/2,name:'West landing',from:3}, NE:{cx:36,cz:19,face:-PI/2,name:'Lower east',from:4}},
   hall:[-9,-9,-9,-9],pillars:[],barrels:[],crates:[],chandeliers:[],beams:{zs:[],w:0},tavern:{dx:0,dz:0},noTavern:true,
   lights:(()=>{ const L=[[0,3.4,0,0xb494ff,1.3,15],[0,1.2,5,0x58c070,.7,12]];
-    for(const [cx,cz,up] of [[19,9,3.4],[25,9,3.4],[16,18,3.6],[28,18,3.6],[22,21,3.6],[12,30,3.6],[32,30,3.6],[22,28,3.6],[8,42,4.2],[22,41,4.2],[36,42,4.2],[22,45,4.2]]) L.push({cx,cz,up,c:0xff8a2a,i:1.3,d:14});   // braziers down the terraces
-    for(const [cx,cz] of [[43,44],[22,46],[7,28],[32,19]]) L.push({cx,cz,up:3.4,c:0xc040ff,i:1.6,d:13});   // the broken cells glow where the horde comes out
+    for(const [cx,cz,up] of [[21,9,3.4],[27,9,3.4],[16,18,3.6],[32,18,3.6],[24,21,3.6],[12,30,3.6],[36,30,3.6],[24,28,3.6],[8,42,4.2],[24,41,4.2],[40,42,4.2],[24,45,4.2]]) L.push({cx,cz,up,c:0xff8a2a,i:1.3,d:14});   // braziers down the terraces
+    for(const [cx,cz] of [[47,44],[24,46],[7,28],[36,19]]) L.push({cx,cz,up:3.4,c:0xc040ff,i:1.6,d:13});   // the broken cells glow where the horde comes out
     return L; })()}];
 // THE TUTORIAL HALL (build 166, Matt: "we need to reimagine the entire tutorial ... prior to room one there is a tutorial hall ...
 // its a tutorial room with one hall and in your face instruction"). A tiny map of its own, deliberately NOT in MAPS (the campaign's
@@ -741,7 +742,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=343;
+const BUILD=344;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;

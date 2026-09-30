@@ -9,7 +9,7 @@ if(!MAP||MAP.id!=='prison') return;
 const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
 const OPEN_H=4.0, SCALE=OPEN_H/1.91, HIT=25, HP=100;
 // the two alcoves: the solid cell, the pit cell in front of it, which way the opening faces (toward the pit), and the weapon behind each wall
-const SPOTS=[{id:'W',cx:18,cz:6,fcx:19,nx:1,kind:'harpoon'},{id:'E',cx:26,cz:6,fcx:25,nx:-1,kind:'acorn'}];
+const SPOTS=[{id:'W',cx:18,cz:6,fcx:19,nx:1,kind:'harpoon'},{id:'E',cx:30,cz:6,fcx:29,nx:-1,kind:'acorn'}];
 const LVL=6, TOUGH=2;
 // ---------------- Bob's breakable wall (hi3d-breakable-wall.js), as he wrote it, in this game's own scope
 class BreakableWall {
@@ -60,8 +60,17 @@ function openAlcove(sp){ const cx=sp.cx, cz=sp.cz, x=cw(cx), z=cwz(cz), nx=sp.nx
   // the weapon: a real defense, placed free (its mana and defense units handed straight back), Mark VI, tougher than a built one, not for sale
   const m0=S.mana; const d=placeDefAt(sp.kind,x,z,nx>0?PI/2:-PI/2); S.mana=m0; S.du-=DEFS[sp.kind].du; d.spent=0; d.secret=true; d.lvl=LVL; d.max=Math.round(DEFS[sp.kind].hp*(1+.4*(LVL-1)))*TOUGH; d.hp=d.max; d.pop=0; sp.def=d; cnt.weapons++;
   floatText(x,d.top+1.6,z,'🔓 '+DEFS[sp.kind].ic,'#e8b94a'); try{ SFX.place&&SFX.place(); }catch(e){} }
+// ---------------- the plain prison wall around the apex (Matt: "first from behind the heartroot to the exterior of it about 3 squares, no cells so all prison wall"): the same shackled wall, instanced two high over every wall face
+// of the first rows (the painted plain-wall tile carries the rest of the height), so the breakable walls sit in a wall made of their own kind
+function plainWall(root){ const PR=world.userData.plainRows||7; root.updateMatrixWorld(true); const box=new THREE.Box3().setFromObject(root), sz=box.getSize(new THREE.Vector3()), c=box.getCenter(new THREE.Vector3());
+  const s=OPEN_H/(2*sz.y), depth=sz.z*s, skip=new Set(SPOTS.map(p=>faceIndex(p.fcx,p.cz,p.nx))), mats=[], m=new THREE.Matrix4(), Q=new THREE.Quaternion(), V=new THREE.Vector3(), Sc=new THREE.Vector3(s,s,s), up=new THREE.Vector3(0,1,0);
+  wallFaces.forEach((f,q)=>{ if(f.cz>PR||skip.has(q)) return; const y0=hgt[idx(f.cx,f.cz)]||0; Q.setFromAxisAngle(up,Math.atan2(f.nx,f.nz));
+    for(let r=0;r<2;r++){ V.set(f.x+f.nx*.12,y0+r*sz.y*s,f.z+f.nz*.12); mats.push(new THREE.Matrix4().compose(V,Q,Sc).multiply(new THREE.Matrix4().makeTranslation(-c.x,-box.min.y,-c.z))); } });
+  root.traverse(ob=>{ if(!ob.isMesh||ob.userData.isOL) return; const im=new THREE.InstancedMesh(ob.geometry,ob.material,mats.length); mats.forEach((M4,i)=>{ m.multiplyMatrices(M4,ob.matrixWorld); im.setMatrixAt(i,m); }); im.instanceMatrix.needsUpdate=true; im.frustumCulled=false; im.userData.noOL=true; world.add(im); });
+  cnt.wallModules=mats.length; }
 // ---------------- the walls
 Promise.all([load('prison-wall-intact.glb'),load('prison-wall-fragments.glb')]).then(([intact,frag])=>{
+  try{ plainWall(intact); }catch(e){ console.warn('prison walls plain',e); }
   for(const sp of SPOTS){ const i=faceIndex(sp.fcx,sp.cz,sp.nx); if(i<0){ console.warn('prison walls: no wall face at',sp.fcx,sp.cz); continue; }
     cellWall=cellWall||world.userData.cellWall; lowerQuad(i,OPEN_H);
     const w=new BreakableWall(intact.clone(true),frag.clone(true),{ onHit:(ww,pt)=>{ cnt.hits++; try{ SFX.hit&&SFX.hit(); }catch(e){} puff(pt?pt.x:0,1.4,pt?pt.z:0,1); },

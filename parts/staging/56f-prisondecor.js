@@ -11,9 +11,10 @@ const PROTO={};
 function protoOf(name,size){ const key=name+'|'+size; return PROTO[key]||(PROTO[key]=fetchBytes(ASSET(name),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',gl=>{ try{
     const root=gl.scene||gl.scenes[0]; const fit=fitModel(root,size); toonify(root,fit.scale); fit.wrap.userData.clips=gl.animations||[]; res(fit.wrap); }catch(e){ rej(e); } },rej)))); }
 const use=(name,size,cb)=>protoOf(name,size).then(p=>cb(p)).catch(e=>console.warn('prison decor '+name,e));
-const CX=22, HW=z=>Math.min(20,Math.ceil((z-1)/2));   // the triangle's half-width at row z (the same rule the map is built by)
+const PLAIN_ROWS=7;   // the wall faces of the apex's first rows -- behind the Heartroot and down its two sides -- are plain prison wall, no cells (Matt)
+const CX=24, WIDEN=2, HW=z=>Math.min(20+WIDEN,Math.ceil((z-1)/2)+WIDEN);   // the triangle's half-width at row z (the same rule the map is built by)
 // ---------------- THE RIM WALL: rows of cells, painted (four different doors, repeated every four cells along the wall)
-function paintCells(){ const W=1024,H=256, c=cv(W,H), g=c.getContext('2d'); g.fillStyle='#0d110c'; g.fillRect(0,0,W,H);
+function paintCells(){ const W=1280,H=256, c=cv(W,H), g=c.getContext('2d'); g.fillStyle='#0d110c'; g.fillRect(0,0,W,H);
   for(let k=0;k<4;k++){ const X=k*256; g.save(); g.beginPath(); g.rect(X,0,256,256); g.clip();
     for(let r=0;r<4;r++){ const y0=r*64, off=((r+k)%2)*64; for(let b=-1;b<3;b++){ const x0=X+b*128+off; const L=R(22,33), Hh=R(85,135), SA=R(9,17);
         g.fillStyle=hsl(Hh,SA,L); g.fillRect(x0+3,y0+3,122,58); g.globalAlpha=.4; g.fillStyle=hsl(Hh,SA+4,L+14); g.fillRect(x0+3,y0+3,122,4); g.globalAlpha=.45; g.fillStyle='#070a06'; g.fillRect(x0+3,y0+56,122,5); g.globalAlpha=1;
@@ -30,10 +31,16 @@ function paintCells(){ const W=1024,H=256, c=cv(W,H), g=c.getContext('2d'); g.fi
     // the ledge every floor stands on, and the damp running down from it
     g.fillStyle='#2e3629'; g.fillRect(X,238,256,18); g.globalAlpha=.5; g.fillStyle='#6a7a58'; g.fillRect(X,238,256,3); g.globalAlpha=.6; g.fillStyle='#050704'; g.fillRect(X,253,256,3); g.globalAlpha=1;
     g.globalAlpha=.22; for(let i=0;i<7;i++){ const dx=X+8+rnd()*240; g.fillStyle=i%2?'#3a6a3a':'#1a2a1e'; g.fillRect(dx,rnd()*60,R(2,5),R(40,150)); } g.globalAlpha=1; g.restore(); }
+  { const X=1024; g.save(); g.beginPath(); g.rect(X,0,256,256); g.clip();   // tile 5: the plain prison wall behind the Heartroot
+    for(let r=0;r<4;r++){ const y0=r*64, off=(r%2)*64; for(let b=-1;b<3;b++){ const x0=X+b*128+off; const L=R(24,36), Hh=R(85,135), SA=R(9,17);
+        g.fillStyle=hsl(Hh,SA,L); g.fillRect(x0+3,y0+3,122,58); g.globalAlpha=.4; g.fillStyle=hsl(Hh,SA+4,L+14); g.fillRect(x0+3,y0+3,122,4); g.globalAlpha=.45; g.fillStyle='#070a06'; g.fillRect(x0+3,y0+56,122,5); g.globalAlpha=1;
+        for(let i=0;i<10;i++) splat(g,x0+6+rnd()*116,y0+6+rnd()*52,R(2,9),rnd()<.5?hsl(Hh,14,L-10):hsl(R(78,100),32,L+9),.24); } }
+    g.strokeStyle='#44483e'; g.lineWidth=4; for(const [sx,sy,len] of [[70,0,96],[182,0,132]]){ g.beginPath(); g.moveTo(X+sx,sy); g.lineTo(X+sx,sy+len); g.stroke(); g.beginPath(); g.arc(X+sx,sy+len+9,9,0,Math.PI*2); g.stroke(); g.lineWidth=3; g.beginPath(); g.arc(X+sx,sy+len+9,4,0,Math.PI*2); g.stroke(); g.lineWidth=4; }   // shackles on chains
+    g.globalAlpha=.22; for(let i=0;i<9;i++){ const dx=X+6+rnd()*244; g.fillStyle=i%2?'#3a6a3a':'#1a2a1e'; g.fillRect(dx,rnd()*50,R(2,6),R(50,170)); } g.globalAlpha=1; g.restore(); }
   for(let i=0;i<2600;i++) splat(g,rnd()*W,rnd()*H,R(1,5),rnd()<.5?'#000':'#fff',.04);
   const tex=new THREE.CanvasTexture(c); tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.encoding=THREE.sRGBEncoding; tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy()); return tex; }
 { const walls=world.children.find(o=>o.isMesh&&o.material&&o.material.map===WALLTEX);
-  if(walls){ const uv=walls.geometry.attributes.uv; for(let i=0;i<uv.count;i++) uv.setX(i,uv.getX(i)/4); uv.needsUpdate=true; walls.material.map=paintCells(); walls.material.needsUpdate=true; counts.paintedWall=1; world.userData.cellWall=walls; } }
+  if(walls){ const uv=walls.geometry.attributes.uv; let plain=0; for(let q=0;q<wallFaces.length;q++){ const fc=wallFaces[q]; let t=((Math.round(uv.getX(4*q))%4)+4)%4; if(fc.cz<=PLAIN_ROWS){ t=4; plain++; } for(let k=0;k<4;k++) uv.setX(4*q+k,(t+(k<2?0:1))/5); } uv.needsUpdate=true; counts.plainFaces=plain; world.userData.plainRows=PLAIN_ROWS; walls.material.map=paintCells(); walls.material.needsUpdate=true; counts.paintedWall=1; world.userData.cellWall=walls; } }
 // the terraces' drops: damp grey-green stone instead of the plain purple-brown
 { const cliff=world.children.find(o=>o.isMesh&&o.material&&o.material.isMeshToonMaterial&&!o.material.map&&o.material.side===THREE.DoubleSide&&o.geometry.attributes.normal&&!o.geometry.attributes.uv&&o.geometry.index);
   if(cliff){ cliff.material=cliff.material.clone(); cliff.material.color.setHex(0x3c4a3c); counts.cliff=1; } }
@@ -42,13 +49,13 @@ function paintCells(){ const W=1024,H=256, c=cv(W,H), g=c.getContext('2d'); g.fi
 use('prison-cell-busted.glb',5.2,p=>{ for(const L of Object.values(LANES)){ const nx=Math.sin(L.face), nz=Math.cos(L.face), D=3.1, y=hgt[idx(L.cx,L.cz)]||0;
     const t=p.clone(); t.position.set(cw(L.cx)+nx*(CELL/2-D/2),y,cwz(L.cz)+nz*(CELL/2-D/2)); t.rotation.y=L.face; world.add(t); bump('bustedCell'); } });
 // ---------------- Bob's rigged cells up the wall, looping: [model, floor cell, which way its wall faces (toward the floor), how many floors up the wall]
-const CELLS=[['prison-cell-tentacle.glb',7,31,1,0,1],['prison-cell-arm.glb',37,31,-1,0,1],['prison-cell-arm.glb',14,45,0,-1,1],['prison-cell-tentacle.glb',30,45,0,-1,2]];
+const CELLS=[['prison-cell-tentacle.glb',7,31,1,0,1],['prison-cell-arm.glb',41,31,-1,0,1],['prison-cell-arm.glb',14,45,0,-1,1],['prison-cell-tentacle.glb',34,45,0,-1,2]];
 for(const [file,cx,cz,nx,nz,row] of CELLS){ const fc=wallFaces.find(w=>w.cx===cx&&w.cz===cz&&w.nx===nx&&w.nz===nz); if(!fc){ console.warn('prison decor: no wall face at',cx,cz); continue; }
   use(file,3.4,p=>{ const t=(typeof cloneSkinned==='function')?cloneSkinned(p):p.clone(); const y0=(hgt[idx(cx,cz)]||0)+row*4+.6; t.position.set(fc.x+nx*.75,y0,fc.z+nz*.75); t.rotation.y=Math.atan2(nx,nz); world.add(t); bump('rigCell');
     const clips=p.userData.clips||[]; if(clips.length){ const mx=new THREE.AnimationMixer(t); const a=mx.clipAction(clips[0]); a.play(); a.time=rnd()*clips[0].duration; WORLDANIM.push(dt=>mx.update(dt)); }
     const l=new THREE.PointLight(C(0xffb060),1.2,9,2); l.position.set(fc.x+nx*2.2,y0+1.6,fc.z+nz*2.2); world.add(l); }); }
 // ---------------- PIPES: one fat pipe along every terrace edge (broken where a flight comes down), and two great ones overhead running down the triangle's sides into the Heartroot's corner
-{ const pts=[]; const EDGE=[[12,0,[16,20]],[23,2,[29,33]],[34,4,[6,10]]];   // [the lower terrace's last row before the drop, its floor, the flight columns that break the pipe]
+{ const pts=[]; const EDGE=[[12,0,[16,20]],[23,2,[33,37]],[34,4,[6,10]]];   // [the lower terrace's last row before the drop, its floor, the flight columns that break the pipe]
   for(const [zr,y,[fa,fb]] of EDGE){ const w=HW(zr), zw=cwz(zr)+CELL/2-.36, x0=cw(CX-w)-CELL/2, x1=cw(CX+w)+CELL/2, n=Math.round((x1-x0)/CELL);
     for(let i=0;i<n;i++){ const x=x0+CELL*(i+.5); if(x>cw(fa)-CELL/2-.1&&x<cw(fb)+CELL/2+.1) continue; pts.push(x,y+1,zw); } }
   const geo=new THREE.CylinderGeometry(.34,.34,CELL+.02,8); geo.rotateZ(Math.PI/2);   // lying along x
@@ -57,11 +64,11 @@ for(const [file,cx,cz,nx,nz,row] of CELLS){ const fc=wallFaces.find(w=>w.cx===cx
   im.instanceMatrix.needsUpdate=true; im.frustumCulled=false; im.userData.noOL=true; world.add(im); counts.pipeSegs=pts.length/3;
   // the great pipes: from high on the wide end down to the apex, hugging each side wall and sinking as they go
   const gm=mat(0x4d5a48), cg=new THREE.CylinderGeometry(.56,.56,1,10), collarG=new THREE.CylinderGeometry(.78,.78,.5,10), up=new THREE.Vector3(0,1,0);
-  for(const sd of [-1,1]){ const A=new THREE.Vector3(sd*.7,7,cwz(2)), B=new THREE.Vector3(sd*38.7,15,cwz(44)), dir=B.clone().sub(A), L=dir.length(); dir.normalize();
+  for(const sd of [-1,1]){ const A=new THREE.Vector3(sd*4.7,7,cwz(2)), B=new THREE.Vector3(sd*43.7,15,cwz(44)), dir=B.clone().sub(A), L=dir.length(); dir.normalize();
     const qq=new THREE.Quaternion().setFromUnitVectors(up,dir); const p=new THREE.Mesh(cg,gm); p.scale.set(1,L,1); p.quaternion.copy(qq); p.position.copy(A).add(B).multiplyScalar(.5); p.userData.noOL=true; world.add(p);
     for(let k=1;k<9;k++){ const c=new THREE.Mesh(collarG,gm); c.quaternion.copy(qq); c.position.copy(A).addScaledVector(dir,L*k/9); c.userData.noOL=true; world.add(c); }
     // where it ends: a green glow, the outfall into the pit
-    const og=new THREE.PointLight(C(0x58c070),.8,9,2); og.position.set(sd*1.8,5.6,cwz(2)+1); world.add(og); }
+    const og=new THREE.PointLight(C(0x58c070),.8,9,2); og.position.set(sd*3.4,5.6,cwz(2)+1); world.add(og); }
   counts.greatPipes=2; }
 // ---------------- the test hook
 window.__prisondecor={reach:()=>Object.fromEntries(Object.entries(LANES).map(([k,l])=>[k,flowFree.dist[idx(l.cx,l.cz)]])),info:()=>Object.assign({},counts)};
