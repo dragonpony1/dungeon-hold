@@ -13,7 +13,7 @@ function json(data, status = 200) {
 
 // The main game serves its own copy of the hideout from GitHub Pages, so the shared-gear
 // calls arrive cross-origin from there.
-const ALLOWED_ORIGINS = new Set(['https://dragonpony1.github.io']);
+const ALLOWED_ORIGINS = new Set(['https://dragonpony1.github.io', 'https://rootgate.52bulls.workers.dev']);   // game build 307: the game's own Cloudflare site too
 function corsHeaders(request) {
   const origin = request.headers.get('origin');
   if (!origin || !ALLOWED_ORIGINS.has(origin)) return {};
