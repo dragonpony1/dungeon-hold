@@ -29,7 +29,7 @@ const salvageable=()=>Meta.bag().filter(it=>it&&!it.locked);
 // ---- the bag over the hideout
 function openBag(){ if(!H.isOpen()||T.isOpen()) return false; fromHideout=true; writeOwned(); const el=$('tavern'); if(el) el.style.zIndex='25';
   try{ const f=document.querySelector('#hideoutWrap iframe'); if(f) f.blur(); window.focus(); }catch(e){} T.open(); T.tab('bag'); return true; }
-addEventListener('message',e=>{ const w=H.frameWin(); if(!w||e.source!==w) return; if(e.data==='hideout:bag') openBag(); });
+addEventListener('message',e=>{ const w=H.frameWin(); if(!w||e.source!==w) return; if(e.data==='hideout:bag') openBag(); else if(e.data==='hideout:devpanel'&&window.__devpanel) window.__devpanel.toggle(); });   // build 301 (Matt: "is the dev hud not working anymore?"): F9 inside the hideout, hideout build 70
 { const prev=T.close; T.close=function(){ const r=prev.apply(this,arguments); if(r&&fromHideout){ fromHideout=false; const el=$('tavern'); if(el) el.style.zIndex=''; writeOwned();
     try{ const f=document.querySelector('#hideoutWrap iframe'); if(f&&H.isOpen()) f.focus(); }catch(e){} tell('hideout:bagClosed'); } return r; }; }
 { const prev=tvDefend; tvDefend=function(){ if(fromHideout){ T.close(); return; } return prev(); }; }   // on the title screen a visit to the hideout must not start a run from here
