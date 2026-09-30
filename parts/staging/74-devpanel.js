@@ -102,6 +102,7 @@ function spawnNow(kind){ const k=Object.keys(LANES)[0]; if(!k){ toast('no lane o
   // build 198: same reasoning as the Cyclops above -- the pig trio's real entrance (banner, camera shake, their
   // music) lives in spawnPigBosses(), not the generic path, and picking any one of the three should bring in all
   // three the way the real wave-7 trigger does, not just that one alone
+  if(kind==='archhag'&&window.__archhag&&window.__archhag.ensure){ if(!window.__archhag.loaded()){ toast('loading the Archhag…'); window.__archhag.ensure().then(()=>window.__archhag.spawn()); } else window.__archhag.spawn(); return; }   // build 308: her real entrance (the garden wakes)
   if((kind==='pigflail'||kind==='pigdagger'||kind==='pigsling')&&window.__pigbosses){ if(!window.__pigbosses.loaded()){ toast('loading the pig bosses…'); window.__pigbosses.ensure().then(()=>window.__pigbosses.spawn()); } else window.__pigbosses.spawn(); return; }
   spawnEnemy(kind,k); toast('spawned a '+kind); }
 function toggle(v){ ensure(); open=v===undefined?!open:v; el.classList.toggle('hide',!open); }

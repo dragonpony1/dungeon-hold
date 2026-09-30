@@ -15,7 +15,7 @@ DEFKEYS.push('pit'); DEFKEY_LABELS.push('4');
 NOWALK_DEF.pit=1;
 // build 233/239: Matt's Meshy pit rims (stone ring, iron spikes pointing inward, open middle): Mark I..IV, one file each
 DEF_W.pit=2.1; defMarks('pit','pit');   // pit-1..4 (Matt's four Spiked Pit rims; Marks V+ keep the Mark IV rim)   // mobs walk straight over it and never attack it (the Cage and the Perch get the same treatment)
-const BOSS=new Set(['trollboss','cyclops','pigflail','pigdagger','pigsling']), BIG=new Set(['ogre']);
+const BOSS=new Set(['trollboss','cyclops','pigflail','pigdagger','pigsling','archhag']), BIG=new Set(['ogre']);
 const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
 // ---------------------------------------------------------------- the look: a ring of stone blocks, a hatch that splits away, a black pit, iron teeth that rise, dust
 { const prevMakeDef=makeDef; makeDef=function(kind,ghost,lvl){ if(kind!=='pit') return prevMakeDef(kind,ghost,lvl);

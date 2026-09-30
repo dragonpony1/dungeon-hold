@@ -20,7 +20,7 @@ const JR=[{k:'common',name:'Common',col:0x5f6e3a,css:'#c4ccb0',img:'common_sludg
 const VAL=[1/27,1/9,1/3,1];   // what a jar is worth in Legendary Sludge, refined at the Cauldron's three-for-one
 const KIND={goblin:{w:1,r:[.85,.15,0,0]},archer:{w:2,r:[0,.8,.2,0]},orc:{w:3,r:[0,.7,.3,0]},drake:{w:6,r:[0,0,.85,.15]},troll:{w:6,r:[0,0,.8,.2]}};
 const VK={}; for(const k in KIND) VK[k]=KIND[k].r.reduce((a,x,i)=>a+x*VAL[i],0);
-const BOSS={ogre:1,trollboss:2,cyclops:2,pigflail:2,pigdagger:2,pigsling:2};   // Legendary jars, always
+const BOSS={ogre:1,trollboss:2,cyclops:2,pigflail:2,pigdagger:2,pigsling:2,archhag:30};   // build 308 (Matt: "more legendary jars, like 30"): the Cloister Court's boss   // Legendary jars, always
 const BUDGET=.6;   // Legendary-sludge worth a wave's ordinary mobs share
 const HOOK=typeof LOOT_HOOK!=='undefined'?LOOT_HOOK:3.2;
 const JARS=[], RUN=[0,0,0,0];

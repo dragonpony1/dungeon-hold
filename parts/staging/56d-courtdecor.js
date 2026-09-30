@@ -145,5 +145,6 @@ const W1_EXTRA=30;
   let t=2; for(let i=0;i<W1_EXTRA;i++){ c.q.push({t,kind:'goblin',lane:lanes[i%lanes.length]}); t+=.6; } c.q.sort((a,b)=>a.t-b.t);
   const g=c.q.filter(x=>x.kind==='goblin').length; if(c.desc) c.desc=String(c.desc).replace(/Goblins ×[0-9]+/,'Goblins ×'+g); return c; }; }
 window.__courtdecor.w1Extra=W1_EXTRA;
+window.__courtdecor.topiList=()=>TOPI;   // build 308: the Archhag (95f-archhag.js) wakes them
 window.__courtdecor.topiaries=()=>({placed:TOPI.length,cells:TOPI_CELLS.map(c=>[c.cx,c.cz]),h:TOPI_H,kinds:TOPI.reduce((o,t)=>{ o[t.kind]=(o[t.kind]||0)+1; return o; },{})});
 })();
