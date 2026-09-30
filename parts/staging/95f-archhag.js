@@ -41,12 +41,13 @@ let loadP=null;
 // build 330 (Matt: "the archag kinda blends in with the other mobs, you couldnt find her unless you got up close. can we put a light on her or out line, or some color on her garb?"): all three --
 // a thick glowing violet rim instead of everyone's dark ink line, a faint violet glow in her robes, and (per spawn) a pool of violet light on the ground round her with a turning sigil at her feet.
 // The "light" is a glow laid on the floor, not a real light: adding a real one when she appears would make every material in the hall rebuild at that moment (a hitch at her entrance).
-const HAG_RIM=0xb44cff, HAG_ROBE=0x2c0a4a;
+const HAG_RIM=0xb44cff, HAG_BRIGHT=.5;   // build 332 (Matt: "that looks like a little much ... maybe just some white light in her garb or somethign or just brighten her up some"): her own colours lit up
+// (a white glow through her own texture) instead of a violet wash; the violet rim thinner (x1.7, was x2.4); the floor pool softer
 function hagLook(root){ root.traverse(o=>{ if(!o.isMesh||!o.material) return;
-  if(o.userData.isOL&&o.material.uniforms&&o.material.uniforms.col){ o.material.uniforms.col.value=C(HAG_RIM); if(o.material.uniforms.t) o.material.uniforms.t.value*=2.4; }
-  else if(o.material.emissive){ o.material.emissive.setHex(HAG_ROBE); o.material.emissiveIntensity=1; } }); }
+  if(o.userData.isOL&&o.material.uniforms&&o.material.uniforms.col){ o.material.uniforms.col.value=C(HAG_RIM); if(o.material.uniforms.t) o.material.uniforms.t.value*=1.7; }
+  else if(o.material.emissive){ if(o.material.map) o.material.emissiveMap=o.material.map; o.material.emissive.setRGB(HAG_BRIGHT,HAG_BRIGHT,HAG_BRIGHT); o.material.emissiveIntensity=1; o.material.needsUpdate=true; } }); }
 function hagAura(e){ const g=e.mdl.g; if(g.userData.hagAura) return; const grp=new THREE.Group(); grp.name='hagAura';
-  const pool=new THREE.Mesh(new THREE.PlaneGeometry(8,8),new THREE.MeshBasicMaterial({map:GLOWT,color:C(0xa040ff),transparent:true,opacity:.75,blending:THREE.AdditiveBlending,depthWrite:false}));
+  const pool=new THREE.Mesh(new THREE.PlaneGeometry(8,8),new THREE.MeshBasicMaterial({map:GLOWT,color:C(0xa040ff),transparent:true,opacity:.55,blending:THREE.AdditiveBlending,depthWrite:false}));
   pool.rotation.x=-PI/2; pool.position.y=.05; pool.userData.noOL=true; grp.add(pool);
   const ring=new THREE.Mesh(new THREE.RingGeometry(1.25,1.55,48),new THREE.MeshBasicMaterial({color:C(0xd08aff),transparent:true,opacity:.8,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
   ring.rotation.x=-PI/2; ring.position.y=.07; ring.userData.noOL=true; grp.add(ring);
@@ -194,7 +195,7 @@ function castSpecial(e,what){ e.special=what; e.swing=0; e.pending={kind:'specia
 // no hit-squash (every blow squashed her whole body), no hold (Rootsplitter's roots), no crawl (the Hourglass), no chill, no slow
 { const prev=updateEnemies; updateEnemies=function(dt){ for(const e of enemies) if(!e.dead&&e.kind===K){ e.slowT=0; e.squash=0; e.holdT=0; e.crawlT=0; e.chillT=0; if(e.shield>0) e.shield-=dt;
       // build 317 (Matt: "oh dear, mabye that stikmen didnt load all the way"): if his moss stickmen are still on the way when she casts, she holds the spell until they land (at most 6 s more) rather than raise the twig stand-ins
-      { const A=e.mdl.g.userData.hagAura; if(A){ A.rotation.y+=dt*.6; A.children[0].material.opacity=.62+.14*Math.sin(S.t*2.2); A.visible=!e.dead||e.dead<.6; } }
+      { const A=e.mdl.g.userData.hagAura; if(A){ A.rotation.y+=dt*.6; A.children[0].material.opacity=.46+.1*Math.sin(S.t*2.2); A.visible=!e.dead||e.dead<.6; } }
       if(e.hagRise>=1){ e.hexT=(e.hexT===undefined?2:e.hexT)-dt; if(e.hexT<=0&&!(e.swing>=0)&&!e.special){ e.hexT=hex(e)?HEX_EVERY:.5; } }   // build 327: her hex, cast on the move
       if(e.hagRise>=1){ e.growT=(e.growT===undefined?GROW_FIRST:e.growT)-dt; if(e.growT<=0&&!(e.swing>=0)&&!e.special&&!(e.shield>0)){ e.growT=GROW_EVERY; castSpecial(e,'grow'); } }   // build 318: GROW on her own clock
       if(e.raiseT>0){ e.raiseT-=dt; if(e.raiseT<=0){ if(!MOBGLB[SK].real&&!stickDone&&(e.raiseWait=(e.raiseWait||0)+dt)<6){ loadSticks(); e.raiseT=.001; } else if(e.special||e.swing>=0){ e.raiseT=.001; } else { castSpecial(e,'raise'); if(e.phase===1) e.raiseT=(e.raiseN||0)===0?RAISE_WOLVES_FIRST:RAISE_EVERY; } } }   // another cast still running: the raise waits for it

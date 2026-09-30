@@ -41,7 +41,7 @@ const wk=await page.evaluate(()=>{ const d=window.__dd, e=d.enemies.find(x=>x.ki
   return { tower:!!tw, cursed, moved:+Math.hypot(e.x-x0,e.z-z0).toFixed(1), maxStill:+maxStill.toFixed(2) }; });
 check("build 327 (Matt: \"she only became less menacing when she stopped walking, she got to an aura and stopped\"): with a tower in reach she hexes it and keeps walking -- never standing still outside a big spell's cast",wk.tower&&wk.cursed&&wk.moved>2&&wk.maxStill<.6,JSON.stringify(wk));
 const lk=await page.evaluate(()=>window.__archhag.look());
-check("build 330 (Matt: she blends in -- a light, an outline or colour on her garb): a thick violet rim instead of the ink line, a violet glow in her robes, and a pool of violet light with a sigil round her feet",!!lk&&lk.rim!==null&&((lk.rim>>16)&255)>((lk.rim>>8)&255)&&(lk.rim&255)>((lk.rim>>8)&255)&&lk.t>.025&&lk.robe>0&&lk.aura,JSON.stringify(lk));
+check("build 330 (Matt: she blends in -- a light, an outline or colour on her garb): a violet rim instead of the ink line, her own colours brightened (build 332: white light, not a violet wash), and a pool of violet light with a sigil round her feet",!!lk&&lk.rim!==null&&((lk.rim>>16)&255)>((lk.rim>>8)&255)&&(lk.rim&255)>((lk.rim>>8)&255)&&lk.t>.02&&lk.robe>0&&lk.aura,JSON.stringify(lk));
 const c=await page.evaluate(()=>{ const d=window.__dd, e=d.enemies.find(x=>x.kind==='archhag'&&!x.dead); const max=e.max; if(d.hurt) d.hurt(e,max*.9,0,0); else e.hp-=max*.9; d.step(1/60,2);
   const afterHit={hp:+(e.hp/max).toFixed(3),phase:e.phase,shield:+(e.shield||0).toFixed(2)}; const hp0=e.hp; if(d.hurt) d.hurt(e,50,0,0); const shielded=e.hp===hp0;
   const vis0=window.__courtdecor.topiList().filter(t=>t.mesh.visible).length;
