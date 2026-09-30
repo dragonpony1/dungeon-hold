@@ -1,0 +1,90 @@
+// ===== THE DEEP PRISON'S BREAKABLE WALLS (build 343). Matt: "that destructible wall will sit on 2 sides of the apex of the triangle and when broken a secret weapon comes out and starts to fire". Bob (Hi3D) made the wall:
+// a shackled dungeon wall that shakes on every hit and, at zero health, splits into 48 timber / iron / stone pieces that tumble and fade (his hi3d-breakable-wall.js, re-used here nearly as he wrote it: scripted fall, no
+// physics engine). Two of them plug the side walls either side of the Heartroot's corner, each in front of a sealed alcove one cell deep; the alcove is solid stone until the wall goes. Hit one (four blows of 25: your
+// sword's swing, or a staff bolt) and it bursts; the alcove opens, dust rolls out, and a SECRET WEAPON rolls out of the dark and starts firing on the horde -- a Mark VI Ballista behind the west wall, a Mark VI Acorn
+// Cannon behind the east -- free, unsellable, tougher than a built tower. Only MAP.id==='prison'. Test hook: window.__prisonwalls.
+(function(){
+window.__prisonwalls={info:()=>null};
+if(!MAP||MAP.id!=='prison') return;
+const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
+const OPEN_H=4.0, SCALE=OPEN_H/1.91, HIT=25, HP=100;
+// the two alcoves: the solid cell, the pit cell in front of it, which way the opening faces (toward the pit), and the weapon behind each wall
+const SPOTS=[{id:'W',cx:18,cz:6,fcx:19,nx:1,kind:'harpoon'},{id:'E',cx:26,cz:6,fcx:25,nx:-1,kind:'acorn'}];
+const LVL=6, TOUGH=2;
+// ---------------- Bob's breakable wall (hi3d-breakable-wall.js), as he wrote it, in this game's own scope
+class BreakableWall {
+  constructor(intact,fragments,o){
+    this.o=Object.assign({ maxHealth:HP, impulse:1, debrisLifetime:9, onHit:()=>{}, onBreak:()=>{} },o);
+    this.group=new THREE.Group(); this.intact=intact; this.fragments=fragments;
+    intact.position.y-=new THREE.Box3().setFromObject(intact).min.y; fragments.position.y-=new THREE.Box3().setFromObject(fragments).min.y;
+    this.group.add(intact,fragments); this.group.updateMatrixWorld(true); this.chunks=[];
+    fragments.traverse(node=>{ if(!node.userData.category) return;
+      const bounds=new THREE.Box3(), inv=node.matrixWorld.clone().invert();
+      node.traverse(mesh=>{ if(!mesh.isMesh||mesh.userData.isOL) return; mesh.geometry.computeBoundingBox(); const b=mesh.geometry.boundingBox, m=inv.clone().multiply(mesh.matrixWorld);
+        for(let i=0;i<8;i++) bounds.expandByPoint(new THREE.Vector3(i&1?b.max.x:b.min.x,i&2?b.max.y:b.min.y,i&4?b.max.z:b.min.z).applyMatrix4(m)); });
+      const corners=[]; for(let i=0;i<8;i++) corners.push(new THREE.Vector3(i&1?bounds.max.x:bounds.min.x,i&2?bounds.max.y:bounds.min.y,i&4?bounds.max.z:bounds.min.z));
+      this.chunks.push({ node, home:node.position.clone(), rotation:node.quaternion.clone(), scale:node.scale.clone(), corners, velocity:new THREE.Vector3(), spin:new THREE.Vector3(), settled:false }); });
+    this._tmp=new THREE.Vector3(); this._axis=new THREE.Vector3(); this._q=new THREE.Quaternion();
+    this.health=this.o.maxHealth; this.broken=false; this.age=0; this.time=0; this.acc=0; this.lastHit=-Infinity; this.shake=0; this.fragments.visible=false; }
+  hit(dmg,point,dir){ if(this.broken||this.time-this.lastHit<.18||!(dmg>0)) return false; this.lastHit=this.time; this.health=Math.max(0,this.health-dmg); this.shake=.20; this.o.onHit(this,point); if(!this.health) this.destroy(point,dir); return true; }
+  destroy(point,dir){ if(this.broken) return false; this.group.updateMatrixWorld(true);
+    const impact=point?this.group.worldToLocal(point.clone()):new THREE.Vector3(0,1,0), d=dir?dir.clone().transformDirection(this.group.matrixWorld.clone().invert()):new THREE.Vector3(0,0,-1);
+    this.broken=true; this.health=0; this.age=0; this.shake=0; this.intact.visible=false; this.fragments.visible=true;
+    this.chunks.forEach((p,i)=>{ const seed=Math.sin((i+1)*78.233)*43758.5453, r=seed-Math.floor(seed); const radial=p.home.clone().sub(impact); radial.y=Math.abs(radial.y)*.25+.2; radial.normalize();
+      const weight=p.node.userData.category==='stone'?.65:1; p.velocity.copy(radial).multiplyScalar((1.1+r)*weight).addScaledVector(d,1.0+r).multiplyScalar(this.o.impulse); p.velocity.y+=(.9+r*1.6)*weight; p.spin.set((r-.5)*5,Math.sin(i*2.1)*3,Math.cos(i*1.3)*4); });
+    this.o.onBreak(this,point); return true; }
+  update(dt){ if(!(dt>0)) return; dt=Math.min(dt,.05); this.time+=dt;
+    if(!this.broken){ this.shake=Math.max(0,this.shake-dt); const a=this.shake*.08; this.intact.position.x=Math.sin(this.time*100)*a; this.intact.rotation.z=Math.sin(this.time*83)*a*.3; return; }
+    this.acc+=dt; while(this.acc>=1/120){ this._step(1/120); this.acc-=1/120; } }
+  _step(dt){ this.age+=dt; const fade=Math.max(0,Math.min(1,this.o.debrisLifetime-this.age)); if(fade===0){ this.fragments.visible=false; return; }
+    for(const p of this.chunks){ if(!p.settled){ p.velocity.y-=9.81*dt; p.node.position.addScaledVector(p.velocity,dt); const sp=p.spin.length();
+        if(sp>.0001) p.node.quaternion.premultiply(this._q.setFromAxisAngle(this._axis.copy(p.spin).normalize(),sp*dt));
+        let minY=Infinity; for(const c of p.corners){ this._tmp.copy(c).multiply(p.scale).applyQuaternion(p.node.quaternion); minY=Math.min(minY,this._tmp.y+p.node.position.y+this.fragments.position.y); }
+        if(minY<.006){ p.node.position.y+=.006-minY; p.velocity.y=Math.abs(p.velocity.y)*.18; p.velocity.x*=.72; p.velocity.z*=.72; p.spin.multiplyScalar(.55); if(this.age>.8&&p.velocity.length()<.22){ p.settled=true; p.velocity.set(0,0,0); p.spin.set(0,0,0); } } }
+      p.node.scale.copy(p.scale).multiplyScalar(fade); } }
+}
+// ---------------- the models: fetched, parsed and toon-shaded once; each wall gets its own clone
+const load=name=>fetchBytes(ASSET(name),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',gl=>{ try{ const root=gl.scene||gl.scenes[0]; toonify(root,SCALE); res(root); }catch(e){ rej(e); } },rej)));
+const walls=[]; let cellWall=null; const dust=[]; const timers=[]; const cnt={ built:0, hits:0, broken:0, weapons:0 };
+function faceIndex(cx,cz,nx){ return wallFaces.findIndex(f=>f.cx===cx&&f.cz===cz&&f.nx===nx&&f.nz===0); }
+// the wall face in front of the alcove is drawn from the top of the opening up (so the opening itself is clear to open); until it breaks, Bob's wall fills it
+function lowerQuad(i,y){ if(!cellWall||i<0) return; const g=cellWall.geometry, p=g.attributes.position, uv=g.attributes.uv; for(const k of [0,3]){ p.setY(4*i+k,y); uv.setY(4*i+k,y/CELL); } p.needsUpdate=true; uv.needsUpdate=true; }
+function puff(x,y,z,n){ for(let i=0;i<n;i++){ const s=glow(0xd8c8a8,4+Math.random()*3,.0); s.position.set(x+(Math.random()-.5)*2.2,y+Math.random()*1.4,z+(Math.random()-.5)*2.2); world.add(s); dust.push({ s, t:0, life:1.3+Math.random()*.8, vy:.5+Math.random()*.8, vx:(Math.random()-.5)*1.2, vz:(Math.random()-.5)*1.2 }); } }
+// ---------------- opening the alcove and rolling the weapon out
+function openAlcove(sp){ const cx=sp.cx, cz=sp.cz, x=cw(cx), z=cwz(cz), nx=sp.nx;
+  grid[idx(cx,cz)]=T.FLOOR; hgt[idx(cx,cz)]=0; reflow();
+  const dark=mat(0x2c3628,{side:THREE.DoubleSide}); const add=(w,h,px,py,pz,ry,rx)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),dark); m.position.set(px,py,pz); m.rotation.set(rx||0,ry||0,0); m.userData.noOL=true; world.add(m); };
+  add(CELL,CELL,x,.03,z,0,-PI/2); add(CELL,CELL,x,OPEN_H-.03,z,0,PI/2); add(CELL,OPEN_H,x-nx*CELL/2,OPEN_H/2,z,nx>0?PI/2:-PI/2); add(CELL,OPEN_H,x,OPEN_H/2,z-CELL/2,0); add(CELL,OPEN_H,x,OPEN_H/2,z+CELL/2,0);   // the alcove's floor, ceiling, back and two sides
+  const l=new THREE.PointLight(C(0xffc870),2.4,11,2); l.position.set(x+nx*.4,2.2,z); world.add(l); sp.light=l; sp.flash=1;
+  puff(x+nx*1.2,.6,z,7);
+  // the weapon: a real defense, placed free (its mana and defense units handed straight back), Mark VI, tougher than a built one, not for sale
+  const m0=S.mana; const d=placeDefAt(sp.kind,x,z,nx>0?PI/2:-PI/2); S.mana=m0; S.du-=DEFS[sp.kind].du; d.spent=0; d.secret=true; d.lvl=LVL; d.max=Math.round(DEFS[sp.kind].hp*(1+.4*(LVL-1)))*TOUGH; d.hp=d.max; d.pop=0; sp.def=d; cnt.weapons++;
+  floatText(x,d.top+1.6,z,'🔓 '+DEFS[sp.kind].ic,'#e8b94a'); try{ SFX.place&&SFX.place(); }catch(e){} }
+// ---------------- the walls
+Promise.all([load('prison-wall-intact.glb'),load('prison-wall-fragments.glb')]).then(([intact,frag])=>{
+  for(const sp of SPOTS){ const i=faceIndex(sp.fcx,sp.cz,sp.nx); if(i<0){ console.warn('prison walls: no wall face at',sp.fcx,sp.cz); continue; }
+    cellWall=cellWall||world.userData.cellWall; lowerQuad(i,OPEN_H);
+    const w=new BreakableWall(intact.clone(true),frag.clone(true),{ onHit:(ww,pt)=>{ cnt.hits++; try{ SFX.hit&&SFX.hit(); }catch(e){} puff(pt?pt.x:0,1.4,pt?pt.z:0,1); },
+      onBreak:(ww,pt)=>{ cnt.broken++; try{ SFX.boom&&SFX.boom(); SFX.hit&&SFX.hit(); }catch(e){} const x=cw(sp.cx)+sp.nx*CELL/2, z=cwz(sp.cz); puff(x,1.2,z,10); timers.push({ t:.8, fn:()=>openAlcove(sp) }); } });
+    const face=cw(sp.cx)+sp.nx*CELL/2, back=.47*SCALE/2;   // the wall's front on the opening's plane, its thickness behind it, in the alcove
+    w.group.scale.setScalar(SCALE); w.group.position.set(face-sp.nx*back,0,cwz(sp.cz)); w.group.rotation.y=sp.nx>0?PI/2:-PI/2; world.add(w.group); w.spot=sp; sp.wall=w; walls.push(w); cnt.built++; }
+}).catch(e=>console.warn('prison walls',e));
+// ---------------- what breaks them: your sword's swing, or a staff bolt of yours
+function nearPlane(sp,x,z,r){ return Math.hypot(x-(cw(sp.cx)+sp.nx*CELL/2),z-cwz(sp.cz))<r; }
+function meleeWalls(){ if(isGuest()) return; const fx=Math.sin(hero.yaw), fz=Math.cos(hero.yaw);
+  for(const w of walls){ if(w.broken) continue; const sp=w.spot, wx=cw(sp.cx)+sp.nx*CELL/2, wz=cwz(sp.cz), dx=wx-hero.x, dz=wz-hero.z, d=Math.hypot(dx,dz);
+    if(d<Math.min(hero.reach||2.4,3.2)+1.8&&(dx*fx+dz*fz)/Math.max(d,.01)>.25) w.hit(HIT,new THREE.Vector3(wx,1.2,wz),new THREE.Vector3(fx,0,fz)); } }
+{ const prev=hitCone; hitCone=function(){ prev.apply(this,arguments); meleeWalls(); }; }
+// the secret weapons are not for sale, and giving one back hands back the defense units it never took
+{ const prevSell=sell; sell=function(pos){ const d=typeof pickDef==='function'?pickDef(pos):null; if(d&&d.secret){ toast('🔒 A secret weapon'); return; } return prevSell.apply(this,arguments); }; }
+{ const prevRemove=removeDef; removeDef=function(d){ const s=d&&d.secret; prevRemove.apply(this,arguments); if(s) S.du+=DEFS[d.kind].du; }; }
+// ---------------- per frame: the walls, the dust, the light flash, the opening timers, the staff bolts
+WORLDANIM.push(dt=>{ for(const w of walls) w.update(dt);
+  for(let i=timers.length-1;i>=0;i--){ const t=timers[i]; t.t-=dt; if(t.t<=0){ timers.splice(i,1); try{ t.fn(); }catch(e){ console.warn('prison walls',e); } } }
+  for(let i=dust.length-1;i>=0;i--){ const p=dust[i]; p.t+=dt; const k=p.t/p.life; if(k>=1){ world.remove(p.s); dust.splice(i,1); continue; } p.s.position.x+=p.vx*dt; p.s.position.y+=p.vy*dt; p.s.position.z+=p.vz*dt; p.s.material.opacity=.5*Math.sin(Math.min(1,k*1.6)*PI)*(1-k*.4); p.s.scale.setScalar(p.s.scale.x+dt*2.2); }
+  for(const sp of SPOTS) if(sp.flash>0){ sp.flash=Math.max(0,sp.flash-dt*.5); if(sp.light) sp.light.intensity=2.4+sp.flash*3.5; }
+  if(!isGuest()&&walls.some(w=>!w.broken)&&window.__staff&&window.__staff.boltList){ const bl=window.__staff.boltList(); if(bl.length) for(const b of bl){ if(!b.mine||b.y>5.5) continue; for(const w of walls){ if(w.broken) continue; const sp=w.spot; if(nearPlane(sp,b.x,b.z,2.1)) w.hit(HIT,new THREE.Vector3(cw(sp.cx)+sp.nx*CELL/2,1.4,cwz(sp.cz)),new THREE.Vector3(-sp.nx,0,0)); } } } });
+window.__prisonwalls={ walls:()=>walls.map(w=>({ id:w.spot.id, health:w.health, broken:w.broken, x:+w.group.position.x.toFixed(2), z:+w.group.position.z.toFixed(2), chunks:w.chunks.length, debris:w.fragments.visible })),
+  hit:(id,n)=>{ const w=walls.find(x=>x.spot.id===id); if(!w) return false; const sp=w.spot; w.time+=1; return w.hit(n||HIT,new THREE.Vector3(cw(sp.cx)+sp.nx*CELL/2,1.2,cwz(sp.cz)),new THREE.Vector3(-sp.nx,0,0)); },
+  spots:()=>SPOTS.map(s=>({ id:s.id, open:!!s.def, def:s.def?{ kind:s.def.kind, lvl:s.def.lvl, secret:!!s.def.secret, hp:s.def.hp, max:s.def.max }:null })), info:()=>Object.assign({},cnt) };
+})();

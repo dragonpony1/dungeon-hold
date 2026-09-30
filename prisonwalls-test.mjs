@@ -1,0 +1,42 @@
+// ===== THE DEEP PRISON'S BREAKABLE WALLS (56g-prisonwalls.js, build 343; Bob's hi3d breakable wall). Matt: "that destructible wall will sit on 2 sides of the apex of the triangle and when broken a secret weapon comes out
+// and starts to fire". Checked: two walls stand either side of the Heartroot's corner, facing into the pit, each with 48 pieces; a far-off swing does nothing; your sword swing in front of one takes 25 (four blows break it)
+// and a swing behind you does nothing; a staff bolt hits one too; when one breaks the alcove behind opens (the stone cell becomes floor), a free Mark VI weapon is placed there (west: Ballista, east: Acorn Cannon), its mana
+// and defense units handed back, unsellable, tougher than a built one; the weapon really fires on a goblin walking past; the other wall is untouched; the path to the Heartroot still exists; no page errors.
+import { chromium } from "playwright"; import { serve } from "./serve.mjs";
+const server=await serve(8998,{dist:process.env.DIST||"./dist"});
+const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[]; const warns=[];
+const ctx=await browser.newContext({viewport:{width:900,height:560}}); await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); }catch(e){} });
+const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e))); page.on("console",m=>{ if(m.type()==='warning'&&/prison (walls|decor)/.test(m.text())) warns.push(m.text().slice(0,160)); });
+await page.goto("http://127.0.0.1:8998/?silent&nogate&map=5",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__prisonwalls&&window.__dd.map()&&window.__dd.map().id==='prison',null,{timeout:120000});
+await page.evaluate(()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} d.start(); d.step(1/60,5); });
+let w=null; for(let i=0;i<300;i++){ w=await page.evaluate(()=>{ window.__dd.step(1/60,1); return window.__prisonwalls.walls(); }); if(w.length===2) break; await sleep(100); }
+check("two breakable walls stand in the prison, one each side of the Heartroot's corner, every one of Bob's 48 pieces in place, seven-tenths of the way down the pit's side walls",w.length===2&&w.every(x=>x.chunks===48&&!x.broken&&x.health===100)&&w.some(x=>x.x<-6&&x.x>-9)&&w.some(x=>x.x>6&&x.x<9),JSON.stringify(w));
+await page.evaluate(()=>window.__heroes.select('knight')); await page.waitForFunction(()=>/Knight/.test(window.__dd.heroModel().label),null,{timeout:120000});
+const base=await page.evaluate(()=>{ const d=window.__dd; return { defs:d.defs.length, mana:d.S.mana, du:d.S.du }; });
+// a swing from far away does nothing; a swing with your back to it does nothing
+const far=await page.evaluate(async()=>{ const d=window.__dd; d.setHero(0,14,-Math.PI/2); d.setCam(-Math.PI/2,.3,6); d.swing(); for(let i=0;i<40;i++) d.step(1/60,1); return window.__prisonwalls.walls().map(x=>x.health); });
+const back=await page.evaluate(async()=>{ const d=window.__dd; d.setHero(-5,4,Math.PI/2); d.setCam(Math.PI/2,.3,6); d.swing(); for(let i=0;i<40;i++) d.step(1/60,1); return window.__prisonwalls.walls().map(x=>x.health); });
+check("a swing from across the pit, or with your back to a wall, does not touch it",far.every(h=>h===100)&&back.every(h=>h===100),JSON.stringify({far,back}));
+// swings in front of the west wall: four blows of 25
+const hp=[]; for(let k=0;k<4;k++){ const h=await page.evaluate(async()=>{ const d=window.__dd; d.setHero(-5,4,-Math.PI/2); d.setCam(-Math.PI/2,.3,6); d.swing(); for(let i=0;i<50;i++) d.step(1/60,1); return window.__prisonwalls.walls().find(x=>x.id==='W').health; }); hp.push(h); }
+check("swinging your sword at the west wall takes 25 a blow: 75, 50, 25, then it breaks (0)",JSON.stringify(hp)==="[75,50,25,0]",JSON.stringify(hp));
+const after=await page.evaluate(async()=>{ const d=window.__dd; for(let i=0;i<120;i++) d.step(1/60,1); return { walls:window.__prisonwalls.walls(), spots:window.__prisonwalls.spots(), defs:d.defs.length, mana:d.S.mana, du:d.S.du, cell:d.cellAt?d.cellAt(18,6):null }; });
+const W=after.spots.find(s=>s.id==='W'), E=after.spots.find(s=>s.id==='E');
+check("the west wall bursts, the alcove opens and a free Mark VI Ballista is placed in it -- secret, tougher than a built one; the east wall and its weapon are untouched",after.walls.find(x=>x.id==='W').broken&&W.open&&W.def.kind==='harpoon'&&W.def.lvl===6&&W.def.secret&&W.def.max>=2*120&&!E.open&&!after.walls.find(x=>x.id==='E').broken,JSON.stringify({W,E}));
+check("the weapon cost nothing: your mana and defense units are as they were, and it is the only new defense",after.defs===base.defs+1&&after.mana===base.mana&&after.du===base.du,JSON.stringify({base,after:{defs:after.defs,mana:after.mana,du:after.du}}));
+// it fires: a goblin walks past in front of it
+const fire=await page.evaluate(async()=>{ const d=window.__dd; d.S.crystal=1e6; d.S.phase='wave'; d.setHero(0,30,Math.PI); d.spawn('goblin','W'); const e=d.enemies[d.enemies.length-1]; const hp0=e.hp; let proj=0, dead=false; const d0=d.defs.find(x=>x.secret);
+  e.x=-3; e.z=10; for(let i=0;i<600&&!e.dead;i++){ d.step(1/60,1); d.S.crystal=1e6; if(d.projs.some(p=>p.kind==='harpoon')) proj++; } return { proj, hp0, hp:e.hp, dead:!!e.dead, kills:d.S.kills }; });
+check("the secret weapon fires on a goblin in its range (bolts in the air, the goblin hurt or dead)",fire.proj>0&&(fire.dead||fire.hp<fire.hp0),JSON.stringify(fire));
+// the east wall breaks to the witch's staff bolts
+await page.evaluate(()=>window.__heroes.select('witch')); await page.waitForFunction(()=>/Witch/.test(window.__dd.heroModel().label),null,{timeout:120000});
+const eh=await page.evaluate(async()=>{ const d=window.__dd, P=window.__prisonwalls; const hp=[]; for(let k=0;k<14&&!P.walls().find(x=>x.id==='E').broken;k++){ d.setHero(4,4,Math.PI/2); d.setCam(Math.PI/2,.3,6); d.swing(); for(let i=0;i<60;i++){ d.step(1/60,1); d.S.crystal=1e6; } hp.push(P.walls().find(x=>x.id==='E').health); } for(let i=0;i<150;i++) d.step(1/60,1); return { hp, broken:P.walls().find(x=>x.id==='E').broken, spots:P.spots() }; });
+check("the witch's staff bolts break the east wall too (it loses health as they land, then bursts) and its Mark VI Acorn Cannon rolls out",eh.broken&&eh.hp.some(h=>h<100)&&eh.spots.find(s=>s.id==='E').def&&eh.spots.find(s=>s.id==='E').def.kind==='acorn'&&eh.spots.find(s=>s.id==='E').def.lvl===6,JSON.stringify(eh));
+const sold=await page.evaluate(async()=>{ const d=window.__dd; const s=d.defs.filter(x=>x.secret); const before=d.defs.length; const mana0=d.S.mana; s.forEach(x=>{ try{ d.setHero(x.x+(x.x<0?1.6:-1.6),x.z,x.x<0?-Math.PI/2:Math.PI/2); d.setCam(x.x<0?-Math.PI/2:Math.PI/2,.3,6); d.sell(); }catch(e){} }); return { secret:s.length, before, after:d.defs.length, mana:d.S.mana-mana0 }; });
+check("a secret weapon cannot be sold",sold.secret===2&&sold.after===sold.before,JSON.stringify(sold));
+const path=await page.evaluate(()=>window.__prisondecor.reach()); check("every breakout still has its route to the Heartroot (the alcoves are dead ends)",path.E>0&&path.S>0&&path.W>0&&path.NE>0,JSON.stringify(path));
+check("no model failed to load",warns.length===0,warns.slice(0,3).join(' | '));
+const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
+await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");

@@ -33,7 +33,7 @@ function paintCells(){ const W=1024,H=256, c=cv(W,H), g=c.getContext('2d'); g.fi
   for(let i=0;i<2600;i++) splat(g,rnd()*W,rnd()*H,R(1,5),rnd()<.5?'#000':'#fff',.04);
   const tex=new THREE.CanvasTexture(c); tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.encoding=THREE.sRGBEncoding; tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy()); return tex; }
 { const walls=world.children.find(o=>o.isMesh&&o.material&&o.material.map===WALLTEX);
-  if(walls){ const uv=walls.geometry.attributes.uv; for(let i=0;i<uv.count;i++) uv.setX(i,uv.getX(i)/4); uv.needsUpdate=true; walls.material.map=paintCells(); walls.material.needsUpdate=true; counts.paintedWall=1; } }
+  if(walls){ const uv=walls.geometry.attributes.uv; for(let i=0;i<uv.count;i++) uv.setX(i,uv.getX(i)/4); uv.needsUpdate=true; walls.material.map=paintCells(); walls.material.needsUpdate=true; counts.paintedWall=1; world.userData.cellWall=walls; } }
 // the terraces' drops: damp grey-green stone instead of the plain purple-brown
 { const cliff=world.children.find(o=>o.isMesh&&o.material&&o.material.isMeshToonMaterial&&!o.material.map&&o.material.side===THREE.DoubleSide&&o.geometry.attributes.normal&&!o.geometry.attributes.uv&&o.geometry.index);
   if(cliff){ cliff.material=cliff.material.clone(); cliff.material.color.setHex(0x3c4a3c); counts.cliff=1; } }
