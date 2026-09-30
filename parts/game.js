@@ -176,7 +176,7 @@ const MAPS=[
   // build 344-345 (Matt: "widen the whole thing out top to bottom by a couple squares" -- two in all, one more each side): WIDEN cells more on each side of every row than the first triangle had; the dais, flights and gates moved with it
   build(f,g,h,ramp){ const WIDEN=1, hw=z=>Math.min(20+WIDEN,Math.ceil((z-1)/2)+WIDEN), Y=z=>z<=12?0:z<=23?2:z<=34?4:6;
     for(let z=2;z<=45;z++){ const w=hw(z); f(23-w,23+w,z,z,T.FLOOR); h(23-w,23+w,z,z,Y(z)); }   // the triangle, row by row, each row at its terrace's height
-    f(19,27,4,9,T.FLOOR); h(19,27,4,9,0); f(18,18,8,9,T.WALL); f(28,28,8,9,T.WALL);
+    f(16,30,4,9,T.FLOOR); h(16,30,4,9,0);
     f(22,24,3,5,T.DAIS); g(23,4,T.CRYSTAL);   // the Heartroot in the apex, on its dais
     ramp(6,10,35,37,2,4,6); ramp(31,35,24,26,2,2,4); ramp(16,20,13,15,2,0,2);   // the flights (rising south): rim to middle at the west end, middle to lower at the east end, lower to pit at the west end
     g(45,44,T.SPAWN); h(45,45,44,44,6); g(23,46,T.SPAWN); h(23,23,46,46,6); g(7,28,T.SPAWN); h(7,7,28,28,4); g(34,19,T.SPAWN); h(34,34,19,19,2); },   // the busted cells: the rim's east end and south wall, the middle terrace's west wall, the lower terrace's east wall
@@ -745,7 +745,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=355;
+const BUILD=356;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
