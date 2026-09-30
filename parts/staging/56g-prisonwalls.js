@@ -9,7 +9,9 @@ if(!MAP||MAP.id!=='prison') return;
 const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
 const OPEN_H=4.0, SCALE=OPEN_H/1.91, HIT=25, HP=100;
 // the two alcoves: the solid cell, the pit cell in front of it, which way the opening faces (toward the pit), and the weapon behind each wall
-const SPOTS=[{id:'W',cx:18,cz:6,fcx:19,nx:1,kind:'harpoon'},{id:'E',cx:28,cz:6,fcx:27,nx:-1,kind:'acorn'}];
+// two kinds of breakable wall (Matt: "we have 2 types of destrucable wall"): the west one is Bob's (48 modelled pieces), the east one is Matt's Meshy wall with the glowing crack (one solid model -- shattered here, at load, into
+// shards along organic lines, which fall with the same scripted tumble)
+const SPOTS=[{id:'W',cx:18,cz:6,fcx:19,nx:1,kind:'harpoon',src:'hi3d'},{id:'E',cx:28,cz:6,fcx:27,nx:-1,kind:'acorn',src:'meshy'}];
 const LVL=6, TOUGH=2;
 // ---------------- Bob's breakable wall (hi3d-breakable-wall.js), as he wrote it, in this game's own scope
 class BreakableWall {
@@ -76,15 +78,29 @@ function plainWall(root){ const PR=world.userData.plainRows||7; root.updateMatri
     for(let r=0;r<rows;r++){ V.set(f.x+f.nx*.12,y0+r*sz.y*s,f.z+f.nz*.12); mats.push(new THREE.Matrix4().compose(V,Q,Sc).multiply(new THREE.Matrix4().makeTranslation(-c.x,-box.min.y,-c.z))); } });
   root.traverse(ob=>{ if(!ob.isMesh||ob.userData.isOL) return; const im=new THREE.InstancedMesh(ob.geometry,ob.material,mats.length); mats.forEach((M4,i)=>{ m.multiplyMatrices(M4,ob.matrixWorld); im.setMatrixAt(i,m); }); im.instanceMatrix.needsUpdate=true; im.frustumCulled=false; im.userData.noOL=true; world.add(im); });
   cnt.wallModules=mats.length; }
+// ---------------- a solid model shattered into shards: its triangles dealt out to ~20 jittered-grid seeds by where they sit across the face, each shard its own mesh about its own centre (same material, so the glowing crack stays)
+function shatter(root){ root.updateMatrixWorld(true); let mesh=null; root.traverse(o=>{ if(!mesh&&o.isMesh&&!o.userData.isOL) mesh=o; }); if(!mesh) return null;
+  const g=mesh.geometry.clone(); g.applyMatrix4(mesh.matrixWorld); g.computeBoundingBox(); const bb=g.boundingBox, pos=g.attributes.position, nor=g.attributes.normal, uv=g.attributes.uv, ix=g.index, tri=ix?ix.count/3:pos.count/3, get=k=>ix?ix.getX(k):k;
+  const COLS=5, ROWS=4, seeds=[]; for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) seeds.push({ x:bb.min.x+(c+.5+(rnd()-.5)*.7)*(bb.max.x-bb.min.x)/COLS, y:bb.min.y+(r+.5+(rnd()-.5)*.7)*(bb.max.y-bb.min.y)/ROWS, tris:[] });
+  for(let t=0;t<tri;t++){ const a=get(3*t), b=get(3*t+1), c=get(3*t+2), cx=(pos.getX(a)+pos.getX(b)+pos.getX(c))/3, cy=(pos.getY(a)+pos.getY(b)+pos.getY(c))/3; let best=0, bd=1e9; for(let i=0;i<seeds.length;i++){ const d=(seeds[i].x-cx)*(seeds[i].x-cx)+(seeds[i].y-cy)*(seeds[i].y-cy); if(d<bd){ bd=d; best=i; } } seeds[best].tris.push(a,b,c); }
+  const mat0=mesh.material.clone(); mat0.side=THREE.DoubleSide; const group=new THREE.Group();
+  for(const sd of seeds){ if(sd.tris.length<12) continue; const n=sd.tris.length, P=new Float32Array(n*3), N=new Float32Array(n*3), U=uv?new Float32Array(n*2):null; const box=new THREE.Box3();
+    for(let k=0;k<n;k++){ const v=sd.tris[k]; P[k*3]=pos.getX(v); P[k*3+1]=pos.getY(v); P[k*3+2]=pos.getZ(v); if(nor){ N[k*3]=nor.getX(v); N[k*3+1]=nor.getY(v); N[k*3+2]=nor.getZ(v); } if(U){ U[k*2]=uv.getX(v); U[k*2+1]=uv.getY(v); } box.expandByPoint(new THREE.Vector3(P[k*3],P[k*3+1],P[k*3+2])); }
+    const ctr=box.getCenter(new THREE.Vector3()); for(let k=0;k<n;k++){ P[k*3]-=ctr.x; P[k*3+1]-=ctr.y; P[k*3+2]-=ctr.z; }
+    const sg=new THREE.BufferGeometry(); sg.setAttribute('position',new THREE.BufferAttribute(P,3)); if(nor) sg.setAttribute('normal',new THREE.BufferAttribute(N,3)); if(U) sg.setAttribute('uv',new THREE.BufferAttribute(U,2));
+    const node=new THREE.Group(); node.position.copy(ctr); node.userData.category=ctr.y>bb.min.y+(bb.max.y-bb.min.y)*.5?'wood':'stone'; const m=new THREE.Mesh(sg,mat0); m.userData.noOL=true; node.add(m); group.add(node); }
+  return group; }
 // ---------------- the walls
-Promise.all([load('prison-wall-intact.glb'),load('prison-wall-fragments.glb')]).then(([intact,frag])=>{
+Promise.all([load('prison-wall-intact.glb'),load('prison-wall-fragments.glb'),load('prison-wall2.glb')]).then(([intact,frag,wall2])=>{
+  let shards=null; try{ shards=shatter(wall2); }catch(e){ console.warn('prison walls shatter',e); }
   try{ plainWall(intact); bakeTile(intact); }catch(e){ console.warn('prison walls plain',e); }
   for(const sp of SPOTS){ const i=faceIndex(sp.fcx,sp.cz,sp.nx); if(i<0){ console.warn('prison walls: no wall face at',sp.fcx,sp.cz); continue; }
     cellWall=cellWall||world.userData.cellWall; lowerQuad(i,OPEN_H);
-    const w=new BreakableWall(intact.clone(true),frag.clone(true),{ onHit:(ww,pt)=>{ cnt.hits++; try{ SFX.hit&&SFX.hit(); }catch(e){} puff(pt?pt.x:0,1.4,pt?pt.z:0,1); },
+    const meshy=sp.src==='meshy'&&shards, wScale=meshy?OPEN_H/1.925:SCALE;
+    const w=new BreakableWall(meshy?wall2.clone(true):intact.clone(true),meshy?shards:frag.clone(true),{ onHit:(ww,pt)=>{ cnt.hits++; try{ SFX.hit&&SFX.hit(); }catch(e){} puff(pt?pt.x:0,1.4,pt?pt.z:0,1); },
       onBreak:(ww,pt)=>{ cnt.broken++; try{ SFX.boom&&SFX.boom(); SFX.hit&&SFX.hit(); }catch(e){} const x=cw(sp.cx)+sp.nx*CELL/2, z=cwz(sp.cz); puff(x,1.2,z,10); timers.push({ t:.8, fn:()=>openAlcove(sp) }); } });
-    const face=cw(sp.cx)+sp.nx*CELL/2, back=.47*SCALE/2;   // the wall's front on the opening's plane, its thickness behind it, in the alcove
-    w.group.scale.setScalar(SCALE); w.group.position.set(face-sp.nx*back,0,cwz(sp.cz)); w.group.rotation.y=sp.nx>0?PI/2:-PI/2; world.add(w.group); w.spot=sp; sp.wall=w; walls.push(w); cnt.built++; }
+    const face=cw(sp.cx)+sp.nx*CELL/2, back=.47*wScale/2;   // the wall's front on the opening's plane, its thickness behind it, in the alcove
+    w.group.scale.setScalar(wScale); w.group.position.set(face-sp.nx*back,0,cwz(sp.cz)); w.group.rotation.y=sp.nx>0?PI/2:-PI/2; world.add(w.group); w.spot=sp; w.kind=meshy?'meshy':'hi3d'; sp.wall=w; walls.push(w); cnt.built++; }
 }).catch(e=>console.warn('prison walls',e));
 // ---------------- what breaks them: your sword's swing, or a staff bolt of yours
 function nearPlane(sp,x,z,r){ return Math.hypot(x-(cw(sp.cx)+sp.nx*CELL/2),z-cwz(sp.cz))<r; }
@@ -101,7 +117,7 @@ WORLDANIM.push(dt=>{ for(const w of walls) w.update(dt);
   for(let i=dust.length-1;i>=0;i--){ const p=dust[i]; p.t+=dt; const k=p.t/p.life; if(k>=1){ world.remove(p.s); dust.splice(i,1); continue; } p.s.position.x+=p.vx*dt; p.s.position.y+=p.vy*dt; p.s.position.z+=p.vz*dt; p.s.material.opacity=.5*Math.sin(Math.min(1,k*1.6)*PI)*(1-k*.4); p.s.scale.setScalar(p.s.scale.x+dt*2.2); }
   for(const sp of SPOTS) if(sp.flash>0){ sp.flash=Math.max(0,sp.flash-dt*.5); if(sp.light) sp.light.intensity=2.4+sp.flash*3.5; }
   if(!isGuest()&&walls.some(w=>!w.broken)&&window.__staff&&window.__staff.boltList){ const bl=window.__staff.boltList(); if(bl.length) for(const b of bl){ if(!b.mine||b.y>5.5) continue; for(const w of walls){ if(w.broken) continue; const sp=w.spot; if(nearPlane(sp,b.x,b.z,2.1)) w.hit(HIT,new THREE.Vector3(cw(sp.cx)+sp.nx*CELL/2,1.4,cwz(sp.cz)),new THREE.Vector3(-sp.nx,0,0)); } } } });
-window.__prisonwalls={ walls:()=>walls.map(w=>({ id:w.spot.id, health:w.health, broken:w.broken, x:+w.group.position.x.toFixed(2), z:+w.group.position.z.toFixed(2), chunks:w.chunks.length, debris:w.fragments.visible })),
+window.__prisonwalls={ walls:()=>walls.map(w=>({ id:w.spot.id, kind:w.kind, health:w.health, broken:w.broken, x:+w.group.position.x.toFixed(2), z:+w.group.position.z.toFixed(2), chunks:w.chunks.length, debris:w.fragments.visible })),
   hit:(id,n)=>{ const w=walls.find(x=>x.spot.id===id); if(!w) return false; const sp=w.spot; w.time+=1; return w.hit(n||HIT,new THREE.Vector3(cw(sp.cx)+sp.nx*CELL/2,1.2,cwz(sp.cz)),new THREE.Vector3(-sp.nx,0,0)); },
   spots:()=>SPOTS.map(s=>({ id:s.id, open:!!s.def, def:s.def?{ kind:s.def.kind, lvl:s.def.lvl, secret:!!s.def.secret, hp:s.def.hp, max:s.def.max }:null })), info:()=>Object.assign({},cnt) };
 })();

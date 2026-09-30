@@ -70,6 +70,22 @@ for(const [file,cx,cz,nx,nz,row] of CELLS){ const fc=wallFaces.find(w=>w.cx===cx
     // where it ends: a green glow, the outfall into the pit
     const og=new THREE.PointLight(C(0x58c070),.8,9,2); og.position.set(sd*2.6,5.6,cwz(2)+1); world.add(og); }
   counts.greatPipes=2; }
+// ---------------- SCONCES (build 346; Matt: "take all the wall torches out and put our sconses in"): every painted wall torch comes down and Matt's real Meshy sconce (the one the throne room and feast hall wear) goes up in its place,
+// instanced in one draw with the warm glow on it. No light per sconce here -- the braziers in the map's own list light the cavern, as they did when these were painted torches -- so 45 sconces cost no lights at all.
+function warmGlow(root){ root.traverse(o=>{ const m=o.isMesh&&o.material; if(!m||m.userData.__wg) return; m.userData.__wg=true; m.onBeforeCompile=sh=>{ sh.fragmentShader=sh.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n  totalEmissiveRadiance += vec3(.22,.11,.03);'); }; }); }
+function instanceAll(wrap,mats){ if(!mats.length) return; wrap.updateMatrixWorld(true); const inv=new THREE.Matrix4().copy(wrap.matrixWorld).invert(), m=new THREE.Matrix4();
+  wrap.traverse(ob=>{ if(!ob.isMesh||ob.userData.isOL) return; const rel=new THREE.Matrix4().multiplyMatrices(inv,ob.matrixWorld); const im=new THREE.InstancedMesh(ob.geometry,ob.material,mats.length);
+    mats.forEach((M,i)=>{ m.multiplyMatrices(M,rel); im.setMatrixAt(i,m); }); im.instanceMatrix.needsUpdate=true; im.frustumCulled=false; im.userData.noOL=true; world.add(im); }); }
+{ const torches=world.userData.torchProcs||[]; const spots=torches.map(t=>({ x:t.position.x, y:t.position.y, z:t.position.z, ry:t.rotation.y })); torches.forEach(t=>{ t.visible=false; }); counts.torchesOff=torches.length;
+  use('throne-sconce.glb',1.5,p=>{ warmGlow(p); const plainZ=cwz(PLAIN_ROWS)+CELL*.75;   // faces around the apex wear the real wall modules, which stand a little out of the wall: the sconce stands out past them
+    const mats=spots.map(sp=>{ const nx=Math.sin(sp.ry), nz=Math.cos(sp.ry), off=sp.z<plainZ?.5:.18; return new THREE.Matrix4().compose(new THREE.Vector3(sp.x+nx*off,sp.y,sp.z+nz*off),new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),sp.ry),new THREE.Vector3(1,1,1)); });
+    instanceAll(p,mats); counts.sconces=mats.length; }); }
+// ---------------- ARCHES AND PILLARS (build 346; Matt: "we should use these nice arches and pillars somewhere"): his doorway arch stands over the head of every flight, where the horde turns down the stairs (five wide to match), a
+// smaller one frames each breakable wall, and two of his corner pillars stand behind the Heartroot's dais. 26K triangles in all.
+{ const FL=[[8,38,6],[33,27,4],[18,16,2]];   // [the flight's centre column, the first row of the upper floor past its head, that floor's height]
+  use('prison-arch.glb',4.95,p=>{ for(const [cx,cz,y] of FL){ const t=p.clone(); t.position.set(cw(cx),y,cwz(cz)); world.add(t); bump('flightArch'); }
+    for(const sd of [-1,1]){ const t=p.clone(); t.scale.setScalar(.84); const plane=cw(sd<0?18:28)-sd*CELL/2; t.position.set(plane-sd*.35,0,cwz(6)); t.rotation.y=-sd*PI/2; world.add(t); bump('alcoveArch'); } });
+  use('prison-pillar.glb',8,p=>{ for(const cxx of [21,25]){ const t=p.clone(); t.position.set(cw(cxx),0,cwz(2)); world.add(t); bump('pillar'); } }); }
 // ---------------- the test hook
 window.__prisondecor={reach:()=>Object.fromEntries(Object.entries(LANES).map(([k,l])=>[k,flowFree.dist[idx(l.cx,l.cz)]])),info:()=>Object.assign({},counts)};
 })();
