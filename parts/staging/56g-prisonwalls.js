@@ -75,7 +75,7 @@ function openAlcove(sp){ const nx=sp.nx, px=sp.px, zc=sp.zc, zh=sp.zh, dep=2*CEL
   const l=new THREE.PointLight(C(0xffc870),3.8,24,2); l.position.set(px-nx*1.5,4,zc); world.add(l); sp.light=l; sp.flash=1;
   puff(px+nx*1.4,1,zc,18,2*zh);
   // the weapon: a real defense, placed free (its mana and defense units handed straight back), Mark VI, tougher than a built one, not for sale
-  const x=cw(sp.cin), m0=S.mana; const d=placeDefAt(sp.kind,x,zc,nx>0?PI/2:-PI/2); S.mana=m0; S.du-=DEFS[sp.kind].du; d.spent=0; d.secret=true; d.lvl=LVL; d.max=Math.round(DEFS[sp.kind].hp*(1+.4*(LVL-1)))*TOUGH; d.hp=d.max; d.pop=0; sp.def=d; cnt.weapons++; if(!mountMortar(d,sp)) pendingMount.push(sp);
+  const x=cw(sp.cin), m0=S.mana; const d=placeDefAt(sp.kind,x,zc,nx>0?PI/4:-PI/4); S.mana=m0; S.du-=DEFS[sp.kind].du; d.spent=0; d.secret=true; d.lvl=LVL; d.max=Math.round(DEFS[sp.kind].hp*(1+.4*(LVL-1)))*TOUGH; d.hp=d.max; d.pop=0; sp.def=d; cnt.weapons++; if(!mountMortar(d,sp)) pendingMount.push(sp);
   floatText(x,d.top+1.6,zc,'🔓 '+DEFS[sp.kind].ic,'#e8b94a'); try{ SFX.place&&SFX.place(); }catch(e){} }
 // ---------------- the plain prison wall around the apex (Matt: "first from behind the heartroot to the exterior of it about 3 squares, no cells so all prison wall"): the same shackled wall instanced over every wall face: five high (ten up -- Matt: "take those wall upward 3 squares") along the back wall behind the Heartroot, two high down the sides
 // of the first rows (the painted plain-wall tile carries the rest of the height), so the breakable walls sit in a wall made of their own kind
@@ -160,5 +160,5 @@ window.__prisonwalls={ walls:()=>walls.map(w=>({ id:w.spot.id, kind:w.kind, heal
   hit:(id,n)=>{ const w=walls.find(x=>x.spot.id===id); if(!w) return false; const sp=w.spot; w.time+=1; return w.hit(n||HIT,new THREE.Vector3(sp.px,1.5,sp.zc),new THREE.Vector3(-sp.nx,0,0)); },
   mortProto:()=>MORT.proto,
   mortars:()=>mounts.map(m=>({ id:m.sp.id, rolled:m.rolled, fires:m.fires, hasMuzzle:!!m.muzzle, clips:MORT.clips.map(c=>c.name) })),
-  spots:()=>SPOTS.map(s=>({ id:s.id, open:!!s.def, def:s.def?{ kind:s.def.kind, lvl:s.def.lvl, secret:!!s.def.secret, hp:s.def.hp, max:s.def.max }:null })), info:()=>Object.assign({},cnt) };
+  spots:()=>SPOTS.map(s=>({ id:s.id, open:!!s.def, def:s.def?{ rot:s.def.rot, kind:s.def.kind, lvl:s.def.lvl, secret:!!s.def.secret, hp:s.def.hp, max:s.def.max }:null })), info:()=>Object.assign({},cnt) };
 })();
