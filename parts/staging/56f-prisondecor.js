@@ -86,8 +86,8 @@ function instanceAll(wrap,mats){ if(!mats.length) return; wrap.updateMatrixWorld
   use('prison-arch.glb',4.95,p=>{ for(const [cx,cz,y] of FL){ const t=p.clone(); t.position.set(cw(cx),y,cwz(cz)); world.add(t); bump('flightArch'); }
     for(const sd of [-1,1]){ const t=p.clone(); t.scale.setScalar(1.6); const plane=cw(sd<0?18:28)-sd*CELL/2; t.position.set(plane-sd*.9,0,(cwz(5)+cwz(8))/2); t.rotation.y=-sd*PI/2; world.add(t); bump('alcoveArch'); } });
   use('prison-pillar.glb',8,p=>{ for(const cxx of [21,25]){ const t=p.clone(); t.position.set(cw(cxx),0,cwz(2)); world.add(t); bump('pillar'); } }); }
-// ---------------- the cavern's own light: the real wall kit is dark stone, so the ambient light is brought up a good way (the old painted walls were lighter than the pieces that replaced them)
-scene.traverse(o=>{ if(o.isHemisphereLight){ o.intensity=1.05; o.color.set(0x7a6aa0); o.groundColor.set(0x1c1624); } else if(o.isDirectionalLight){ o.intensity=.45; o.color.set(0xa898c0); } });
+// ---------------- the cavern's own light: dark and moody (Matt: "probably just dark is fine") -- the game's own ambient with only a small lift (.62 -> .8), because with the real dark wall kit the stone went to pure black at the far end
+scene.traverse(o=>{ if(o.isHemisphereLight) o.intensity=.8; else if(o.isDirectionalLight) o.intensity=.3; });
 // ---------------- the test hook
 window.__prisondecor={reach:()=>Object.fromEntries(Object.entries(LANES).map(([k,l])=>[k,flowFree.dist[idx(l.cx,l.cz)]])),info:()=>Object.assign({},counts)};
 })();

@@ -22,8 +22,8 @@ function bakeModel(renderer0,root){ const size=256, rt=new THREE.WebGLRenderTarg
   const c=document.createElement('canvas'); c.width=c.height=size; const g=c.getContext('2d'), id=g.createImageData(size,size); for(let y=0;y<size;y++) id.data.set(px.subarray((size-1-y)*size*4,(size-y)*size*4),y*size*4); g.putImageData(id,0,0); return c; }
 Promise.all([load('prison-wall.glb'),load('prison-cell-busted.glb')]).then(([wall,busted])=>{ try{
   const cellWall=world.userData.cellWall; if(!cellWall||!cellWall.material.map||!cellWall.material.map.image) throw new Error('no wall texture');
-  // ---- the texture's tiles: 0 the busted cell, 1 the greenish wall (2-4 are the same two, so nothing is left painted)
-  const dst=cellWall.material.map.image.getContext('2d'), cBusted=bakeModel(renderer,busted), cWall=bakeModel(renderer,wall); [0,2,3,4].forEach(t=>dst.drawImage(cBusted,t*256,0)); dst.drawImage(cWall,256,0);
+  // ---- the texture's tiles: 1 is the greenish wall; every other tile is DARK -- the wall behind a cell's bars is just dark stone (Matt: "dark in those rooms ... take those out": the small copies of cell fronts that showed through the bars are gone; his interior art piece goes here later)
+  const dst=cellWall.material.map.image.getContext('2d'), cWall=bakeModel(renderer,wall); [0,2,3,4].forEach(t=>{ dst.fillStyle='#07090a'; dst.fillRect(t*256,0,256,256); dst.globalAlpha=.25; dst.fillStyle='#10140f'; for(let r=0;r<4;r++) for(let b=0;b<2;b++) dst.fillRect(t*256+b*128+(r%2)*64+4,r*64+4,120,56); dst.globalAlpha=1; }); dst.drawImage(cWall,256,0);
   cellWall.material.map.needsUpdate=true; cnt.baked=5;
   // ---- the real pieces
   const tiles=world.userData.faceTile||[], alc=world.userData.alcoveFaces||new Set(), lanes=Object.values(LANES);
