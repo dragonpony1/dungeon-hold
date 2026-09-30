@@ -172,18 +172,18 @@ const MAPS=[
  // is at the west end, the middle terrace's at the east end, the lower terrace's at the west end again -- every terrace is walked its full width, and the flights are seen all around. Feeder gates in the side walls
  // join on later waves (the middle terrace's west wall, the lower terrace's east wall). A flight is three cells long and five wide, sitting in the north rows of the terrace above it. The hero starts in the pit,
  // looking down the triangle. z counts from the apex (row 2) to the rim's south wall (row 46); a row's half-width is the smaller of 20 and half the rows down from the apex.
- {id:'prison',name:'THE DEEP PRISON',sub:'a triangular cavern of cells narrowing to the Heartroot in its corner: the horde breaks out along the wide rim and zigzags down the flights · four breakouts · seven waves',gw:49,gh:48,crystal:[24,4],waves:7,wallH:19,du:90,mana:560,fog:[46,135],style:{moss:true},
-  // build 344 (Matt: "widen the whole thing out top to bottom by a couple squares"): WIDEN cells more on each side of every row than the first triangle had; the apex is that much blunter and the dais, flights and gates moved with it
-  build(f,g,h,ramp){ const WIDEN=2, hw=z=>Math.min(20+WIDEN,Math.ceil((z-1)/2)+WIDEN), Y=z=>z<=12?0:z<=23?2:z<=34?4:6;
-    for(let z=2;z<=45;z++){ const w=hw(z); f(24-w,24+w,z,z,T.FLOOR); h(24-w,24+w,z,z,Y(z)); }   // the triangle, row by row, each row at its terrace's height
-    f(23,25,3,5,T.DAIS); g(24,4,T.CRYSTAL);   // the Heartroot in the apex, on its dais
-    ramp(6,10,35,37,2,4,6); ramp(33,37,24,26,2,2,4); ramp(16,20,13,15,2,0,2);   // the flights (rising south): rim to middle at the west end, middle to lower at the east end, lower to pit at the west end
-    g(47,44,T.SPAWN); h(47,47,44,44,6); g(24,46,T.SPAWN); h(24,24,46,46,6); g(7,28,T.SPAWN); h(7,7,28,28,4); g(36,19,T.SPAWN); h(36,36,19,19,2); },   // the busted cells: the rim's east end and south wall, the middle terrace's west wall, the lower terrace's east wall
-  lanes:{E:{cx:47,cz:44,face:-PI/2,name:'East cells',from:1}, S:{cx:24,cz:46,face:PI,name:'South cells',from:2}, W:{cx:7,cz:28,face:PI/2,name:'West landing',from:3}, NE:{cx:36,cz:19,face:-PI/2,name:'Lower east',from:4}},
+ {id:'prison',name:'THE DEEP PRISON',sub:'a triangular cavern of cells narrowing to the Heartroot in its corner: the horde breaks out along the wide rim and zigzags down the flights · four breakouts · seven waves',gw:47,gh:48,crystal:[23,4],waves:7,wallH:19,du:90,mana:560,fog:[46,135],style:{moss:true},
+  // build 344-345 (Matt: "widen the whole thing out top to bottom by a couple squares" -- two in all, one more each side): WIDEN cells more on each side of every row than the first triangle had; the dais, flights and gates moved with it
+  build(f,g,h,ramp){ const WIDEN=1, hw=z=>Math.min(20+WIDEN,Math.ceil((z-1)/2)+WIDEN), Y=z=>z<=12?0:z<=23?2:z<=34?4:6;
+    for(let z=2;z<=45;z++){ const w=hw(z); f(23-w,23+w,z,z,T.FLOOR); h(23-w,23+w,z,z,Y(z)); }   // the triangle, row by row, each row at its terrace's height
+    f(22,24,3,5,T.DAIS); g(23,4,T.CRYSTAL);   // the Heartroot in the apex, on its dais
+    ramp(6,10,35,37,2,4,6); ramp(31,35,24,26,2,2,4); ramp(16,20,13,15,2,0,2);   // the flights (rising south): rim to middle at the west end, middle to lower at the east end, lower to pit at the west end
+    g(45,44,T.SPAWN); h(45,45,44,44,6); g(23,46,T.SPAWN); h(23,23,46,46,6); g(7,28,T.SPAWN); h(7,7,28,28,4); g(34,19,T.SPAWN); h(34,34,19,19,2); },   // the busted cells: the rim's east end and south wall, the middle terrace's west wall, the lower terrace's east wall
+  lanes:{E:{cx:45,cz:44,face:-PI/2,name:'East cells',from:1}, S:{cx:23,cz:46,face:PI,name:'South cells',from:2}, W:{cx:7,cz:28,face:PI/2,name:'West landing',from:3}, NE:{cx:34,cz:19,face:-PI/2,name:'Lower east',from:4}},
   hall:[-9,-9,-9,-9],pillars:[],barrels:[],crates:[],chandeliers:[],beams:{zs:[],w:0},tavern:{dx:0,dz:0},noTavern:true,
   lights:(()=>{ const L=[[0,3.4,0,0xb494ff,1.3,15],[0,1.2,5,0x58c070,.7,12]];
-    for(const [cx,cz,up] of [[21,9,3.4],[27,9,3.4],[16,18,3.6],[32,18,3.6],[24,21,3.6],[12,30,3.6],[36,30,3.6],[24,28,3.6],[8,42,4.2],[24,41,4.2],[40,42,4.2],[24,45,4.2]]) L.push({cx,cz,up,c:0xff8a2a,i:1.3,d:14});   // braziers down the terraces
-    for(const [cx,cz] of [[47,44],[24,46],[7,28],[36,19]]) L.push({cx,cz,up:3.4,c:0xc040ff,i:1.6,d:13});   // the broken cells glow where the horde comes out
+    for(const [cx,cz,up] of [[20,9,3.4],[26,9,3.4],[16,18,3.6],[30,18,3.6],[23,21,3.6],[12,30,3.6],[34,30,3.6],[23,28,3.6],[8,42,4.2],[23,41,4.2],[38,42,4.2],[23,45,4.2]]) L.push({cx,cz,up,c:0xff8a2a,i:1.3,d:14});   // braziers down the terraces
+    for(const [cx,cz] of [[45,44],[23,46],[7,28],[34,19]]) L.push({cx,cz,up:3.4,c:0xc040ff,i:1.6,d:13});   // the broken cells glow where the horde comes out
     return L; })()}];
 // THE TUTORIAL HALL (build 166, Matt: "we need to reimagine the entire tutorial ... prior to room one there is a tutorial hall ...
 // its a tutorial room with one hall and in your face instruction"). A tiny map of its own, deliberately NOT in MAPS (the campaign's
@@ -656,6 +656,8 @@ function statWave(){ return effWave()-survivalPast()*(1-SURVIVAL_STAT_RATE); }  
 const hero={x:0,y:0,z:6,vy:0,yaw:PI,hp:100,max:100,swingT:-1,hitDone:false,dead:0,ph:0,moving:false,hurtT:0,grounded:true,reach:2.4};   // reach: how far the swing lands (a whip reaches further than a sword)
 const H=makeHero(); scene.add(H.g); const heroShadow=blob(.5); scene.add(heroShadow);
 const cam={yaw:PI,pitch:.42,dist:8,d:8,x:0,y:5,z:14};
+// build 345 (Matt: "fix my camera tilt so i could look up"): the view used to stop at a flat .1 -- the camera could not go below the hero, so there was no looking up at the tall walls, drakes or ceiling. It now tilts down to -.9: the camera sinks toward the hero (the floor keeps it above the ground) and looks up; the aim follows (84-aim.js already aims up by how far the view is tilted)
+const CAM_PITCH_MIN=-.9;
 const enemies=[], defs=[], projs=[], orbs=[], floats=[], loot=[];
 let gear={weapon:null,armor:null,charm:null,amulet:null,familiar:null};
 // ===== META SEAM: the tavern / bag / gold / xp / skills / familiar modules extend this object (see parts/modules) =====
@@ -742,7 +744,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=344;
+const BUILD=345;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -909,7 +911,8 @@ function updateCamera(dt){
   d=Math.max(d,1.0); cam.d=dt>0?(d<cam.d?d:lerp(cam.d,d,1-Math.exp(-6*dt))):d;
   const dx=tx-fx*cam.d, dy=ty+fy*cam.d, dz=tz-fz*cam.d; const k=dt>0?1-Math.exp(-16*dt):1;
   cam.x=lerp(cam.x,dx,k); cam.y=lerp(cam.y,dy,k); cam.z=lerp(cam.z,dz,k);
-  const sh=camShake>0?camShake*.35:0; camShake=Math.max(0,camShake-dt); camera.position.set(cam.x+(rnd()-.5)*sh,Math.max(cam.y,.4)+(rnd()-.5)*sh,cam.z+(rnd()-.5)*sh); camera.lookAt(tx+(rnd()-.5)*sh,ty+(rnd()-.5)*sh,tz+(rnd()-.5)*sh);
+  const sh=camShake>0?camShake*.35:0; camShake=Math.max(0,camShake-dt); camera.position.set(cam.x+(rnd()-.5)*sh,Math.max(cam.y,.4)+(rnd()-.5)*sh,cam.z+(rnd()-.5)*sh); let lx=tx, ly=ty, lz=tz; const eu=Math.max(0,.1-cam.pitch)*.55; if(eu>0){ const vx=tx-camera.position.x, vy=ty-camera.position.y, vz=tz-camera.position.z, hl=Math.hypot(vx,vz)||1, an=Math.atan2(vy,hl)+eu, rr=10; lx=camera.position.x+vx/hl*Math.cos(an)*rr; ly=camera.position.y+Math.sin(an)*rr; lz=camera.position.z+vz/hl*Math.cos(an)*rr; }   /* build 345 (Matt: look up): tilted below the old flat stop, the view aims ABOVE the hero by .55 rad per rad of tilt -- at the lowest tilt the hero is off the bottom of the screen and you see the walls, the ceiling and what flies over */
+  camera.lookAt(lx+(rnd()-.5)*sh,ly+(rnd()-.5)*sh,lz+(rnd()-.5)*sh);
 }
 
 // ================= ENEMIES =================
@@ -1431,13 +1434,13 @@ canvas.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('mousedown',e=>{ if(TOUCH||S.phase==='start'||S.phase==='dead'||S.phase==='won'||S.phase==='deathcut'||Meta.isOpen()) return; mouseDown=true; if(!locked&&canvas.requestPointerLock) canvas.requestPointerLock();
   if(e.button===0){ if(placing) confirmPlace(); else swing(); } else if(e.button===2){ if(placing){ if(placeStage===1) unstick(); else cancelPlace(); } else specialPress(); } });   /* build 182: right-click starts charging the special instead of swinging (placement-cancel is unchanged) */
 addEventListener('mouseup',e=>{ mouseDown=false; if(e.button===2) specialRelease(); });
-addEventListener('mousemove',e=>{ if(TOUCH||S.phase==='start'||Meta.isOpen()) return; edgeX=e.clientX/innerWidth; const dx=e.movementX||0, dy=e.movementY||0; if(placing&&placeStage===1){ anchorYaw-=dx*SENS*1.6; return; } cam.yaw-=dx*SENS; cam.pitch=clamp(cam.pitch+dy*SENS,.1,1.15); });
+addEventListener('mousemove',e=>{ if(TOUCH||S.phase==='start'||Meta.isOpen()) return; edgeX=e.clientX/innerWidth; const dx=e.movementX||0, dy=e.movementY||0; if(placing&&placeStage===1){ anchorYaw-=dx*SENS*1.6; return; } cam.yaw-=dx*SENS; cam.pitch=clamp(cam.pitch+dy*SENS,CAM_PITCH_MIN,1.15); });
 addEventListener('wheel',e=>{ if(S.phase==='start'||Meta.isOpen()) return; const s=Math.sign(e.deltaY); if(placing) rotateGhost(s*PI/12); else cam.dist=clamp(cam.dist+s*.8,4,12); },{passive:true});
 document.addEventListener('pointerlockchange',()=>{ locked=document.pointerLockElement===canvas; document.body.classList.toggle('play',locked); });
 // touch: left half joystick, right half look
 canvas.addEventListener('touchstart',e=>{ for(const t of e.changedTouches){ if(t.clientX<innerWidth/2&&joy.id===null){ joy.id=t.identifier; joy.ox=t.clientX; joy.oy=t.clientY; } else if(lookId===null){ lookId=t.identifier; lookX=t.clientX; lookY=t.clientY; } } e.preventDefault(); },{passive:false});
 canvas.addEventListener('touchmove',e=>{ for(const t of e.changedTouches){ if(t.identifier===joy.id){ let dx=t.clientX-joy.ox, dy=t.clientY-joy.oy; const l=Math.hypot(dx,dy); if(l>50){ dx*=50/l; dy*=50/l; } joy.x=dx/50; joy.y=-dy/50; $('joy').firstElementChild.style.transform='translate('+dx+'px,'+dy+'px)'; }
-  else if(t.identifier===lookId){ if(placing&&placeStage===1){ anchorYaw-=(t.clientX-lookX)*.01; } else { cam.yaw-=(t.clientX-lookX)*.007; cam.pitch=clamp(cam.pitch+(t.clientY-lookY)*.007,.1,1.15); } lookX=t.clientX; lookY=t.clientY; } } e.preventDefault(); },{passive:false});
+  else if(t.identifier===lookId){ if(placing&&placeStage===1){ anchorYaw-=(t.clientX-lookX)*.01; } else { cam.yaw-=(t.clientX-lookX)*.007; cam.pitch=clamp(cam.pitch+(t.clientY-lookY)*.007,CAM_PITCH_MIN,1.15); } lookX=t.clientX; lookY=t.clientY; } } e.preventDefault(); },{passive:false});
 const touchEnd=e=>{ for(const t of e.changedTouches){ if(t.identifier===joy.id){ joy.id=null; joy.x=joy.y=0; $('joy').firstElementChild.style.transform=''; } if(t.identifier===lookId) lookId=null; } };
 canvas.addEventListener('touchend',touchEnd); canvas.addEventListener('touchcancel',touchEnd);
 DEFKEYS.forEach((k,i)=>{ const cfg=DEFS[k]; const s=document.createElement('div'); s.className='slot'; s.id='slot-'+k; s.innerHTML='<div class="k">'+DEFKEY_LABELS[i]+'</div><div class="ic">'+cfg.ic+'</div><div class="n">'+cfg.name+'</div><div class=\"cst\">🌱 '+cfg.du+' · '+cfg.mana+' ◆</div>'; s.addEventListener('click',()=>select(k)); $('hotbar').appendChild(s); });

@@ -9,7 +9,7 @@ if(!MAP||MAP.id!=='prison') return;
 const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
 const OPEN_H=4.0, SCALE=OPEN_H/1.91, HIT=25, HP=100;
 // the two alcoves: the solid cell, the pit cell in front of it, which way the opening faces (toward the pit), and the weapon behind each wall
-const SPOTS=[{id:'W',cx:18,cz:6,fcx:19,nx:1,kind:'harpoon'},{id:'E',cx:30,cz:6,fcx:29,nx:-1,kind:'acorn'}];
+const SPOTS=[{id:'W',cx:18,cz:6,fcx:19,nx:1,kind:'harpoon'},{id:'E',cx:28,cz:6,fcx:27,nx:-1,kind:'acorn'}];
 const LVL=6, TOUGH=2;
 // ---------------- Bob's breakable wall (hi3d-breakable-wall.js), as he wrote it, in this game's own scope
 class BreakableWall {
@@ -60,17 +60,25 @@ function openAlcove(sp){ const cx=sp.cx, cz=sp.cz, x=cw(cx), z=cwz(cz), nx=sp.nx
   // the weapon: a real defense, placed free (its mana and defense units handed straight back), Mark VI, tougher than a built one, not for sale
   const m0=S.mana; const d=placeDefAt(sp.kind,x,z,nx>0?PI/2:-PI/2); S.mana=m0; S.du-=DEFS[sp.kind].du; d.spent=0; d.secret=true; d.lvl=LVL; d.max=Math.round(DEFS[sp.kind].hp*(1+.4*(LVL-1)))*TOUGH; d.hp=d.max; d.pop=0; sp.def=d; cnt.weapons++;
   floatText(x,d.top+1.6,z,'🔓 '+DEFS[sp.kind].ic,'#e8b94a'); try{ SFX.place&&SFX.place(); }catch(e){} }
-// ---------------- the plain prison wall around the apex (Matt: "first from behind the heartroot to the exterior of it about 3 squares, no cells so all prison wall"): the same shackled wall, instanced two high over every wall face
+// ---------------- the plain prison wall around the apex (Matt: "first from behind the heartroot to the exterior of it about 3 squares, no cells so all prison wall"): the same shackled wall instanced over every wall face: five high (ten up -- Matt: "take those wall upward 3 squares") along the back wall behind the Heartroot, two high down the sides
 // of the first rows (the painted plain-wall tile carries the rest of the height), so the breakable walls sit in a wall made of their own kind
+// (the rest of the height, and the sides above their two rows, is that same wall drawn flat: the model's front rendered once into the plain wall's tile -- the real look at no triangles)
+function bakeTile(root){ const cw0=world.userData.cellWall; if(!cw0||!cw0.material.map||!cw0.material.map.image) return; const size=256, rt=new THREE.WebGLRenderTarget(size,size,{ minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter }); rt.texture.encoding=THREE.sRGBEncoding;
+  const sc=new THREE.Scene(); sc.background=new THREE.Color(0x10140e); const cl=root.clone(true); cl.traverse(o=>{ if(!o.isMesh) return; if(o.userData.isOL){ o.visible=false; return; } o.material=new THREE.MeshBasicMaterial({ map:o.material.map, color:0xffffff }); });
+  cl.updateMatrixWorld(true); const bx=new THREE.Box3().setFromObject(cl), ct=bx.getCenter(new THREE.Vector3()); cl.position.sub(ct); sc.add(cl); const cam=new THREE.OrthographicCamera(-1,1,1,-1,.1,10); cam.position.set(0,0,3); cam.lookAt(0,0,0);
+  const keep=renderer.getRenderTarget(); renderer.setRenderTarget(rt); renderer.clear(); renderer.render(sc,cam); const px=new Uint8Array(size*size*4); renderer.readRenderTargetPixels(rt,0,0,size,size,px); renderer.setRenderTarget(keep); rt.dispose();
+  const c=document.createElement('canvas'); c.width=c.height=size; const g=c.getContext('2d'), id=g.createImageData(size,size); for(let y=0;y<size;y++) id.data.set(px.subarray((size-1-y)*size*4,(size-y)*size*4),y*size*4); g.putImageData(id,0,0);
+  const dst=cw0.material.map.image.getContext('2d'); dst.drawImage(c,1024,0); cw0.material.map.needsUpdate=true; cnt.baked=1; }
 function plainWall(root){ const PR=world.userData.plainRows||7; root.updateMatrixWorld(true); const box=new THREE.Box3().setFromObject(root), sz=box.getSize(new THREE.Vector3()), c=box.getCenter(new THREE.Vector3());
   const s=OPEN_H/(2*sz.y), depth=sz.z*s, skip=new Set(SPOTS.map(p=>faceIndex(p.fcx,p.cz,p.nx))), mats=[], m=new THREE.Matrix4(), Q=new THREE.Quaternion(), V=new THREE.Vector3(), Sc=new THREE.Vector3(s,s,s), up=new THREE.Vector3(0,1,0);
-  wallFaces.forEach((f,q)=>{ if(f.cz>PR||skip.has(q)) return; const y0=hgt[idx(f.cx,f.cz)]||0; Q.setFromAxisAngle(up,Math.atan2(f.nx,f.nz));
-    for(let r=0;r<2;r++){ V.set(f.x+f.nx*.12,y0+r*sz.y*s,f.z+f.nz*.12); mats.push(new THREE.Matrix4().compose(V,Q,Sc).multiply(new THREE.Matrix4().makeTranslation(-c.x,-box.min.y,-c.z))); } });
+  wallFaces.forEach((f,q)=>{ if(f.cz>PR) return; const y0=hgt[idx(f.cx,f.cz)]||0; Q.setFromAxisAngle(up,Math.atan2(f.nx,f.nz));
+    const rows=(f.nz===1&&f.nx===0&&f.cz===2)?5:2;   // behind the Heartroot the real wall goes five high (ten up); down the sides two, with the same wall drawn flat above it
+    for(let r=0;r<rows;r++){ V.set(f.x+f.nx*.12,y0+r*sz.y*s,f.z+f.nz*.12); mats.push(new THREE.Matrix4().compose(V,Q,Sc).multiply(new THREE.Matrix4().makeTranslation(-c.x,-box.min.y,-c.z))); } });
   root.traverse(ob=>{ if(!ob.isMesh||ob.userData.isOL) return; const im=new THREE.InstancedMesh(ob.geometry,ob.material,mats.length); mats.forEach((M4,i)=>{ m.multiplyMatrices(M4,ob.matrixWorld); im.setMatrixAt(i,m); }); im.instanceMatrix.needsUpdate=true; im.frustumCulled=false; im.userData.noOL=true; world.add(im); });
   cnt.wallModules=mats.length; }
 // ---------------- the walls
 Promise.all([load('prison-wall-intact.glb'),load('prison-wall-fragments.glb')]).then(([intact,frag])=>{
-  try{ plainWall(intact); }catch(e){ console.warn('prison walls plain',e); }
+  try{ plainWall(intact); bakeTile(intact); }catch(e){ console.warn('prison walls plain',e); }
   for(const sp of SPOTS){ const i=faceIndex(sp.fcx,sp.cz,sp.nx); if(i<0){ console.warn('prison walls: no wall face at',sp.fcx,sp.cz); continue; }
     cellWall=cellWall||world.userData.cellWall; lowerQuad(i,OPEN_H);
     const w=new BreakableWall(intact.clone(true),frag.clone(true),{ onHit:(ww,pt)=>{ cnt.hits++; try{ SFX.hit&&SFX.hit(); }catch(e){} puff(pt?pt.x:0,1.4,pt?pt.z:0,1); },
