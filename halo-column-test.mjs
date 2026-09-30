@@ -20,9 +20,9 @@ await page.evaluate(()=>window.__dd.setHero(40,60));
 const HALOS={zap:0x7fd8ff,venom:0x8ef05a,ember:0xff6a2a,dazzle:0xffd060};
 const placed={};
 for(const kind in HALOS){ const p=await placeNear(kind); placed[kind]=p; check("a "+kind+" halo goes down near the hero",!!p&&p.kind===kind,JSON.stringify(p)); }
-for(const kind in HALOS){ const c=await column(placed[kind].i); const deep=await page.evaluate(h=>{ const k=new THREE.Color(h), l={}; k.getHSL(l); return new THREE.Color().setHSL(l.h,Math.min(1,l.s*1.1+.15),Math.min(l.l,.34)).getHex(); },HALOS[kind]);   // game.js deepAura's rule
-  check(kind+": the halo's aura carries a column in a DEEP version of the halo's own colour (build 305: darker, lightness at most .34)",c.column&&c.color===deep&&c.light<=.345,JSON.stringify({got:c.color,deep,light:c.light}));
-  check(kind+": see-through and laid over the floor -- normal blending (not an added glow), no depth write, opacity .2-.45 at rest, no outline",c.column&&!c.additive&&!c.depthWrite&&c.transparent&&c.opacity>.2&&c.opacity<.45&&c.noOL,JSON.stringify({op:c.opacity,add:c.additive,dw:c.depthWrite}));
+for(const kind in HALOS){ const c=await column(placed[kind].i); const deep=await page.evaluate(h=>{ const k=new THREE.Color(h), l={}; k.getHSL(l); return new THREE.Color().setHSL(l.h,1,Math.min(l.l,.38)).convertSRGBToLinear().getHex(); },HALOS[kind]);   // game.js deepAura's rule
+  check(kind+": the halo's aura carries a column in a DEEP version of the halo's own colour (builds 305-306: a deep, fully saturated version, lightness at most .38)",c.column&&c.color===deep&&c.light<=.385,JSON.stringify({got:c.color,deep,light:c.light}));
+  check(kind+": see-through and laid over the floor -- normal blending (not an added glow), no depth write, opacity .2-.45 at rest, no outline",c.column&&!c.additive&&!c.depthWrite&&c.transparent&&c.opacity>.3&&c.opacity<.55&&c.noOL,JSON.stringify({op:c.opacity,add:c.additive,dw:c.depthWrite}));
   check(kind+": an open 2.4-tall cylinder standing on the floor, strongest at the base and faded to nothing at the top",c.open&&c.height===2.4&&c.y===1.2&&c.alphaMap&&c.fadeBottom>.9&&c.fadeTop<.05,JSON.stringify({open:c.open,h:c.height,y:c.y,fb:c.fadeBottom,ft:c.fadeTop}));
   check(kind+": the column's radius is the halo's reach ("+c.range+") and its height stays 2.4 in the world",Math.abs(c.radiusWorld-c.range)<.05&&Math.abs(c.heightWorld-2.4)<.05,JSON.stringify({r:c.radiusWorld,range:c.range,h:c.heightWorld})); }
 // a mark up: the ring and its column grow with the reach

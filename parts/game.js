@@ -723,7 +723,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=305;
+const BUILD=306;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1047,16 +1047,18 @@ function fireArrow(e,x,y,z,hit){ const splash=MOBS[e.kind]&&MOBS[e.kind].splash|
 // totem/frost aura but flatter and lower, since these stand barely off the ground (top .08) instead of being a spire
 /* build 161, Matt: "i like the thin column on the halos, they could be just a notch darker" -- .06 → .045; build 174: "darker" meant a stronger colour, not dimmer -- "not dimmer I want to see them a little more" → .075 */
 /* build 305, Matt: "i want the aura on the aura rings to be darker still". An ADDED glow can only ever lighten, and on the lit halls' red carpet and warm floors it read as a pale, near-white circle.
-   The ring and the column now lay a DEEP version of the halo's own colour over the floor (normal blending, the colour darkened and saturated: deepAura) -- darker and stronger on any floor, bright or dark. */
-const HALO_COL_H=2.4, HALO_COL_OP=.3;   // the halo column: how tall, and how strong at rest (stronger while a mob stands in the ring)
-const deepAura=c=>{ const k=new THREE.Color(c), h={}; k.getHSL(h); return new THREE.Color().setHSL(h.h,Math.min(1,h.s*1.1+.15),Math.min(h.l,.34)); };
+   The column now lays a DEEP version of the halo's own colour over the floor (normal blending, the colour darkened and saturated: deepAura) -- darker on any floor, bright or dark.
+   build 306, Matt: "its the glow coming of the floor in a column i am taking about, thats the part i need to be alttle darker": the RING is back as it always was (its own colour, added glow); only the column is deep, a notch darker again (lightness .26, .34 strong). Then "or more color full": at .26 it went murky, so the column is FULL saturation, lightness .38, .42 strong -- vivid and still deeper than the ring's glow. */
+const HALO_COL_H=2.4, HALO_COL_OP=.42;   // the halo column: how tall, and how strong at rest (stronger while a mob stands in the ring)
+// the halo colours arrive as plain sRGB hex; the deep one is made in sRGB and converted (C's convertSRGBToLinear) -- unconverted, the renderer's sRGB output shows it paler than it is (threejs colour gotcha)
+const deepAura=c=>{ const k=new THREE.Color(c), h={}; k.getHSL(h); return new THREE.Color().setHSL(h.h,1,Math.min(h.l,.38)).convertSRGBToLinear(); };
 let HALO_FADE=null;   // the column's fade, strongest at the floor and gone by the top: an alpha ramp down the cylinder's height (its uv v runs 0 at the bottom to 1 at the top)
 function haloFade(){ if(HALO_FADE) return HALO_FADE; const c=document.createElement('canvas'); c.width=2; c.height=64; const x=c.getContext('2d'); for(let r=0;r<64;r++){ const t=r/63, v=Math.round(255*t*t); x.fillStyle='rgb('+v+','+v+','+v+')'; x.fillRect(0,r,2,1); } HALO_FADE=new THREE.CanvasTexture(c); return HALO_FADE; }
-function auraRing(d,rr,col,active,s){ let a=d.mdl.userData.aura; if(!a){ a=new THREE.Group(); const deep=deepAura(col); const ring=new THREE.Mesh(new THREE.RingGeometry(.94,1,48),new THREE.MeshBasicMaterial({color:deep,transparent:true,opacity:.8,side:THREE.DoubleSide,depthWrite:false})); ring.rotation.x=-PI/2; ring.userData.noOL=true; a.add(ring); const inner=new THREE.Mesh(new THREE.RingGeometry(.2,.24,24),ring.material.clone()); inner.rotation.x=-PI/2; inner.userData.noOL=true; a.add(inner); a.userData.ring=ring; a.userData.inner=inner;
+function auraRing(d,rr,col,active,s){ let a=d.mdl.userData.aura; if(!a){ a=new THREE.Group(); const deep=deepAura(col); const ring=new THREE.Mesh(new THREE.RingGeometry(.94,1,48),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); ring.rotation.x=-PI/2; ring.userData.noOL=true; a.add(ring); const inner=new THREE.Mesh(new THREE.RingGeometry(.2,.24,24),ring.material.clone()); inner.rotation.x=-PI/2; inner.userData.noOL=true; a.add(inner); a.userData.ring=ring; a.userData.inner=inner;
     // the column: a faint see-through wall of the halo's own colour standing on the ring, HALO_COL_H tall, brightest at the floor and gone by the top (vertex colours fade to black, and under additive blending black adds nothing) -- a mob walks through it, and from the camera's height it says which halo this is and who is inside it, where the flat ring alone is hidden behind the mobs; kept faint so four overlapping halos never wash out the lane
     const cg=new THREE.CylinderGeometry(1,1,HALO_COL_H,48,1,true);
     const column=new THREE.Mesh(cg,new THREE.MeshBasicMaterial({color:deep,alphaMap:haloFade(),transparent:true,opacity:HALO_COL_OP,side:THREE.DoubleSide,depthWrite:false})); column.position.y=HALO_COL_H/2; column.userData.noOL=true; a.add(column); a.userData.column=column; d.mdl.add(a); d.mdl.userData.aura=a; }
-  a.position.y=.03; a.scale.set(rr/s,1/s,rr/s); a.userData.inner.rotation.z+=(active?2.5:.8)*.016; a.userData.ring.material.opacity=Math.min(1,.74+.08*Math.sin(S.t*2.4)+(active?.2:0)); a.userData.column.material.opacity=HALO_COL_OP+.05*Math.sin(S.t*1.7)+(active?.14:0); }
+  a.position.y=.03; a.scale.set(rr/s,1/s,rr/s); a.userData.inner.rotation.z+=(active?2.5:.8)*.016; a.userData.ring.material.opacity=.3+.1*Math.sin(S.t*2.4)+(active?.15:0); a.userData.column.material.opacity=HALO_COL_OP+.05*Math.sin(S.t*1.7)+(active?.14:0); }
 // ---- the Mycelium Cage: rest, charge, implode. At rest the cage only slows what walks in and its spores drift up. With
 // victims inside it charges for a random while (its roots relax outward, the spores start to swirl inward), then IMPLODES:
 // the roots snap shut, the vortex is sucked to the centre, the victims are lifted a little, a violet-cyan flash bursts for
