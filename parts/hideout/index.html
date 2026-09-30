@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="70">
+<meta name="hideout-build" content="74">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -162,6 +162,7 @@ canvas{display:block}
 .fgear.unique{border-color:#ffcf3a;box-shadow:0 0 12px #ffcf3a66}
 #gearClose{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:#000c;color:#fff;border:2px solid #a55;font:16px monospace;cursor:pointer;z-index:2}
 #tooltip{position:fixed;display:none;z-index:50;background:#150e08;color:#ffe9b0;border:1px solid #a5762a;border-radius:6px;padding:5px 10px;font:bold 13px Georgia,serif;pointer-events:none;box-shadow:0 4px 12px #000a;max-width:220px}
+.gamegrid{max-height:156px;overflow-y:auto}
 </style>
 </head><body>
 <div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: inventory &middot; Esc: close a menu<br>The portal takes you back to the hall<div id="loadWrap"><div id="loadBar" class="indeterminate"><div id="loadFill"></div></div><div id="loadLine">Loading…</div></div></div>
@@ -217,7 +218,8 @@ canvas{display:block}
     <p>Drag things between your bag and hotbar. Select gear in the hotbar, then click to put it on display.</p>
   </div>
   <div id="gearBody">
-    <div class="isection">Bag</div><div id="invBag" class="islotgrid"></div>
+    <div id="invGameWrap" style="display:none"><div class="isection">Your gear — the bag you carry in the hall. Click a piece to put it on your hotbar for display</div><div id="invGame" class="islotgrid gamegrid"></div></div>
+    <div class="isection" id="invBagTitle">Bag</div><div id="invBag" class="islotgrid"></div>
     <div class="isection">Hotbar — keys 1 to 9</div><div id="invHot" class="islotgrid"></div>
     <div id="invSendWrap" style="display:none"><div class="isection">Send to the hall — drag gear here and it goes into your hero's bag when you head back</div>
       <div class="islotgrid" style="grid-template-columns:46px"><div id="invSend" class="islot sendzone">⇪</div></div></div>
@@ -237,13 +239,14 @@ canvas{display:block}
 
 <div id="tradeWrap"><div id="tradePanel">
   <button id="tradeClose">&times;</button>
-  <div id="tradeHeader"><h1 id="tradeTitle">TRADE</h1><p>Click things in your bag or hotbar to offer them. When you both like it, both press LOCK IN — then it swaps.</p></div>
+  <div id="tradeHeader"><h1 id="tradeTitle">TRADE</h1><p>Click things in your gear, bag or hotbar to offer them. When you both like it, both press LOCK IN — then it swaps.</p></div>
   <div id="tradeBody">
     <div class="tcols">
       <div><div class="isection">You offer</div><div id="tradeMine" class="islotgrid"></div><div id="tradeMyState" class="tstate"></div></div>
       <div><div class="isection" id="tradeTheirTitle">They offer</div><div id="tradeTheirs" class="islotgrid"></div><div id="tradeTheirState" class="tstate"></div></div>
     </div>
-    <div class="isection">Your bag</div><div id="tradeBag" class="islotgrid"></div>
+    <div id="tradeGameWrap" style="display:none"><div class="isection">Your gear — the bag you carry in the hall</div><div id="tradeGame" class="islotgrid gamegrid"></div></div>
+    <div class="isection" id="tradeBagTitle">Your bag</div><div id="tradeBag" class="islotgrid"></div>
     <div class="isection">Your hotbar</div><div id="tradeHot" class="islotgrid"></div>
     <div id="tradeBtns"><button id="tradeLock">LOCK IN</button><button id="tradeCancel">CANCEL</button></div>
     <div id="tradeNote" class="tstate"></div>
@@ -270,7 +273,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 70;   // build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 74;   // builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -521,7 +524,7 @@ const TRADE = { open: false, peerId: null, peerName: '', init: false, mine: [], 
 const TRADE_MAX = 6;
 const tradeEl = id => document.getElementById(id);
 const hash32 = str => { let h = 5381; for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0; return h; };
-const tradeArr = name => name === 'bag' ? SAVE.bag : SAVE.hotbar;
+const tradeArr = name => name === 'bag' ? SAVE.bag : name === 'game' ? gameGear() : SAVE.hotbar;
 const tradeSend = msg => HD.post({ type: 'hd:trade', to: TRADE.peerId, msg });
 const tradable = v => !!v && !(typeof v === 'string' && STARTER_ITEMS.includes(v));
 function tradeClean(v) {   // whatever came over the wire: a known furniture id, or a gear record of sane size
@@ -534,7 +537,10 @@ function tradeClean(v) {   // whatever came over the wire: a known furniture id,
 const tradeVals = list => list.map(o => (o && o.v !== undefined) ? o.v : o);
 function tradeSig() { const a = tradeVals(TRADE.mine), b = TRADE.theirs; return hash32(JSON.stringify(TRADE.init ? [a, b] : [b, a])); }
 function tradeFree() { return SAVE.bag.filter(v => !v).length + SAVE.hotbar.filter(v => !v).length; }
-function tradeFits() { return tradeFree() + TRADE.mine.length >= TRADE.theirs.length; }
+// ONE BAG: furniture needs a slot in this room's bag or hotbar; gear goes to your bag in the game first, then any room slot left over
+function tradeFits() { const inc = TRADE.theirs, fur = inc.filter(v => !isGearItem(v)).length, gear = inc.length - fur;
+  const room = tradeFree() + TRADE.mine.filter(o => o.arr !== 'game').length, gameFree = gameRoom() + TRADE.mine.filter(o => o.arr === 'game').length;
+  return fur <= room && gear <= gameFree + (room - fur); }
 function tradeGridTo(container, values, cols, onClick, cls) {
   container.innerHTML = ''; container.style.gridTemplateColumns = 'repeat(' + cols + ', 46px)';
   values.forEach((v, i) => {
@@ -555,6 +561,7 @@ function tradeRender() {
   const pad = (list, n) => { const a = list.slice(); while (a.length < n) a.push(null); return a; };
   tradeGridTo(tradeEl('tradeMine'), pad(tradeVals(TRADE.mine), TRADE_MAX), 3, i => { if (TRADE.mine[i]) tradeRemove(i); });
   tradeGridTo(tradeEl('tradeTheirs'), pad(TRADE.theirs, TRADE_MAX), 3, null);
+  tradeEl('tradeGameWrap').style.display = GAME ? '' : 'none'; if (GAME) { tradeEl('tradeBagTitle').textContent = 'Your hideout bag'; tradeGridTo(tradeEl('tradeGame'), gameGear(), 9, i => tradeToggle('game', i), (v, i) => mineSet.has('game:' + i) ? 'mine' : ''); }
   tradeGridTo(tradeEl('tradeBag'), SAVE.bag, 9, i => tradeToggle('bag', i), (v, i) => mineSet.has('bag:' + i) ? 'mine' : (!tradable(v) ? 'blocked' : ''));
   tradeGridTo(tradeEl('tradeHot'), SAVE.hotbar, 9, i => tradeToggle('hotbar', i), (v, i) => mineSet.has('hotbar:' + i) ? 'mine' : (!tradable(v) ? 'blocked' : ''));
   const ms = tradeEl('tradeMyState'), ts = tradeEl('tradeTheirState');
@@ -601,7 +608,7 @@ function tradeMaybeCommit() {
   if (!tradeFits()) { flashMsg('Not enough room — the trade was cancelled'); tradeClose(true); return; }
   TRADE.done = true;
   const gave = TRADE.mine.length, got = TRADE.theirs.slice();
-  for (const o of TRADE.mine) tradeArr(o.arr)[o.i] = null;
+  for (const o of TRADE.mine) { if (o.arr === 'game') gameTake(o.v.rec.id); else tradeArr(o.arr)[o.i] = null; }   // ONE BAG: gear offered from the game bag leaves the game bag
   for (const v of got) if (!giveItem(v, 'bag')) stashGear && stashGear(v);
   if (selectedSlot !== null) syncSelection();
   writeSave(); renderInv(); if (typeof refreshSlotViews === 'function') refreshSlotViews();
@@ -685,6 +692,7 @@ HD.init();
 // puts an item in the first free slot — new things (bought, rewards) go to the bag, picked-up furniture back to the
 // hotbar so moving things stays quick; false when both are full
 function giveItem(gid, prefer) {
+  if (prefer !== 'hotbar' && isGearItem(gid) && gameGive(gid)) return true;   // ONE BAG: gear goes into your bag in the game
   for (const arr of prefer === 'hotbar' ? [SAVE.hotbar, SAVE.bag] : [SAVE.bag, SAVE.hotbar]) {
     const i = arr.indexOf(null);
     if (i >= 0) { arr[i] = gid; return true; }
@@ -697,6 +705,29 @@ function giveItem(gid, prefer) {
 const isGearItem = v => !!v && typeof v === 'object' && !!v.rec;
 function gearKey(v) { return (v.kind === 'forged' ? 'f:' : 'c:') + v.rec.id; }
 function gearPiece(v) { return v.kind === 'forged' ? pieceFromForged(v.rec) : pieceFromCarried(v.rec); }
+// ---- ONE BAG (build 71; Matt: "the main bag needs to be portable to the hideout, iam not sure why we've made two seperate bags"). Inside the game (the embedded copy, same page
+// origin) your gear lives in ONE place: the game's own bag (window.parent.__meta). Gear that would land in this room's bag -- the Forge, the wall locker, a trade, a piece picked back up
+// -- goes straight into it; the trade panel and the I panel show it; gear only sits in this room's hotbar while you are putting it on display (and walks back to the hall with you, as
+// before). Furniture keeps this room's bag. Gear already in this room's bag moves over once, on load. The standalone page (no game around it) keeps the old way.
+const GAME = (() => { try { const p = window.parent; if (p && p !== window && p.__meta && typeof p.__meta.giveItem === 'function' && typeof p.__meta.bag === 'function') return p; } catch (e) {} return null; })();
+const gameMeta = () => GAME ? GAME.__meta : null;
+function gameRoom() { const M = gameMeta(); return M ? Math.max(0, (M.BAG_CAP || 50) - M.bag().length) : 0; }
+function cleanGameItem(v) { const it = v.kind === 'carried' ? Object.assign({}, v.rec) : toGameItem(v); delete it.hideout; delete it.sentAt; delete it.carriedAt; delete it.from; return it; }   // the game's own record, without the old hand-off stamps
+function gameGive(v) { const M = gameMeta(); if (!M || !isGearItem(v) || !gameRoom()) return false; try { return !!M.giveItem(cleanGameItem(v)); } catch (e) { return false; } }
+function gameTake(id) { const M = gameMeta(); if (!M) return null; const bag = M.bag(); const i = bag.findIndex(b => b && b.id === id); if (i < 0) return null; const it = bag.splice(i, 1)[0]; try { M.save && M.save(); } catch (e) {} return it; }
+function gameGear() { const M = gameMeta(); return M ? M.bag().map(it => ({ kind: 'carried', rec: it })) : []; }
+function gameToHotbar(i) { const g = gameGear()[i]; if (!g) return; const h = SAVE.hotbar.indexOf(null); if (h < 0) { flashMsg('Your hotbar is full — make room first'); return; }
+  const it = gameTake(g.rec.id); if (!it) return; SAVE.hotbar[h] = { kind: 'carried', rec: it }; writeSave(); refreshSlotViews(); sfxClick();
+  flashMsg((it.name || 'It') + ' is on your hotbar — select it and click to put it on display. Anything left on the hotbar goes back to your bag when you leave'); }
+function renderGameGear() { const wrap = document.getElementById('invGameWrap'); if (!wrap) return; wrap.style.display = GAME ? '' : 'none'; if (!GAME) return;
+  document.getElementById('invBagTitle').textContent = 'Hideout bag — furniture'; tradeGridTo(document.getElementById('invGame'), gameGear(), 9, i => gameToHotbar(i)); }
+function oneBagMigrate() { if (!GAME) return 0; let n = 0;
+  SAVE.bag.forEach((v, i) => { if (isGearItem(v) && gameGive(v)) { SAVE.bag[i] = null; n++; } });
+  if (Array.isArray(SAVE.gear)) SAVE.gear = SAVE.gear.filter(g => { if (gameGive({ kind: 'forged', rec: g })) { n++; return false; } return true; });
+  if (n) { writeSave(); setTimeout(() => { try { flashMsg(n + ' piece' + (n === 1 ? '' : 's') + ' of gear moved into your bag — one bag now, in the hall and here'); } catch (e) {} }, 1600); }
+  return n; }
+let ONEBAG_MOVED = 0;
+window.__onebag = { on: () => !!GAME, moved: () => ONEBAG_MOVED, gear: () => gameGear().length, give: v => giveItem(v, 'bag'), toHotbar: gameToHotbar, hotbarGear: () => SAVE.hotbar.filter(isGearItem).length, bagGear: () => SAVE.bag.filter(isGearItem).length, tradeArr: n => tradeArr(n).length }; setTimeout(() => { ONEBAG_MOVED = oneBagMigrate(); try { refreshSlotViews(); } catch (e) {} }, 0);   // once the whole page has run (the Forge's constants live further down)
 function slotIcon(v) { return isGearItem(v) ? cutoutIcon(gearPiece(v).icon) : GEAR[v].icon; }
 function slotTip(v) { if (!isGearItem(v)) return GEAR[v].name; const p = gearPiece(v); return p.tip || p.desc; }
 function slotColor(v) { return isGearItem(v) ? gearPiece(v).color : null; }
@@ -1971,6 +2002,7 @@ function refreshSlotViews() {
   if (document.getElementById('gearWrap').style.display === 'flex') {
     renderSlotGrid(document.getElementById('invBag'), SAVE.bag, 9);
     renderSlotGrid(document.getElementById('invHot'), SAVE.hotbar, 9);
+    renderGameGear();
   }
   if (openChestRec) {
     renderSlotGrid(document.getElementById('chestSlots'), openChestRec.store, 5);

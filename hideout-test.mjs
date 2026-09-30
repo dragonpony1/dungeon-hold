@@ -16,7 +16,7 @@ const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftsh
 const ctx=await browser.newContext();   // one context: localStorage is shared across its pages, which is exactly what the return trip relies on
 const errors=[], responses=[];
 async function newGamePage(){ const p=await ctx.newPage(); p.on("pageerror",e=>errors.push(String(e))); p.on("response",r=>responses.push({url:r.url(),status:r.status()}));
-  await p.goto(BASE+"/?silent&nogate",{timeout:90000}); await p.waitForFunction(()=>window.__dd&&window.__portal&&window.__hideout&&window.__meta,null,{timeout:60000}); return p; }
+  await p.goto(BASE+"/?silent&nogate",{timeout:90000}); await p.waitForFunction(()=>window.__dd&&window.__portal&&window.__hideout&&window.__meta,null,{timeout:60000}); await p.evaluate(()=>window.__hideout.scrapAtDoor&&window.__hideout.scrapAtDoor(true)); return p; }   /* build 325: the door no longer scraps (one bag, onebag-test.mjs); this suite checks the Cart's scrap arithmetic, so it switches the old door-scrap back on */
 async function frameOf(page,part){ for(let i=0;i<200;i++){ const f=page.frames().find(f=>f.url().includes(part)); if(f) return f; await new Promise(r=>setTimeout(r,50)); } return null; }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
