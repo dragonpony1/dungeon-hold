@@ -86,17 +86,21 @@ useProp('court-hedge-corner.glb',H_HEDGE,wrap=>{ const bb=new THREE.Box3().setFr
 // ---- build 299: TOPIARIES. Matt's gnome witch clipped from hedge on a stone pedestal (topiary-witch.glb; his idea: "archhags and topiaries" -> "yes the archhag wakes the topiaries") stands in the beds,
 // one cell in from a hedge where a lane passes -- the garden's statues for now; the Archhag (not built yet, rootgate-todo.md) will wake them. Picked the same way every time (half the court, then each one's
 // turned twin), at least 7 cells apart, each facing its nearest lane; nothing else grows on its cell and the hero cannot walk through one.
-const TOPI_KINDS=['topiary-witch.glb','topiary-fighter.glb'];   // build 300: Matt's gnome fighter joins the gnome witch
-const TOPI_H=3.3, TOPI=[], TOPI_CELLS=[];   // her pedestal clears the 1.2 hedge, her hat stands well over it
+const TOPI_KINDS=['topiary-witch.glb','topiary-fighter.glb','topiary-ranger.glb'];   // build 300: Matt's gnome fighter joins the gnome witch; build 302 his gnome ranger
+const TOPI_H=3.3, TOPI_PAIRS=5, TOPI=[], TOPI_CELLS=[];   // her pedestal clears the 1.2 hedge, her hat stands well over it
 { const N4=[[1,0],[-1,0],[0,1],[0,-1]];
   const nearHedge=c=>N4.some(([dx,dz])=>{ const d=cellOf(c.cx+dx,c.cz+dz); return d&&d.edge; }), roomy=c=>N4.every(([dx,dz])=>cellOf(c.cx+dx,c.cz+dz));
   const nearLane=c=>{ for(let r=1;r<=2;r++) for(let dx=-r;dx<=r;dx++) for(let dz=-r;dz<=r;dz++) if(openAt(c.cx+dx,c.cz+dz)) return true; return false; };
   const hash=c=>(((c.cx*73856093)^(c.cz*19349663))>>>0)%9973;
   const cand=[...BED.values()].filter(c=>!c.edge&&nearHedge(c)&&roomy(c)&&nearLane(c)&&c.cx+c.cz<43).sort((a,b)=>hash(a)-hash(b));
-  const picked=[]; for(const c of cand){ if(picked.length>=5) break; const tw=cellOf(43-c.cx,43-c.cz); if(!tw||tw.edge||tw===c) continue;
+  const picked=[]; for(const c of cand){ if(picked.length>=TOPI_PAIRS) break; const tw=cellOf(43-c.cx,43-c.cz); if(!tw||tw.edge||tw===c) continue;
     if(picked.some(p=>Math.hypot(p.cx-c.cx,p.cz-c.cz)<7||Math.hypot((43-p.cx)-c.cx,(43-p.cz)-c.cz)<7)) continue; picked.push(c); }
   picked.forEach((c,k)=>{ const tw=cellOf(43-c.cx,43-c.cz); c.kind=tw.kind=k%TOPI_KINDS.length; TOPI_CELLS.push(c,tw); });   // build 300: the kinds take turns by pair, a pair always matching
-  for(const c of TOPI_CELLS){ c.topiary=true; c.top=c.base+TOPI_H;
+  // build 302 (Matt: "or just put one on a raised platform"): the gnome ranger also stands on each of the two raised terraces (turned twins), in the terrace's outer corner, looking in at the giant tree;
+  // its cell is solid (T.PROP, like the tree's trunk) so no one walks or builds into it
+  const terr=[]; for(const [x,z] of [[19,13],[24,30]]){ const i=idx(x,z); if(!((hgt[i]||0)>1)) continue; grid[i]=T.PROP; terr.push({cx:x,cz:z,base:hgt[i],kind:TOPI_KINDS.indexOf('topiary-ranger.glb'),terrace:true,face:Math.atan2(21.5-x,21.5-z)}); }
+  if(terr.length){ reflow(); TOPI_CELLS.push(...terr); }
+  for(const c of TOPI_CELLS){ if(c.terrace) continue; c.topiary=true; c.top=c.base+TOPI_H;
     let fx=0,fz=0; for(let dx=-2;dx<=2;dx++) for(let dz=-2;dz<=2;dz++) if(openAt(c.cx+dx,c.cz+dz)){ const d=Math.hypot(dx,dz)||1; fx+=dx/d; fz+=dz/d; } c.face=Math.atan2(fx,fz); } }
 TOPI_KINDS.forEach((file,kind)=>useProp(file,TOPI_H,wrap=>{ wrap.traverse(o=>{ if(o.isMesh&&!o.userData.isOL&&o.material&&o.material.map&&o.material.emissive){ o.material.emissiveMap=o.material.map; o.material.emissive.setRGB(.42,.42,.42); o.material.needsUpdate=true; } });   // the court is a night garden: a soft glow of her own leaves keeps her the bright clipped green Matt made
   for(const c of TOPI_CELLS){ if(c.kind!==kind) continue; const t=wrap.clone(); t.position.set(cw(c.cx),c.base,cwz(c.cz)); t.rotation.y=c.face; world.add(t); TOPI.push({mesh:t,c,kind:file}); } }));
