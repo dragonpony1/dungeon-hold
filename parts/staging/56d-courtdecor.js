@@ -144,6 +144,12 @@ const W1_EXTRA=30;
 { const prevWC=waveComp; waveComp=function(w){ const c=prevWC(w); if(SURVIVAL||(w-MAP.wbase)!==1) return c; const lanes=[...new Set(c.q.map(x=>x.lane))]; if(!lanes.length) return c;
   let t=2; for(let i=0;i<W1_EXTRA;i++){ c.q.push({t,kind:'goblin',lane:lanes[i%lanes.length]}); t+=.6; } c.q.sort((a,b)=>a.t-b.t);
   const g=c.q.filter(x=>x.kind==='goblin').length; if(c.desc) c.desc=String(c.desc).replace(/Goblins ×[0-9]+/,'Goblins ×'+g); return c; }; }
+// build 313 (Matt: "take out all bandits from entire map"; and for the Archhag's wave, "keep the goblins and orcs take out ranged mobs"): no bandit on any court wave, and her wave (the last)
+// has no troll archers either -- each one taken out comes out as a goblin instead, in its place in the line, so the crowd stays the same size (drakes stay: they bite, they don't shoot)
+const NO_RANGED=x=>x.kind==='archer', NO_RANGED_LAST=x=>x.kind==='archer'||x.kind==='troll';
+{ const prevWC=waveComp; waveComp=function(w){ const c=prevWC(w); if(!MAP||MAP.id!=='court') return c; const out=(!SURVIVAL&&(w-MAP.wbase)===MAP.waves)?NO_RANGED_LAST:NO_RANGED;
+    let n=0; for(const x of c.q) if(out(x)){ x.kind='goblin'; n++; } if(!n||!c.desc) return c;
+    const g=c.q.filter(x=>x.kind==='goblin').length; c.desc=String(c.desc).replace(/Goblins ×[0-9]+/,'Goblins ×'+g).replace(/ · Bandits ×[0-9]+/,'').replace(out===NO_RANGED_LAST?/ · Troll Archers ×[0-9]+/:/$^/,''); return c; }; }
 window.__courtdecor.w1Extra=W1_EXTRA;
 window.__courtdecor.topiList=()=>TOPI;   // build 308: the Archhag (95f-archhag.js) wakes them
 window.__courtdecor.topiaries=()=>({placed:TOPI.length,cells:TOPI_CELLS.map(c=>[c.cx,c.cz]),h:TOPI_H,kinds:TOPI.reduce((o,t)=>{ o[t.kind]=(o[t.kind]||0)+1; return o; },{})});
