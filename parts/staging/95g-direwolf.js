@@ -9,7 +9,7 @@ MOBDIM[K]={fit:1.5,h:1.3,r:.62,nat:{walk:.8,run:2.4}};   // fit = its height (ea
 MOBS[K]={hp:30,spd:4.6,dmg:5,cd:1.1,mana:3,detour:2,swingT:.8,hitT:.4};   // the whole Bite over .8 s, the snap landing at half way
 if(Meta.XP) Meta.XP[K]=Meta.XP[K]||3;
 function fixMats(root){ root.traverse(o=>{ if(o.isMesh&&o.material){ o.material.metalness=0; o.material.roughness=.85; if(o.material.emissive) o.material.emissive.setRGB(0,0,0); } }); }   // its metal/rough map would read as dark metal under the hall's lights
-const WOLF_GLOW=.55;
+const WOLF_GLOW=.72;   // build 334 (Matt: "punch up the wolves a little"): .55 -> .72, their own coat lit up
 let P=null;
 function load(){ if(MOBGLB[K]) return Promise.resolve(); if(P) return P;
   P=fetchBytes(ASSET('direwolf.glb')).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(g=>{
