@@ -23,13 +23,13 @@ for(const kind in HALOS){ const p=await placeNear(kind); placed[kind]=p; check("
 for(const kind in HALOS){ const c=await column(placed[kind].i); const deep=await page.evaluate(h=>{ const k=new THREE.Color(h), l={}; k.getHSL(l); return new THREE.Color().setHSL(l.h,1,Math.min(l.l,.30)).convertSRGBToLinear().getHex(); },HALOS[kind]);   // game.js deepAura's rule
   check(kind+": the halo's aura carries a column in a DEEP version of the halo's own colour (builds 305-306: a deep, fully saturated version, lightness at most .38; build 326: .30 -- \"more color\")",c.column&&c.color===deep&&c.light<=.305,JSON.stringify({got:c.color,deep,light:c.light}));
   check(kind+": see-through and laid over the floor -- normal blending (not an added glow), no depth write, opacity about .56 at rest (build 326, was .42), no outline",c.column&&!c.additive&&!c.depthWrite&&c.transparent&&c.opacity>.45&&c.opacity<.66&&c.noOL,JSON.stringify({op:c.opacity,add:c.additive,dw:c.depthWrite}));
-  check(kind+": an open 2.4-tall cylinder standing on the floor, strongest at the base and faded to nothing at the top",c.open&&c.height===2.4&&c.y===1.2&&c.alphaMap&&c.fadeBottom>.9&&c.fadeTop<.05,JSON.stringify({open:c.open,h:c.height,y:c.y,fb:c.fadeBottom,ft:c.fadeTop}));
-  check(kind+": the column's radius is the halo's reach ("+c.range+") and its height stays 2.4 in the world",Math.abs(c.radiusWorld-c.range)<.05&&Math.abs(c.heightWorld-2.4)<.05,JSON.stringify({r:c.radiusWorld,range:c.range,h:c.heightWorld})); }
+  check(kind+": an open 4.5-tall cylinder (build 331, was 2.4) standing on the floor, strongest at the base and faded to nothing at the top",c.open&&c.height===4.5&&c.y===2.25&&c.alphaMap&&c.fadeBottom>.9&&c.fadeTop<.05,JSON.stringify({open:c.open,h:c.height,y:c.y,fb:c.fadeBottom,ft:c.fadeTop}));
+  check(kind+": the column's radius is the halo's reach ("+c.range+") and its height stays 4.5 in the world",Math.abs(c.radiusWorld-c.range)<.05&&Math.abs(c.heightWorld-4.5)<.05,JSON.stringify({r:c.radiusWorld,range:c.range,h:c.heightWorld})); }
 // a mark up: the ring and its column grow with the reach
 { const i=placed.zap.i; const before=await column(i);
   const up=await page.evaluate(i=>{ const d=window.__dd, def=d.defs[i]; d.S.mana=99999; const l0=def.lvl; d.upgradeDef({x:def.x,z:def.z}); d.step(1/60,40); return {l0,l1:def.lvl,range:d.stat(def,'range')}; },i);
   const after=await column(i);
-  check("Mark II Storm Halo: the column grew to the new reach ("+up.range+")",up.l1===up.l0+1&&after.radiusWorld>before.radiusWorld&&Math.abs(after.radiusWorld-up.range)<.05&&Math.abs(after.heightWorld-2.4)<.05,JSON.stringify({before:before.radiusWorld,after:after.radiusWorld,up})); }
+  check("Mark II Storm Halo: the column grew to the new reach ("+up.range+")",up.l1===up.l0+1&&after.radiusWorld>before.radiusWorld&&Math.abs(after.radiusWorld-up.range)<.05&&Math.abs(after.heightWorld-4.5)<.05,JSON.stringify({before:before.radiusWorld,after:after.radiusWorld,up})); }
 // a mob inside: stronger, still see-through
 { const i=placed.ember.i; const p=placed.ember;
   const idle=await page.evaluate(i=>{ const d=window.__dd; for(const e of d.enemies) e.dead=true; d.step(1/60,1); return d.defs[i].mdl.userData.aura.userData.column.material.opacity; },i);

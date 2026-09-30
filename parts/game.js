@@ -723,7 +723,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=330;
+const BUILD=331;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1051,7 +1051,7 @@ function fireArrow(e,x,y,z,hit){ const splash=MOBS[e.kind]&&MOBS[e.kind].splash|
 /* build 305, Matt: "i want the aura on the aura rings to be darker still". An ADDED glow can only ever lighten, and on the lit halls' red carpet and warm floors it read as a pale, near-white circle.
    The column now lays a DEEP version of the halo's own colour over the floor (normal blending, the colour darkened and saturated: deepAura) -- darker on any floor, bright or dark.
    build 306, Matt: "its the glow coming of the floor in a column i am taking about, thats the part i need to be alttle darker": the RING is back as it always was (its own colour, added glow); only the column is deep, a notch darker again (lightness .26, .34 strong). Then "or more color full": at .26 it went murky, so the column is FULL saturation, lightness .38, .42 strong -- vivid and still deeper than the ring's glow. */
-const HALO_COL_H=2.4, HALO_COL_OP=.56;   // build 326 (Matt: "that color column could be darker still, i mean more color"): .42 -> .56, and the colour itself deeper (lightness at most .30, was .38)   // the halo column: how tall, and how strong at rest (stronger while a mob stands in the ring)
+const HALO_COL_H=4.5, HALO_COL_OP=.56;   // build 331 (Matt: "the auroras are perfect shade now take that clyinder up higher"): 2.4 -> 4.5 tall, the shade untouched   // build 326 (Matt: "that color column could be darker still, i mean more color"): .42 -> .56, and the colour itself deeper (lightness at most .30, was .38)   // the halo column: how tall, and how strong at rest (stronger while a mob stands in the ring)
 // the halo colours arrive as plain sRGB hex; the deep one is made in sRGB and converted (C's convertSRGBToLinear) -- unconverted, the renderer's sRGB output shows it paler than it is (threejs colour gotcha)
 const deepAura=c=>{ const k=new THREE.Color(c), h={}; k.getHSL(h); return new THREE.Color().setHSL(h.h,1,Math.min(h.l,.30)).convertSRGBToLinear(); };
 let HALO_FADE=null;   // the column's fade, strongest at the floor and gone by the top: an alpha ramp down the cylinder's height (its uv v runs 0 at the bottom to 1 at the top)
