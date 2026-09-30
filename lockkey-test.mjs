@@ -13,7 +13,7 @@ const ids=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; try{ w
   const mk=(r,n)=>{ const it=d.rollItem(r,'weapon',4); it.rarity=r; it.name=n; it.locked=false; delete it.locked; M.giveItem(it); return it.id; }; const worn=d.rollItem(2,'armor',3); worn.name='Worn Mail'; M.giveItem(worn); M.equip(worn.id);
   return { a:mk(2,'Sword A'), b:mk(3,'Sword B'), worn:worn.id }; });
 const lockedNow=id=>page.evaluate(id=>window.__meta.isLocked(id),id); const press=()=>page.evaluate(()=>{ window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyL',bubbles:true,cancelable:true})); });
-const hover=sel=>page.evaluate(sel=>{ const el=document.querySelector(sel); if(!el) return false; el.dispatchEvent(new MouseEvent('mouseover',{bubbles:true})); return true; },sel);
+const hover=async sel=>{ const box=await page.evaluate(sel=>{ const el=document.querySelector(sel); if(!el) return null; const r=el.getBoundingClientRect(); return { x:r.x+r.width/2, y:r.y+r.height/2 }; },sel); if(!box) throw new Error('hover: no element for '+sel); await page.mouse.move(box.x,box.y); await sleep(60); return true; };   // a real mouse move: the key reads where the pointer is
 // 1. the bag: select a piece, press L
 await page.evaluate(id=>{ window.__tavern.open(); window.__tavern.tab('bag'); window.__tavern.select(id,'bag'); },ids.a); await sleep(250);
 const btn0=await page.evaluate(()=>{ const b=document.querySelector('#tv-detail [data-act="lock"]'); return b&&b.textContent; });
@@ -24,17 +24,29 @@ await press(); await sleep(200); const a2=await lockedNow(ids.a);
 check("L again unlocks it",a2===false,String(a2));
 // 2. the piece under the mouse wins over the selected one
 await hover('#tavern .tv-card[data-id="'+ids.b+'"]'); await press(); await sleep(200);
-const b1=await lockedNow(ids.b), a3=await lockedNow(ids.a);
-check("pointing at another piece and pressing L locks THAT one (not the selected one)",b1&&!a3,JSON.stringify({b1,a3}));
-await press(); await sleep(100);
+const b1=await lockedNow(ids.b), a3=await lockedNow(ids.a), stillA=await page.evaluate(()=>{ const x=document.querySelector('#tv-detail [data-act="lock"]'); return x&&x.dataset.id; });
+check("pointing at another piece and pressing L locks THAT one (not the selected one), and the card you had open stays on the same piece",b1&&!a3&&stillA===ids.a,JSON.stringify({b1,a3,stillA}));
+await press(); await sleep(250); const b2=await lockedNow(ids.b), a4=await lockedNow(ids.a);
+check("a SECOND L with the mouse still over the same card unlocks the same piece (the cards redraw under the pointer between presses)",b2===false&&a4===false,JSON.stringify({b2,a4}));
 // 3. a worn piece is refused
 await hover('#tavern .tv-card[data-from="eq"][data-id="'+ids.worn+'"]'); const wornBefore=await lockedNow(ids.worn); await press(); await sleep(150);
 const wornAfter=await lockedNow(ids.worn), msg=await page.evaluate(()=>(document.getElementById('toast')||document.querySelector('.toast')||{}).textContent||document.body.innerText.slice(-300));
 check("L on a piece you are wearing changes nothing (a bag piece only)",wornBefore===wornAfter&&!wornAfter&&/bag/i.test(msg),JSON.stringify({wornBefore,wornAfter}));
 await page.evaluate(()=>window.__tavern.close());
+// 3b. nothing selected: L on a piece you point at locks it and does NOT open its card
+await page.evaluate(()=>{ window.__tavern.open(); window.__tavern.tab('bag'); }); await sleep(250);
+await hover('#tavern .tv-card[data-id="'+ids.a+'"][data-from="bag"]'); const closedBefore=await page.evaluate(()=>document.getElementById('tv-detail').classList.contains('hide')); await press(); await sleep(250);
+const aq=await lockedNow(ids.a), closedAfter=await page.evaluate(()=>document.getElementById('tv-detail').classList.contains('hide')), selNone=await page.evaluate(()=>!document.querySelector('#tv-detail [data-act="lock"]'));
+check("with no card open, L on a piece you point at locks it and leaves the card CLOSED (only a left click opens it)",aq&&closedBefore&&closedAfter,JSON.stringify({aq,closedBefore,closedAfter,selNone}));
+await page.evaluate(id=>{ if(window.__meta.isLocked(id)) window.__meta.toggleLock(id); },ids.a);   /* (locking re-sorts the bag: another card can slide under a still mouse, so a second press would hit that one -- which is right) */
+await page.evaluate(()=>window.__tavern.close());
+// 3c. the bag says so
+await page.evaluate(()=>{ window.__tavern.open(); window.__tavern.tab('bag'); }); await sleep(250);
+const hint=await page.evaluate(()=>{ const h=document.querySelector('#tv-bag .lk-hint'); return h&&{ text:h.textContent, title:h.title, inHeader:!!h.closest('.tv-sub') }; }); await page.evaluate(()=>window.__tavern.close());
+check("the bag's header row carries a 'L lock' chip whose tooltip explains it (point at a piece, press L; locked pieces are never scrapped or sold)",hint&&/L/.test(hint.text)&&/lock/i.test(hint.text)&&/press L/.test(hint.title)&&hint.inHeader,JSON.stringify(hint));
 // 4. the character sheet
 await page.evaluate(id=>{ window.__doll.open(); window.__doll.select(id,'bag'); },ids.b); await sleep(300);
-await press(); await sleep(200); const s1=await lockedNow(ids.b), sb=await page.evaluate(()=>{ const b=document.querySelector('#doll [data-act="lock"]'); return b&&b.textContent; });
+await page.mouse.move(2,2); await press(); await sleep(200); const s1=await lockedNow(ids.b), sb=await page.evaluate(()=>{ const b=document.querySelector('#doll [data-act="lock"]'); return b&&b.textContent; });
 check("on the character sheet (Tab), L flips the selected piece too (and the button reads (L))",s1===true&&/Unlock \(L\)|UNLOCK \(L\)/i.test(sb||''),JSON.stringify({s1,sb}));
 await press(); await sleep(150); const s2=await lockedNow(ids.b);
 check("...and unlocks it again",s2===false,String(s2));
