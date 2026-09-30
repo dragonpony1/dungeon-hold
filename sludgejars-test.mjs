@@ -47,5 +47,7 @@ await page.evaluate(()=>{ window.__hideout.close&&window.__hideout.close(); }); 
 await page.evaluate(()=>{ localStorage.setItem("dd_sludge_in",JSON.stringify({common:0,uncommon:0,rare:2,legendary:0})); window.__hideout.open(); }); await sleep(800);
 const h2=await f.evaluate(()=>({ r:SAVE.sludge, key:JSON.parse(localStorage.getItem("dd_sludge_in")) }));
 check("and again on a later visit (the kept frame re-reads the hand-off when shown)",h2.r-h1.r===2&&h2.key.rare===0,JSON.stringify({h2,h1r:h1.r}));
+const pig=await page.evaluate(()=>{ const J=window.__jars; return ["pigflail","pigdagger","pigsling"].map(k=>{ const r=J.roll(k); return {k,n:r.length,leg:r.every(x=>x===3)}; }); });
+check("build 324 (Matt: each pig boss drops 8 legendary sludges -- a boss's reward should be profound): every one of the pig trio drops 8 Legendary jars",pig.every(p=>p.n===8&&p.leg),JSON.stringify(pig));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");

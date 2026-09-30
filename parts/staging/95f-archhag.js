@@ -35,7 +35,7 @@ const RAISE_FIRST=10, RAISE_EVERY=10, STICK_CAP=30;
 function fixMats(root){ root.traverse(o=>{ if(o.isMesh&&o.material){ o.material.metalness=0; o.material.roughness=.85; if(o.material.emissive) o.material.emissive.setRGB(0,0,0); } }); }
 let loadP=null;
 if(typeof TRACKS!=='undefined') TRACKS.archhag='assets/music-archhag.mp3';   // build 310: his drumline, fetched with her model (never at start)
-function load(){ if(typeof musFetch==='function'&&typeof TRACKS!=='undefined'&&TRACKS.archhag) musFetch('archhag'); loadSticks(); if(MOBGLB[K]) return Promise.resolve(); if(loadP) return loadP;
+function load(){ if(typeof musFetch==='function'&&typeof TRACKS!=='undefined'&&TRACKS.archhag) musFetch('archhag'); loadSticks(); loadTopiRigs(); if(MOBGLB[K]) return Promise.resolve(); if(loadP) return loadP;
   const names=['walk','attack','idle','death'];
   loadP=Promise.all(names.map(k=>fetchBytes(ASSET(FILES[k])).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej)))))
     .then(gs=>{ try{ const root=gs[0].scene||gs[0].scenes[0]; fixMats(root); const fit=fitModel(root,MOBDIM[K].fit); toonify(root,fit.scale);
@@ -86,7 +86,21 @@ function cutModel(root,cut,above){ root.updateMatrixWorld(true); const inv=new T
       cutGeo.set(key,g); }
     o.geometry=g; });
   return root; }
-function ensureTopiKinds(){ const D=window.__courtdecor; if(!D||!D.topiList) return; for(const t of D.topiList()){ const k=topiKind(t.kind); if(MOBGLB[k]) continue;
+// build 324 (Matt: "iam gonna have the topiaries rigged by bob, they just kinda look like cardboard cutouts" -> Bob's hi3d-topiary-game-pack.zip): each topiary kind is Bob's rigged figure --
+// pedestal already off, a 16-bone skeleton, Walk (1.1 s, in place, looping) and Attack (1.03 s, the blow at half way); his 8K textures cut to 1K (topi-<kind>-rig.glb, ~1 MB each). Sized to the
+// statue's own figure (its height less the pedestal), with the statues' night-garden glow. Fetched with her model; until they land (or if they can't) the cut statue + lurch stands in.
+const TOPI_RIG={'topiary-witch.glb':'topi-witch-rig.glb','topiary-fighter.glb':'topi-fighter-rig.glb','topiary-ranger.glb':'topi-ranger-rig.glb'}, TOPI_FULL=3.3;
+let rigP=null, rigN=0;
+function loadTopiRigs(){ if(rigP) return rigP;
+  rigP=Promise.all(Object.keys(TOPI_RIG).map(src=>fetchBytes(ASSET(TOPI_RIG[src])).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(g=>{
+      const k=topiKind(src), root=g.scene||g.scenes[0], hgt=TOPI_FULL-(TOPI_CUT[src]||.7); fixMats(root); const fit=fitModel(root,hgt); toonify(root,fit.scale);
+      root.traverse(o=>{ if(o.isMesh&&!o.userData.isOL&&o.material&&o.material.map&&o.material.emissive){ o.material.emissiveMap=o.material.map; o.material.emissive.setRGB(.42,.42,.42); o.material.needsUpdate=true; } });
+      const A=n=>(g.animations||[]).find(c=>c.name===n), walk=A('Walk'), atk=A('Attack'); if(!walk||!atk) return;
+      const idle=THREE.AnimationUtils.subclip(walk,'idle',0,1,30);   // standing still: the walk's first pose held
+      MOBDIM[k]={fit:hgt,h:MOBDIM[TK].h,r:MOBDIM[TK].r,nat:{walk:.7,run:.7}}; MOBS[k]=Object.assign({},MOBS[TK],{swingT:1.0,hitT:.5}); if(Meta.XP) Meta.XP[k]=Meta.XP[k]||3;
+      MOBGLB[k]={wrap:fit.wrap,map:{walk,run:walk,attack:atk,idle},scale:fit.scale,rig:true}; rigN++; }).catch(e=>console.warn('topiary rig '+src,e))));
+  return rigP; }
+function ensureTopiKinds(){ const D=window.__courtdecor; if(!D||!D.topiList) return; for(const t of D.topiList()){ const k=topiKind(t.kind); if(MOBGLB[k]) continue;   // Bob's rig when it has landed (it replaces this stand-in if it lands later)
     const wrap=new THREE.Group(); const inner=t.mesh.clone(); inner.position.set(0,0,0); inner.rotation.set(0,0,0); inner.scale.setScalar(1); inner.visible=true; cutModel(inner,cutOf(t),true); inner.position.y=-cutOf(t);
     const pivot=new THREE.Group(); pivot.name='topiPivot'; pivot.add(inner); wrap.add(pivot);
     MOBDIM[k]=MOBDIM[TK]; MOBS[k]=MOBS[TK]; MOBGLB[k]={wrap,map:{},scale:1}; if(Meta.XP) Meta.XP[k]=Meta.XP[k]||3; } }
@@ -220,7 +234,8 @@ function tickSparks(dt){ for(const p of sparks){ p.t+=dt; p.vy-=p.grav*dt; const
 // small lift between steps (no bounce), and a few leaves shaken off at each step with a soft rustle
 const LEAF=[0x3f9a3a,0x5ab84a,0x2e7a30];
 let rustleT=-9;
-function lurch(e,g,dt){ const pv=e.pivot||(e.pivot=g.getObjectByName('topiPivot')); const mv=!!e.walking; e.lph=(e.lph===undefined?(e.ph||0):e.lph)+dt*(mv?4.4:1.1); const sw=Math.sin(e.lph);
+function lurch(e,g,dt){ if(e.mdl.actions&&e.mdl.actions.walk){ if(e.walking){ e.leafT=(e.leafT||0)-dt; if(e.leafT<=0){ e.leafT=.55; for(let i=0;i<2;i++) spark(e.x+R(-.45,.45),e.y+.3+Math.random()*.9,e.z+R(-.45,.45),LEAF[i],.24,R(-.35,.35),R(.2,.7),R(-.35,.35),1.2,1.4,true); } } return; }   // build 324: Bob's rig walks for itself
+  const pv=e.pivot||(e.pivot=g.getObjectByName('topiPivot')); const mv=!!e.walking; e.lph=(e.lph===undefined?(e.ph||0):e.lph)+dt*(mv?4.4:1.1); const sw=Math.sin(e.lph);
   if(pv){ pv.rotation.z=sw*(mv?.17:.035); pv.rotation.x=mv?.13:0; }
   g.position.y=e.y+(mv?(1-Math.abs(sw))*.06:0); g.scale.setScalar(e.sc);
   const step=Math.floor(e.lph/PI+.5); if(mv&&step!==e.lstep){ e.lstep=step; for(let i=0;i<3;i++) spark(e.x+R(-.45,.45),e.y+.3+Math.random()*.9,e.z+R(-.45,.45),LEAF[i],.24,R(-.35,.35),R(.2,.7),R(-.35,.35),1.2,1.4,true);
@@ -243,6 +258,6 @@ function tickGrow(dt){ for(const e of enemies){ const G=e.grow, B=e.gBase; if(!G
 const bar=document.createElement('div'); bar.id='hagbar'; bar.innerHTML='🌑 THE ARCHHAG<div class="bars"><div class="track p2"><i class="fill"></i></div><div class="track p1"><i class="fill"></i></div></div>'; document.body.appendChild(bar);
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); const e=enemies.find(x=>x.kind===K&&!x.dead); bar.style.display=e?'block':'none'; if(!e){ if(musicMode==='archhag') setMusic(S.phase==='wave'?'wave':'build'); return; } const half=e.max/2;
     bar.querySelector('.p1 .fill').style.width=Math.max(0,100*(e.hp-half)/half)+'%'; bar.querySelector('.p2 .fill').style.width=Math.max(0,Math.min(100,100*e.hp/half))+'%'; bar.querySelector('.p1').classList.toggle('done',e.hp<=half+.01); }; }
-window.__archhag={loaded:()=>!!MOBGLB[K],poofs:()=>poofs.map(p=>({t:+p.t.toFixed(2),bits:p.bits.length,body:p.g.visible?+(p.mats.length?p.mats[0][0].opacity:1).toFixed(2):0})),bolusLeft:()=>bolusQ.length,loadSticks,sticksReady:()=>!!MOBGLB[SK].real,castGrow:()=>{ const h=enemies.find(x=>x.kind===K&&!x.dead); if(h){ h.swing=-1; h.special=null; castSpecial(h,'grow'); } return !!h; },grown:()=>enemies.filter(e=>(e.grow||e.big)&&e.gBase&&!e.dead).map(e=>({kind:e.kind,f:+(e.sc/e.gBase.sc).toFixed(2)})),sparks:()=>sparks.length,plinths:()=>{ const D=window.__courtdecor; return D&&D.topiList?D.topiList().filter(t=>t.plinth&&t.plinth.visible&&t.plinth.parent).length:0; },topiCut:TOPI_CUT,stickModel:()=>({real:!!MOBGLB[SK].real,clips:Object.keys(MOBGLB[SK].map),attack:MOBGLB[SK].map.attack?MOBGLB[SK].map.attack.name:''}),ensure:load,spawn:()=>{ ensureTopiKinds(); return spawnHag(); },wake:wakeAll,awake:()=>awake.filter(e=>!e.dead).length,asleep:()=>asleep.length,curse,
+window.__archhag={loaded:()=>!!MOBGLB[K],poofs:()=>poofs.map(p=>({t:+p.t.toFixed(2),bits:p.bits.length,body:p.g.visible?+(p.mats.length?p.mats[0][0].opacity:1).toFixed(2):0})),bolusLeft:()=>bolusQ.length,rigsReady:()=>rigN===3,loadTopiRigs,loadSticks,sticksReady:()=>!!MOBGLB[SK].real,castGrow:()=>{ const h=enemies.find(x=>x.kind===K&&!x.dead); if(h){ h.swing=-1; h.special=null; castSpecial(h,'grow'); } return !!h; },grown:()=>enemies.filter(e=>(e.grow||e.big)&&e.gBase&&!e.dead).map(e=>({kind:e.kind,f:+(e.sc/e.gBase.sc).toFixed(2)})),sparks:()=>sparks.length,plinths:()=>{ const D=window.__courtdecor; return D&&D.topiList?D.topiList().filter(t=>t.plinth&&t.plinth.visible&&t.plinth.parent).length:0; },topiCut:TOPI_CUT,stickModel:()=>({real:!!MOBGLB[SK].real,clips:Object.keys(MOBGLB[SK].map),attack:MOBGLB[SK].map.attack?MOBGLB[SK].map.attack.name:''}),ensure:load,spawn:()=>{ ensureTopiKinds(); return spawnHag(); },wake:wakeAll,awake:()=>awake.filter(e=>!e.dead).length,asleep:()=>asleep.length,curse,
   sticks:()=>sticks.filter(e=>!e.dead).length,cursed:()=>defs.filter(d=>d.curseT>0).length,kind:K};
 })();
