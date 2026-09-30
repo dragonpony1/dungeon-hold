@@ -12,7 +12,7 @@ const OPEN_H=8.0, SCALE=OPEN_H/1.91, HIT=25, HP=100;
 // two kinds of breakable wall (Matt: "we have 2 types of destrucable wall"): the west one is Bob's (48 modelled pieces), the east one is Matt's Meshy wall with the glowing crack (one solid model -- shattered here, at load, into
 // shards along organic lines, which fall with the same scripted tumble)
 // build 348 (Matt: "Make it 4x4 on both sides to start with"): each wall is now 4 squares wide and 4 tall (8 x 8), over an alcove 4 squares long and 2 deep. cin: the alcove column against the wall, cout: the one behind it, fcx: the pit column in front, z0-z1: its rows
-const SPOTS=[{id:'W',nx:1,cin:18,cout:17,fcx:19,z0:5,z1:8,kind:'harpoon',src:'hi3d'},{id:'E',nx:-1,cin:28,cout:29,fcx:27,z0:5,z1:8,kind:'acorn',src:'meshy'}];
+const SPOTS=[{id:'W',nx:1,cin:18,cout:17,fcx:19,z0:5,z1:8,kind:'ball',src:'hi3d'},{id:'E',nx:-1,cin:28,cout:29,fcx:27,z0:5,z1:8,kind:'ball',src:'meshy'}];
 for(const sp of SPOTS){ sp.px=cw(sp.cin)+sp.nx*CELL/2; sp.zc=(cwz(sp.z0)+cwz(sp.z1))/2; sp.zh=(cwz(sp.z1)-cwz(sp.z0))/2+CELL/2; }
 const clampZ=(sp,z)=>Math.max(sp.zc-sp.zh,Math.min(sp.zc+sp.zh,z));
 const LVL=6, TOUGH=2;
@@ -71,10 +71,10 @@ function openAlcove(sp){ const nx=sp.nx, px=sp.px, zc=sp.zc, zh=sp.zh, dep=2*CEL
   const dark=mat(0x2c3628,{side:THREE.DoubleSide}); const add=(w,h,pxx,py,pz,ry,rx)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),dark); m.position.set(pxx,py,pz); m.rotation.set(rx||0,ry||0,0); m.userData.noOL=true; world.add(m); };
   // the alcove's floor, ceiling, back and two sides
   add(dep,2*zh,xm,.03,zc,0,-PI/2); add(dep,2*zh,xm,OPEN_H-.03,zc,0,PI/2); add(2*zh,OPEN_H,px-nx*dep,OPEN_H/2,zc,nx>0?PI/2:-PI/2); add(dep,OPEN_H,xm,OPEN_H/2,zc-zh,0); add(dep,OPEN_H,xm,OPEN_H/2,zc+zh,0);
-  const l=new THREE.PointLight(C(0xffc870),3.2,20,2); l.position.set(px-nx*1.5,4,zc); world.add(l); sp.light=l; sp.flash=1;
+  const l=new THREE.PointLight(C(0xffc870),3.8,24,2); l.position.set(px-nx*1.5,4,zc); world.add(l); sp.light=l; sp.flash=1;
   puff(px+nx*1.4,1,zc,18,2*zh);
   // the weapon: a real defense, placed free (its mana and defense units handed straight back), Mark VI, tougher than a built one, not for sale
-  const x=cw(sp.cin), m0=S.mana; const d=placeDefAt(sp.kind,x,zc,nx>0?PI/2:-PI/2); S.mana=m0; S.du-=DEFS[sp.kind].du; d.spent=0; d.secret=true; d.lvl=LVL; d.max=Math.round(DEFS[sp.kind].hp*(1+.4*(LVL-1)))*TOUGH; d.hp=d.max; d.pop=0; sp.def=d; cnt.weapons++;
+  const x=cw(sp.cin), m0=S.mana; const d=placeDefAt(sp.kind,x,zc,nx>0?PI/2:-PI/2); S.mana=m0; S.du-=DEFS[sp.kind].du; d.spent=0; d.secret=true; d.lvl=LVL; d.max=Math.round(DEFS[sp.kind].hp*(1+.4*(LVL-1)))*TOUGH; d.hp=d.max; d.pop=0; sp.def=d; cnt.weapons++; if(!mountMortar(d,sp)) pendingMount.push(sp);
   floatText(x,d.top+1.6,zc,'🔓 '+DEFS[sp.kind].ic,'#e8b94a'); try{ SFX.place&&SFX.place(); }catch(e){} }
 // ---------------- the plain prison wall around the apex (Matt: "first from behind the heartroot to the exterior of it about 3 squares, no cells so all prison wall"): the same shackled wall instanced over every wall face: five high (ten up -- Matt: "take those wall upward 3 squares") along the back wall behind the Heartroot, two high down the sides
 // of the first rows (the painted plain-wall tile carries the rest of the height), so the breakable walls sit in a wall made of their own kind
@@ -118,6 +118,21 @@ Promise.all([load('prison-wall-intact.glb'),load('prison-wall-fragments.glb'),lo
     // a soft gold glow (green on the Meshy wall's glowing crack) breathes over the wall until it breaks
     { const col=meshy?0x70ff90:0xffc860, gs=glow(col,13,.5); gs.position.set(face+sp.nx*.8,OPEN_H/2,sp.zc); world.add(gs); const gl=new THREE.PointLight(C(col),2.2,16,2); gl.position.set(face+sp.nx*1.6,OPEN_H/2,sp.zc); world.add(gl); w.beacon={ gs, gl, ph:Math.random()*6 }; } sp.wall=w; walls.push(w); cnt.built++; }
 }).catch(e=>console.warn('prison walls',e));
+// ---------------- THE HEX MORTAR (build 349; Bob's animated model -- 'Fire' and 'Roll' clips, a 'Muzzle' bone out of the barrel). The secret weapon is a real Mark VI lobbing defense (the Turnip Trebuchet's rules: long range, splash, a
+// cone) wearing the mortar: it rolls out of the alcove on its wheels, and every shot it lobs plays 'Fire' (started just before the kick, so the recoil lands with the shot), a green flash at the muzzle, the shell turned arcane green
+const pendingMount=[]; const MORT={ proto:null, clips:[] }; const mounts=[]; const seenShell=new WeakSet(); const flashes=[];
+fetchBytes(ASSET('prison-hexmortar.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',gl=>{ try{ const root=gl.scene||gl.scenes[0]; toonify(root,1); runeGlow(root); MORT.proto=root; MORT.clips=gl.animations||[]; res(); }catch(er){ rej(er); } },rej))).catch(er=>console.warn('prison mortar',er));
+function runeGlow(root){ root.traverse(o=>{ const m=o.isMesh&&!o.userData.isOL&&o.material; if(!m||m.userData.__rg) return; m.userData.__rg=true; m.onBeforeCompile=sh=>{ sh.fragmentShader=sh.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n  { float gf=clamp(diffuseColor.g-max(diffuseColor.r,diffuseColor.b)-.04,0.0,1.0); totalEmissiveRadiance += vec3(.25,1.0,.4)*gf*2.2 + vec3(.05,.07,.04); }'); }; }); }
+function mountMortar(d,sp){ if(!MORT.proto||!d||!d.mdl) return false; const g=cloneSkinned(MORT.proto); g.updateMatrixWorld(true); const bb=new THREE.Box3().setFromObject(g); g.position.set(-(bb.min.x+bb.max.x)/2,-bb.min.y,-(bb.min.z+bb.max.z)/2);
+  const inner=new THREE.Group(); inner.add(g); inner.rotation.y=PI/2;   // the model's barrel points along -x; a defense faces +z
+  const holder=new THREE.Group(); holder.name='hexmortar'; holder.scale.setScalar(2.2); holder.add(inner); holder.position.z=-2.6; d.mdl.add(holder);
+  const mx=new THREE.AnimationMixer(g), byName=n=>THREE.AnimationClip.findByName(MORT.clips,n); const roll=byName('Roll')?mx.clipAction(byName('Roll')):null, fire=byName('Fire')?mx.clipAction(byName('Fire')):null; if(fire){ fire.setLoop(THREE.LoopOnce,1); fire.clampWhenFinished=false; } if(roll){ roll.timeScale=.6; roll.play(); }
+  const gl2=new THREE.PointLight(C(0x60ff80),1.6,10,2); gl2.position.set(0,2.4,0); holder.add(gl2);
+  const m={ d, sp, holder, mx, roll, fire, muzzle:g.getObjectByName('Muzzle'), t:0, rolled:false, fires:0 }; mounts.push(m); sp.mount=m; return true; }
+function mortarFire(m,shell){ m.fires++; if(m.fire){ m.fire.reset(); m.fire.time=.5; m.fire.play(); }
+  const p=new THREE.Vector3(); if(m.muzzle){ m.muzzle.getWorldPosition(p); } else p.set(m.d.x,m.d.base+2,m.d.z);
+  const gs=glow(0x70ff90,5,.95); gs.position.copy(p); world.add(gs); flashes.push({ s:gs, t:0, life:.45 });
+  if(shell&&shell.mesh){ shell.mesh.traverse(o=>{ if(o.material&&o.material.color&&!o.isSprite){ o.material=o.material.clone(); o.material.color.set(0x5cff80); if(o.material.emissive) o.material.emissive.set(0x2cc850); } }); const tg=glow(0x70ff90,1.6,.8); shell.mesh.add(tg); } }
 // ---------------- what breaks them: your sword's swing, or a staff bolt of yours
 function nearPlane(sp,x,z,r){ return Math.hypot(x-sp.px,z-clampZ(sp,z))<r; }
 function meleeWalls(){ if(isGuest()) return; const fx=Math.sin(hero.yaw), fz=Math.cos(hero.yaw);
@@ -130,12 +145,20 @@ function meleeWalls(){ if(isGuest()) return; const fx=Math.sin(hero.yaw), fz=Mat
 // ---------------- per frame: the walls, the dust, the light flash, the opening timers, the staff bolts
 let clock=0;
 WORLDANIM.push(dt=>{ clock+=dt; for(const w of walls) w.update(dt);
+  for(let i=pendingMount.length-1;i>=0;i--){ const sp=pendingMount[i]; if(sp.def&&MORT.proto&&mountMortar(sp.def,sp)) pendingMount.splice(i,1); }
+  for(const m of mounts){ if(m.d.mdl&&m.holder.parent!==m.d.mdl) m.d.mdl.add(m.holder);
+    m.mx.update(dt); m.t+=dt; if(!m.rolled){ const k=Math.min(1,m.t/1.6); m.holder.position.z=-2.6*(1-k*k*(3-2*k)); if(k>=1){ m.rolled=true; if(m.roll){ m.roll.stop(); } } }
+    for(const c of m.d.mdl.children){ if(c!==m.holder&&c.name!=='chevrons') c.visible=false; } }
+  if(mounts.length&&projs.length) for(const p of projs){ if(p.kind!=='turnip'||seenShell.has(p)) continue; seenShell.add(p); let best=null,bd=3.6; for(const m of mounts){ const dd=Math.hypot((p.x||0)-m.d.x,(p.z||0)-m.d.z); if(dd<bd){ bd=dd; best=m; } } if(best) mortarFire(best,p); }
+  for(let i=flashes.length-1;i>=0;i--){ const f=flashes[i]; f.t+=dt; const k=f.t/f.life; if(k>=1){ world.remove(f.s); flashes.splice(i,1); continue; } f.s.material.opacity=.95*(1-k); f.s.scale.setScalar(5+k*4); }
   for(const w of walls){ const b=w.beacon; if(!b) continue; if(w.broken){ world.remove(b.gs); world.remove(b.gl); w.beacon=null; continue; } const k=.5+.5*Math.sin(clock*2.2+b.ph); b.gs.material.opacity=.3+.5*k; b.gl.intensity=.9+1.6*k; }
   for(let i=timers.length-1;i>=0;i--){ const t=timers[i]; t.t-=dt; if(t.t<=0){ timers.splice(i,1); try{ t.fn(); }catch(e){ console.warn('prison walls',e); } } }
   for(let i=dust.length-1;i>=0;i--){ const p=dust[i]; p.t+=dt; const k=p.t/p.life; if(k>=1){ world.remove(p.s); dust.splice(i,1); continue; } p.s.position.x+=p.vx*dt; p.s.position.y+=p.vy*dt; p.s.position.z+=p.vz*dt; p.s.material.opacity=.5*Math.sin(Math.min(1,k*1.6)*PI)*(1-k*.4); p.s.scale.setScalar(p.s.scale.x+dt*2.2); }
-  for(const sp of SPOTS) if(sp.flash>0){ sp.flash=Math.max(0,sp.flash-dt*.5); if(sp.light) sp.light.intensity=2.4+sp.flash*3.5; }
+  for(const sp of SPOTS) if(sp.flash>0){ sp.flash=Math.max(0,sp.flash-dt*.5); if(sp.light) sp.light.intensity=3.8+sp.flash*3.5; }
   if(!isGuest()&&walls.some(w=>!w.broken)&&window.__staff&&window.__staff.boltList){ const bl=window.__staff.boltList(); if(bl.length) for(const b of bl){ if(!b.mine||b.y>OPEN_H+1) continue; for(const w of walls){ if(w.broken) continue; const sp=w.spot; if(nearPlane(sp,b.x,b.z,2.1)) w.hit(HIT,new THREE.Vector3(sp.px,1.6,clampZ(sp,b.z)),new THREE.Vector3(-sp.nx,0,0)); } } } });
 window.__prisonwalls={ walls:()=>walls.map(w=>({ id:w.spot.id, kind:w.kind, health:w.health, broken:w.broken, x:+w.group.position.x.toFixed(2), z:+w.group.position.z.toFixed(2), chunks:w.chunks.length, debris:w.fragments.visible, glow:!!(w.beacon&&w.beacon.gs.parent) })),
   hit:(id,n)=>{ const w=walls.find(x=>x.spot.id===id); if(!w) return false; const sp=w.spot; w.time+=1; return w.hit(n||HIT,new THREE.Vector3(sp.px,1.5,sp.zc),new THREE.Vector3(-sp.nx,0,0)); },
+  mortProto:()=>MORT.proto,
+  mortars:()=>mounts.map(m=>({ id:m.sp.id, rolled:m.rolled, fires:m.fires, hasMuzzle:!!m.muzzle, clips:MORT.clips.map(c=>c.name) })),
   spots:()=>SPOTS.map(s=>({ id:s.id, open:!!s.def, def:s.def?{ kind:s.def.kind, lvl:s.def.lvl, secret:!!s.def.secret, hp:s.def.hp, max:s.def.max }:null })), info:()=>Object.assign({},cnt) };
 })();
