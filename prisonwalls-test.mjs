@@ -27,8 +27,8 @@ const W=after.spots.find(s=>s.id==='W'), E=after.spots.find(s=>s.id==='E');
 check("the west wall bursts, the alcove opens and a free Mark VI lobbing weapon is placed in it, resting facing straight out of its room, south, down the field -- secret, tougher than a built one; the east wall and its weapon are untouched",after.walls.find(x=>x.id==='W').broken&&W.open&&W.def.kind==='ball'&&Math.abs(W.def.rot)<.01&&W.def.lvl===6&&W.def.secret&&W.def.max>=2*120&&!E.open&&!after.walls.find(x=>x.id==='E').broken,JSON.stringify({W,E}));
 check("the weapon cost nothing: your mana and defense units are as they were, and it is the only new defense",after.defs===base.defs+1&&after.mana===base.mana&&after.du===base.du,JSON.stringify({base,after:{defs:after.defs,mana:after.mana,du:after.du}}));
 // it fires: a goblin walks past in front of it
-const fire=await page.evaluate(async()=>{ const d=window.__dd; d.S.crystal=1e6; d.S.phase='wave'; d.setHero(0,30,Math.PI); d.spawn('goblin','W'); const e=d.enemies[d.enemies.length-1]; const hp0=e.hp; let proj=0, dead=false; const d0=d.defs.find(x=>x.secret);
-  e.x=-11; e.z=8; e.spd=0; for(let i=0;i<600&&!e.dead;i++){ d.step(1/60,1); d.S.crystal=1e6; if(d.projs.some(p=>p.kind==='turnip')) proj++; } const mort=window.__prisonwalls.mortars(); return { proj, hp0, hp:e.hp, dead:!!e.dead, kills:d.S.kills, mort }; });
+const fire=await page.evaluate(async()=>{ const d=window.__dd; d.S.crystal=1e6; d.S.phase='wave'; d.setHero(0,30,Math.PI); d.spawn('goblin','W'); const e=d.enemies[d.enemies.length-1]; const hp0=e.hp; let proj=0, bombs=0, dead=false; const d0=d.defs.find(x=>x.secret);
+  e.x=-11; e.z=8; e.spd=0; for(let i=0;i<600&&!e.dead;i++){ d.step(1/60,1); d.S.crystal=1e6; if(d.projs.some(p=>p.kind==='turnip')){ proj++; if(d.projs.some(p=>p.kind==='turnip'&&p.mesh&&p.mesh.getObjectByName('hexbomb'))) bombs++; } } const mort=window.__prisonwalls.mortars(); const bl=window.__blight.info(); return { bombs, cloudsMade:bl.cloudsMade, proj, hp0, hp:e.hp, dead:!!e.dead, kills:d.S.kills, mort }; });
 check("Bob's Hex Mortar fires on a goblin in its range (shells in the air, the 'Fire' clip played, the goblin hurt or dead)",fire.proj>0&&(fire.dead||fire.hp<fire.hp0)&&fire.mort.length>=1&&fire.mort[0].rolled&&fire.mort[0].fires>=1&&fire.mort[0].hasMuzzle&&fire.mort[0].clips.includes('Fire')&&fire.mort[0].clips.includes('Roll'),JSON.stringify(fire));
 // the east wall breaks to the witch's staff bolts
 await page.evaluate(()=>window.__heroes.select('witch')); await page.waitForFunction(()=>/Witch/.test(window.__dd.heroModel().label),null,{timeout:120000});
@@ -39,6 +39,14 @@ const blocked=await page.evaluate(()=>{ const d=window.__dd, sc=typeof d.scene==
 check("nothing is left standing in either opened alcove (no wall modules, no sconces inside the 4-by-4 opening)",blocked.length===0,JSON.stringify(blocked));
 check("a secret weapon cannot be sold",sold.secret===2&&sold.after===sold.before,JSON.stringify(sold));
 const path=await page.evaluate(()=>window.__prisondecor.reach()); check("every breakout still has its route to the Heartroot (the alcoves are dead ends)",path.E>0&&path.S>0&&path.W>0&&path.NE>0,JSON.stringify(path));
+check("the mortar's shell is Matt's Hex Canister Bomb, tumbling as it flies, and where it lands the blight blast and a short green cloud go off",fire.bombs>0&&fire.cloudsMade>=1,JSON.stringify({bombs:fire.bombs,clouds:fire.cloudsMade}));
+const reach=await page.evaluate(async()=>{ const d=window.__dd; window.__blight.clear(); d.S.phase='wave'; d.S.crystal=1e6; const W=d.defs.find(x=>x.secret&&x.x<0); const tre=d.placeDefAt('ball',30,-2,0); const base=d.stat(tre,'range'), mine=d.stat(W,'range'); d.defs.splice(d.defs.indexOf(tre),1); try{ d.sell&&0; }catch(e){}
+  d.enemies.forEach(e=>{ if(!e.dead){ e.dead=.001; } });
+  const mk=(x,z)=>{ d.spawn('orc','E'); const e=d.enemies[d.enemies.length-1]; e.x=x; e.z=z; e.spd=0; e.hp=e.max=1e6; return e; };
+  const near=mk(-11,14); for(const [dx,dz] of [[0,0],[1.6,0],[0,1.6],[1.6,1.6],[-1.6,0],[0,-1.6]]) mk(-11+dx,36+dz);
+  let at=null; for(let i=0;i<60*10&&!at;i++){ d.step(1/60,1); d.S.crystal=1e6; const c=window.__blight.cloudAt(); if(c.length) at=c[0]; }
+  return { base, mine, at }; });
+check("the secret mortar reaches far downfield (1.8 times a built trebuchet range) and lobs at the THICKEST cluster (six mobs 36 away, not the lone one 14 away) where the mist bursts",reach.mine>=reach.base*1.7&&reach.at&&Math.abs(reach.at.z-36)<5,JSON.stringify(reach));
 check("no model failed to load",warns.length===0,warns.slice(0,3).join(' | '));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");

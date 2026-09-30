@@ -33,6 +33,15 @@ check("no lights are created (no material rebuild hitch)",r.lights1===r.lights0,
 check("the cloud poisons and slows a mob inside it, not one outside, and hurts the hero inside",r.cl.inPoison&&r.cl.inChill&&!r.cl.outPoison&&r.cl.heroHurt&&r.cl.clouds>=1,JSON.stringify(r.cl));
 check("the cloud is gone after nine seconds and everything the blast made cleaned itself up",r.end.clouds===0&&r.end.live===0&&r.end.glowLeft===0,JSON.stringify(r.end));
 await page.evaluate(()=>{ document.dispatchEvent(new KeyboardEvent('keydown',{code:'F9',key:'F9',bubbles:true})); window.dispatchEvent(new KeyboardEvent('keydown',{code:'F9',key:'F9',bubbles:true})); if(window.__devpanel) window.__devpanel.toggle(true); }); await sleep(1600);
+const mist=await page.evaluate(async()=>{ const d=window.__dd; window.__blight.clear(); d.S.phase='wave'; d.S.crystal=1e6; d.setHero(6,-1,Math.PI);
+  const mk=(x,z)=>{ d.spawn('orc','N'); const e=d.enemies[d.enemies.length-1]; e.x=x; e.z=z; e.spd=0; e.hp=e.max=400; return e; };
+  const a=mk(2,-8), b=mk(3.6,-8), c=mk(2,-6.4), out=mk(2+19,-8), m0=[a.hp,b.hp,c.hp,out.hp];
+  window.__blight.explode(2.8,-7.5,{ noDamage:true, scale:.8, cloudR:10, cloudT:11, shell:true, quiet:true, mad:true, poison:2 });
+  let madSeen=0; for(let i=0;i<60*4;i++){ d.step(1/60,1); d.S.crystal=1e6; d.hero.hp=d.hero.max; const i0=window.__blight.info(); madSeen=Math.max(madSeen,i0.madMobs); }
+  const mid={ madSeen, hits:window.__blight.info().mad, hurt:[a.hp<m0[0],b.hp<m0[1],c.hp<m0[2]], outHurt:out.hp<m0[3], outMad:out.madT>0, covers:window.__blight.madCover(2.8,-7.5) };
+  for(let i=0;i<60*11;i++){ d.step(1/60,1); d.S.crystal=1e6; d.hero.hp=d.hero.max; }
+  const hp1=[a.hp,b.hp,c.hp]; for(let i=0;i<60*3;i++){ d.step(1/60,1); d.S.crystal=1e6; } const still=[a.hp,b.hp,c.hp]; return { mid, after:{ cloudGone:!window.__blight.madCover(2.8,-7.5), quiet:hp1.every((h,i)=>h===still[i]), madNow:window.__blight.info().madMobs } }; });
+check("the hex mist makes mobs fight each other: in the mist they turn on the nearest mob and hurt one another (triple damage, green sparks), a mob 19 away outside the mist is untouched, and when the mist thins they stop",mist.mid.madSeen>=3&&mist.mid.hits>0&&mist.mid.hurt.every(Boolean)&&!mist.mid.outHurt&&!mist.mid.outMad&&mist.after.cloudGone&&mist.after.quiet&&mist.after.madNow===0,JSON.stringify(mist));
 const btn=await page.evaluate(()=>!!document.getElementById('dp-blight-go')); check("the dev panel (F9) carries the blight-blast button",btn,String(btn));
 const realErrors=errors.filter(x=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(x)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");
