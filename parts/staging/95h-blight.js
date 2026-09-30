@@ -35,7 +35,7 @@ function explode(x,z,opt){ opt=opt||{}; geo(); cnt.blasts++; const y=(typeof flo
     for(const e of enemies){ if(e.dead) continue; const dx=e.x-x, dz=e.z-z, d=Math.hypot(dx,dz), reach=R_BLAST+(e.r||.5); if(d>reach) continue; const k=Math.max(.25,1-d/reach); hurt(e,Math.max(1,Math.round(DMG_MOB*k)),dx/(d||1)*1.6,dz/(d||1)*1.6); cnt.hurt++; }
     for(const d of defs.slice()){ const dd=Math.hypot(d.x-x,d.z-z); if(dd>R_BLAST) continue; hurtDef(d,Math.round(DMG_DEF*Math.max(.3,1-dd/R_BLAST))); cnt.defs++; }
     { const dh=Math.hypot(hero.x-x,hero.z-z); if(dh<R_BLAST&&hero.dead<=0){ hurtHero(Math.round(DMG_HERO*Math.max(.3,1-dh/R_BLAST))); cnt.hero++; } }
-    { const dc=Math.hypot(x,z); if(dc<R_BLAST-1){ try{ hurtCrystal(Math.round(DMG_CRYSTAL*(1-dc/R_BLAST)),null); }catch(e){} } }
+    { const dc=Math.hypot(x,z); if(dc<R_BLAST-1){ try{ hurtCrystal(Math.round((opt.crystalDmg||DMG_CRYSTAL)*(1-dc/R_BLAST)),null); }catch(e){} } }
   }
   if(!opt.noCloud) cloud(x,z,y,opt.cloudR||R_CLOUD,opt.cloudT||CLOUD_T,!!opt.mad,opt.poison);
   return true; }

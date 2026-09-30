@@ -11,7 +11,7 @@
 window.__prisonkit={info:()=>null};
 if(!MAP||MAP.id!=='prison') return;
 const FRONT=.3, CHUNK=16, CELL_SCALE=2.6, SLAB=2;   // how far the front of a piece stands out of the wall plane; chunk size in world units; a cell's size against one wall segment; the wall slab's size
-const cnt={ modules:0, draws:0, baked:0, cellCols:0, wallCols:0, types:0, cells:0, nested:0 };
+const cnt={ modules:0, draws:0, baked:0, cellCols:0, wallCols:0, types:0, cells:0, nested:0, interior:0 };
 const load=name=>fetchBytes(ASSET(name),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',gl=>{ try{ const root=gl.scene||gl.scenes[0]; toonify(root,1); res(root); }catch(e){ rej(e); } },rej)));
 // a model's front (+z) rendered flat, square, with no light, into a 256px canvas: that piece's picture for the wall's texture
 function bakeModel(renderer0,root){ const size=256, rt=new THREE.WebGLRenderTarget(size,size,{ minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter }); rt.texture.encoding=THREE.sRGBEncoding;
@@ -20,7 +20,10 @@ function bakeModel(renderer0,root){ const size=256, rt=new THREE.WebGLRenderTarg
   const hw=Math.max(sz.x,sz.y)/2*1.02, cam=new THREE.OrthographicCamera(-hw,hw,hw,-hw,.1,20); cam.position.set(0,0,5); cam.lookAt(0,0,0);
   const keep=renderer0.getRenderTarget(); renderer0.setRenderTarget(rt); renderer0.clear(); renderer0.render(sc,cam); const px=new Uint8Array(size*size*4); renderer0.readRenderTargetPixels(rt,0,0,size,size,px); renderer0.setRenderTarget(keep); rt.dispose();
   const c=document.createElement('canvas'); c.width=c.height=size; const g=c.getContext('2d'), id=g.createImageData(size,size); for(let y=0;y<size;y++) id.data.set(px.subarray((size-1-y)*size*4,(size-y)*size*4),y*size*4); g.putImageData(id,0,0); return c; }
-Promise.all([load('prison-wall.glb'),load('prison-cell-busted.glb')]).then(([wall,busted])=>{ try{
+// Bob's cell-interior picture (a vaulted stone cell with a torch niche, chains and straw), one flat backdrop standing in the cell's doorway -- just in front of the wall's own (dark) face, behind the frame's lip and the bars: the model's real cavity is buried inside the wall, so the doorway shows the wall face, and that is what was black
+const interiorTex=new Promise(res=>new THREE.TextureLoader().load(ASSET('prison-cell-interior.jpg'),res,undefined,()=>res(null)));
+Promise.all([load('prison-wall.glb'),load('prison-cell-busted.glb'),interiorTex]).then(([wall,busted,interior])=>{ try{
+  if(interior){ interior.encoding=THREE.sRGBEncoding; interior.anisotropy=4; const pl=new THREE.Mesh(new THREE.PlaneGeometry(1.5,2.0),new THREE.MeshBasicMaterial({ map:interior, color:0xeeeeee })); pl.position.set(0,-.04,.40); pl.userData.noOL=true; pl.name='cellinterior'; busted.add(pl); cnt.interior=1; }
   const cellWall=world.userData.cellWall; if(!cellWall||!cellWall.material.map||!cellWall.material.map.image) throw new Error('no wall texture');
   // ---- the texture's tiles: 1 is the greenish wall; every other tile is DARK -- the wall behind a cell's bars is just dark stone (Matt: "dark in those rooms ... take those out": the small copies of cell fronts that showed through the bars are gone; his interior art piece goes here later)
   const dst=cellWall.material.map.image.getContext('2d'), cWall=bakeModel(renderer,wall); [0,2,3,4].forEach(t=>{ dst.fillStyle='#07090a'; dst.fillRect(t*256,0,256,256); dst.globalAlpha=.25; dst.fillStyle='#10140f'; for(let r=0;r<4;r++) for(let b=0;b<2;b++) dst.fillRect(t*256+b*128+(r%2)*64+4,r*64+4,120,56); dst.globalAlpha=1; }); dst.drawImage(cWall,256,0);
