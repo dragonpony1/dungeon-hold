@@ -88,6 +88,9 @@ function ensureTopiKinds(){ const D=window.__courtdecor; if(!D||!D.topiList) ret
     const pivot=new THREE.Group(); pivot.name='topiPivot'; pivot.add(inner); wrap.add(pivot);
     MOBDIM[k]=MOBDIM[TK]; MOBS[k]=MOBS[TK]; MOBGLB[k]={wrap,map:{},scale:1}; if(Meta.XP) Meta.XP[k]=Meta.XP[k]||3; } }
 // the nearest cell a mob can walk from towards a Heartroot, within r cells of (cx,cz)
+function hagSpot(){ let best=null, bs=-1e9; const R=9; for(let dx=-R;dx<=R;dx++) for(let dz=-R;dz<=R;dz++){ const dd=Math.hypot(dx,dz); if(dd<4||dd>R) continue; const x=21+dx, z=21+dz; if(x<0||z<0||x>=GW||z>=GH) continue;
+    const i=idx(x,z); if(!walk(grid[i])) continue; const fd=flowFree.dist[i]; if(!(fd>0&&fd<1e5)) continue; const wx=cw(x), wz=cwz(z); const h=Math.min(Math.hypot(wx,wz),GOAL2>=0?Math.hypot(wx-C2X,wz-C2Z):1e9); const sc=h-dd*.3; if(sc>bs){ bs=sc; best={x,z}; } }
+  return best; }
 function laneNear(cx,cz,r,minD){ let best=null, bd=1e9; for(let dx=-r;dx<=r;dx++) for(let dz=-r;dz<=r;dz++){ const x=cx+dx, z=cz+dz; if(x<0||z<0||x>=GW||z>=GH) continue; const i=idx(x,z); if(!walk(grid[i])) continue; const fd=flowFree.dist[i]; if(!(fd>0&&fd<1e5)) continue; const d=Math.hypot(dx,dz); if(minD&&d<minD) continue; if(d<bd){ bd=d; best={x,z}; } } return best; }   // minD (cells): at least that far out
 let awake=[], wokeOnce=false;
 const asleep=[];   // statues frozen where a topiary stood when she fell
@@ -172,7 +175,9 @@ function spawnHag(){ const lk=Object.keys(LANES); if(!lk.length) return null; do
   // build 308 (Matt: "the archheg doesnt come out of a side door. she just appears on the map"): she rises out of the ground in the middle of the garden, by the giant tree, in a burst of purple light
   // build 317 (Matt, spawning her: "shes stuck in the tree though"): the nearest lane cell to the middle was inside the giant tree's trunk (only its centre 2x2 cells are solid; the bark reaches
   // ~5.7 units out at body height, the roots ~6.6 at the ground) and, hanging back to cast, she stayed there -- she rises on the nearest lane cell at least 4 cells (8 units) from the tree's centre
-  const at=laneNear(21,21,10,4)||laneNear(21,21,8); if(at){ e.x=cw(at.x); e.z=cwz(at.z); } e.hagRise=0; e.mdl.g.position.set(e.x,-4,e.z); flash(e.x,1.5,e.z,0x9a40ff,7); flash(e.x,.4,e.z,0x6aff5a,4);
+  // build 319 (Matt: "spawn her in further away cuz the tree is right next to a ... heartroot"): the tree stands halfway between the two Heartroots (~25 units from each), so a spot just beside it
+  // was on the way to one of them -- she rises on the reachable lane cell near the tree (4-9 cells out) that is farthest from BOTH Heartroots, out to the side of the line between them
+  const at=hagSpot()||laneNear(21,21,10,4)||laneNear(21,21,8); if(at){ e.x=cw(at.x); e.z=cwz(at.z); } e.hagRise=0; e.mdl.g.position.set(e.x,-4,e.z); flash(e.x,1.5,e.z,0x9a40ff,7); flash(e.x,.4,e.z,0x6aff5a,4);
   return e; }
 { const prev=updateWave; updateWave=function(dt){ if(court()&&S.phase==='wave'&&S.wave===MAP.waves&&doneWave!==S.wave&&waveTotal>0&&MOBGLB[K]&&waveTotal-spawnQ.length>=Math.min(75,Math.floor(waveTotal*.66))) spawnHag(); prev(dt); }; }
 // ---------------------------------------------------------------- a stickman's death (build 312, Matt: "when the stikman dies he just poofs into a cloud of green glow and fades away"):
