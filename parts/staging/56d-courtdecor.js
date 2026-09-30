@@ -86,6 +86,7 @@ useProp('court-hedge-corner.glb',H_HEDGE,wrap=>{ const bb=new THREE.Box3().setFr
 // ---- build 299: TOPIARIES. Matt's gnome witch clipped from hedge on a stone pedestal (topiary-witch.glb; his idea: "archhags and topiaries" -> "yes the archhag wakes the topiaries") stands in the beds,
 // one cell in from a hedge where a lane passes -- the garden's statues for now; the Archhag (not built yet, rootgate-todo.md) will wake them. Picked the same way every time (half the court, then each one's
 // turned twin), at least 7 cells apart, each facing its nearest lane; nothing else grows on its cell and the hero cannot walk through one.
+const TOPI_KINDS=['topiary-witch.glb','topiary-fighter.glb'];   // build 300: Matt's gnome fighter joins the gnome witch
 const TOPI_H=3.3, TOPI=[], TOPI_CELLS=[];   // her pedestal clears the 1.2 hedge, her hat stands well over it
 { const N4=[[1,0],[-1,0],[0,1],[0,-1]];
   const nearHedge=c=>N4.some(([dx,dz])=>{ const d=cellOf(c.cx+dx,c.cz+dz); return d&&d.edge; }), roomy=c=>N4.every(([dx,dz])=>cellOf(c.cx+dx,c.cz+dz));
@@ -94,11 +95,11 @@ const TOPI_H=3.3, TOPI=[], TOPI_CELLS=[];   // her pedestal clears the 1.2 hedge
   const cand=[...BED.values()].filter(c=>!c.edge&&nearHedge(c)&&roomy(c)&&nearLane(c)&&c.cx+c.cz<43).sort((a,b)=>hash(a)-hash(b));
   const picked=[]; for(const c of cand){ if(picked.length>=5) break; const tw=cellOf(43-c.cx,43-c.cz); if(!tw||tw.edge||tw===c) continue;
     if(picked.some(p=>Math.hypot(p.cx-c.cx,p.cz-c.cz)<7||Math.hypot((43-p.cx)-c.cx,(43-p.cz)-c.cz)<7)) continue; picked.push(c); }
-  for(const c of picked) TOPI_CELLS.push(c,cellOf(43-c.cx,43-c.cz));
+  picked.forEach((c,k)=>{ const tw=cellOf(43-c.cx,43-c.cz); c.kind=tw.kind=k%TOPI_KINDS.length; TOPI_CELLS.push(c,tw); });   // build 300: the kinds take turns by pair, a pair always matching
   for(const c of TOPI_CELLS){ c.topiary=true; c.top=c.base+TOPI_H;
     let fx=0,fz=0; for(let dx=-2;dx<=2;dx++) for(let dz=-2;dz<=2;dz++) if(openAt(c.cx+dx,c.cz+dz)){ const d=Math.hypot(dx,dz)||1; fx+=dx/d; fz+=dz/d; } c.face=Math.atan2(fx,fz); } }
-useProp('topiary-witch.glb',TOPI_H,wrap=>{ wrap.traverse(o=>{ if(o.isMesh&&!o.userData.isOL&&o.material&&o.material.map&&o.material.emissive){ o.material.emissiveMap=o.material.map; o.material.emissive.setRGB(.42,.42,.42); o.material.needsUpdate=true; } });   // the court is a night garden: a soft glow of her own leaves keeps her the bright clipped green Matt made
-  for(const c of TOPI_CELLS){ const t=wrap.clone(); t.position.set(cw(c.cx),c.base,cwz(c.cz)); t.rotation.y=c.face; world.add(t); TOPI.push({mesh:t,c}); } });
+TOPI_KINDS.forEach((file,kind)=>useProp(file,TOPI_H,wrap=>{ wrap.traverse(o=>{ if(o.isMesh&&!o.userData.isOL&&o.material&&o.material.map&&o.material.emissive){ o.material.emissiveMap=o.material.map; o.material.emissive.setRGB(.42,.42,.42); o.material.needsUpdate=true; } });   // the court is a night garden: a soft glow of her own leaves keeps her the bright clipped green Matt made
+  for(const c of TOPI_CELLS){ if(c.kind!==kind) continue; const t=wrap.clone(); t.position.set(cw(c.cx),c.base,cwz(c.cz)); t.rotation.y=c.face; world.add(t); TOPI.push({mesh:t,c,kind:file}); } }));
 let BUSHES=0, FLOWERS=0;
 { const inner=[...BED.values()].filter(c=>!c.edge&&!c.topiary); const bushG=new THREE.IcosahedronGeometry(.62,0), flowerG=new THREE.OctahedronGeometry(.13,0);
   const bushM=[mat(0x3f7a34),mat(0x2f6a2c)], flowerM=[mat(0xff7ab8,{emissive:C(0x5a1a30)}),mat(0xffd84a,{emissive:C(0x4a3a08)}),mat(0xf4f0ff,{emissive:C(0x303040)})];
@@ -140,5 +141,5 @@ const W1_EXTRA=30;
   let t=2; for(let i=0;i<W1_EXTRA;i++){ c.q.push({t,kind:'goblin',lane:lanes[i%lanes.length]}); t+=.6; } c.q.sort((a,b)=>a.t-b.t);
   const g=c.q.filter(x=>x.kind==='goblin').length; if(c.desc) c.desc=String(c.desc).replace(/Goblins ×[0-9]+/,'Goblins ×'+g); return c; }; }
 window.__courtdecor.w1Extra=W1_EXTRA;
-window.__courtdecor.topiaries=()=>({placed:TOPI.length,cells:TOPI_CELLS.map(c=>[c.cx,c.cz]),h:TOPI_H});
+window.__courtdecor.topiaries=()=>({placed:TOPI.length,cells:TOPI_CELLS.map(c=>[c.cx,c.cz]),h:TOPI_H,kinds:TOPI.reduce((o,t)=>{ o[t.kind]=(o[t.kind]||0)+1; return o; },{})});
 })();
