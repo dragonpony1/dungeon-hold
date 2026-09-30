@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="76">
+<meta name="hideout-build" content="77">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -274,7 +274,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 76;   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 77;   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -743,7 +743,7 @@ function oneBagMigrate() { if (!GAME) return 0; let n = 0;
   if (n) { writeSave(); setTimeout(() => { try { flashMsg(n + ' piece' + (n === 1 ? '' : 's') + ' of gear moved into your bag — one bag now, in the hall and here'); } catch (e) {} }, 1600); }
   return n; }
 let ONEBAG_MOVED = 0;
-window.__onebag = { on: () => !!GAME, moved: () => ONEBAG_MOVED, gear: () => gameGear().length, give: v => giveItem(v, 'bag'), toHotbar: gameToHotbar, wornToHotbar, holding: () => ({ slot: selectedSlot, dropId: selectedDropGearId }), worn: () => wornGear().filter(Boolean).length, hotbarGear: () => SAVE.hotbar.filter(isGearItem).length, bagGear: () => SAVE.bag.filter(isGearItem).length, tradeArr: n => tradeArr(n).length }; setTimeout(() => { ONEBAG_MOVED = oneBagMigrate(); try { refreshSlotViews(); } catch (e) {} }, 0);   // once the whole page has run (the Forge's constants live further down)
+window.__onebag = { weaponModel: p => gameWeaponName(p),  on: () => !!GAME, moved: () => ONEBAG_MOVED, gear: () => gameGear().length, give: v => giveItem(v, 'bag'), toHotbar: gameToHotbar, wornToHotbar, holding: () => ({ slot: selectedSlot, dropId: selectedDropGearId }), worn: () => wornGear().filter(Boolean).length, hotbarGear: () => SAVE.hotbar.filter(isGearItem).length, bagGear: () => SAVE.bag.filter(isGearItem).length, tradeArr: n => tradeArr(n).length }; setTimeout(() => { ONEBAG_MOVED = oneBagMigrate(); try { refreshSlotViews(); } catch (e) {} }, 0);   // once the whole page has run (the Forge's constants live further down)
 function slotIcon(v) { return isGearItem(v) ? cutoutIcon(gearPiece(v).icon) : GEAR[v].icon; }
 function slotTip(v) { if (!isGearItem(v)) return GEAR[v].name; const p = gearPiece(v); return p.tip || p.desc; }
 function slotColor(v) { return isGearItem(v) ? gearPiece(v).color : null; }
@@ -1745,6 +1745,7 @@ function makeGearStandGroup(piece, translucent, size) {
   if (translucent) { spr.material.transparent = true; spr.material.opacity = 0.55; }
   g.add(spr);
   if (piece.named3d && !translucent) attachNamedModel(g, spr, piece, size); // (a placing ghost keeps the picture)
+  else if (!translucent && !piece.named3d) attachWeaponModel(g, spr, piece, size);
   return g;
 }
 // build 37: a named mythic's real model (NAMED_3D). The picture stays up until the model has loaded -- and for good if it can't.
@@ -1761,6 +1762,56 @@ function attachNamedModel(g, spr, piece, size) {
     const spin = new THREE.Group(); spin.add(m); spin.userData.root = g; spin.userData.rate = size ? 0.45 : 0.8;
     g.remove(spr);
     if (!size) { g.children.slice().forEach(ch => { if (ch.userData.plinth) g.remove(ch); }); spin.position.y = 0.5; g.add(lightColumn(piece.color)); }
+    g.add(spin); GEAR_SPIN.add(spin);
+  }).catch(() => {});
+}
+// build 77 (Matt, with the Void warhammer and Staff lying on a table as flat pictures: "this is the warhammer of the void why wont it show its 3d stand up version on the table"): a WEAPON of one of the nine
+// gear sets is drawn as its real model -- the same one the hall's floor stand shows -- standing upright on the spot (or on the floor, in its column of light), turning slowly. The models are the game's own
+// (window.parent.__weapons: Matt's real staffs, polearms and bows, and the code-built swords), borrowed through the same-origin frame: both pages run three.js r128, so an object from one renders in the other.
+// Which one: a staff / bow / polearm by the item's look, else by its name (Staff, Bow, Halberd...), anything else the set's sword. A weapon with no set model (a plain sword) keeps its picture, as in the hall.
+function gameItemOf(piece) { if (piece.kind === 'carried') return piece.payload || null; const r = piece.payload || {}; const gi = toGameItem({ kind: 'forged', rec: r }); gi.setId = r.set || r.setId || gi.setId; gi.look = r.look || gi.look; return gi; }
+function weaponLookOf(gi) { if (/^(sword|staff|bow|polearm)$/.test(gi.look || '')) return gi.look; const n = String(gi.name || '');
+  if (/\b(staff|wand|scepter|sceptre|rod)\b/i.test(n)) return 'staff'; if (/\b(crossbow|bow)\b/i.test(n)) return 'bow'; if (/\b(polearm|spear|halberd|glaive|scythe|pike|lance|trident)\b/i.test(n)) return 'polearm'; return 'sword'; }
+function gameWeaponName(piece) { try { const W = GAME && GAME.__weapons; if (!W || !W.setModel || !W.model) return null; const gi = gameItemOf(piece); if (!gi || gi.slot !== 'weapon') return null;
+    const look = weaponLookOf(gi); return W.setModel(Object.assign({}, gi, { look: look === 'polearm' ? 'polearm' : look }), look === 'staff' ? 'staff' : look === 'bow' ? 'bow' : 'sword') || null; } catch (e) { return null; } }
+// ---- rebuilding a borrowed model with THIS page's own classes and arrays (a mesh's shape and skin are copied; the game's ink outline shells are left out; unlit glow sprites and unlit parts stay unlit)
+function adoptTex(t) { if (!t || !t.image) return null; const k = new THREE.Texture(t.image); k.wrapS = t.wrapS; k.wrapT = t.wrapT; k.flipY = t.flipY; k.encoding = t.encoding; k.minFilter = t.minFilter; k.magFilter = t.magFilter; k.anisotropy = t.anisotropy || 1; k.needsUpdate = true; return k; }
+function adoptGeo(src) { const g = new THREE.BufferGeometry();
+  for (const name in src.attributes) { const a = src.attributes[name], n = a.count, sz = a.itemSize, arr = new Float32Array(n * sz);
+    for (let i = 0; i < n; i++) { arr[i * sz] = a.getX(i); if (sz > 1) arr[i * sz + 1] = a.getY(i); if (sz > 2) arr[i * sz + 2] = a.getZ(i); if (sz > 3) arr[i * sz + 3] = a.getW(i); }
+    g.setAttribute(name, new THREE.BufferAttribute(arr, sz, false)); }
+  if (src.index) { const n = src.index.count, big = n > 65535 || (src.attributes.position && src.attributes.position.count > 65535), arr = big ? new Uint32Array(n) : new Uint16Array(n); for (let i = 0; i < n; i++) arr[i] = src.index.getX(i); g.setIndex(new THREE.BufferAttribute(arr, 1)); }
+  for (const gr of src.groups || []) g.addGroup(gr.start, gr.count, gr.materialIndex);
+  g.computeBoundingSphere(); return g; }
+function adoptMat(m) { if (!m) return new THREE.MeshStandardMaterial({ color: 0x888888 });
+  const col = m.color ? new THREE.Color(m.color.r, m.color.g, m.color.b) : new THREE.Color(1, 1, 1), base = { color: col, map: adoptTex(m.map), transparent: !!m.transparent, opacity: m.opacity === undefined ? 1 : m.opacity, side: m.side === undefined ? THREE.FrontSide : m.side, alphaTest: m.alphaTest || 0, vertexColors: !!m.vertexColors };
+  if (m.isMeshBasicMaterial) return new THREE.MeshBasicMaterial(Object.assign(base, { blending: m.blending === undefined ? THREE.NormalBlending : m.blending, depthWrite: m.depthWrite !== false, fog: false }));
+  const mm = new THREE.MeshStandardMaterial(Object.assign(base, { roughness: m.roughness === undefined ? 0.75 : m.roughness, metalness: m.metalness === undefined ? 0.15 : Math.min(m.metalness, 0.6) }));
+  if (m.emissive) { mm.emissive = new THREE.Color(m.emissive.r, m.emissive.g, m.emissive.b); mm.emissiveIntensity = m.emissiveIntensity || 1; if (m.emissiveMap) mm.emissiveMap = adoptTex(m.emissiveMap); }
+  return mm; }
+function adoptObject(src) { let dst;
+  if (src.userData && src.userData.isOL) return null;                                   // the game's ink outline shell
+  if (src.isMesh) { const mats = Array.isArray(src.material) ? src.material : [src.material]; if (mats.every(m => m && m.isShaderMaterial)) return null;
+    dst = new THREE.Mesh(adoptGeo(src.geometry), Array.isArray(src.material) ? src.material.map(adoptMat) : adoptMat(src.material)); }
+  else if (src.isSprite) { const m = src.material; dst = new THREE.Sprite(new THREE.SpriteMaterial({ map: adoptTex(m.map), color: m.color ? new THREE.Color(m.color.r, m.color.g, m.color.b) : 0xffffff, transparent: true, opacity: m.opacity === undefined ? 1 : m.opacity, blending: m.blending === undefined ? THREE.NormalBlending : m.blending, depthWrite: false })); }
+  else if (src.isLight || src.isCamera) return null;
+  else dst = new THREE.Group();
+  dst.name = src.name || ''; dst.position.set(src.position.x, src.position.y, src.position.z); dst.quaternion.set(src.quaternion.x, src.quaternion.y, src.quaternion.z, src.quaternion.w); dst.scale.set(src.scale.x, src.scale.y, src.scale.z); dst.visible = src.visible; dst.frustumCulled = false;
+  for (const c of src.children) { const k = adoptObject(c); if (k) dst.add(k); }
+  return dst; }
+const WEAPON_TPL = {};   // model name -> the re-built model (cloned per display: the copies share its shapes and skins)
+function weaponTemplate(name) { return WEAPON_TPL[name] || (WEAPON_TPL[name] = new Promise(res => { try { GAME.__weapons.model(name, src => { try { src.updateMatrixWorld(true); const box = src.userData && src.userData.box; const o = adoptObject(src); if (!o) return res(null); o.updateMatrixWorld(true);
+        const bb = box ? { min: { x: box.min.x, y: box.min.y, z: box.min.z }, max: { x: box.max.x, y: box.max.y, z: box.max.z } } : (() => { const b = new THREE.Box3().setFromObject(o); return { min: b.min, max: b.max }; })(); o.userData.box = bb; res(o); } catch (e) { console.warn('weapon model', e); res(null); } }); } catch (e) { res(null); } })); }
+function attachWeaponModel(g, spr, piece, size) {
+  const name = gameWeaponName(piece); if (!name) return;
+  weaponTemplate(name).then(tpl => {
+    if (!tpl) return; const obj = tpl.clone(true); obj.userData.box = tpl.userData.box; obj.updateMatrixWorld(true);
+    const b = tpl.userData.box, minY = b ? b.min.y : 0, maxY = b ? b.max.y : 1, hgt = Math.max(1e-6, maxY - minY), wid = b ? Math.max(1e-6, b.max.x - b.min.x, b.max.z - b.min.z) : hgt * 0.3, cx = b ? (b.min.x + b.max.x) / 2 : 0, cz = b ? (b.min.z + b.max.z) / 2 : 0;
+    const H = size ? Math.min(1.4, size * 1.35) : (/^bow-/.test(name) ? 1.2 : 1.45), W = size ? size * 0.95 : 1.1; const k = Math.min(H / hgt, W / wid);
+    obj.scale.setScalar(k); obj.position.set(-cx * k, -minY * k, -cz * k);
+    const spin = new THREE.Group(); spin.add(obj); spin.userData.root = g; spin.userData.rate = size ? 0.45 : 0.8;
+    g.remove(spr);
+    if (!size) { g.children.slice().forEach(ch => { if (ch.userData.plinth) g.remove(ch); }); spin.position.y = 0.3; g.add(lightColumn(piece.color)); }
     g.add(spin); GEAR_SPIN.add(spin);
   }).catch(() => {});
 }
