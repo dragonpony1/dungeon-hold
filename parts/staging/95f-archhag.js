@@ -104,6 +104,7 @@ function castSpecial(e,what){ e.special=what; e.swing=0; e.pending={kind:'specia
       if(e.raiseT>0){ e.raiseT-=dt; if(e.raiseT<=0) castSpecial(e,'raise'); }
       if(e.phase===1&&e.hp<=e.max/2+.01){ e.phase=2; e.hp=e.max/2; e.shield=4; castSpecial(e,'wake'); banner('🌑 THE ARCHHAG RAGES','her second life -- the garden stirs'); camShake=Math.max(camShake,.7); } }   // any damage that skipped hurt() (a poison tick) still turns the page
     prev(dt);
+    for(const e of enemies){ if(e.kind!==K||e.dead||e.hagRise===undefined||e.hagRise>=1) continue; e.hagRise=Math.min(1,e.hagRise+dt/1.4); e.mdl.g.position.y=e.y-4*(1-e.hagRise)*(1-e.hagRise); }   // rising out of the ground, slowing as she stands clear
     for(const e of sticks){ if(e.dead) continue; const g=e.mdl.g;
       if(e.rise!==undefined&&e.rise<1){ e.rise=Math.min(1,e.rise+dt/.7); g.position.y=e.y-1.8*(1-e.rise); }
       const run=S.t*16+(e.ph||0), w=e.walking?1:.15;
@@ -129,7 +130,10 @@ let waveTotal=0, doneWave=-1;
 { const prev=startWave; startWave=function(){ prev(); if(court()&&S.wave===MAP.waves) waveTotal=spawnQ.length; }; }
 function spawnHag(){ const lk=Object.keys(LANES); if(!lk.length) return null; doneWave=S.wave; ensureTopiKinds();
   banner('🌑 THE ARCHHAG','the brier matron walks into the garden'); camShake=1.0; setMusic('pigboss');
-  const e=spawnEnemy(K,lk[0]); e.phase=1; e.shield=0; e.raiseT=1.4; return e; }   // her arrival cast, a breath after she steps in (game time: counted in updateEnemies)
+  const e=spawnEnemy(K,lk[0]); e.phase=1; e.shield=0; e.raiseT=2.2;   // her arrival cast, a breath after she has risen (game time: counted in updateEnemies)
+  // build 308 (Matt: "the archheg doesnt come out of a side door. she just appears on the map"): she rises out of the ground in the middle of the garden, by the giant tree, in a burst of purple light
+  const at=laneNear(21,21,8); if(at){ e.x=cw(at.x); e.z=cwz(at.z); } e.hagRise=0; e.mdl.g.position.set(e.x,-4,e.z); flash(e.x,1.5,e.z,0x9a40ff,7); flash(e.x,.4,e.z,0x6aff5a,4);
+  return e; }
 { const prev=updateWave; updateWave=function(dt){ if(court()&&S.phase==='wave'&&S.wave===MAP.waves&&doneWave!==S.wave&&waveTotal>0&&MOBGLB[K]&&waveTotal-spawnQ.length>=Math.min(75,Math.floor(waveTotal*.66))) spawnHag(); prev(dt); }; }
 // ---------------------------------------------------------------- her two-phase health bar
 { const css=document.createElement('style'); css.textContent='#hagbar{position:fixed;left:50%;top:66px;transform:translateX(-50%);width:min(460px,74vw);z-index:20;text-align:center;pointer-events:none;display:none;font:bold 13px Georgia,serif;color:#e6d2ff;text-shadow:0 2px 3px #000;letter-spacing:2px}#hagbar .bars{display:flex;gap:6px;margin-top:3px}#hagbar .track{flex:1;height:12px;background:#140c1a;border:2px solid #3e2450;border-radius:6px;overflow:hidden;box-shadow:0 3px 8px #000a}#hagbar .fill{display:block;height:100%;width:100%;transition:width .2s}#hagbar .p1 .fill{background:linear-gradient(#b070ff,#5a1c9a)}#hagbar .p2 .fill{background:linear-gradient(#8aff6a,#2a8a1a)}#hagbar .track.done{opacity:.35}'; document.head.appendChild(css); }
