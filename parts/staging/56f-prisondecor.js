@@ -61,15 +61,28 @@ for(const [file,cx,cz,nx,nz,row] of CELLS){ const fc=wallFaces.find(w=>w.cx===cx
   const geo=new THREE.CylinderGeometry(.34,.34,CELL+.02,8); geo.rotateZ(Math.PI/2);   // lying along x
   const im=new THREE.InstancedMesh(geo,mat(0x59503f),pts.length/3), m=new THREE.Matrix4(), q=new THREE.Quaternion(), sc=new THREE.Vector3(1,1,1), v=new THREE.Vector3();
   for(let i=0;i<pts.length/3;i++){ v.set(pts[i*3],pts[i*3+1],pts[i*3+2]); m.compose(v,q,sc); im.setMatrixAt(i,m); }
-  im.instanceMatrix.needsUpdate=true; im.frustumCulled=false; im.userData.noOL=true; world.add(im); counts.pipeSegs=pts.length/3;
+  im.instanceMatrix.needsUpdate=true; im.frustumCulled=false; im.userData.noOL=true; world.add(im); counts.pipeSegs=pts.length/3; const procPipes=[im];
   // the great pipes: from high on the wide end down to the apex, hugging each side wall and sinking as they go
-  const gm=mat(0x4d5a48), cg=new THREE.CylinderGeometry(.56,.56,1,10), collarG=new THREE.CylinderGeometry(.78,.78,.5,10), up=new THREE.Vector3(0,1,0);
+  const great=[]; const gm=mat(0x4d5a48), cg=new THREE.CylinderGeometry(.56,.56,1,10), collarG=new THREE.CylinderGeometry(.78,.78,.5,10), up=new THREE.Vector3(0,1,0);
   for(const sd of [-1,1]){ const A=new THREE.Vector3(sd*3.7,7,cwz(2)), B=new THREE.Vector3(sd*41.7,15,cwz(44)), dir=B.clone().sub(A), L=dir.length(); dir.normalize();
-    const qq=new THREE.Quaternion().setFromUnitVectors(up,dir); const p=new THREE.Mesh(cg,gm); p.scale.set(1,L,1); p.quaternion.copy(qq); p.position.copy(A).add(B).multiplyScalar(.5); p.userData.noOL=true; world.add(p);
-    for(let k=1;k<9;k++){ const c=new THREE.Mesh(collarG,gm); c.quaternion.copy(qq); c.position.copy(A).addScaledVector(dir,L*k/9); c.userData.noOL=true; world.add(c); }
+    const qq=new THREE.Quaternion().setFromUnitVectors(up,dir); const p=new THREE.Mesh(cg,gm); p.scale.set(1,L,1); p.quaternion.copy(qq); p.position.copy(A).add(B).multiplyScalar(.5); p.userData.noOL=true; world.add(p); procPipes.push(p); great.push({ A:A.clone(), dir:dir.clone(), L });
+    for(let k=1;k<9;k++){ const c=new THREE.Mesh(collarG,gm); c.quaternion.copy(qq); c.position.copy(A).addScaledVector(dir,L*k/9); c.userData.noOL=true; world.add(c); procPipes.push(c); }
     // where it ends: a green glow, the outfall into the pit
     const og=new THREE.PointLight(C(0x58c070),.8,9,2); og.position.set(sd*2.6,5.6,cwz(2)+1); world.add(og); }
-  counts.greatPipes=2; }
+  counts.greatPipes=2;
+  // ---- Bob's pipe (prison-pipe-drip.glb, 1.2 MB: the pipe with slime hanging off it, plus a DripLoop clip -- three drops that swell, fall and reform) replaces the plain cylinders once it has loaded: the terrace-edge pipes are his 2-unit segments end to end (one in four dripping), and each great pipe is a chain of them scaled 1.8 (one in six dripping). The static segments are instanced in chunks; the dripping ones are clones with their own clock
+  const bobPipes=()=>fetchBytes(ASSET('prison-pipe-drip.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',gl=>{ try{ const root=gl.scene||gl.scenes[0]; toonify(root,1); root.updateMatrixWorld(true); const clip=(gl.animations||[]).find(c=>c.name==='DripLoop');
+      const isDrip=o=>{ for(let q=o;q;q=q.parent){ if(/^Drip/i.test(q.name||'')) return true; } return false; }; const statics=[]; root.traverse(o=>{ if(o.isMesh&&!o.userData.isOL&&!isDrip(o)) statics.push(o); });
+      const segs=[]; edgeSegs.forEach((sg,i)=>segs.push({ M:new THREE.Matrix4().compose(new THREE.Vector3(sg[0],sg[1],sg[2]),new THREE.Quaternion(),new THREE.Vector3(1.02,1.02,1.02)), anim:i%4===1 }));
+      const upv=new THREE.Vector3(0,1,0), K=1.8; great.forEach((gp,gi)=>{ const seg=2*K, n=Math.floor(gp.L/seg); for(let i=0;i<n;i++){ const X=gp.dir.clone(), Y=upv.clone().addScaledVector(X,-upv.dot(X)).normalize(), Z=new THREE.Vector3().crossVectors(X,Y); const M=new THREE.Matrix4().makeBasis(X,Y,Z).scale(new THREE.Vector3(K,K,K)); M.setPosition(gp.A.clone().addScaledVector(gp.dir,seg*(i+.5))); segs.push({ M, anim:(i+gi)%6===3 }); } });
+      const buckets=new Map(); let drips=0; const V=new THREE.Vector3(), Qn=new THREE.Quaternion(), Sn=new THREE.Vector3();
+      for(const sg of segs){ if(sg.anim&&clip){ const c=root.clone(true); sg.M.decompose(c.position,c.quaternion,c.scale); world.add(c); const mx=new THREE.AnimationMixer(c), act=mx.clipAction(clip); act.play(); act.time=rnd()*clip.duration; WORLDANIM.push(dt=>mx.update(dt)); drips++; continue; }
+        sg.M.decompose(V,Qn,Sn); const key=Math.floor(V.x/30)+'|'+Math.floor(V.z/30); let b=buckets.get(key); if(!b){ b={ ms:[], pts:[] }; buckets.set(key,b); } b.ms.push(sg.M); b.pts.push(V.x,V.y,V.z); }
+      const mm=new THREE.Matrix4(); for(const b of buckets.values()){ let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,z0=1e9,z1=-1e9; for(let i=0;i<b.pts.length;i+=3){ x0=Math.min(x0,b.pts[i]); x1=Math.max(x1,b.pts[i]); y0=Math.min(y0,b.pts[i+1]); y1=Math.max(y1,b.pts[i+1]); z0=Math.min(z0,b.pts[i+2]); z1=Math.max(z1,b.pts[i+2]); }
+        const sph=new THREE.Sphere(new THREE.Vector3((x0+x1)/2,(y0+y1)/2,(z0+z1)/2),Math.hypot(x1-x0,y1-y0,z1-z0)/2+6);
+        for(const ob of statics){ const g2=new THREE.BufferGeometry(); for(const k of ['position','normal','uv']) if(ob.geometry.attributes[k]) g2.setAttribute(k,ob.geometry.attributes[k]); if(ob.geometry.index) g2.setIndex(ob.geometry.index); g2.boundingSphere=sph.clone(); const im2=new THREE.InstancedMesh(g2,ob.material,b.ms.length); b.ms.forEach((M4,i)=>{ mm.multiplyMatrices(M4,ob.matrixWorld); im2.setMatrixAt(i,mm); }); im2.instanceMatrix.needsUpdate=true; im2.userData.noOL=true; world.add(im2); } }
+      procPipes.forEach(o=>{ if(o.parent) o.parent.remove(o); }); counts.bobPipes=segs.length; counts.dripPipes=drips; res(); }catch(er){ rej(er); } },rej))).catch(er=>console.warn('prison decor pipe',er));
+  const edgeSegs=[]; for(let i=0;i<pts.length/3;i++) edgeSegs.push([pts[i*3],pts[i*3+1],pts[i*3+2]]); bobPipes(); }
 // ---------------- SCONCES (build 346; Matt: "take all the wall torches out and put our sconses in"): every painted wall torch comes down and Matt's real Meshy sconce (the one the throne room and feast hall wear) goes up in its place,
 // instanced in one draw with the warm glow on it. No light per sconce here -- the braziers in the map's own list light the cavern, as they did when these were painted torches -- so 45 sconces cost no lights at all.
 function warmGlow(root){ root.traverse(o=>{ const m=o.isMesh&&o.material; if(!m||m.userData.__wg) return; m.userData.__wg=true; m.onBeforeCompile=sh=>{ sh.fragmentShader=sh.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n  totalEmissiveRadiance += vec3(.22,.11,.03);'); }; }); }
