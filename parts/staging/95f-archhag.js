@@ -28,6 +28,9 @@ MOBS[SK]={hp:22,spd:6.6,dmg:7,cd:1.3,mana:3,swingT:1.2,hitT:.34};   // twig men:
 // build 312: Matt's 3.5 s Punch_Forward_with_Both_Fists plays over 1.2 s, the blow as the first fist goes out (1.0 s of 3.5); a punch every 1.3 s (was .9) so each is 7 (was 5), about the same damage over time
 if(Meta.XP){ Meta.XP[K]=Meta.XP[K]||90; Meta.XP[SK]=Meta.XP[SK]||1; }
 const CURSE_T=5, REGROW_T=18, DEATH_HOLD=5.6, STICKMEN=10;
+// build 320 (Matt: "the first round of stickmen come after about 10 seconds not right away then repeat until initial hp bar is gone"): a raise every 10 s through her first bar, none after it; at most
+// 30 of hers on the field at once (a raise tops up to that) so a long first bar cannot bury the court
+const RAISE_FIRST=10, RAISE_EVERY=10, STICK_CAP=30;
 // ---------------------------------------------------------------- her model: four clip files on one rig, fetched once
 function fixMats(root){ root.traverse(o=>{ if(o.isMesh&&o.material){ o.material.metalness=0; o.material.roughness=.85; if(o.material.emissive) o.material.emissive.setRGB(0,0,0); } }); }
 let loadP=null;
@@ -88,6 +91,7 @@ function ensureTopiKinds(){ const D=window.__courtdecor; if(!D||!D.topiList) ret
     const pivot=new THREE.Group(); pivot.name='topiPivot'; pivot.add(inner); wrap.add(pivot);
     MOBDIM[k]=MOBDIM[TK]; MOBS[k]=MOBS[TK]; MOBGLB[k]={wrap,map:{},scale:1}; if(Meta.XP) Meta.XP[k]=Meta.XP[k]||3; } }
 // the nearest cell a mob can walk from towards a Heartroot, within r cells of (cx,cz)
+function hagDoor(){ let best=null, bd=-1; for(const k in LANES){ const L=LANES[k]; const inX=Math.round(Math.sin(L.face||0)*2), inZ=Math.round(Math.cos(L.face||0)*2); const c=laneNear(L.cx+inX,L.cz+inZ,3); if(!c) continue; const fd=flowFree.dist[idx(c.x,c.z)]; if(fd>bd){ bd=fd; best=c; } } return best; }   // two cells in from a gate; the gate farthest (by path) from a Heartroot
 function hagSpot(){ let best=null, bs=-1e9; const R=9; for(let dx=-R;dx<=R;dx++) for(let dz=-R;dz<=R;dz++){ const dd=Math.hypot(dx,dz); if(dd<4||dd>R) continue; const x=21+dx, z=21+dz; if(x<0||z<0||x>=GW||z>=GH) continue;
     const i=idx(x,z); if(!walk(grid[i])) continue; const fd=flowFree.dist[i]; if(!(fd>0&&fd<1e5)) continue; const wx=cw(x), wz=cwz(z); const h=Math.min(Math.hypot(wx,wz),GOAL2>=0?Math.hypot(wx-C2X,wz-C2Z):1e9); const sc=h-dd*.3; if(sc>bs){ bs=sc; best={x,z}; } }
   return best; }
@@ -105,11 +109,12 @@ function wakeAll(){ const D=window.__courtdecor; if(!D||!D.topiList) return 0; l
   if(n&&!wokeOnce){ wokeOnce=true; banner('🌿 THE GARDEN WAKES','the Archhag calls the topiaries off their pedestals'); camShake=Math.max(camShake,.6); } return n; }
 // ---------------------------------------------------------------- her arrival cast: ten stickmen climb out of the ground round her
 let sticks=[];
-function raiseStickmen(h){ const lk=Object.keys(LANES); let n=0; const cx=wc(h.x), cz=wcz(h.z);
-  for(let i=0;i<STICKMEN;i++){ const a=i/STICKMEN*TAU, r=1.6+(i%3)*.8; const px=h.x+Math.cos(a)*r, pz=h.z+Math.sin(a)*r; const cell=laneNear(wc(px),wcz(pz),3)||laneNear(cx,cz,4); if(!cell) continue;
+let raisedOnce=false;
+function raiseStickmen(h){ const lk=Object.keys(LANES); let n=0; const cx=wc(h.x), cz=wcz(h.z); const want=Math.max(0,Math.min(STICKMEN,STICK_CAP-sticks.filter(x=>!x.dead).length));
+  for(let i=0;i<want;i++){ const a=i/STICKMEN*TAU, r=1.6+(i%3)*.8; const px=h.x+Math.cos(a)*r, pz=h.z+Math.sin(a)*r; const cell=laneNear(wc(px),wcz(pz),3)||laneNear(cx,cz,4); if(!cell) continue;
     const e=spawnEnemy(SK,lk[0]); e.x=cw(cell.x)+(Math.random()-.5)*.8; e.z=cwz(cell.z)+(Math.random()-.5)*.8; e.rise=0; e.mdl.g.position.set(e.x,-1.8,e.z); sticks.push(e); n++;
     flash(e.x,.4,e.z,0x9aff5a,1.6); }
-  banner('💀 THE STICKMEN RISE','the Archhag calls them out of the earth -- they are fast'); return n; }
+  if(!raisedOnce){ raisedOnce=true; banner('💀 THE STICKMEN RISE','the Archhag calls them out of the earth -- they are fast'); } else if(n) floatText(h.x,h.y+h.h+1.2,h.z,'💀 ×'+n,'#b8ff6a'); return n; }
 // ---------------------------------------------------------------- the curse: purple chains round the tower, its next shot held off
 function chains(d){ const g=new THREE.Group(); const m=new THREE.MeshBasicMaterial({color:C(0xb050ff),transparent:true,opacity:.85,depthWrite:false});
   for(let k=0;k<3;k++){ const ring=new THREE.Mesh(new THREE.TorusGeometry(1.05,.07,6,20),m); ring.rotation.x=PI/2; ring.position.y=.6+k*.85; ring.userData.noOL=true; g.add(ring); }
@@ -131,16 +136,16 @@ function castSpecial(e,what){ e.special=what; e.swing=0; e.pending={kind:'specia
 // the two bars: a blow never carries her past the line between them, and she is untouchable while she casts the garden awake
 { const prev=hurt; hurt=function(e,dmg,kx,kz){ if(e&&e.kind===K&&!e.dead){ if(e.shield>0) return; if(e.phase===1&&e.hp-dmg<e.max/2){ dmg=Math.max(0,e.hp-e.max/2); } }
     const r=prev.apply(this,arguments); if(e&&e.kind===K) e.squash=0;   // no flinch
-    if(e&&e.kind===K&&!e.dead&&e.phase===1&&e.hp<=e.max/2+.01){ e.phase=2; e.hp=e.max/2; e.shield=4; castSpecial(e,'wake'); banner('🌑 THE ARCHHAG RAGES','her second life -- the garden stirs'); camShake=Math.max(camShake,.7); }
+    if(e&&e.kind===K&&!e.dead&&e.phase===1&&e.hp<=e.max/2+.01){ e.phase=2; e.hp=e.max/2; e.shield=4; e.raiseT=0; castSpecial(e,'wake'); banner('🌑 THE ARCHHAG RAGES','her second life -- the garden stirs'); camShake=Math.max(camShake,.7); }
     return r; }; }
 // ---------------------------------------------------------------- each frame: stickmen rising and running, the leaps, the hops, no slow on her, the regrowth, her fall held, the sleep when she falls
 // build 318 (Matt: "shes doing a knock back or some kind of intruputionevery time she gets hit. she needs to ignore any of that"): no shove (99e-bossgrit.js), and now nothing pins or flinches her either --
 // no hit-squash (every blow squashed her whole body), no hold (Rootsplitter's roots), no crawl (the Hourglass), no chill, no slow
 { const prev=updateEnemies; updateEnemies=function(dt){ for(const e of enemies) if(!e.dead&&e.kind===K){ e.slowT=0; e.squash=0; e.holdT=0; e.crawlT=0; e.chillT=0; if(e.shield>0) e.shield-=dt;
       // build 317 (Matt: "oh dear, mabye that stikmen didnt load all the way"): if his moss stickmen are still on the way when she casts, she holds the spell until they land (at most 6 s more) rather than raise the twig stand-ins
-      if(e.hagRise>=1&&!(e.raiseT>0)){ e.growT=(e.growT===undefined?GROW_FIRST:e.growT)-dt; if(e.growT<=0&&!(e.swing>=0)&&!e.special&&!(e.shield>0)){ e.growT=GROW_EVERY; castSpecial(e,'grow'); } }   // build 318: GROW on her own clock
-      if(e.raiseT>0){ e.raiseT-=dt; if(e.raiseT<=0){ if(!MOBGLB[SK].real&&!stickDone&&(e.raiseWait=(e.raiseWait||0)+dt)<6){ loadSticks(); e.raiseT=.001; } else castSpecial(e,'raise'); } }
-      if(e.phase===1&&e.hp<=e.max/2+.01){ e.phase=2; e.hp=e.max/2; e.shield=4; castSpecial(e,'wake'); banner('🌑 THE ARCHHAG RAGES','her second life -- the garden stirs'); camShake=Math.max(camShake,.7); } }   // any damage that skipped hurt() (a poison tick) still turns the page
+      if(e.hagRise>=1){ e.growT=(e.growT===undefined?GROW_FIRST:e.growT)-dt; if(e.growT<=0&&!(e.swing>=0)&&!e.special&&!(e.shield>0)){ e.growT=GROW_EVERY; castSpecial(e,'grow'); } }   // build 318: GROW on her own clock
+      if(e.raiseT>0){ e.raiseT-=dt; if(e.raiseT<=0){ if(!MOBGLB[SK].real&&!stickDone&&(e.raiseWait=(e.raiseWait||0)+dt)<6){ loadSticks(); e.raiseT=.001; } else if(e.special||e.swing>=0){ e.raiseT=.001; } else { castSpecial(e,'raise'); if(e.phase===1) e.raiseT=RAISE_EVERY; } } }   // another cast still running: the raise waits for it
+      if(e.phase===1&&e.hp<=e.max/2+.01){ e.phase=2; e.hp=e.max/2; e.shield=4; e.raiseT=0; castSpecial(e,'wake'); banner('🌑 THE ARCHHAG RAGES','her second life -- the garden stirs'); camShake=Math.max(camShake,.7); } }   // any damage that skipped hurt() (a poison tick) still turns the page
     prev(dt);
     for(const e of enemies){ if(e.kind!==K||e.dead||e.hagRise===undefined||e.hagRise>=1) continue; e.hagRise=Math.min(1,e.hagRise+dt/1.4); e.mdl.g.position.y=e.y-4*(1-e.hagRise)*(1-e.hagRise); }   // rising out of the ground, slowing as she stands clear
     // the twig man's limbs swing in code; his rigged model has no such pivots, so they are looked up once, then skipped
@@ -171,13 +176,14 @@ function spawnHag(){ const lk=Object.keys(LANES); if(!lk.length) return null; do
   banner('🌑 THE ARCHHAG','the brier matron walks into the garden'); camShake=1.0;
   // build 310 (Matt: "all goes quite when she comes on and just this solitary drumline"): the music falls silent as she rises, then only his drumline (music-archhag.mp3), until she falls
   setMusic('none'); setTimeout(()=>{ if(enemies.some(x=>x.kind===K&&!x.dead)) setMusic('archhag'); },1800);
-  const e=spawnEnemy(K,lk[0]); e.phase=1; e.shield=0; e.raiseT=2.2;   // her arrival cast, a breath after she has risen (game time: counted in updateEnemies)
+  const e=spawnEnemy(K,lk[0]); e.phase=1; e.shield=0; e.raiseT=RAISE_FIRST;   // her first raise, 10 s after she rises (game time: counted in updateEnemies); then every 10 s while her first bar lasts
   // build 308 (Matt: "the archheg doesnt come out of a side door. she just appears on the map"): she rises out of the ground in the middle of the garden, by the giant tree, in a burst of purple light
   // build 317 (Matt, spawning her: "shes stuck in the tree though"): the nearest lane cell to the middle was inside the giant tree's trunk (only its centre 2x2 cells are solid; the bark reaches
   // ~5.7 units out at body height, the roots ~6.6 at the ground) and, hanging back to cast, she stayed there -- she rises on the nearest lane cell at least 4 cells (8 units) from the tree's centre
   // build 319 (Matt: "spawn her in further away cuz the tree is right next to a ... heartroot"): the tree stands halfway between the two Heartroots (~25 units from each), so a spot just beside it
   // was on the way to one of them -- she rises on the reachable lane cell near the tree (4-9 cells out) that is farthest from BOTH Heartroots, out to the side of the line between them
-  const at=hagSpot()||laneNear(21,21,10,4)||laneNear(21,21,8); if(at){ e.x=cw(at.x); e.z=cwz(at.z); } e.hagRise=0; e.mdl.g.position.set(e.x,-4,e.z); flash(e.x,1.5,e.z,0x9a40ff,7); flash(e.x,.4,e.z,0x6aff5a,4);
+  // build 320 (Matt: "lets move the arch hag back near one of the doors and let her walk again, that will be scary"): she rises just inside the door with the longest walk to a Heartroot, and walks it
+  const at=hagDoor()||hagSpot()||laneNear(21,21,10,4)||laneNear(21,21,8); if(at){ e.x=cw(at.x); e.z=cwz(at.z); } e.hagRise=0; e.mdl.g.position.set(e.x,-4,e.z); flash(e.x,1.5,e.z,0x9a40ff,7); flash(e.x,.4,e.z,0x6aff5a,4);
   return e; }
 { const prev=updateWave; updateWave=function(dt){ if(court()&&S.phase==='wave'&&S.wave===MAP.waves&&doneWave!==S.wave&&waveTotal>0&&MOBGLB[K]&&waveTotal-spawnQ.length>=Math.min(75,Math.floor(waveTotal*.66))) spawnHag(); prev(dt); }; }
 // ---------------------------------------------------------------- a stickman's death (build 312, Matt: "when the stikman dies he just poofs into a cloud of green glow and fades away"):

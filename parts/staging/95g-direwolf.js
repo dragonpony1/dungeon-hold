@@ -21,7 +21,8 @@ function load(){ if(MOBGLB[K]) return Promise.resolve(); if(P) return P;
   return P; }
 // build 318 (Matt: "the dire wolves seem to come out in a nice neat line ... it looks unatrual"): every mob steers from one lane cell's centre to the next, so a fast pack threads onto one
 // centre line. Each wolf keeps its own place across the lane instead (some left, some right, up to .8 of a 2-unit cell) with a slow weave, and runs at its own pace, so they fan out like a pack
-{ const prev=updateEnemies; updateEnemies=function(dt){ prev(dt); for(const e of enemies){ if(e.kind!==K||e.dead) continue; if(e.lane===undefined){ e.lane=R(-.8,.8); e.wph=Math.random()*TAU; e.spd*=R(.92,1.1); }
+const SPOTS=[-.8,.4,-.4,.8,0]; let wolfN=0;   // each new wolf takes the next place across the lane (left, right, middle...), so any pack of them spreads -- five random picks sometimes bunched
+{ const prev=updateEnemies; updateEnemies=function(dt){ prev(dt); for(const e of enemies){ if(e.kind!==K||e.dead) continue; if(e.lane===undefined){ e.lane=SPOTS[(wolfN++)%SPOTS.length]+R(-.12,.12); e.wph=Math.random()*TAU; e.spd*=R(.92,1.1); }
     if(!e.walking||e.swing>=0) continue; const fx=Math.sin(e.yaw), fz=Math.cos(e.yaw), rx=fz, rz=-fx; const off=(e.x-cw(wc(e.x)))*rx+(e.z-cwz(wcz(e.z)))*rz; const want=e.lane+Math.sin(S.t*1.3+e.wph)*.3;
     const push=clamp(want-off,-1,1)*2.4*dt; moveCircle(e,rx*push,rz*push,e.r*.8,false); } }; }
 window.__direwolf={load,loaded:()=>!!MOBGLB[K],kind:K,glow:()=>{ let v=null; if(MOBGLB[K]) MOBGLB[K].wrap.traverse(o=>{ if(v===null&&o.isMesh&&!o.userData.isOL&&o.material&&o.material.emissiveMap) v=o.material.emissive.r; }); return v; }};
