@@ -30,7 +30,8 @@ const CURSE_T=5, REGROW_T=18, DEATH_HOLD=5.6, STICKMEN=10;
 // ---------------------------------------------------------------- her model: four clip files on one rig, fetched once
 function fixMats(root){ root.traverse(o=>{ if(o.isMesh&&o.material){ o.material.metalness=0; o.material.roughness=.85; if(o.material.emissive) o.material.emissive.setRGB(0,0,0); } }); }
 let loadP=null;
-function load(){ if(MOBGLB[K]) return Promise.resolve(); if(loadP) return loadP;
+if(typeof TRACKS!=='undefined') TRACKS.archhag='assets/music-archhag.mp3';   // build 310: his drumline, fetched with her model (never at start)
+function load(){ if(typeof musFetch==='function'&&typeof TRACKS!=='undefined'&&TRACKS.archhag) musFetch('archhag'); if(MOBGLB[K]) return Promise.resolve(); if(loadP) return loadP;
   const names=['walk','attack','idle','death'];
   loadP=Promise.all(names.map(k=>fetchBytes(ASSET(FILES[k])).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej)))))
     .then(gs=>{ try{ const root=gs[0].scene||gs[0].scenes[0]; fixMats(root); const fit=fitModel(root,MOBDIM[K].fit); toonify(root,fit.scale);
@@ -129,7 +130,9 @@ function sleepAll(hagE){ const list=enemies.filter(e=>e.topi&&!e.dead);   // col
 let waveTotal=0, doneWave=-1;
 { const prev=startWave; startWave=function(){ prev(); if(court()&&S.wave===MAP.waves) waveTotal=spawnQ.length; }; }
 function spawnHag(){ const lk=Object.keys(LANES); if(!lk.length) return null; doneWave=S.wave; ensureTopiKinds();
-  banner('🌑 THE ARCHHAG','the brier matron walks into the garden'); camShake=1.0; setMusic('pigboss');
+  banner('🌑 THE ARCHHAG','the brier matron walks into the garden'); camShake=1.0;
+  // build 310 (Matt: "all goes quite when she comes on and just this solitary drumline"): the music falls silent as she rises, then only his drumline (music-archhag.mp3), until she falls
+  setMusic('none'); setTimeout(()=>{ if(enemies.some(x=>x.kind===K&&!x.dead)) setMusic('archhag'); },1800);
   const e=spawnEnemy(K,lk[0]); e.phase=1; e.shield=0; e.raiseT=2.2;   // her arrival cast, a breath after she has risen (game time: counted in updateEnemies)
   // build 308 (Matt: "the archheg doesnt come out of a side door. she just appears on the map"): she rises out of the ground in the middle of the garden, by the giant tree, in a burst of purple light
   const at=laneNear(21,21,8); if(at){ e.x=cw(at.x); e.z=cwz(at.z); } e.hagRise=0; e.mdl.g.position.set(e.x,-4,e.z); flash(e.x,1.5,e.z,0x9a40ff,7); flash(e.x,.4,e.z,0x6aff5a,4);
@@ -138,7 +141,7 @@ function spawnHag(){ const lk=Object.keys(LANES); if(!lk.length) return null; do
 // ---------------------------------------------------------------- her two-phase health bar
 { const css=document.createElement('style'); css.textContent='#hagbar{position:fixed;left:50%;top:66px;transform:translateX(-50%);width:min(460px,74vw);z-index:20;text-align:center;pointer-events:none;display:none;font:bold 13px Georgia,serif;color:#e6d2ff;text-shadow:0 2px 3px #000;letter-spacing:2px}#hagbar .bars{display:flex;gap:6px;margin-top:3px}#hagbar .track{flex:1;height:12px;background:#140c1a;border:2px solid #3e2450;border-radius:6px;overflow:hidden;box-shadow:0 3px 8px #000a}#hagbar .fill{display:block;height:100%;width:100%;transition:width .2s}#hagbar .p1 .fill{background:linear-gradient(#b070ff,#5a1c9a)}#hagbar .p2 .fill{background:linear-gradient(#8aff6a,#2a8a1a)}#hagbar .track.done{opacity:.35}'; document.head.appendChild(css); }
 const bar=document.createElement('div'); bar.id='hagbar'; bar.innerHTML='🌑 THE ARCHHAG<div class="bars"><div class="track p2"><i class="fill"></i></div><div class="track p1"><i class="fill"></i></div></div>'; document.body.appendChild(bar);
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); const e=enemies.find(x=>x.kind===K&&!x.dead); bar.style.display=e?'block':'none'; if(!e) return; const half=e.max/2;
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); const e=enemies.find(x=>x.kind===K&&!x.dead); bar.style.display=e?'block':'none'; if(!e){ if(musicMode==='archhag') setMusic(S.phase==='wave'?'wave':'build'); return; } const half=e.max/2;
     bar.querySelector('.p1 .fill').style.width=Math.max(0,100*(e.hp-half)/half)+'%'; bar.querySelector('.p2 .fill').style.width=Math.max(0,Math.min(100,100*e.hp/half))+'%'; bar.querySelector('.p1').classList.toggle('done',e.hp<=half+.01); }; }
 window.__archhag={loaded:()=>!!MOBGLB[K],ensure:load,spawn:()=>{ ensureTopiKinds(); return spawnHag(); },wake:wakeAll,awake:()=>awake.filter(e=>!e.dead).length,asleep:()=>asleep.length,curse,
   sticks:()=>sticks.filter(e=>!e.dead).length,cursed:()=>defs.filter(d=>d.curseT>0).length,kind:K};

@@ -38,5 +38,7 @@ const k=await page.evaluate(()=>{ const d=window.__dd, J=window.__jars; J.clear(
   for(let i=0;i<180;i++) d.step(1/60,1); d.S.crystal=d.S.crystal2=1e6; const bodyAt3s=d.enemies.includes(e); for(let i=0;i<60*40&&d.enemies.includes(e);i++){ d.step(1/60,1); d.S.crystal=d.S.crystal2=1e6; } const bodyAt9s=d.enemies.includes(e);   /* waits (a boss kill may drop a named mythic, whose picture card pauses the hall a while) */ const deadAt9s=+(+e.dead).toFixed(2), holdAt9s=e.deathHold===undefined?null:+e.deathHold.toFixed(2);
   return { leg, sleepers, onField, bodyAt3s, bodyAt9s, deadAt9s, holdAt9s, phase:d.status().phase }; });
 check("killing her: 30 Legendary jars burst out, every hopping topiary falls asleep as a statue (none left on the field), her body stays for her fall (still there 3 s on), then goes",k.leg===30&&k.sleepers>=1&&k.onField===0&&k.bodyAt3s&&!k.bodyAt9s,JSON.stringify(k));
+const mu=await page.evaluate(()=>window.__mus?window.__mus.state():null);
+check("build 310 (Matt: all goes quiet when she comes on and just this solitary drumline): her drumline is a track of its own, fetched with her model",!!mu&&mu.tracks.includes("archhag")&&mu.fetched.includes("archhag"),JSON.stringify(mu&&{tracks:mu.tracks,fetched:mu.fetched}));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");
