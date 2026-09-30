@@ -10,7 +10,7 @@
 (function(){
 window.__prisonkit={info:()=>null};
 if(!MAP||MAP.id!=='prison') return;
-const FRONT=.3, CHUNK=16, CELL_SCALE=2.6, SLAB=2;   // how far the front of a piece stands out of the wall plane; chunk size in world units; a cell's size against one wall segment; the wall slab's size
+const FRONT=.3, CHUNK=16, CELL_SCALE=3.1, SLAB=2;   // how far the front of a piece stands out of the wall plane; chunk size in world units; a cell's size against one wall segment; the wall slab's size
 const cnt={ modules:0, draws:0, baked:0, cellCols:0, wallCols:0, types:0, cells:0, nested:0, interior:0, holes:0, portal:0 };
 const load=name=>fetchBytes(ASSET(name),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',gl=>{ try{ const root=gl.scene||gl.scenes[0]; toonify(root,1); res(root); }catch(e){ rej(e); } },rej)));
 // a model's front (+z) rendered flat, square, with no light, into a 256px canvas: that piece's picture for the wall's texture
@@ -30,7 +30,7 @@ Promise.all([load('prison-wall.glb'),load('prison-cell-busted.glb'),interiorTex,
   cellWall.material.map.needsUpdate=true; cnt.baked=5;
   // ---- the real pieces
   const tiles=world.userData.faceTile||[], alc=world.userData.alcoveFaces||new Set(), lanes=Object.values(LANES);
-  const nearLane=f=>lanes.some(l=>Math.max(Math.abs(f.cx-l.cx),Math.abs(f.cz-l.cz))<=2), rigs=new Set([[7,31],[39,31],[14,45],[32,45]].map(p=>p.join(',')));
+  const nearLane=f=>lanes.some(l=>Math.max(Math.abs(f.cx-l.cx),Math.abs(f.cz-l.cz))<=1), rigs=new Set([[7,31],[39,31],[14,45],[32,45]].map(p=>p.join(',')));
   const prep=root=>{ root.updateMatrixWorld(true); const box=new THREE.Box3().setFromObject(root), sz=box.getSize(new THREE.Vector3()), c=box.getCenter(new THREE.Vector3()), s=2/sz.y; return { root, s, zmax:box.max.z, depth:sz.z*s, w:sz.x*s, off:new THREE.Matrix4().makeTranslation(-c.x,-box.min.y,-c.z) }; };
   // where each cell's stone FRAME front sits inside its model (raw z, measured: the models differ -- the reaching arms, the tentacles and the hairy arm stand proud of their frames): the frame is set just out of the wall (a lip of .3) and whatever reaches beyond it reaches out into the room
   const ZF={ busted:.45, arms:.30, tent:.20, hairy:.05 }, frontOf=(kind,k)=>ZF[kind]===undefined?FRONT+.25:(P[kind].zmax-ZF[kind])*P[kind].s*k+.3;
@@ -46,17 +46,22 @@ Promise.all([load('prison-wall.glb'),load('prison-cell-busted.glb'),interiorTex,
   const list=[], add=(kind,f,y,k,fr)=>list.push({ kind, f, y, k, fr });
   const put=(kind,f,y,k,fr)=>{ const p=P[kind]; Q.setFromAxisAngle(up,Math.atan2(f.nx,f.nz)); Sc.set(p.s*k,p.s*k,p.s*k); V.set(f.x+f.nx*(fr-p.depth*k/2),y,f.z+f.nz*(fr-p.depth*k/2));
     const key=kind+'|'+Math.floor(f.x/CHUNK)+'|'+Math.floor(f.z/CHUNK); let b=buckets.get(key); if(!b){ b={ kind, mats:[], pts:[] }; buckets.set(key,b); } b.mats.push(new THREE.Matrix4().compose(V,Q,Sc).multiply(p.off)); b.pts.push(V.x,V.y,V.z); cnt.modules++; };
-  const keyOf=f=>f.cx+','+f.cz+','+f.nx+','+f.nz, byKey=new Map(); wallFaces.forEach((f,q)=>byKey.set(keyOf(f),q));
-  const skipF=(f,q)=>alc.has(q)||nearLane(f)||rigs.has(f.cx+','+f.cz);
-  const cellSet=new Set(); wallFaces.forEach((f,q)=>{ if(tiles[q]===0&&!skipF(f,q)) cellSet.add(q); });
-  const beside=new Set(); cellSet.forEach(q=>{ const f=wallFaces[q], dx=f.nz!==0?1:0, dz=f.nz!==0?0:1; for(const sg of [-1,1]){ const r=byKey.get((f.cx+dx*sg)+','+(f.cz+dz*sg)+','+f.nx+','+f.nz); if(r!==undefined&&!cellSet.has(r)) beside.add(r); } });
-  const free=new Set(); wallFaces.forEach((f,q)=>{ if(!skipF(f,q)&&!cellSet.has(q)&&!beside.has(q)) free.add(q); });
-  const freeSkip=new Set(); free.forEach(q=>{ const f=wallFaces[q], coord=f.nz!==0?f.cx:f.cz; if(coord%2===0) return; const dx=f.nz!==0?1:0, dz=f.nz!==0?0:1; for(const sg of [-1,1]){ const r=byKey.get((f.cx+dx*sg)+','+(f.cz+dz*sg)+','+f.nx+','+f.nz); if(r!==undefined&&free.has(r)){ freeSkip.add(q); break; } } });
-  wallFaces.forEach((f,q)=>{ if(skipF(f,q)) return; const y0=hgt[idx(f.cx,f.cz)]||0;
-    if(cellSet.has(q)||beside.has(q)){ const own=cellSet.has(q); let y=y0, cellNext=true, level=0;
-      // a cell's three faces share one layout up the wall: cell, stone band, cell, stone band ... to the ceiling. The middle face carries the cell; the two beside it keep only the stone bands, so the cell's opening is clear
-      for(;;){ if(cellNext){ const h=2*CELL_SCALE; if(y+h>CEIL) break; if(own){ const kind=pick(f,level++); add(kind,f,y,CELL_SCALE,frontOf(kind,CELL_SCALE)); cnt.cells++; cnt['k_'+kind]=(cnt['k_'+kind]||0)+1; } y+=h; } else { if(y+2>CEIL) break; add('wall',f,y,1,FRONT); y+=2; } cellNext=!cellNext; } if(own) cnt.cellCols++; else cnt.wallCols++; }
-    else { if(freeSkip.has(q)) return; let y=y0; while(y+2*SLAB<=CEIL){ add('wall',f,y,SLAB,FRONT+.03*(q%3)); y+=2*SLAB; } if(y+2<=CEIL) add('wall',f,y,1,FRONT); cnt.wallCols++; } });
+  // ---- the layout, along RUNS. Every wall face lies on a straight line (same wall, same floor): the faces of one line that touch are a run. Along a run, three faces at a time: two CELL columns, then a plain WALL column,
+  // repeated (what does not fill three at a run's end is wall). A cell is fitted to its three faces exactly (six wide), so a cell row has nothing left beside it; between its floors run stone bands; a wall column is double
+  // slabs (four wide, centred between two faces) stacked to the ceiling, a single odd face single slabs. The gates' faces and the breakable rooms' are left out on purpose; the four animated cells sit in front of plain wall.
+  const skipF=(f,q)=>alc.has(q)||nearLane(f);
+  const lines=new Map(); wallFaces.forEach((f,q)=>{ if(skipF(f,q)) return; const a=f.nz!==0?f.cx:f.cz, y0=hgt[idx(f.cx,f.cz)]||0, key=(f.nz!==0?'z'+f.cz+'n'+f.nz:'x'+f.cx+'n'+f.nx)+'y'+y0; let L=lines.get(key); if(!L){ L=[]; lines.set(key,L); } L.push({ f, q, a, y0 }); });
+  const runs=[]; for(const L of lines.values()){ L.sort((p,q)=>p.a-q.a); let run=[L[0]]; for(let i=1;i<L.length;i++){ if(L[i].a===L[i-1].a+1) run.push(L[i]); else { runs.push(run); run=[L[i]]; } } runs.push(run); }
+  const mid=(e1,e2)=>({ x:(e1.f.x+e2.f.x)/2, z:(e1.f.z+e2.f.z)/2, nx:e1.f.nx, nz:e1.f.nz, cx:e1.f.cx, cz:e1.f.cz });
+  // stacked plain wall over some faces from height y up to the ceiling: pairs take double slabs, a lone face single ones, and what is left under a slab's height is made up in single rows
+  const stack=(ents,y,tag)=>{ const faces=[]; let i=0; for(;i+1<ents.length;i+=2){ faces.push({ pair:true, e1:ents[i], e2:ents[i+1] }); } if(i<ents.length) faces.push({ pair:false, e1:ents[i] });
+    for(const F of faces){ let yy=y; if(F.pair){ const pf=mid(F.e1,F.e2); while(yy+2*SLAB<=CEIL){ add('wall',pf,yy,SLAB,FRONT+.03*(F.e1.q%3)); yy+=2*SLAB; } while(yy+2<=CEIL){ add('wall',F.e1.f,yy,1,FRONT); add('wall',F.e2.f,yy,1,FRONT); yy+=2; } }
+      else { while(yy+2<=CEIL){ add('wall',F.e1.f,yy,1,FRONT); yy+=2; } } } cnt.wallCols++; };
+  const cellColumn=(ents,y0)=>{ const len=ents.length, f=len===3?ents[1].f:mid(ents[0],ents[1]); let y=y0, level=0; for(;;){ const kind=pick(ents[0].f,level), k=len*2/P[kind].w, h=2*k; if(y+h>CEIL) break; level++; add(kind,f,y,k,frontOf(kind,k)); cnt.cells++; cnt['k_'+kind]=(cnt['k_'+kind]||0)+1; y+=h;
+      if(y+2>CEIL) break; for(const e of ents) add('wall',e.f,y,1,FRONT); y+=2; } if(y+2<=CEIL) stack(ents,y); cnt.cellCols++; };
+  let gi=0; for(const run of runs){ const n=run.length, m=Math.floor(n/3), r=n%3, sizes=[]; if(n===1) sizes.push(1); else if(r===0) for(let j=0;j<m;j++) sizes.push(3); else if(r===2){ for(let j=0;j<m;j++) sizes.push(3); sizes.push(2); } else { for(let j=0;j<m-1;j++) sizes.push(3); sizes.push(2,2); }
+    const blocks=[]; let st0=0; for(const z of sizes){ blocks.push([st0,z,z>1&&(gi++%3)!==2]); st0+=z; }
+    for(const [st,len,isCell] of blocks){ const ents=run.slice(st,st+len), y0=ents[0].y0; if(isCell&&!ents.some(e=>rigs.has(e.f.cx+','+e.f.cz))) cellColumn(ents,y0); else stack(ents,y0); } }
   // nothing nested: a piece lying wholly inside a bigger one on the same wall is a copy nobody can see -- out it goes
   { const groups=new Map(); for(const pc of list){ const f=pc.f, along=f.nz!==0?f.x:f.z, plane=(f.nz!==0?'z'+f.z+'n'+f.nz:'x'+f.x+'n'+f.nx); pc.lo=along-P[pc.kind].w*pc.k/2; pc.hi=along+P[pc.kind].w*pc.k/2; pc.b0=pc.y; pc.b1=pc.y+2*pc.k; const key=plane; if(!groups.has(key)) groups.set(key,[]); groups.get(key).push(pc); }
     const EPS=.06; for(const g of groups.values()){ g.sort((a,b)=>(b.hi-b.lo)*(b.b1-b.b0)-(a.hi-a.lo)*(a.b1-a.b0)); const kept=[]; for(const pc of g){ if(kept.some(k=>pc.lo>=k.lo-EPS&&pc.hi<=k.hi+EPS&&pc.b0>=k.b0-EPS&&pc.b1<=k.b1+EPS)){ cnt.nested++; continue; } kept.push(pc); put(pc.kind,pc.f,pc.y,pc.k,pc.fr); if(pc.kind!=='wall') addMask(pc); } } }
