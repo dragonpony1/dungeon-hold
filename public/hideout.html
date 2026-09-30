@@ -536,8 +536,11 @@ function tradeClean(v) {   // whatever came over the wire: a known furniture id,
 }
 const tradeVals = list => list.map(o => (o && o.v !== undefined) ? o.v : o);
 function tradeSig() { const a = tradeVals(TRADE.mine), b = TRADE.theirs; return hash32(JSON.stringify(TRADE.init ? [a, b] : [b, a])); }
-function tradeFree() { return SAVE.bag.filter(v => !v).length + SAVE.hotbar.filter(v => !v).length + gameRoom(); }
-function tradeFits() { return tradeFree() + TRADE.mine.length >= TRADE.theirs.length; }
+function tradeFree() { return SAVE.bag.filter(v => !v).length + SAVE.hotbar.filter(v => !v).length; }
+// ONE BAG: furniture needs a slot in this room's bag or hotbar; gear goes to your bag in the game first, then any room slot left over
+function tradeFits() { const inc = TRADE.theirs, fur = inc.filter(v => !isGearItem(v)).length, gear = inc.length - fur;
+  const room = tradeFree() + TRADE.mine.filter(o => o.arr !== 'game').length, gameFree = gameRoom() + TRADE.mine.filter(o => o.arr === 'game').length;
+  return fur <= room && gear <= gameFree + (room - fur); }
 function tradeGridTo(container, values, cols, onClick, cls) {
   container.innerHTML = ''; container.style.gridTemplateColumns = 'repeat(' + cols + ', 46px)';
   values.forEach((v, i) => {
