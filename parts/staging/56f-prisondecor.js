@@ -11,7 +11,7 @@ const PROTO={};
 function protoOf(name,size){ const key=name+'|'+size; return PROTO[key]||(PROTO[key]=fetchBytes(ASSET(name),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',gl=>{ try{
     const root=gl.scene||gl.scenes[0]; const fit=fitModel(root,size); toonify(root,fit.scale); fit.wrap.userData.clips=gl.animations||[]; res(fit.wrap); }catch(e){ rej(e); } },rej)))); }
 const use=(name,size,cb)=>protoOf(name,size).then(p=>cb(p)).catch(e=>console.warn('prison decor '+name,e));
-const CX=MAP.crystal[0];   // the well is square around the Heartroot: cell C,C
+const CX=22, HW=z=>Math.min(20,Math.ceil((z-1)/2));   // the triangle's half-width at row z (the same rule the map is built by)
 // ---------------- THE RIM WALL: rows of cells, painted (four different doors, repeated every four cells along the wall)
 function paintCells(){ const W=1024,H=256, c=cv(W,H), g=c.getContext('2d'); g.fillStyle='#0d110c'; g.fillRect(0,0,W,H);
   for(let k=0;k<4;k++){ const X=k*256; g.save(); g.beginPath(); g.rect(X,0,256,256); g.clip();
@@ -41,23 +41,28 @@ function paintCells(){ const W=1024,H=256, c=cv(W,H), g=c.getContext('2d'); g.fi
 (typeof portals!=='undefined'?portals:[]).forEach(p=>{ p.g.visible=false; });
 use('prison-cell-busted.glb',5.2,p=>{ for(const L of Object.values(LANES)){ const nx=Math.sin(L.face), nz=Math.cos(L.face), D=3.1, y=hgt[idx(L.cx,L.cz)]||0;
     const t=p.clone(); t.position.set(cw(L.cx)+nx*(CELL/2-D/2),y,cwz(L.cz)+nz*(CELL/2-D/2)); t.rotation.y=L.face; world.add(t); bump('bustedCell'); } });
-// ---------------- Bob's rigged cells up the wall, looping: [model, which wall, row up the wall]
-const CELLS=[['prison-cell-tentacle.glb','N',1],['prison-cell-arm.glb','E',2],['prison-cell-tentacle.glb','S',2],['prison-cell-arm.glb','W',1]];
-for(const [file,side,row] of CELLS){ use(file,3.4,p=>{ const nx={N:0,S:0,E:-1,W:1}[side], nz={N:1,S:-1,E:0,W:0}[side], yaw={N:0,S:Math.PI,E:-Math.PI/2,W:Math.PI/2}[side];
-    const face=(side==='N'||side==='S')?{x:cw(CX),z:cwz(CX)-nz*(20*CELL+CELL/2)}:{x:cw(CX)-nx*(20*CELL+CELL/2),z:cwz(CX)};   // the wall face: 20.5 cells out from the middle
-    const t=(typeof cloneSkinned==='function')?cloneSkinned(p):p.clone(); const y0=(hgt[idx(CX,2)]||6)+row*4+.6; t.position.set(face.x+nx*.75,y0,face.z+nz*.75); t.rotation.y=yaw; world.add(t); bump('rigCell');
+// ---------------- Bob's rigged cells up the wall, looping: [model, floor cell, which way its wall faces (toward the floor), how many floors up the wall]
+const CELLS=[['prison-cell-tentacle.glb',7,31,1,0,1],['prison-cell-arm.glb',37,31,-1,0,1],['prison-cell-arm.glb',14,45,0,-1,1],['prison-cell-tentacle.glb',30,45,0,-1,2]];
+for(const [file,cx,cz,nx,nz,row] of CELLS){ const fc=wallFaces.find(w=>w.cx===cx&&w.cz===cz&&w.nx===nx&&w.nz===nz); if(!fc){ console.warn('prison decor: no wall face at',cx,cz); continue; }
+  use(file,3.4,p=>{ const t=(typeof cloneSkinned==='function')?cloneSkinned(p):p.clone(); const y0=(hgt[idx(cx,cz)]||0)+row*4+.6; t.position.set(fc.x+nx*.75,y0,fc.z+nz*.75); t.rotation.y=Math.atan2(nx,nz); world.add(t); bump('rigCell');
     const clips=p.userData.clips||[]; if(clips.length){ const mx=new THREE.AnimationMixer(t); const a=mx.clipAction(clips[0]); a.play(); a.time=rnd()*clips[0].duration; WORLDANIM.push(dt=>mx.update(dt)); }
-    const l=new THREE.PointLight(C(0xffb060),1.2,9,2); l.position.set(face.x+nx*2.2,y0+1.6,face.z+nz*2.2); world.add(l); }); }
-// ---------------- PIPES: one fat pipe along every terrace edge, running round the well between the flights
-{ const pts=[], dirs=[]; const half={rim:14.5,mid:9.5,low:4.5}; const Y={rim:5.0,mid:3.0,low:1.0};
-  const gapAt={rim:['N','S'],mid:['E','W'],low:['N','S']};   // a flight comes down here: no pipe across it
-  for(const key of ['rim','mid','low']){ const r=half[key]*CELL-.36, y=Y[key], n=Math.round(r*2/CELL);
-    for(const side of ['N','S','E','W']){ for(let i=0;i<n;i++){ const u=-r+CELL*(i+.5); if(gapAt[key].includes(side)&&Math.abs(u)<CELL*3.3) continue;
-        if(side==='N') { pts.push(u,y,-r); dirs.push(0); } else if(side==='S') { pts.push(u,y,r); dirs.push(0); } else if(side==='E') { pts.push(r,y,u); dirs.push(1); } else { pts.push(-r,y,u); dirs.push(1); } } } }
-  const geo=new THREE.CylinderGeometry(.34,.34,CELL+.02,8); geo.rotateZ(Math.PI/2);   // lying along x; the east and west ones are turned to lie along z
-  const im=new THREE.InstancedMesh(geo,mat(0x59503f),dirs.length), m=new THREE.Matrix4(), q=new THREE.Quaternion(), s=new THREE.Vector3(1,1,1), v=new THREE.Vector3();
-  for(let i=0;i<dirs.length;i++){ q.setFromAxisAngle(new THREE.Vector3(0,1,0),dirs[i]?Math.PI/2:0); v.set(pts[i*3],pts[i*3+1],pts[i*3+2]); m.compose(v,q,s); im.setMatrixAt(i,m); }
-  im.instanceMatrix.needsUpdate=true; im.frustumCulled=false; im.userData.noOL=true; world.add(im); counts.pipeSegs=dirs.length; }
+    const l=new THREE.PointLight(C(0xffb060),1.2,9,2); l.position.set(fc.x+nx*2.2,y0+1.6,fc.z+nz*2.2); world.add(l); }); }
+// ---------------- PIPES: one fat pipe along every terrace edge (broken where a flight comes down), and two great ones overhead running down the triangle's sides into the Heartroot's corner
+{ const pts=[]; const EDGE=[[12,0,[16,20]],[23,2,[29,33]],[34,4,[6,10]]];   // [the lower terrace's last row before the drop, its floor, the flight columns that break the pipe]
+  for(const [zr,y,[fa,fb]] of EDGE){ const w=HW(zr), zw=cwz(zr)+CELL/2-.36, x0=cw(CX-w)-CELL/2, x1=cw(CX+w)+CELL/2, n=Math.round((x1-x0)/CELL);
+    for(let i=0;i<n;i++){ const x=x0+CELL*(i+.5); if(x>cw(fa)-CELL/2-.1&&x<cw(fb)+CELL/2+.1) continue; pts.push(x,y+1,zw); } }
+  const geo=new THREE.CylinderGeometry(.34,.34,CELL+.02,8); geo.rotateZ(Math.PI/2);   // lying along x
+  const im=new THREE.InstancedMesh(geo,mat(0x59503f),pts.length/3), m=new THREE.Matrix4(), q=new THREE.Quaternion(), sc=new THREE.Vector3(1,1,1), v=new THREE.Vector3();
+  for(let i=0;i<pts.length/3;i++){ v.set(pts[i*3],pts[i*3+1],pts[i*3+2]); m.compose(v,q,sc); im.setMatrixAt(i,m); }
+  im.instanceMatrix.needsUpdate=true; im.frustumCulled=false; im.userData.noOL=true; world.add(im); counts.pipeSegs=pts.length/3;
+  // the great pipes: from high on the wide end down to the apex, hugging each side wall and sinking as they go
+  const gm=mat(0x4d5a48), cg=new THREE.CylinderGeometry(.56,.56,1,10), collarG=new THREE.CylinderGeometry(.78,.78,.5,10), up=new THREE.Vector3(0,1,0);
+  for(const sd of [-1,1]){ const A=new THREE.Vector3(sd*.7,7,cwz(2)), B=new THREE.Vector3(sd*38.7,15,cwz(44)), dir=B.clone().sub(A), L=dir.length(); dir.normalize();
+    const qq=new THREE.Quaternion().setFromUnitVectors(up,dir); const p=new THREE.Mesh(cg,gm); p.scale.set(1,L,1); p.quaternion.copy(qq); p.position.copy(A).add(B).multiplyScalar(.5); p.userData.noOL=true; world.add(p);
+    for(let k=1;k<9;k++){ const c=new THREE.Mesh(collarG,gm); c.quaternion.copy(qq); c.position.copy(A).addScaledVector(dir,L*k/9); c.userData.noOL=true; world.add(c); }
+    // where it ends: a green glow, the outfall into the pit
+    const og=new THREE.PointLight(C(0x58c070),.8,9,2); og.position.set(sd*1.8,5.6,cwz(2)+1); world.add(og); }
+  counts.greatPipes=2; }
 // ---------------- the test hook
 window.__prisondecor={reach:()=>Object.fromEntries(Object.entries(LANES).map(([k,l])=>[k,flowFree.dist[idx(l.cx,l.cz)]])),info:()=>Object.assign({},counts)};
 })();

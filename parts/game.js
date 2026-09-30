@@ -166,28 +166,23 @@ const MAPS=[
    {cx:22,cz:24,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:24,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:22,cz:32,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:32,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:22,cz:40,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:40,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:22,cz:48,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:48,up:3.6,c:0xffb05a,i:1.1,d:12},
    {cx:24,cz:53,up:3.4,c:0xc040ff,i:.9,d:10},{cx:1,cz:25,up:3.4,c:0xc040ff,i:.9,d:10},{cx:48,cz:25,up:3.4,c:0xc040ff,i:.9,d:10},{cx:48,cz:8,up:3.4,c:0xc040ff,i:.9,d:10},
    {cx:34,cz:40,up:4.2,c:0xffb05a,i:1.3,d:13},{cx:32,cz:42,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:36,cz:46,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:34,cz:47,up:2.2,c:0xff7a1a,i:1.6,d:9,oz:.4}]},
- // THE DEEP PRISON (build 342; Matt: a big cavern of cells, the Heartroot at the very bottom, "a top down flow ... you can see them coming down flights all around"). A square well: a pit floor, then three terraces
- // stepping up around it (two up each, six at the rim), the cells in the rim wall and up above it. The horde breaks out of four busted cells at the rim and works its way DOWN: the rim's flights go down at the north and
- // south, the next terrace's at the east and west, the last at the north and south again -- so every terrace is walked a good way round and the flights are seen all around. A flight is three cells long and five wide,
- // sitting in the inner rows of the terrace above it. Rings are measured in cells from the middle (the Heartroot), the biggest of x and z.
- {id:'prison',name:'THE DEEP PRISON',sub:'a cavern of cells falling away to the Heartroot: the horde breaks out at the rim and comes down flights on every side · four breakouts · seven waves',gw:45,gh:45,crystal:[22,22],waves:7,wallH:19,du:90,mana:560,fog:[44,130],style:{moss:true},
-  build(f,g,h,ramp){ const C=22;
-    f(C-4,C+4,C-4,C+4,T.FLOOR); h(C-4,C+4,C-4,C+4,0); f(C-1,C+1,C-1,C+1,T.DAIS); g(C,C,T.CRYSTAL);   // the pit, nine cells square, the Heartroot on its dais in the middle
-    const ring=(a,b,y)=>{ for(const [x0,x1,z0,z1] of [[C-b,C+b,C-b,C-a],[C-b,C+b,C+a,C+b],[C-b,C-a,C-a+1,C+a-1],[C+a,C+b,C-a+1,C+a-1]]){ f(x0,x1,z0,z1,T.FLOOR); h(x0,x1,z0,z1,y); } };
-    ring(5,9,2); ring(10,14,4); ring(15,20,6);   // the lower terrace (2 up), the middle (4), the rim (6)
-    const flight=(side,u,dIn,y0,y1)=>{ const a=C-dIn-2, b=C-dIn, c=C+dIn, d=C+dIn+2, w0=C+u-2, w1=C+u+2;
-      if(side==='N') ramp(w0,w1,a,b,1,y0,y1); else if(side==='S') ramp(w0,w1,c,d,2,y0,y1); else if(side==='E') ramp(c,d,w0,w1,3,y0,y1); else ramp(a,b,w0,w1,4,y0,y1); };
-    flight('N',0,15,4,6); flight('S',0,15,4,6);   // the rim's flights, down to the middle terrace
-    flight('E',0,10,2,4); flight('W',0,10,2,4);   // the middle terrace's, down to the lower
-    flight('N',0,5,0,2); flight('S',0,5,0,2);   // the lower terrace's, down into the pit
-    g(C-11,1,T.SPAWN); g(C+11,43,T.SPAWN); g(1,C,T.SPAWN); g(43,C,T.SPAWN); h(C-11,C-11,1,1,6); h(C+11,C+11,43,43,6); h(1,1,C,C,6); h(43,43,C,C,6); },   // the four busted cells in the rim wall
-  lanes:{N:{cx:11,cz:1,face:0,name:'North cells',from:1}, S:{cx:33,cz:43,face:PI,name:'South cells',from:2}, W:{cx:1,cz:22,face:PI/2,name:'West cells',from:3}, E:{cx:43,cz:22,face:-PI/2,name:'East cells',from:4}},
+ // THE DEEP PRISON (build 342; Matt: a big cavern of cells, the Heartroot at the very bottom, "a top down flow ... you can see them coming down flights all around", then "it was gonna be a triangle with the
+ // heartroot in one corner"). A TRIANGLE in plan: the wide end is the rim, a flat stone ledge six up along the south wall where the cells are; the sides close in toward the north until they meet at the apex, where
+ // the Heartroot sits in the corner on the pit floor. Between them three terraces step down (rim 6, middle 4, lower 2, pit 0). The horde breaks out of busted cells along the rim and ZIGZAGS down: the rim's flight
+ // is at the west end, the middle terrace's at the east end, the lower terrace's at the west end again -- every terrace is walked its full width, and the flights are seen all around. Feeder gates in the side walls
+ // join on later waves (the middle terrace's west wall, the lower terrace's east wall). A flight is three cells long and five wide, sitting in the north rows of the terrace above it. The hero starts in the pit,
+ // looking down the triangle. z counts from the apex (row 2) to the rim's south wall (row 46); a row's half-width is the smaller of 20 and half the rows down from the apex.
+ {id:'prison',name:'THE DEEP PRISON',sub:'a triangular cavern of cells narrowing to the Heartroot in its corner: the horde breaks out along the wide rim and zigzags down the flights · four breakouts · seven waves',gw:45,gh:48,crystal:[22,4],waves:7,wallH:19,du:90,mana:560,fog:[46,135],style:{moss:true},
+  build(f,g,h,ramp){ const hw=z=>Math.min(20,Math.ceil((z-1)/2)), Y=z=>z<=12?0:z<=23?2:z<=34?4:6;
+    for(let z=2;z<=45;z++){ const w=hw(z); f(22-w,22+w,z,z,T.FLOOR); h(22-w,22+w,z,z,Y(z)); }   // the triangle, row by row, each row at its terrace's height
+    f(21,23,3,5,T.DAIS); g(22,4,T.CRYSTAL);   // the Heartroot in the apex, on its dais
+    ramp(6,10,35,37,2,4,6); ramp(29,33,24,26,2,2,4); ramp(16,20,13,15,2,0,2);   // the flights (rising south): rim to middle at the west end, middle to lower at the east end, lower to pit at the west end
+    g(43,44,T.SPAWN); h(43,43,44,44,6); g(22,46,T.SPAWN); h(22,22,46,46,6); g(7,28,T.SPAWN); h(7,7,28,28,4); g(32,19,T.SPAWN); h(32,32,19,19,2); },   // the busted cells: the rim's east end and south wall, the middle terrace's west wall, the lower terrace's east wall
+  lanes:{E:{cx:43,cz:44,face:-PI/2,name:'East cells',from:1}, S:{cx:22,cz:46,face:PI,name:'South cells',from:2}, W:{cx:7,cz:28,face:PI/2,name:'West landing',from:3}, NE:{cx:32,cz:19,face:-PI/2,name:'Lower east',from:4}},
   hall:[-9,-9,-9,-9],pillars:[],barrels:[],crates:[],chandeliers:[],beams:{zs:[],w:0},tavern:{dx:0,dz:0},noTavern:true,
-  lights:(()=>{ const L=[[0,3.4,0,0xb494ff,1.3,15],[0,1.2,0,0x58c070,.7,12]];
-    for(const [cx,cz] of [[5,5],[22,4],[39,5],[4,22],[40,22],[5,39],[22,40],[39,39]]) L.push({cx,cz,up:4.2,c:0xff8a2a,i:1.3,d:15});   // the rim: a brazier at every corner and side
-    for(const [cx,cz] of [[10,10],[34,10],[10,34],[34,34]]) L.push({cx,cz,up:3.6,c:0xff8a2a,i:1.3,d:14});   // the middle terrace's corners
-    for(const [cx,cz] of [[15,15],[29,15],[15,29],[29,29]]) L.push({cx,cz,up:3.6,c:0xff8a2a,i:1.2,d:13});   // the lower terrace's
-    for(const [cx,cz] of [[11,1],[33,43],[1,22],[43,22]]) L.push({cx,cz,up:3.4,c:0xc040ff,i:1.6,d:13});   // the broken cells glow where the horde comes out
+  lights:(()=>{ const L=[[0,3.4,0,0xb494ff,1.3,15],[0,1.2,5,0x58c070,.7,12]];
+    for(const [cx,cz,up] of [[19,9,3.4],[25,9,3.4],[16,18,3.6],[28,18,3.6],[22,21,3.6],[12,30,3.6],[32,30,3.6],[22,28,3.6],[8,42,4.2],[22,41,4.2],[36,42,4.2],[22,45,4.2]]) L.push({cx,cz,up,c:0xff8a2a,i:1.3,d:14});   // braziers down the terraces
+    for(const [cx,cz] of [[43,44],[22,46],[7,28],[32,19]]) L.push({cx,cz,up:3.4,c:0xc040ff,i:1.6,d:13});   // the broken cells glow where the horde comes out
     return L; })()}];
 // THE TUTORIAL HALL (build 166, Matt: "we need to reimagine the entire tutorial ... prior to room one there is a tutorial hall ...
 // its a tutorial room with one hall and in your face instruction"). A tiny map of its own, deliberately NOT in MAPS (the campaign's
