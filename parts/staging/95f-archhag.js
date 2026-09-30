@@ -44,12 +44,11 @@ let loadP=null;
 const HAG_RIM=0xb44cff, HAG_BRIGHT=.5;   // build 332 (Matt: "that looks like a little much ... maybe just some white light in her garb or somethign or just brighten her up some"): her own colours lit up
 // (a white glow through her own texture) instead of a violet wash; the violet rim thinner (x1.7, was x2.4); the floor pool softer
 function hagLook(root){ root.traverse(o=>{ if(!o.isMesh||!o.material) return;
-  if(o.userData.isOL&&o.material.uniforms&&o.material.uniforms.col){ o.material.uniforms.col.value=C(HAG_RIM); if(o.material.uniforms.t) o.material.uniforms.t.value*=1.7; }
-  else if(o.material.emissive){ if(o.material.map) o.material.emissiveMap=o.material.map; o.material.emissive.setRGB(HAG_BRIGHT,HAG_BRIGHT,HAG_BRIGHT); o.material.emissiveIntensity=1; o.material.needsUpdate=true; } }); }
+  if(o.userData.isOL&&o.material.uniforms&&o.material.uniforms.col){ o.material.uniforms.col.value=C(HAG_RIM); } }); }   // build 333 (Matt: "its too much it takes her art out"): her own art untouched -- only the ink line turns violet (normal thickness); no glow on her
 function hagAura(e){ const g=e.mdl.g; if(g.userData.hagAura) return; const grp=new THREE.Group(); grp.name='hagAura';
   const pool=new THREE.Mesh(new THREE.PlaneGeometry(8,8),new THREE.MeshBasicMaterial({map:GLOWT,color:C(0xa040ff),transparent:true,opacity:.55,blending:THREE.AdditiveBlending,depthWrite:false}));
-  pool.rotation.x=-PI/2; pool.position.y=.05; pool.userData.noOL=true; grp.add(pool);
-  const ring=new THREE.Mesh(new THREE.RingGeometry(1.25,1.55,48),new THREE.MeshBasicMaterial({color:C(0xd08aff),transparent:true,opacity:.8,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+  pool.rotation.x=-PI/2; pool.position.y=.05; pool.userData.noOL=true; pool.visible=false; grp.add(pool);   // build 333: the pool's haze hid her art -- kept, switched off
+  const ring=new THREE.Mesh(new THREE.RingGeometry(1.25,1.55,48),new THREE.MeshBasicMaterial({color:C(0xd08aff),transparent:true,opacity:.5,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
   ring.rotation.x=-PI/2; ring.position.y=.07; ring.userData.noOL=true; grp.add(ring);
   for(let i=0;i<6;i++){ const r=new THREE.Mesh(new THREE.CircleGeometry(.13,5),ring.material); const a=i/6*TAU; r.position.set(Math.cos(a)*1.4,.075,Math.sin(a)*1.4); r.rotation.x=-PI/2; r.userData.noOL=true; grp.add(r); }   // runes on the ring
   g.add(grp); g.userData.hagAura=grp; }
