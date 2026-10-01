@@ -13,8 +13,8 @@ function targetId(){
   if(DL&&DL.isOpen()){ const id=idUnder('#doll'); if(id) return {id,where:'doll'}; const s=DL.selected&&DL.selected(); return {id:s&&s.id||null,where:'doll'}; }
   return null; }
 function flip(){ const T=targetId(); if(!T) return false; if(!T.id){ toast('🔒 Point at a piece in your bag, then L'); return true; }
-  const it=Meta.bag().find(b=>b.id===T.id); const on=Meta.toggleLock(T.id);
-  if(on===null){ toast('🔒 Only pieces in your bag can be locked'); return true; }
+  const it=Meta.bag().find(b=>b.id===T.id)||SLOTS.map(s=>gear[s]).find(g=>g&&g.id===T.id); const on=Meta.toggleLock(T.id);   /* build 408: a worn piece too */
+  if(on===null){ toast('🔒 Only pieces in your bag or on you can be locked'); return true; }
   toast((on?'🔒 Locked':'🔓 Unlocked')+' · '+(it&&it.name||'piece'));
   try{ SFX.place&&SFX.place(); }catch(e){}
   // build 341 (Matt: "everytime i mouse over and unlock something the whole item card opens up. that should be on left click only just leave closed on lock/unlock"): redraw only -- never select the piece,

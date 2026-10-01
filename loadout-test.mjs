@@ -62,9 +62,9 @@ const back=await page.evaluate(()=>{ const b=document.querySelector('#doll .dl-s
 check("...and moving off it shows what is worn again (3/5)",!back.prev&&/3\/5/.test(back.forest),JSON.stringify(back));
 await page.evaluate(k=>{ window.__meta.equip(k.amulet); window.__meta.equip(k.familiar); },kit);
 // pull from the armory, and report a piece that is gone
-const w2=await page.evaluate(k=>{ const M=window.__meta; M.unequip('weapon'); M.unequip('armor'); if(M.stash) M.stash(k.w); const sold=M.sell(k.a); const toasts=[]; const pt=window.toast; return {stashed:(M.armory?M.armory():[]).some(x=>x.id===k.w),sold:!!sold}; },kit2);
+const w2=await page.evaluate(k=>{ const M=window.__meta; M.unequip('weapon'); M.unequip('armor'); if(M.stash) M.stash(k.w); const ai=M.bag().findIndex(x=>x.id===k.a); const sold=ai>=0&&M.bag().splice(ai,1).length>0; M.save&&M.save();   /* build 408: a loadout piece is locked and cannot be sold -- it is taken away by hand to stand for one that is gone */ const toasts=[]; const pt=window.toast; return {stashed:(M.armory?M.armory():[]).some(x=>x.id===k.w),sold:!!sold}; },kit2);
 const t2=await page.evaluate(async()=>{ const seen=[]; const el=document.getElementById('toast'); window.__doll.wearLoadout(1); await new Promise(r=>setTimeout(r,120)); return {weapon:window.__dd.gear().weapon&&window.__dd.gear().weapon.id,armor:window.__dd.gear().armor&&window.__dd.gear().armor.id,toast:el?el.textContent:''}; });
-check("WEAR on loadout 2 takes its weapon out of the armory, and says its armor is gone (it was sold)",w2.stashed&&w2.sold&&t2.weapon===kit2.w&&t2.armor!==kit2.a&&/1 gone/.test(t2.toast),JSON.stringify({w2,t2}));
+check("WEAR on loadout 2 takes its weapon out of the armory, and says its armor is gone (taken away)",w2.stashed&&w2.sold&&t2.weapon===kit2.w&&t2.armor!==kit2.a&&/1 gone/.test(t2.toast),JSON.stringify({w2,t2}));
 // SAVE over a filled loadout asks once first
 await page.click('#doll .dl-loads .ld:nth-child(1) [data-act="ldsave"]'); await page.waitForTimeout(150);
 const arm=await page.evaluate(()=>({btn:document.querySelector('#doll .dl-loads .ld:nth-child(1) [data-act="ldsave"]').textContent,same:window.__doll.loadouts()[0].ids}));

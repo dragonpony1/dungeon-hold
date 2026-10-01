@@ -72,6 +72,6 @@ function check(){ const where={}, dup=[]; const add=(it,loc)=>{ if(!it) return; 
   const cur=HG[heroPick.id]||{}, stale=SLOTS.filter(s=>((cur[s]&&cur[s].id)||null)!==((gear[s]&&gear[s].id)||null));   // the saved copy of the current hero lags `gear` only between a direct write and its save
   return {ok:!dup.length,dup,pieces:Object.keys(where).length,where,stale}; }
 Meta.allWorn=allWorn;
-Meta.heroGear={of:id=>{ const g=setOf(id); return g?Object.assign({},g):null; },whereWorn,allWorn,check,shortName,HG_KEY,LDH_KEY};
+Meta.heroGear={save:()=>persist(), of:id=>{ const g=setOf(id); return g?Object.assign({},g):null; },whereWorn,allWorn,check,shortName,HG_KEY,LDH_KEY};
 window.__heroGear=Meta.heroGear;
 })();

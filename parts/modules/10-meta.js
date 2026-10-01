@@ -62,7 +62,11 @@ function bagSetOf(it){ const S=typeof Meta!=='undefined'&&Meta.sets; return (S&&
 // THE LOCK: a locked piece is never scrapped at the hideout portal (59-hideout.js carries it through whole instead) and
 // never sold -- not by Sell junk, not by the Sell button, which the views disable until it's unlocked. The flag lives
 // on the item itself, so it rides along when the piece is worn, kept in the armory or saved. Nothing else reads it.
-function toggleLock(id){ const i=bagIdx(id); if(i<0) return null; const it=st.bag[i]; it.locked=!it.locked; if(!it.locked) delete it.locked; saveMeta(); return !!it.locked; }
+// build 408 (Matt: "if a loadout is saved all those items need to be automatically locked, also need to add locking to items that are equipped"): a WORN piece locks and unlocks too (the lock travels with it
+// when it comes off, so Sell all and the salvage pass it by), and a piece in a saved loadout stays locked -- unlocking it says which loadout keeps it (68-paperdoll.js locks them: Meta.loadoutOf).
+function toggleLock(id){ const i=bagIdx(id); let it=i>=0?st.bag[i]:null, worn=false; if(!it){ for(const s of SLOTS){ if(gear[s]&&gear[s].id===id){ it=gear[s]; worn=true; break; } } } if(!it) return null;
+  if(it.locked&&typeof Meta!=='undefined'&&Meta.loadoutOf){ const L=Meta.loadoutOf(id); if(L){ toast('🔒 In loadout '+L+' — it stays locked'); return true; } }
+  it.locked=!it.locked; if(!it.locked) delete it.locked; if(worn) saveGear(); saveMeta(); return !!it.locked; }
 function bagIdx(id){ return st.bag.findIndex(b=>b.id===id); }
 function bagItem(it,why){ if(!validItem(it)) return false; fixItem(it); if(bagIdx(it.id)>=0||bagFull()) return false; st.bag.push(it); saveMeta(); return true; }
 function htmlToast(h,t){ $('toast').innerHTML=h; $('toast').style.opacity=1; toastT=t||3.4; }
@@ -135,7 +139,7 @@ Object.assign(Meta,{
   BAG_CAP, XP, SKILLS, SKILL_MAX, xpToNext, fmtG, isJunk, bagKey,
   gold:()=>st.gold, addGold, level:()=>st.level, setLevel, xp:()=>st.xp, points, spentPoints, canRespec, respecCost, respec, spend,
   skill:id=>st.skills[id]||0, skills:()=>Object.assign({},st.skills), skillValue:id=>{ const s=SKILLS.find(s=>s.id===id); return s?s.fmt(s.per*st.skills[id]):''; },
-  bag:()=>st.bag, sortedBag, bagSetOf, bagSort:()=>bagSort, setBagSort, BAG_SORTS, toggleLock, isLocked:id=>{ const i=bagIdx(id); return i>=0&&!!st.bag[i].locked; }, bagFull, holdsOnFloor, sell:sellItem, sellJunk, sellAll, equip, unequip,
+  bag:()=>st.bag, sortedBag, bagSetOf, bagSort:()=>bagSort, setBagSort, BAG_SORTS, toggleLock, isLocked:id=>{ const i=bagIdx(id); if(i>=0) return !!st.bag[i].locked; for(const sl of SLOTS) if(gear[sl]&&gear[sl].id===id) return !!gear[sl].locked; return false; }   /* build 408: a worn piece too */, bagFull, holdsOnFloor, sell:sellItem, sellJunk, sellAll, equip, unequip,
   stock:()=>st.stock, stockTier:()=>st.stockTier, tierLine, restockCost, restock, buyPrice, canBuy, buy,
   best:()=>st.best, runs:()=>st.runs, summary, version:()=>metaVer, save:saveMeta,
   state:()=>JSON.parse(JSON.stringify(st)), reset:metaReset, addXP, giveGold:n=>addGold(n,'refund'), giveItem:it=>bagItem(it,'give') });

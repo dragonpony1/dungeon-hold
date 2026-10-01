@@ -147,7 +147,16 @@ function ldSave(){ try{ localStorage.setItem(LDH_KEY,JSON.stringify(LDALL)); loc
 // where a piece is: worn by this hero, in the bag, in the armory, or worn by another hero (a loadout saved while it was here)
 function findItem(id){ for(const s of SLOTS) if(gear[s]&&gear[s].id===id) return {it:gear[s],where:'worn'}; const b=Meta.bag().find(x=>x.id===id); if(b) return {it:b,where:'bag'}; const a=(Meta.armory?Meta.armory():[]).find(x=>x.id===id); if(a) return {it:a,where:'arm'};
   const w=Meta.heroGear&&Meta.heroGear.whereWorn(id); return w?{it:w.it,where:'hero',hero:w.hero}:null; }
-function ldStore(i){ ldSync(); const ids={}, names={}; let n=0; for(const s of SLOTS) if(gear[s]){ ids[s]=gear[s].id; names[s]=gear[s].name; n++; } if(!n){ toast('Wear something first — a loadout keeps what you have on'); return false; } LD[i]={ids,names,at:Date.now()}; ldSave(); D.ldArm=null; toast('Loadout '+(i+1)+' saved'); if(SFX.pickup) SFX.pickup(); return true; }
+function ldStore(i){ ldSync(); const ids={}, names={}; let n=0; for(const s of SLOTS) if(gear[s]){ ids[s]=gear[s].id; names[s]=gear[s].name; n++; } if(!n){ toast('Wear something first — a loadout keeps what you have on'); return false; } LD[i]={ids,names,at:Date.now()}; ldSave(); D.ldArm=null; const nl=lockLoadoutPieces(); toast('Loadout '+(i+1)+' saved'+(nl?' · 🔒 '+nl+' piece'+(nl===1?'':'s')+' locked':'')); if(SFX.pickup) SFX.pickup(); return true; }
+// build 408 (Matt: "if a loadout is saved all those items need to be automatically locked"): every piece any hero's loadout names is locked wherever it is -- on you, in the bag, in the armory, on another hero --
+// when a loadout is saved, and once as the game starts (for loadouts saved before this). Unlocking one says which loadout keeps it (10-meta.js toggleLock asks Meta.loadoutOf).
+function ldAllIds(){ ldSync(); const out={}; for(const h in LDALL){ (LDALL[h]||[]).forEach((L,i)=>{ if(L&&L.ids) for(const s in L.ids){ const id=L.ids[s]; if(id&&!out[id]) out[id]=i+1; } }); } return out; }
+function lockLoadoutPieces(){ const ids=ldAllIds(); let n=0, worn=false, arm=false, other=false;
+  for(const id in ids){ const f=findItem(id); if(!f||f.it.locked) continue; f.it.locked=true; n++; if(f.where==='worn') worn=true; else if(f.where==='arm') arm=true; else if(f.where==='hero') other=true; }
+  if(n){ if(worn) try{ saveGear(); }catch(e){} try{ Meta.save&&Meta.save(); }catch(e){} if(arm) try{ localStorage.setItem('ddArmory',JSON.stringify(Meta.armory())); }catch(e){} if(other&&Meta.heroGear&&Meta.heroGear.save) Meta.heroGear.save(); }
+  return n; }
+Meta.loadoutOf=id=>{ const ids=ldAllIds(); return ids[id]||0; };
+setTimeout(()=>{ try{ lockLoadoutPieces(); }catch(e){} },1500);
 function ldWorn(L){ const ks=SLOTS.filter(s=>L.ids[s]); return ks.length>0&&ks.every(s=>gear[s]&&gear[s].id===L.ids[s]); }
 function ldWear(i){ ldSync(); const L=LD[i]; if(!L) return false; let on=0, miss=0, gated=0, full=0; const took=[];
   for(const s of SLOTS){ const id=L.ids[s]; if(!id) continue; if(gear[s]&&gear[s].id===id) continue; const f=findItem(id); if(!f){ miss++; continue; }
@@ -237,5 +246,5 @@ addEventListener('keydown',e=>{ if(e.code==='Tab'||e.code==='KeyC'){ if(S.phase=
   if(D.open){ if(e.code==='Escape'||e.code==='KeyI'||e.code==='KeyB'){ e.preventDefault(); close(); } else if(e.code==='KeyL'&&!e.repeat&&window.__lockkey&&window.__lockkey.flip()) e.preventDefault();   // build 340: L locks/unlocks the piece (96m-lockkey.js)
     e.stopImmediatePropagation(); } },true);
 ensure();
-window.__doll={preview:i=>{ D.ldPrev=i==null?null:i; if(D.open) render(); },loadouts:()=>JSON.parse(JSON.stringify(ldSync())),saveLoadout:ldStore,wearLoadout:ldWear,LD_KEY,open,close,isOpen:()=>D.open,html:()=>el?el.innerHTML:'',select:(id,from,slot)=>{ D.sel=id?{id,from:from||'bag',slot}:null; if(D.open) render(); },selected:()=>D.sel,portrait:()=>D.cv?{w:D.cv.width,h:D.cv.height,cam:!!PC}:null,forge:()=>null,setForge:()=>{}};
+window.__doll={lockLoadouts:()=>lockLoadoutPieces(), preview:i=>{ D.ldPrev=i==null?null:i; if(D.open) render(); },loadouts:()=>JSON.parse(JSON.stringify(ldSync())),saveLoadout:ldStore,wearLoadout:ldWear,LD_KEY,open,close,isOpen:()=>D.open,html:()=>el?el.innerHTML:'',select:(id,from,slot)=>{ D.sel=id?{id,from:from||'bag',slot}:null; if(D.open) render(); },selected:()=>D.sel,portrait:()=>D.cv?{w:D.cv.width,h:D.cv.height,cam:!!PC}:null,forge:()=>null,setForge:()=>{}};
 })();

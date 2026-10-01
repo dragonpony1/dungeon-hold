@@ -28,10 +28,10 @@ const b1=await lockedNow(ids.b), a3=await lockedNow(ids.a), stillA=await page.ev
 check("pointing at another piece and pressing L locks THAT one (not the selected one), and the card you had open stays on the same piece",b1&&!a3&&stillA===ids.a,JSON.stringify({b1,a3,stillA}));
 await press(); await sleep(250); const b2=await lockedNow(ids.b), a4=await lockedNow(ids.a);
 check("a SECOND L with the mouse still over the same card unlocks the same piece (the cards redraw under the pointer between presses)",b2===false&&a4===false,JSON.stringify({b2,a4}));
-// 3. a worn piece is refused
+// 3. a worn piece locks too (build 408)
 await hover('#tavern .tv-card[data-from="eq"][data-id="'+ids.worn+'"]'); const wornBefore=await lockedNow(ids.worn); await press(); await sleep(150);
 const wornAfter=await lockedNow(ids.worn), msg=await page.evaluate(()=>(document.getElementById('toast')||document.querySelector('.toast')||{}).textContent||document.body.innerText.slice(-300));
-check("L on a piece you are wearing changes nothing (a bag piece only)",wornBefore===wornAfter&&!wornAfter&&/bag/i.test(msg),JSON.stringify({wornBefore,wornAfter}));
+check("L on a piece you are wearing locks it too (build 408: worn pieces lock; it was refused before)",wornBefore===false&&wornAfter===true&&/Locked/.test(msg),JSON.stringify({wornBefore,wornAfter,msg}));
 await page.evaluate(()=>window.__tavern.close());
 // 3b. nothing selected: L on a piece you point at locks it and does NOT open its card
 await page.evaluate(()=>{ window.__tavern.open(); window.__tavern.tab('bag'); }); await sleep(250);
