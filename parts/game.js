@@ -6,19 +6,23 @@
 const Q=new URLSearchParams(location.search), SILENT=Q.has('silent');
 const $=id=>document.getElementById(id);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v, lerp=(a,b,t)=>a+(b-a)*t;
-// build 400 (Matt: "can we make the suffix's make sense on regular gear?"): an ordinary piece's "of ..." names its STRONGEST stat (the one worth most by STATW's weights, below). They used to be picked at random
-// and meant nothing. Never "of the ..." -- those are the sets (93-gearsets.js). Pieces already saved with one of the old random endings are renamed once, here, before anything reads the saves.
-const STAT_SUFFIX={dmg:'of Goblin Slaying',spd:'of Fury',hp:'of Vigor',def:'of Stone',regen:'of Mending',tow:'of Vigil',mana:'of Plenty',move:'of Swiftness',fdmg:'of Fangs',frate:'of Frenzy',trate:'of Volleys',tarea:'of Reach',fproj:'of Many'};
-const SUFFIX_W={dmg:3,spd:1,hp:.6,def:1.5,regen:4,tow:1.2,mana:.5,move:1.5,fdmg:2.5,frate:.8,trate:1.2,tarea:1.2,fproj:12};   // the same weights as STATW
-function honestSuffix(stats){ let best=null, bv=-1; for(const k in stats||{}){ const v=(+stats[k]||0)*(SUFFIX_W[k]||1); if(v>bv&&STAT_SUFFIX[k]){ bv=v; best=k; } } return best?STAT_SUFFIX[best]:''; }
-window.__suffix={ honest:st=>honestSuffix(st), map:()=>Object.assign({},STAT_SUFFIX), weights:()=>Object.assign({},SUFFIX_W) };   // suffix-test.mjs
-const OLD_SUFFIX=['of Goblin Slaying','of Embers','of Fury','of Stone','of Vigil','of Thorns'];
-(function renameOldSuffixes(){ try{ if(localStorage.getItem('dd_suffix_v1')) return; let n=0;
+// build 400 (Matt: "can we make the suffix's make sense on regular gear?"): an ordinary piece's "of ..." names a stat. They used to be picked at random and meant nothing. Never "of the ..." -- those are the sets.
+// build 402 (Matt: "what does vigor mean, everything in his bag turned to 'of vigor'"): 400 named the stat worth most in gear score, and health's big numbers won on every armor and amulet. Now it names the stat
+// that rolled UNUSUALLY HIGH for the piece's level and rarity (its value over a plain roll's, statMean below -- the same formula rollStat uses), so a chest that rolled great armor is "of Stone", great regen
+// "of Mending". Health is "of Life" now (plainer than Vigor), defense damage "of Warding", mana "of Mana". Saved pieces are renamed again, once (dd_suffix_v2), before anything reads the saves.
+const STAT_SUFFIX={dmg:'of Goblin Slaying',spd:'of Fury',hp:'of Life',def:'of Stone',regen:'of Mending',tow:'of Warding',mana:'of Mana',move:'of Swiftness',fdmg:'of Fangs',frate:'of Frenzy',trate:'of Volleys',tarea:'of Reach',fproj:'of Many'};
+function statMean(k,L,r){ const m={dmg:(1.5+L*.6)*(1+r*.45),spd:5+r*6+L,hp:(8+L*4)*(1+r*.45),def:3+r*3+L*.6,regen:.5+r*.5+L*.15,tow:4+r*5+L*1.2,mana:10+r*8+L*1.5,move:3+r*2.5+L*.5,fdmg:(2+L*.8)*(1+r*.5),frate:8+r*8+L*1.5}[k]; return m; }   // a plain roll (rollStat's jitter is .8-1.2 around it)
+const SUFFIX_W={dmg:3,spd:1,hp:.6,def:1.5,regen:4,tow:1.2,mana:.5,move:1.5,fdmg:2.5,frate:.8,trate:1.2,tarea:1.2,fproj:12};   // only when a piece carries no level/rarity: the same weights as STATW
+function honestSuffix(stats,L,r){ let best=null, bv=-1; const lr=L>0&&r>=0;
+  for(const k in stats||{}){ if(!STAT_SUFFIX[k]) continue; const m=lr?statMean(k,L,r):0; const v=m?(+stats[k]||0)/m:(lr?0:(+stats[k]||0)*(SUFFIX_W[k]||1)); if(v>bv){ bv=v; best=k; } } return best?STAT_SUFFIX[best]:''; }
+window.__suffix={ honest:(st,L,r)=>honestSuffix(st,L,r), map:()=>Object.assign({},STAT_SUFFIX), mean:statMean };   // suffix-test.mjs
+const ANY_SUFFIX=['of Embers','of Thorns','of Vigor','of Vigil','of Plenty'].concat(Object.values(STAT_SUFFIX)).sort((p,q)=>q.length-p.length);   // the old random six, 400's names, today's
+(function renameSuffixes(){ try{ if(localStorage.getItem('dd_suffix_v2')) return; let n=0;
     const fix=o=>{ if(!o||typeof o!=='object') return; if(Array.isArray(o)){ o.forEach(fix); return; }
-      if(typeof o.name==='string'&&o.stats&&typeof o.stats==='object'&&typeof o.slot==='string'&&!o.setId&&!o.named&&o.tier!=='named'){ const old=OLD_SUFFIX.find(x=>o.name.endsWith(' '+x)); if(old){ const nw=honestSuffix(o.stats); if(nw&&nw!==old){ o.name=o.name.slice(0,o.name.length-old.length)+nw; n++; } } }
+      if(typeof o.name==='string'&&o.stats&&typeof o.stats==='object'&&typeof o.slot==='string'&&!o.setId&&!o.named&&o.tier!=='named'){ const old=ANY_SUFFIX.find(x=>o.name.endsWith(' '+x)); if(old){ const nw=honestSuffix(o.stats,o.lvl,o.rarity); if(nw&&nw!==old){ o.name=o.name.slice(0,o.name.length-old.length)+nw; n++; } } }
       for(const k in o) if(o[k]&&typeof o[k]==='object') fix(o[k]); };
     for(let i=0;i<localStorage.length;i++){ const key=localStorage.key(i); if(!/^dd/.test(key)) continue; const raw=localStorage.getItem(key); if(!raw||raw[0]!=='{'&&raw[0]!=='[') continue; let v; try{ v=JSON.parse(raw); }catch(e){ continue; } const before=n; fix(v); if(n!==before) localStorage.setItem(key,JSON.stringify(v)); }
-    localStorage.setItem('dd_suffix_v1','1'); window.__suffixRenamed=n; }catch(e){} })();
+    localStorage.setItem('dd_suffix_v2','1'); window.__suffixRenamed=n; }catch(e){} })();
 let seed=91731; const rnd=()=>{seed=(seed*1664525+1013904223)>>>0; return seed/4294967296;};
 const R=(a,b)=>a+rnd()*(b-a);
 const C=h=>new THREE.Color(h).convertSRGBToLinear();
@@ -783,7 +787,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=401;
+const BUILD=402;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1287,7 +1291,7 @@ function gearScore(){ let v=0; for(const s of SLOTS){ if(gear[s]) v+=gear[s].sco
 function swingDur(){ return swingBase()/((1+heroStat('spd')/100)*heroMult('spd')); }
 function hitFrac(){ return (useGLB&&GLBH&&GLBH.hitFrac)||.32; }
 function rollRarity(minR){ const w=Math.max(1,effWave()); const wt=[Math.max(25,64-1.2*w),25,8.5+.7*w,w>=3?2+.35*w:0,w>=6?.5+.12*w:0]; const tot=wt.reduce((a,b)=>a+b,0); let r=LR()*tot, i=0; while(i<4&&r>=wt[i]){ r-=wt[i]; i++; } return Math.max(minR||0,i); }
-function rollStat(k,L,r){ const j=.8+LR()*.4; const v={dmg:(1.5+L*.6)*(1+r*.45),spd:5+r*6+L,hp:(8+L*4)*(1+r*.45),def:3+r*3+L*.6,regen:(.5+r*.5+L*.15)*10,tow:4+r*5+L*1.2,mana:10+r*8+L*1.5,move:3+r*2.5+L*.5,fdmg:(2+L*.8)*(1+r*.5),frate:8+r*8+L*1.5}[k]*j;
+function rollStat(k,L,r){ const j=.8+LR()*.4; const v=statMean(k,L,r)*(k==='regen'?10:1)*j;   /* build 402: statMean (top of file), shared with the gear names */
   return k==='regen'?Math.round(v)/10:Math.round(Math.min(k==='def'?45:k==='move'?40:999,v)); }
 // tier: which bracket of waves an item belongs to (shop stock is sold by tier)
 function tierOf(L){ return Math.min(5,1+Math.floor((Math.max(1,L)-1)/3)); }
@@ -1295,7 +1299,7 @@ function rollItem(minR,slot,lvl){ slot=slot||SLOTS[(LR()*SLOTS.length)|0]; const
   const pools={weapon:['dmg','spd'],armor:['hp','def','regen'],charm:['tow','mana','move'],amulet:['hp','regen','def','spd'],familiar:['fdmg','frate']}; const keys=pools[slot].slice(0,1+Math.min(r,pools[slot].length-1));
   if(r===4){ const others=ROLLABLE.filter(k=>!keys.includes(k)); keys.push(others[(LR()*others.length)|0]); }   /* a legendary's bonus stat comes from the stats a drop can roll; the forge-only ones (defense speed/range, pet projectiles) are bought, never rolled */
   const stats={}; keys.forEach(k=>{ stats[k]=rollStat(k,L,r); });
-  const name=PREFIX[r][(LR()*PREFIX[r].length)|0]+' '+BASES[slot][Math.min(BASES[slot].length-1,(r+((LR()*2)|0)))]+(r>=1&&honestSuffix(stats)?' '+honestSuffix(stats):'');   /* build 400: its strongest stat names it (STAT_SUFFIX, top of file) */
+  const name=PREFIX[r][(LR()*PREFIX[r].length)|0]+' '+BASES[slot][Math.min(BASES[slot].length-1,(r+((LR()*2)|0)))]+(r>=1&&honestSuffix(stats,L,r)?' '+honestSuffix(stats,L,r):'');   /* build 400: its strongest stat names it (STAT_SUFFIX, top of file) */
   let score=0; for(const k in stats) score+=stats[k]*STATW[k];
   const value=Math.round(10*(1+L*.5)*[1,2,4,8,16][r]);
   return {slot,rarity:r,lvl:L,tier:tierOf(L),name,stats,score:Math.round(score*10)/10,value,id:Math.floor(LR()*1e9).toString(36)+L.toString(36)}; }
