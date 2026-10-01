@@ -9,9 +9,9 @@ const open=async(q)=>{ const ctx=await browser.newContext({viewport:{width:1280,
   await p.goto("http://127.0.0.1:8895/?silent"+q,{timeout:120000}); await p.waitForFunction(()=>window.__titlestage&&window.__dd,null,{timeout:120000}); return {ctx,p,reqs}; };
 { const {ctx,p,reqs}=await open(""); const r=await p.evaluate(()=>({want:window.__titlestage.want,list:window.__titleList,canvas:!!document.getElementById("titleStage"),art:window.__titleart&&window.__titleart.on()}));
   await p.waitForTimeout(1500);
-  check("a browser a test drives gets the painting (no 3D canvas), and the list holds all seven names",r.want==="portal"&&!r.canvas&&r.list.join()==="portal,firebow,wisp,imp,drake,trimaw,sixseven",JSON.stringify(r)); await ctx.close(); }
-const NAMES={firebow:"DRACONIC FIRE BOW",wisp:"WISP PROJECTILE",imp:"FIRE IMP",drake:"STORM DRAKE",trimaw:"TRIMAW",sixseven:"6/7"};
-for(const n of ["firebow","wisp","imp","drake","trimaw","sixseven"]){
+  check("a browser a test drives gets the painting (no 3D canvas), and the list holds all eight names (build 393: the iron mouse trap)",r.want==="portal"&&!r.canvas&&r.list.join()==="portal,firebow,wisp,imp,drake,trimaw,sixseven,mousetrap",JSON.stringify(r)); await ctx.close(); }
+const NAMES={firebow:"DRACONIC FIRE BOW",wisp:"WISP PROJECTILE",imp:"FIRE IMP",drake:"STORM DRAKE",trimaw:"TRIMAW",sixseven:"6/7",mousetrap:"THE IRON MOUSE TRAP"};
+for(const n of ["firebow","wisp","imp","drake","trimaw","sixseven","mousetrap"]){
   const {ctx,p,reqs}=await open("&titlebg="+n); await p.waitForFunction(()=>window.__titlestage.loaded(),null,{timeout:120000}).catch(()=>{}); await p.waitForTimeout(400);
   const r=await p.evaluate(()=>{ const c=document.getElementById("titleStage"), st=document.getElementById("start"); const snap=window.__titlestage.snapshot(); return { moniker:window.__titlestage.moniker(), want:window.__titlestage.want, canvas:!!c&&c.parentNode===st, on:c&&c.classList.contains("on"), running:window.__titlestage.running(), loaded:window.__titlestage.loaded(), stage:st.classList.contains("stage"), snap }; });
   const painting=reqs.filter(u=>/title-bg/.test(u)).length;

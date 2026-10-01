@@ -4,7 +4,7 @@
 //   under a soft spotlight, the way Meshy previews them (20b-titlestage.js). ?titlebg=<name> forces one (to look at each); a browser a test drives (navigator.webdriver) gets the painting, so the suites that read it stay steady.
 // Runs before 20-titleart.js, which asks window.__titleWant() before it even fetches the painting (390 KB nobody sees on the other five). The single-file build has no models: always the painting.
 (function(){
-const LIST=['portal','firebow','wisp','imp','drake','trimaw','sixseven'];
+const LIST=['portal','firebow','wisp','imp','drake','trimaw','sixseven','mousetrap'];   // mousetrap (build 393, Matt: "put that on the rotation page"): his Iron Mouse Trap, the Mark IV
 let pick=null;
 try{ const q=new URLSearchParams(location.search).get('titlebg'); if(q&&LIST.includes(q)) pick=q; }catch(e){}
 if(!pick&&navigator.webdriver) pick='portal';
