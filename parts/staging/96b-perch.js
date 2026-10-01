@@ -75,6 +75,26 @@ function turnBox(b,r,x,z){ const c=Math.round(Math.cos(r)), s=Math.round(Math.si
     for(const b of d.railboxes) RAILBOXES.push(b);
   } return d; }; }
 // build 376 (Matt: "jacob cant stand on the perch"): the footholds exist only where the perch was PLACED -- the host. A guest's perch is a read-only puppet (99-network.js), so its own hero had no boxes to climb and fell through it. A guest now builds the same boxes (boxesFor) for every perch puppet it sees, and takes them down with it
-window.__perch={ boxesFor:(x,z,rot,base)=>PERCH_BOXES.map(b=>Object.assign(turnBox(b,snapRot(rot),x,z),{top:base+b.top})), cap:CAP };
+// ---------------------------------------------------------------- build 381 (Matt: "make it so i can place a balista on a perch" / "need to be able to place ballista on hedges in cloister as well"): a ballista can be set ON a surface: a free perch's deck, or (the Cloister Court,
+// 56d-courtdecor.js) a hedge. Aim the placement at the perch (the cell it stands in) or at a hedge and the ghost snaps to the middle of it, up at its top, and turns red only for the usual reasons (defense units, mana,
+// an enemy too close) or when a tower already stands there (one to a surface). The tower is its own defense (it takes no floor cell, so mobs still walk through a perch as always, and never reach a hedge) tied to what it stands on
+// (d.onSurf): sell or lose the perch and the tower comes down with it, 70% of its mana back. STACK is the list of towers that may stand on a surface -- the ballista (harpoon) for now. A surface is a function
+// (kind,x,z) -> {x,z,y,key} | null pushed on window.__standSurf (this file adds the perch's; 56d adds the hedge's). Works for a co-op guest too (99-network.js asks deckFor).
+const STACK=new Set(['harpoon']);
+function perchFor(kind,x,z){ const cx=wc(x), cz=wcz(z); if(!inb(cx,cz)) return null; const d=defAt[idx(cx,cz)]; return (d&&d.kind==='perch')?d:null; }
+const SURF=window.__standSurf=window.__standSurf||[];
+SURF.push((kind,x,z)=>{ const p=perchFor(kind,x,z); return p?{ x:p.x, z:p.z, y:p.base+DEFS.perch.top, key:p }:null; });
+const surfaceAt=(kind,x,z)=>{ if(!STACK.has(kind)) return null; for(const f of SURF){ const s=f(kind,x,z); if(s) return s; } return null; };
+const towerOn=key=>defs.find(o=>o.onSurf===key);
+const deckFor=(kind,x,z)=>{ const s=surfaceAt(kind,x,z); return (s&&!towerOn(s.key))?s:null; };
+{ const prevPlace2=placeDefAt; placeDefAt=function(kind,x,z,rot){ const s=surfaceAt(kind,x,z); if(!s) return prevPlace2.apply(this,arguments); if(towerOn(s.key)) return null;   /* one tower to a surface */
+    const d=prevPlace2.call(this,kind,s.x,s.z,rot); if(d){ d.onSurf=s.key; d.base=s.y; d.top=DEFS[kind].top+s.y; if(d.mdl) d.mdl.position.y=s.y; } return d; }; }   // snapped to the middle of it and set up at its top
+{ const prevRemove2=removeDef; removeDef=function(d){ if(d&&d.kind==='perch'){ for(const o of defs.slice()){ if(o.onSurf!==d) continue; const back=Math.round((o.spent||0)*.7); S.mana+=back; floatText(o.x,o.top+.8,o.z,'+'+back+' mana','#5ee9ff'); toast('The tower comes down with its perch'); prevRemove2.call(this,o); } } return prevRemove2.apply(this,arguments); }; }
+{ const prevGhost2=updateGhost; updateGhost=function(){ prevGhost2.apply(this,arguments); if(!placing||!ghost||!STACK.has(placing)) return;
+    const [px,pz]=placeStage===1?anchorPos:aimPoint(); const s=surfaceAt(placing,px,pz); if(!s) return;
+    const cfg=DEFS[placing]; let reason=''; if(towerOn(s.key)) reason='A tower already stands here'; else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units'; else if(S.mana<cfg.mana) reason='Not enough mana'; else if(enemies.some(e=>!e.dead&&Math.hypot(e.x-s.x,e.z-s.z)<2.2)) reason='Enemy too close';
+    ghostOk=!reason; ghostReason=reason; ghostPos=[s.x,s.z]; ghostCell=[wc(s.x),wcz(s.z)]; ghost.position.set(s.x,s.y,s.z); const m=ghostOk?GHOST_OK:GHOST_BAD; ghost.traverse(o=>{ if(o.isMesh) o.material=m; });
+    if(typeof ghostSector!=='undefined'&&ghostSector){ ghostSector.position.set(s.x,s.y,s.z); if(typeof tintSector==='function') tintSector(ghostSector,ghostOk?0x40ff80:0xff3030); } }; }
+window.__perch={ deckFor, towerOn, surfaceAt, stack:()=>[...STACK], remove:d=>removeDef(d), boxesFor:(x,z,rot,base)=>PERCH_BOXES.map(b=>Object.assign(turnBox(b,snapRot(rot),x,z),{top:base+b.top})), cap:CAP };
 { const prevRemove=removeDef; removeDef=function(d){ if(d.railboxes) for(const b of d.railboxes){ const i=RAILBOXES.indexOf(b); if(i>=0) RAILBOXES.splice(i,1); } prevRemove(d); }; }
 })();

@@ -109,6 +109,16 @@ async function connect(H,G,tag){ const rc=tag+"-"+Math.random().toString(36).sli
   check('and they MOVE there (the puppets walk, they do not stand on the spot)',mv.length>0&&mv2.some((q,i)=>mv[i]&&Math.hypot(q[0]-mv[i][0],q[1]-mv[i][1])>1),JSON.stringify({ a:mv.slice(0,2), b:mv2.slice(0,2) }));
   await H.context().close(); await G.context().close(); }
 
+// ================= (7) a guest sets a ballista on a perch (build 381) =================
+{ const H=await open(0), G=await open(0); await sleep(4300);
+  const c=await connect(H,G,'stack'); check('host and guest connect (ballista on a perch)',!c.hostOpen.err&&!c.join.err,JSON.stringify(c));
+  const perch=await H.evaluate(async()=>{ const d=window.__dd; await window.__heroes.select('troll'); d.addMana(5000); d.setHero(0,8,Math.PI); d.step(1/60,3); const p=d.place('perch',16,24,0); d.step(1/60,2); return p?{x:p.x,z:p.z}:null; });
+  await tickUntil([H,G],G,()=>window.__defsync&&window.__defsync.list().length>0?1:null,null,150,3);
+  await G.evaluate(({perch})=>{ window.__net.send('place',{ kind:'harpoon', x:perch.x+.3, z:perch.z-.2, yaw:0 }); },{perch});
+  const got=await tickUntil([H,G],H,()=>{ const t=window.__dd.defs.find(x=>x.kind==='harpoon'); return t?{ base:t.base, onSurf:!!t.onSurf, cells:t.cells.length }:null; },null,150,3);
+  check("the co-op host lets a guest set a ballista on a free perch (it stands on the deck, 2.5 up)",!!got&&Math.abs(got.base-2.5)<.05&&got.onSurf&&got.cells===0,JSON.stringify(got));
+  await H.context().close(); await G.context().close(); }
+
 // ================= (1) a teammate on a raised floor: the Deep Prison =================
 { const H=await open(5), G=await open(5); await sleep(4300);
   const c=await connect(H,G,"height"); check("host and guest connect (the Deep Prison)",!c.hostOpen.err&&!c.join.err,JSON.stringify(c));

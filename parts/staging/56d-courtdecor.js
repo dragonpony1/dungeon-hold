@@ -36,6 +36,8 @@ BED.forEach((c,i)=>{ grid[i]=HEDGE; });
 reflow();
 const after={}; SP.forEach(([x,z])=>{ after[x+','+z]=flowFree.dist[idx(x,z)]; });
 const cellOf=(cx,cz)=>cx>=0&&cz>=0&&cx<GW&&cz<GH?BED.get(idx(cx,cz)):undefined;
+// build 381 (Matt: "need to be able to place ballista on hedges in cloister as well"): a HEDGE (a bed cell beside a path) is a surface a ballista may be set on (96b-perch.js, the same rule as a perch's deck): the tower stands at the hedge's top, in the middle of its cell
+(window.__standSurf=window.__standSurf||[]).push((kind,x,z)=>{ const c=cellOf(wc(x),wcz(z)); return (c&&c.edge)?{ x:cw(c.cx), z:cwz(c.cz), y:c.top, key:c }:null; });
 // ---- build 285 (Matt, killed by drakes: "those guys need a little pathing or something its overwhelming ... hard is good. something in the middle"): flyers still cross the beds, but a bed cell costs them
 // BED_FLY steps instead of one, and they come down into the court by a stair like everyone else (they used to glide round the raised walkway and drop in beside a Heartroot), so they mostly keep to the lanes and only cut across where it saves a lot -- harder than a walker, no longer a straight dash to a Heartroot. A weighted field (a bucket
 // queue: the weights are small whole numbers) replaces game.js's plain one for flyers, rebuilt whenever reflow() is (a defense placed or sold).
@@ -154,6 +156,7 @@ const NO_RANGED=x=>x.kind==='archer', NO_RANGED_LAST=x=>x.kind==='archer'||x.kin
     if(packs.length){ c.q.push(...packs); c.q.sort((a,b)=>a.t-b.t); } if(!n||!c.desc) return c;
     const g=c.q.filter(x=>x.kind==='goblin').length, wv=c.q.filter(x=>x.kind===WOLF).length; c.desc=String(c.desc).replace(/Goblins ×[0-9]+/,'Goblins ×'+g).replace(/ · Bandits ×[0-9]+/,'').replace(/ · Troll Archers ×[0-9]+/,wv?' · Dire Wolves ×'+wv:''); return c; }; }
 window.__courtdecor.w1Extra=W1_EXTRA;
+window.__courtdecor.hedgeCells=()=>[...BED.values()].filter(c=>c.edge).map(c=>({cx:c.cx,cz:c.cz,top:c.top}));
 window.__courtdecor.topiList=()=>TOPI;   // build 308: the Archhag (95f-archhag.js) wakes them
 window.__courtdecor.topiaries=()=>({placed:TOPI.length,cells:TOPI_CELLS.map(c=>[c.cx,c.cz]),h:TOPI_H,kinds:TOPI.reduce((o,t)=>{ o[t.kind]=(o[t.kind]||0)+1; return o; },{})});
 })();

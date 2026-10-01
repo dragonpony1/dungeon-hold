@@ -1195,8 +1195,9 @@ function hostTryPlaceDef(kind,x,z,yaw,fromId){
   if(Math.hypot(x-g.x,z-g.z)>20){ send('toast','Too far away',fromId); return; }
   const cx=wc(x), cz=wcz(z), t=gat(cx,cz), cells=footprintCells(kind,x,z,yaw);
   let reason=null;
-  if(!(t===T.FLOOR||t===T.CARPET)||cells.some(i=>!walk(grid[i])||MOBBLOCK[i])) reason="Can't build there";
-  else if(cells.some(i=>defAt[i])) reason='Already occupied';
+  const surf=(window.__perch&&window.__perch.deckFor)?window.__perch.deckFor(kind,x,z):null;   // build 381: a ballista may stand on a free perch's deck or a Cloister hedge (96b-perch.js)
+  if(!surf&&(!(t===T.FLOOR||t===T.CARPET)||cells.some(i=>!walk(grid[i])||MOBBLOCK[i]))) reason="Can't build there";
+  else if(!surf&&cells.some(i=>defAt[i])) reason='Already occupied';
   else if(cells.includes(idx(wc(g.x),wcz(g.z)))||Math.hypot(x-g.x,z-g.z)<1.1) reason="You're standing there";   // the same self-overlap rule updateGhost (game.js) enforces locally, mirrored here against the guest's own HOST-tracked position
   else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units';
   const realMana=S.mana; S.mana=guestMana.has(fromId)?guestMana.get(fromId):MAP_MANA;
