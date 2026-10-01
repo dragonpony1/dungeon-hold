@@ -787,7 +787,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=408;
+const BUILD=409;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -870,7 +870,13 @@ const HAS_ASSETS=/*ASSETS*/false;
 const ASSET_TXT=/*TXT*/true;
 const ASSET_STAMPS=/*STAMPS*/{};   // per-file content stamps, filled in by the assembler for the folder build: a changed model gets a new URL, so no browser keeps serving the old one
 const ASSET=n=>ASSET_STAMPS[n]&&/\.glb$/.test(n)?'assets/'+n.replace(/\.glb$/,'')+'.'+ASSET_STAMPS[n]+'.glb'+(ASSET_TXT?'.txt':''):'assets/'+n+(/\.glb$/.test(n)&&ASSET_TXT?'.txt':'');   // a model's file name carries its content stamp (witch.1a2b3c4d.glb.txt): a re-export is a new file, and no cache anywhere can hand out the old one
-function fetchRetry(url,tries){ return fetch(url).then(r=>{ if(!r.ok&&tries>1&&r.status!==404) throw new Error('HTTP '+r.status); return r; }).catch(e=>{ if(tries<=1) throw e; return new Promise(res=>setTimeout(res,600*(4-tries))).then(()=>fetchRetry(url,tries-1)); }); }   // three goes at each file, a beat apart: one dropped fetch must not cost the hero model
+// build 409 (Matt: "he's in wave 5 and it bogged way down and says 4 assets and the 4 assets won't come in"): a download had no time limit -- a connection that quietly drops mid-file answers nothing, ever,
+// so the counter sat on 4 and those models never came. Now every attempt has FETCH_MS (90 s, header AND body): past it the request is cancelled and the file is asked for again (fetchRetry's own tries
+// for the answer; one more whole go in fetchBytesRaw if the body is what stalled).
+const FETCH_MS=Math.max(1000,+Q.get("fetchms")||90000);   /* ?fetchms= shortens it for a test (fetchstall-test.mjs) */
+function fetchTimed(url){ if(typeof AbortController==='undefined') return fetch(url); const ac=new AbortController(); const t=setTimeout(()=>ac.abort(),FETCH_MS);
+  return fetch(url,{signal:ac.signal}).then(r=>{ const ab=r.arrayBuffer.bind(r), tx=r.text.bind(r); r.arrayBuffer=()=>ab().finally(()=>clearTimeout(t)); r.text=()=>tx().finally(()=>clearTimeout(t)); if(!r.ok) clearTimeout(t); return r; },e=>{ clearTimeout(t); throw e; }); }
+function fetchRetry(url,tries){ return fetchTimed(url).then(r=>{ if(!r.ok&&tries>1&&r.status!==404) throw new Error('HTTP '+r.status); return r; }).catch(e=>{ if(tries<=1) throw e; return new Promise(res=>setTimeout(res,600*(4-tries))).then(()=>fetchRetry(url,tries-1)); }); }   // three goes at each file, a beat apart: one dropped fetch must not cost the hero model
 // Load order matters more than load size: some sixty models (~80MB of base64) are requested the moment the page runs,
 // and a browser only keeps ~6 connections open per host, so whatever is asked for last waits for everything before it.
 // The hero used to be near the end of that queue -- 'build 21 · hero model: loading…' for minutes on a phone while
@@ -906,7 +912,8 @@ function fetchBytesNow(url){ const had=INFLIGHT.get(url); if(had){ had.joins++; 
   const stale=new Promise(res=>{ tm=setTimeout(res,SHARE_MS); }).then(()=>{ if(INFLIGHT.get(url)===e) INFLIGHT.delete(url); return e.joins?fetchBytesNow(url):new Promise(()=>{}); });   // only fires while raw is still out (done clears it)
   e.p=Promise.race([raw,stale]); INFLIGHT.set(url,e); raw.then(done,done); return e.p; }
 window.__fetchlayer={now:fetchBytesNow,asset:ASSET,inflight:()=>[...INFLIGHT.keys()],shareMs:SHARE_MS};   // test hook (throneload-test.mjs): the shared in-flight download, checked directly
-function fetchBytesRaw(url){ const plain=url.replace(/\.[0-9a-f]{8}\.glb(\.txt)?$/,'.glb$1'); return fetchRetry(url,3).then(r=>r.ok||plain===url?r:fetchRetry(plain,2)).catch(()=>fetchRetry(plain,2)).then(r=>{   /* the unstamped file is kept alongside as a fallback */ if(!r.ok) throw new Error('HTTP '+r.status+' '+url); if(!/\.txt(\?|$)/.test(url)) return r.arrayBuffer().then(ab=>{ LOADT.bytes+=ab.byteLength; return ab; }); return r.text().then(t=>{ LOADT.bytes+=t.length; const b=atob(t.replace(/\s+/g,'')); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u.buffer; }); }); }
+function fetchBytesRaw(url){ return fetchBytesOnce(url).catch(e=>new Promise(res=>setTimeout(res,1200)).then(()=>fetchBytesOnce(url))); }   /* build 409: a body that stalled (cut off past FETCH_MS) gets one more whole go */
+function fetchBytesOnce(url){ const plain=url.replace(/\.[0-9a-f]{8}\.glb(\.txt)?$/,'.glb$1'); return fetchRetry(url,3).then(r=>r.ok||plain===url?r:fetchRetry(plain,2)).catch(()=>fetchRetry(plain,2)).then(r=>{   /* the unstamped file is kept alongside as a fallback */ if(!r.ok) throw new Error('HTTP '+r.status+' '+url); if(!/\.txt(\?|$)/.test(url)) return r.arrayBuffer().then(ab=>{ LOADT.bytes+=ab.byteLength; return ab; }); return r.text().then(t=>{ LOADT.bytes+=t.length; const b=atob(t.replace(/\s+/g,'')); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u.buffer; }); }); }
 // the hero model itself is fetched by installHero() (70-hero2.js, runs right after this) — H.g (the plain
 // primitive hero) covers the moment before that fetch resolves, same as it always covers a hero switch mid-game.
 // A second, separate fetch here used to race it for a "faster" placeholder (an embedded, synchronous blob in the

@@ -21,6 +21,9 @@ const el=document.createElement('div'); el.id='loadctr';
 el.style.cssText='position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:50;pointer-events:none;text-align:center;font-family:"Cinzel Decorative",Georgia,serif;font-weight:700;font-size:26px;color:#e8b94a;text-shadow:0 0 14px #000,0 3px 0 #000;letter-spacing:1px;display:none;white-space:nowrap;';
 document.body.appendChild(el);
 function fmt(){ const n=LOADT.inflight; return '⏳ '+n+' ASSET'+(n===1?'':'S')+' LEFT'; }
+// build 409: if the count has not moved for STUCK_MS, the files it waits on are named under it in small print (so a stall can be read off and told) -- they are being fetched again on their own (game.js FETCH_MS)
+const STUCK_MS=20000; let lastN=-1, sameSince=0;
+function stuckNames(){ try{ return (window.__fetchlayer&&window.__fetchlayer.inflight()||[]).map(u=>decodeURIComponent(String(u).split('/').pop()).replace(/\.[0-9a-f]{8}(?=\.glb)/,'').replace(/\.txt$/,'')).slice(0,6); }catch(e){ return []; } }
 // build 226 (Matt, equipping the new bat: "the top didn't say there were assets either"): a ~1 MB pet model can land between two 150 ms checks and never show. Any change in the
 // file count now counts as activity, and once everything has landed the counter says so for a moment instead of vanishing
 // build 251 (Matt: "asset count and tooltip overlap in tutorial"): the tutorial's big tooltip (#tut, 89-tutorial.js) starts at top 46 and runs to ~157, right over the counter's top 64. While that tooltip is up the
@@ -32,6 +35,7 @@ function place(){ const st=document.getElementById('start'), title=!!(st&&!st.cl
   const t=document.getElementById('tut'); let top=64; if(t&&t.classList.contains('on')){ const r=t.getBoundingClientRect(); if(r.height>0) top=Math.max(64,Math.round(r.bottom+8)); } const v=top+'px'; if(el.style.top!==v) el.style.top=v; }
 let lastFiles=LOADT.files, lastAct=-1e9;
 setInterval(()=>{ place(); const now=performance.now(); const busy=LOADT.inflight>0; if(busy||LOADT.files!==lastFiles) lastAct=now; lastFiles=LOADT.files;
-  if(busy){ el.style.display='block'; el.style.color='#e8b94a'; el.textContent=fmt(); } else if(now-lastAct<1500&&lastAct>0){ el.style.display='block'; el.style.color='#8fe07a'; el.textContent='✓ ASSETS LOADED'; } else el.style.display='none'; },150);
-window.__loadctr={place,el:()=>el,visible:()=>el.style.display==='block',text:()=>el.textContent,busy:()=>LOADT.inflight>0};
+  if(LOADT.inflight!==lastN){ lastN=LOADT.inflight; sameSince=now; }
+  if(busy){ el.style.display='block'; el.style.color='#e8b94a'; const stuck=now-sameSince>STUCK_MS&&el.dataset.mode!=='title'; if(stuck){ const nm=stuckNames(); el.innerHTML=''; el.appendChild(document.createTextNode(fmt())); const sm=document.createElement('div'); sm.style.cssText='font:600 12px system-ui;color:#d8c8a8;letter-spacing:0;margin-top:2px'; sm.textContent='retrying: '+nm.join(' · '); el.appendChild(sm); } else el.textContent=fmt(); } else if(now-lastAct<1500&&lastAct>0){ el.style.display='block'; el.style.color='#8fe07a'; el.textContent='✓ ASSETS LOADED'; } else el.style.display='none'; },150);
+window.__loadctr={stuckNames,stuckMs:STUCK_MS,place,el:()=>el,visible:()=>el.style.display==='block',text:()=>el.textContent,busy:()=>LOADT.inflight>0};
 })();
