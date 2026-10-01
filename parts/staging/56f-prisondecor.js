@@ -55,9 +55,9 @@ for(const [file,cx,cz,nx,nz,row] of CELLS){ const fc=wallFaces.find(w=>w.cx===cx
     const clips=p.userData.clips||[]; if(clips.length){ const mx=new THREE.AnimationMixer(t); const a=mx.clipAction(clips[0]); a.play(); a.time=rnd()*clips[0].duration; WORLDANIM.push(dt=>mx.update(dt)); }
     const l=new THREE.PointLight(C(0xffb060),1.2,9,2); l.position.set(fc.x+nx*2.2,y0+1.6,fc.z+nz*2.2); world.add(l); }); }
 // ---------------- PIPES: one fat pipe along every terrace edge (broken where a flight comes down), and two great ones overhead running down the triangle's sides into the Heartroot's corner
-{ const pts=[]; const EDGE=[[12,0,[16,20]],[23,2,[31,35]],[34,4,[6,10]]];   // [the lower terrace's last row before the drop, its floor, the flight columns that break the pipe]
-  for(const [zr,y,[fa,fb]] of EDGE){ const w=HW(zr), zw=cwz(zr)+CELL/2-.36, x0=cw(CX-w)-CELL/2, x1=cw(CX+w)+CELL/2, n=Math.round((x1-x0)/CELL);
-    for(let i=0;i<n;i++){ const x=x0+CELL*(i+.5); if(x>cw(fa)-CELL/2-.1&&x<cw(fb)+CELL/2+.1) continue; pts.push(x,y+1,zw); } }
+{ const pts=[]; const EDGE=[[12,0,[[16,20],[22,24]]],[23,2,[[10,14],[22,24]]],[34,4,[[6,10],[22,24]]]];   // [the lower terrace's last row before the drop, its floor, the flights' columns that break the pipe -- the horde's flight and (build 374) the hero's own stairs]
+  for(const [zr,y,breaks] of EDGE){ const w=HW(zr), zw=cwz(zr)+CELL/2-.36, x0=cw(CX-w)-CELL/2, x1=cw(CX+w)+CELL/2, n=Math.round((x1-x0)/CELL);
+    for(let i=0;i<n;i++){ const x=x0+CELL*(i+.5); if(breaks.some(([fa,fb])=>x>cw(fa)-CELL/2-.1&&x<cw(fb)+CELL/2+.1)) continue; pts.push(x,y+1,zw); } }
   const geo=new THREE.CylinderGeometry(.34,.34,CELL+.02,8); geo.rotateZ(Math.PI/2);   // lying along x
   const im=new THREE.InstancedMesh(geo,mat(0x59503f),pts.length/3), m=new THREE.Matrix4(), q=new THREE.Quaternion(), sc=new THREE.Vector3(1,1,1), v=new THREE.Vector3();
   for(let i=0;i<pts.length/3;i++){ v.set(pts[i*3],pts[i*3+1],pts[i*3+2]); m.compose(v,q,sc); im.setMatrixAt(i,m); }
@@ -95,7 +95,7 @@ function instanceAll(wrap,mats){ if(!mats.length) return; wrap.updateMatrixWorld
     instanceAll(p,mats); counts.sconces=mats.length; }); }
 // ---------------- ARCHES AND PILLARS (build 346; Matt: "we should use these nice arches and pillars somewhere"): his doorway arch stands over the head of every flight, where the horde turns down the stairs (five wide to match), a
 // smaller one frames each breakable wall, and two of his corner pillars stand behind the Heartroot's dais. 26K triangles in all.
-{ const FL=[[8,38,6],[33,27,4],[18,16,2]];   // [the flight's centre column, the first row of the upper floor past its head, that floor's height]
+{ const FL=[[8,38,6],[12,27,4],[18,16,2]];   // [the flight's centre column, the first row of the upper floor past its head, that floor's height]
   use('prison-arch.glb',4.95,p=>{ for(const [cx,cz,y] of FL){ const t=p.clone(); t.position.set(cw(cx),y,cwz(cz)); world.add(t); bump('flightArch'); }
     for(const sd of [-1,1]){ const t=p.clone(); t.scale.setScalar(1.6); t.position.set(sd*11,0,cwz(4)-CELL/2+.9); t.rotation.y=0; world.add(t); bump('alcoveArch'); } });
   use('prison-pillar.glb',8,p=>{ for(const cxx of [21,25]){ const t=p.clone(); t.position.set(cw(cxx),0,cwz(2)); world.add(t); bump('pillar'); } }); }

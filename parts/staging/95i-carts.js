@@ -14,7 +14,7 @@ const KINDS={
 // // build 373 (Matt: "give those siege carts extra life"): both carts have THREE times the health they had (the keg cart 90 -> 270, the fire cart 150 -> 450 before the wave scaling, and on THE DEEP PRISON the doubling of 95o-prisonmobs.js on top: a keg cart there is 540 base)
 // (the wheels turn at .81 of the Roll clip's own speed at the cart's pace: nat.walk below)
 const SIDE=.7;   // where the pushers stand: to either side of the cart's centre line (the handles), and behind its handle tips (the model's length is 2 units across its front, so the tips are one model-unit scaled back from the middle: MOBGLB[kind].back)
-for(const k in KINDS){ MOBDIM[k]={ fit:KINDS[k].fit, h:KINDS[k].fit, r:1.4, nat:{ walk:KINDS[k].cfg.spd/KINDS[k].fit/.81, run:2.4 } }; MOBS[k]=KINDS[k].cfg; if(Meta.XP) Meta.XP[k]=Meta.XP[k]||12; }
+for(const k in KINDS){ MOBDIM[k]={ fit:KINDS[k].fit, h:KINDS[k].fit, r:1.2, nat:{ walk:KINDS[k].cfg.spd/KINDS[k].fit/.81, run:2.4 } }; MOBS[k]=KINDS[k].cfg; if(Meta.XP) Meta.XP[k]=Meta.XP[k]||12; }
 const cnt={ teams:0, blasts:0, flames:0, rams:0 }; const fx=[]; const P={};
 const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
 function load(kind){ const K=KINDS[kind]; if(!K) return Promise.resolve(); if(MOBGLB[kind]) return Promise.resolve(); if(P[kind]) return P[kind];

@@ -178,7 +178,11 @@ const MAPS=[
     for(let z=2;z<=45;z++){ const w=hw(z); f(23-w,23+w,z,z,T.FLOOR); h(23-w,23+w,z,z,Y(z)); }   // the triangle, row by row, each row at its terrace's height
     f(16,30,4,9,T.FLOOR); h(16,30,4,9,0);
     f(22,24,3,5,T.DAIS); g(23,4,T.CRYSTAL);   // the Heartroot in the apex, on its dais
-    ramp(6,10,35,37,2,4,6); ramp(31,35,24,26,2,2,4); ramp(16,20,13,15,2,0,2);   // the flights (rising south): rim to middle at the west end, middle to lower at the east end, lower to pit at the west end
+    ramp(6,10,35,37,2,4,6); ramp(10,14,24,26,2,2,4); ramp(16,20,13,15,2,0,2);   // the flights (rising south): rim to middle at the west end, middle to lower at the west end (build 374: it was the east end), lower to pit at the west end
+    // build 374 (Matt: "the last thing on this map is getting our pathing down" / "i like the B plus A idea"): the two long terraces are cut into two lanes by a railing, joined at the EAST end -- the horde walks each terrace out and back -- and the hero gets his own stairs and a gate through each railing, straight down the middle, that the horde ignores
+    ramp(22,24,35,37,2,4,6); ramp(22,24,24,26,2,2,4); ramp(22,24,13,15,2,0,2); block(22,24,35,37); block(22,24,24,26); block(22,24,13,15);   // the hero's stairs (three wide, the middle of each cliff)
+    block(8,33,29,29); block(13,28,18,18);   // the railing lines: middle terrace (west wall to its east gap, x 34-38) and lower terrace (west wall to its east gap, x 29-33); the hero's gates through them (x 22-24) are blocked to the horde as well
+    block(22,24,29,29); block(22,24,18,18);
     g(45,41,T.SPAWN); h(45,45,41,41,6); g(1,41,T.SPAWN); h(1,1,41,41,6); g(7,28,T.SPAWN); h(7,7,28,28,4); g(34,19,T.SPAWN); h(34,34,19,19,2); },   // the busted cells: the rim's east end and west end (build 363: both in front of the big barrier, which closes off the rim's last three rows -- 56i-prisonbarrier.js), the middle terrace's west wall, the lower terrace's east wall
   lanes:{E:{cx:45,cz:41,face:-PI/2,name:'East cells',from:1}, S:{cx:1,cz:41,face:PI/2,name:'West cells',from:2}, W:{cx:7,cz:28,face:PI/2,name:'Middle landing',from:3}, NE:{cx:34,cz:19,face:-PI/2,name:'Lower east',from:4}},
   hall:[-9,-9,-9,-9],pillars:[],barrels:[],crates:[],chandeliers:[],beams:{zs:[],w:0},tavern:{dx:0,dz:0},noTavern:true,
@@ -236,7 +240,10 @@ function fill(x0,x1,z0,z1,t){ for(let z=z0;z<=z1;z++) for(let x=x0;x<=x1;x++) gr
 const hgt=new Float32Array(GW*GH), rampA=new Int8Array(GW*GH), rampL=new Float32Array(GW*GH), rampH=new Float32Array(GW*GH);
 function hfill(x0,x1,z0,z1,y){ for(let z=z0;z<=z1;z++) for(let x=x0;x<=x1;x++) hgt[idx(x,z)]=y; }
 function ramp(x0,x1,z0,z1,dir,y0,y1){ const alongZ=dir===1||dir===2; const n=alongZ?(z1-z0+1):(x1-x0+1); for(let z=z0;z<=z1;z++) for(let x=x0;x<=x1;x++){ const k=alongZ?(dir===1?z1-z:z-z0):(dir===3?x-x0:x1-x); const i=idx(x,z); rampA[i]=dir; rampL[i]=y0+(y1-y0)*k/n; rampH[i]=y0+(y1-y0)*(k+1)/n; hgt[i]=(rampL[i]+rampH[i])/2; } }
-MAP.build(fill,(x,z,t)=>{ grid[idx(x,z)]=t; },hfill,ramp);
+// build 374 (the Deep Prison's paths): cells ONLY THE HERO may use -- a railing line the horde can't cross, the hero's own stairs and gate that the horde ignores. A MOBBLOCK cell is ordinary floor to everything else (towers aside, which can't stand on one), but the horde's flow fields skip it and a walking mob's collision stops at it
+const MOBBLOCK=new Uint8Array(GW*GH);
+function block(x0,x1,z0,z1,on){ for(let z=z0;z<=z1;z++) for(let x=x0;x<=x1;x++) MOBBLOCK[idx(x,z)]=on===0?0:1; }
+MAP.build(fill,(x,z,t)=>{ grid[idx(x,z)]=t; },hfill,ramp,block);
 const HASWATER=grid.includes(T.WATER), WATER_BED=-1.5, WATER_Y=-.8; if(HASWATER) for(let i=0;i<grid.length;i++) if(grid[i]===T.WATER) hgt[i]=WATER_BED;   // the moat's bed lies below the banks, its surface a little under them
 const GOAL=idx(MAP.crystal[0],MAP.crystal[1]);
 const GOAL2=MAP.crystal2?idx(MAP.crystal2[0],MAP.crystal2[1]):-1, C2X=MAP.crystal2?cw(MAP.crystal2[0]):0, C2Z=MAP.crystal2?cwz(MAP.crystal2[1]):0;   // build 282: a map's SECOND Heartroot (the Cloister Court), world C2X/C2Z; -1 on every other map
@@ -255,7 +262,7 @@ function bfs(respect,fly){
   dist[GOAL]=0; const q=[GOAL]; let qi=0; if(GOAL2>=0){ dist[GOAL2]=0; q.push(GOAL2); }
   while(qi<q.length){ const i=q[qi++]; const x=i%GW, z=(i/GW)|0;
     for(let k=0;k<4;k++){ const nx=x+[1,-1,0,0][k], nz=z+[0,0,1,-1][k]; if(!inb(nx,nz)) continue; const j=idx(nx,nz); if(!fly){ if(Math.abs(hgt[j]-hgt[i])>.8) continue; /* no path over a ledge: stairs only (flyers ignore it) */ const ai=rampA[i], aj=rampA[j], alongZ=k>=2; if((ai&&((ai<=2)!==alongZ))||(aj&&((aj<=2)!==alongZ))) continue; } /* a flight is entered and left at its ends, never over its side (the side of a stair is a ledge the steps can't climb) */
-      if(dist[j]>=0||!(walk(grid[j])||(fly&&grid[j]===T.WATER))) continue; if(respect&&defAt[j]&&!NOWALK_DEF[defAt[j].kind]) continue;
+      if(!fly&&MOBBLOCK[j]) continue; /* the hero's stairs and railings: not for the horde */ if(dist[j]>=0||!(walk(grid[j])||(fly&&grid[j]===T.WATER))) continue; if(respect&&defAt[j]&&!NOWALK_DEF[defAt[j].kind]) continue;
       dist[j]=dist[i]+1; nxt[j]=i; q.push(j); } }
   return {nxt,dist};
 }
@@ -694,7 +701,7 @@ const DEF_HERO_R=.62, DEF_HERO_HEDGE_LEN=2.2, DEF_HERO_HEDGE_HALF=.5;
 function defBlocksHero(d,x,z){ const dx=x-d.x, dz=z-d.z;
   if(d.kind==='spike'){ const c=Math.cos(d.rot||0), s=Math.sin(d.rot||0); return Math.abs(dx*c-dz*s)<=DEF_HERO_HEDGE_LEN&&Math.abs(dx*s+dz*c)<=DEF_HERO_HEDGE_HALF; }
   return dx*dx+dz*dz<=DEF_HERO_R*DEF_HERO_R; }
-function solidAt(x,z,y,forHero){ const cx=wc(x),cz=wcz(z); const t=gat(cx,cz); if(forHero?heroSolid(t):!(walk(t)||(y>=1e5&&t===T.WATER))) return true; /* a flyer (y far above) may cross the moat */ if(baseFloor(x,z)>y+.62) return true; /* a ledge taller than a step: no climbing it (a jumping hero clears what it can) */ if(forHero) for(let i=0;i<RAILBOXES.length;i++){ const b=RAILBOXES[i]; if(x>=b.x0&&x<=b.x1&&z>=b.z0&&z<=b.z1&&y<b.top-.25) return true; } /* hero only, and only below its guard height: a jump can clear the rail and land on it (floorAt), same "stand on top" rule as a short defense — a mob's pathing already avoids these edges via the height-diff check above, and a box that's fine for the hero's own width can still clip a mob's path along a narrow stair */ const d=inb(cx,cz)?defAt[idx(cx,cz)]:null; if(d){ if(NOWALK_DEF[d.kind]||y>d.top+.3) return false; if(forHero) return defBlocksHero(d,x,z)&&y<d.top-.25; return true; } return false; }
+function solidAt(x,z,y,forHero){ const cx=wc(x),cz=wcz(z); const t=gat(cx,cz); if(forHero?heroSolid(t):!(walk(t)||(y>=1e5&&t===T.WATER))) return true; if(!forHero&&y<1e5&&MOBBLOCK[idx(cx,cz)]) return true; /* build 374: a walking mob stops at the hero's own cells */ /* a flyer (y far above) may cross the moat */ if(baseFloor(x,z)>y+.62) return true; /* a ledge taller than a step: no climbing it (a jumping hero clears what it can) */ if(forHero) for(let i=0;i<RAILBOXES.length;i++){ const b=RAILBOXES[i]; if(x>=b.x0&&x<=b.x1&&z>=b.z0&&z<=b.z1&&y<b.top-.25) return true; } /* hero only, and only below its guard height: a jump can clear the rail and land on it (floorAt), same "stand on top" rule as a short defense — a mob's pathing already avoids these edges via the height-diff check above, and a box that's fine for the hero's own width can still clip a mob's path along a narrow stair */ const d=inb(cx,cz)?defAt[idx(cx,cz)]:null; if(d){ if(NOWALK_DEF[d.kind]||y>d.top+.3) return false; if(forHero) return defBlocksHero(d,x,z)&&y<d.top-.25; return true; } return false; }
 const ARC=[[1,0],[-1,0],[0,1],[0,-1],[.71,.71],[-.71,.71],[.71,-.71],[-.71,-.71]];
 function moveCircle(e,dx,dz,r,forHero){ const y=e.fly?1e6:(e.y||0); let nx=e.x+dx, ok=true; for(const a of ARC){ if(solidAt(nx+a[0]*r,e.z+a[1]*r,y,forHero)){ ok=false; break; } } if(ok) e.x=nx;
   let nz=e.z+dz; ok=true; for(const a of ARC){ if(solidAt(e.x+a[0]*r,nz+a[1]*r,y,forHero)){ ok=false; break; } } if(ok) e.z=nz; }
@@ -745,7 +752,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=373;
+const BUILD=374;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1007,12 +1014,12 @@ function aimPoint(){ const fx=Math.sin(cam.yaw), fz=Math.cos(cam.yaw);
   if(!TOUCH){ const dir=new THREE.Vector3(); camera.getWorldDirection(dir); if(dir.y<-.02){ const t=(camera.position.y-hero.y)/-dir.y; let px=camera.position.x+dir.x*t, pz=camera.position.z+dir.z*t; const dx=px-hero.x, dz=pz-hero.z, d=Math.hypot(dx,dz); const md=Math.min(8,Math.max(1.6,d)); if(d>.01){ px=hero.x+dx/d*md; pz=hero.z+dz/d*md; } return [px,pz]; } }
   return [hero.x+fx*3.2,hero.z+fz*3.2]; }
 function standH(cells,x,z){ let h=-1e9; for(const i of cells) h=Math.max(h,rampA[i]?rampH[i]:hgt[i]);
-  if(x!==undefined) for(const b of RAILBOXES){ const m=.7; if(x>=b.x0-m&&x<=b.x1+m&&z>=b.z0-m&&z<=b.z1+m) h=Math.max(h,b.top); }   // a real railing (throne room only) can be built on, not just walked over — the margin is wider than the rail's own thin collision box, since a player aiming from a few steps back needs a real target to land on, not a 0.44-unit line
+  if(x!==undefined) for(const b of RAILBOXES){ if(b.noStand) continue; const m=.7; if(x>=b.x0-m&&x<=b.x1+m&&z>=b.z0-m&&z<=b.z1+m) h=Math.max(h,b.top); }   // a real railing (throne room only) can be built on, not just walked over — the margin is wider than the rail's own thin collision box, since a player aiming from a few steps back needs a real target to land on, not a 0.44-unit line
   return h>-1e8?h:0; }
-function placeDefAt(kind,x,z,rot){ const cfg=DEFS[kind]; const cx=wc(x), cz=wcz(z); const cells=footprintCells(kind,x,z,rot||0).filter(i=>walk(grid[i])&&!defAt[i]); const base=standH(cells,x,z);
+function placeDefAt(kind,x,z,rot){ const cfg=DEFS[kind]; const cx=wc(x), cz=wcz(z); const cells=footprintCells(kind,x,z,rot||0).filter(i=>walk(grid[i])&&!defAt[i]&&!MOBBLOCK[i]); const base=standH(cells,x,z);
   const d={kind,cx,cz,cells,x,z,base,rot:rot||0,hp:cfg.hp,max:cfg.hp,top:cfg.top+base,cd:R(.2,cfg.cd),yaw:rot||0,mdl:makeDef(kind,false),pop:0,recoil:0,spin:0,shake:0,lvl:1,spent:cfg.mana};
   d.mdl.position.set(d.x,base,d.z); d.mdl.rotation.y=d.rot; scene.add(d.mdl); defs.push(d); for(const i of cells) defAt[i]=d; S.du+=cfg.du; S.mana-=cfg.mana; reflow(); SFX.place(); return d; }
-function placeDef(kind,cx,cz,rot){ const t=gat(cx,cz); if(!(t===T.FLOOR||t===T.CARPET)||footprintCells(kind,cw(cx),cwz(cz),rot||0).some(i=>!walk(grid[i]))) return null; /* the same 'can't build there' as the ghost: floor or carpet, stairs included */ return placeDefAt(kind,cw(cx),cwz(cz),rot||0); }
+function placeDef(kind,cx,cz,rot){ const t=gat(cx,cz); if(!(t===T.FLOOR||t===T.CARPET)||footprintCells(kind,cw(cx),cwz(cz),rot||0).some(i=>!walk(grid[i])||MOBBLOCK[i])) return null; /* the same 'can't build there' as the ghost: floor or carpet, stairs included */ return placeDefAt(kind,cw(cx),cwz(cz),rot||0); }
 function removeDef(d){ scene.remove(d.mdl); if(hoverFor===d){ if(hoverSector) scene.remove(hoverSector); hoverSector=null; hoverFor=null; } for(const i of (d.cells||[idx(d.cx,d.cz)])) if(defAt[i]===d) defAt[i]=null; const i=defs.indexOf(d); if(i>=0) defs.splice(i,1); S.du-=DEFS[d.kind].du; reflow(); }
 // build 175 (Matt: "the campaign shouldn't be sooo hard, especially if your towers are leveled up, but they keep taking damage so fast and
 // easy, we need to back off on the mob damage to towers"): a tower takes TOWER_TAKES of every blow, and each mark above I hardens it
@@ -1377,7 +1384,7 @@ function updateGhost(){ if(!placing) return; const [px,pz]=placeStage===1?anchor
   // hedge still left you inside its real collision zone the instant it landed. Ask the same function solidAt uses
   // to decide it instead of guessing a circle: would the hero's own current spot actually be blocked by this exact
   // defense, in this exact spot and orientation, once it exists
-  if(!(t===T.FLOOR||t===T.CARPET)||cells.some(i=>!walk(grid[i]))) reason="Can't build there"; else if(cells.some(i=>defAt[i])) reason='Already occupied'; else if(cells.includes(heroCell)||defBlocksHero({x:px,z:pz,rot:yaw,kind:placing},hero.x,hero.z)) reason="You're standing there"; else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units'; else if(S.mana<cfg.mana) reason='Not enough mana'; else if(enemies.some(e=>!e.dead&&Math.hypot(e.x-px,e.z-pz)<2.2)) reason='Enemy too close';
+  if(!(t===T.FLOOR||t===T.CARPET)||cells.some(i=>!walk(grid[i])||MOBBLOCK[i])) reason="Can't build there"; else if(cells.some(i=>defAt[i])) reason='Already occupied'; else if(cells.includes(heroCell)||defBlocksHero({x:px,z:pz,rot:yaw,kind:placing},hero.x,hero.z)) reason="You're standing there"; else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units'; else if(S.mana<cfg.mana) reason='Not enough mana'; else if(enemies.some(e=>!e.dead&&Math.hypot(e.x-px,e.z-pz)<2.2)) reason='Enemy too close';
   ghostOk=!reason; ghostReason=reason; ghostCell=[cx,cz]; ghostPos=[px,pz]; ghostYaw=yaw;
   ghost.position.set(px,standH(cells,px,pz),pz); ghost.rotation.y=ghostYaw; const m=ghostOk?GHOST_OK:GHOST_BAD; ghost.traverse(o=>{ if(o.isMesh) o.material=m; });
   if(ghostSector){ ghostSector.position.set(px,baseFloor(px,pz),pz); ghostSector.rotation.y=ghostYaw; tintSector(ghostSector,ghostOk?0x40ff80:0xff3030); } }
