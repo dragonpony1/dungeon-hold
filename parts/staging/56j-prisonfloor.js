@@ -11,6 +11,12 @@
 'use strict';
 window.__prisonfloor={ info:()=>null };
 if(!MAP||MAP.id!=='prison') return;
+// build 379 (Matt: "i think were gonna have to take all these floor tiles out, the yellow is ruining the vibe"): the six-tile floor is OFF -- the prison has the game's own stone floor again (nothing is downloaded, nothing is repainted). The whole thing is kept, behind the address ?floortiles (and its ?floorblock= / ?floorown= / ?floordim= / ?floormix=old bench), for when a better set of tiles comes
+// ...and (Matt: "just bring back its default floor but make it darker, dungeon dark") the game's own floor -- the terraces' floor mesh and the pit's plane -- is darkened to FLOOR_DARK of its colour (?floordark=0.4 to tune; 1 = as it was)
+{ const Q2=new URLSearchParams(location.search); if(!Q2.has('floortiles')){ const K=Q2.get('floordark')!==null?Math.max(.05,Math.min(1,+Q2.get('floordark')||1)):.4;
+    const dark=m=>{ if(!m||!m.material||!m.material.color) return 0; m.material=m.material.clone(); m.material.color.multiplyScalar(K); m.material.needsUpdate=true; return 1; };
+    const old=world.children.find(o=>o.isMesh&&o.geometry&&o.geometry.type==='PlaneGeometry'&&Math.abs(o.rotation.x+PI/2)<1e-3&&Math.abs(o.position.y)<.01&&o.geometry.parameters.width>=GW*CELL-1);
+    window.__prisonfloor={ info:()=>null, dark:{ k:K, mesh:dark(world.userData.floorMesh), plane:dark(old) } }; return; } }
 // build 378 (Matt: "would the dungeon floor look better if each of those tiles took up a bigger space? ... it's not quite right" -> "try doing what you suggested"): each tile now covers 2 x 2 cells (build 370 had one per cell: every square got its own dark frame and the floor read as a quilt of postage stamps), the mix is calmer (mostly plain slab; the flat green moss, slime, drain and ring squares are rare accents) and the tiles light themselves with less of their own colour (the cracks glowed like lava). Design bench in the address: ?floorblock=N (1-4 cells per tile), ?floorown=, ?floordim= (hex), ?floormix=old
 const FQ=new URLSearchParams(location.search);
 const BL=Math.max(1,Math.min(4,parseInt(FQ.get('floorblock'))||2));

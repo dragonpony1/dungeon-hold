@@ -150,13 +150,13 @@ const MAPS=[
     f(2,47,20,53,T.FLOOR); f(23,25,20,53,T.CARPET);                                                   // the green before the walls, the royal road down the middle
     g(24,53,T.SPAWN); f(1,1,24,26,T.FLOOR); g(1,25,T.SPAWN); f(48,48,24,26,T.FLOOR); g(48,25,T.SPAWN);   // gates: the road's far end, the west and east woods
     f(47,48,7,9,T.FLOOR); g(48,8,T.SPAWN);                                                            // the sally port in the ward's east wall
-    f(29,39,41,49,T.WALL); f(30,38,42,48,T.FLOOR); g(34,41,T.FLOOR); f(34,34,43,45,T.CARPET); [[30,43],[31,47],[37,44],[37,45],[37,46],[34,48]].forEach(([x,z])=>g(x,z,T.PROP));   // the roadside inn (the tavern), walled, its door on the road side
+    f(29,39,41,49,T.WALL); f(30,38,42,48,T.FLOOR); /* g(34,41,T.FLOOR) -- the door -- is CLOSED for now */ f(34,34,43,45,T.CARPET); [[30,43],[31,47],[37,44],[37,45],[37,46],[34,48]].forEach(([x,z])=>g(x,z,T.PROP));   // the roadside inn (the tavern). Build 379 (Matt: "get rid of the tavern but leave the building and bring the height down one square" / "i want to keep the building the tavern was in just" / "just for now just close up the tavern part"): the building stays exactly as it was, but its door is walled shut (no way in: the same as the Cloister Court's closed tavern), the tavern room is off (noTavern below) and its walls stand one square (2 units) lower than the walls round it (lowWalls below). To open the tavern again: put g(34,41,T.FLOOR) back and drop noTavern
     [[22,24],[26,24],[22,32],[26,32],[22,40],[26,40],[22,48],[26,48]].forEach(([x,z])=>g(x,z,T.PROP));   // lamp posts along the road
     [[21,21],[27,21],[9,3],[16,3],[31,3],[38,3]].forEach(([x,z])=>g(x,z,T.PROP));                    // statues: two at the bridge foot, four kings along the keep
     [[21,12],[27,12],[17,5],[17,9]].forEach(([x,z])=>g(x,z,T.PROP));                                 // braziers at the gate and the dais
     [[3,21],[3,33],[3,45],[3,52],[46,21],[46,33],[46,52],[9,52],[16,52],[42,52],[10,30],[39,30],[13,44],[7,38],[43,36],[19,50]].forEach(([x,z])=>g(x,z,T.PROP)); },   // trees
   lanes:{S:{cx:24,cz:53,face:PI,name:'Road',from:1}, W:{cx:1,cz:25,face:PI/2,name:'West wood',from:2}, E:{cx:48,cz:25,face:-PI/2,name:'East wood',from:3}, NE:{cx:48,cz:8,face:-PI/2,name:'Sally port',from:5}},
-  hall:[3,46,2,13],pillars:[],barrels:[[44,3],[44,12]],crates:[[5,3]],chandeliers:[],beams:{zs:[],w:0},tavern:{dx:18,dz:17},
+  hall:[3,46,2,13],pillars:[],barrels:[[44,3],[44,12]],crates:[[5,3]],chandeliers:[],beams:{zs:[],w:0},tavern:{dx:18,dz:17},noTavern:true,lowWalls:[[29,39,41,49,2]],
   trees:[[3,21],[3,33],[3,45],[3,52],[46,21],[46,33],[46,52],[9,52],[16,52],[42,52],[10,30],[39,30],[13,44],[7,38],[43,36],[19,50]],
   castle:{towers:[[21.5,14.5,2,14],[26.5,14.5,2,14],[2.5,14.5,1.8,12],[47.5,14.5,1.8,12],[13.5,.5,2.4,26,'cone'],[34.5,.5,2.4,26,'cone']],keep:[[14,34,-5,1,20]],arches:[[23,25,14,15,6.5]],bridge:[23,25,16,19],chains:[[21.6,12.6,15.6,22.4,1.2,19.6],[26.4,12.6,15.6,25.6,1.2,19.6]],
     lamps:[[22,24],[26,24],[22,32],[26,32],[22,40],[26,40],[22,48],[26,48]],statues:[[21,21,0],[27,21,0],[9,3,0],[16,3,0],[31,3,0],[38,3,0]],braziers:[[21,12],[27,12],[17,5],[17,9]]},
@@ -381,13 +381,14 @@ const world=new THREE.Group(); scene.add(world);
     const moon=glow(0xf4efd8,22,.95); moon.material.fog=false; moon.position.set(40,70,-70); scene.add(moon); const halo=glow(0x8fb8ff,60,.25); halo.material.fog=false; halo.position.copy(moon.position); scene.add(halo); }   // stars and a moon
 }
 const wallFaces=[];
+const wallTopAt=(x,z)=>{ const L=MAP.lowWalls; if(L) for(const [x0,x1,z0,z1,d] of L) if(x>=x0&&x<=x1&&z>=z0&&z<=z1) return WALLH-d; return WALLH; };   // build 379: a building whose walls stand lower than the rest (MAP.lowWalls: [x0,x1,z0,z1,drop in units])
 { const pos=[],nrm=[],uv=[],ind=[]; let vi=0;
   for(let z=0;z<GH;z++) for(let x=0;x<GW;x++){ if(grid[idx(x,z)]===T.WALL) continue;
     for(let k=0;k<4;k++){ const dx=[1,-1,0,0][k], dz=[0,0,1,-1][k]; if(gat(x+dx,z+dz)!==T.WALL) continue;
       const fx=cw(x)+dx*CELL/2, fz=cwz(z)+dz*CELL/2, tx=dz, tz=-dx, hx=tx*CELL/2, hz=tz*CELL/2;
-      const y0=Math.min(0,hgt[idx(x,z)]||0); const P=[[fx-hx,y0,fz-hz],[fx-hx,WALLH,fz-hz],[fx+hx,WALLH,fz+hz],[fx+hx,y0,fz+hz]];   // down to the bed of a sunken cell
+      const y0=Math.min(0,hgt[idx(x,z)]||0), WT=wallTopAt(x+dx,z+dz); const P=[[fx-hx,y0,fz-hz],[fx-hx,WT,fz-hz],[fx+hx,WT,fz+hz],[fx+hx,y0,fz+hz]];   // down to the bed of a sunken cell
       const ua=((fx-hx)*tx+(fz-hz)*tz)/CELL, ub=((fx+hx)*tx+(fz+hz)*tz)/CELL;
-      const U=[[ua,y0/CELL],[ua,WALLH/CELL],[ub,WALLH/CELL],[ub,y0/CELL]];
+      const U=[[ua,y0/CELL],[ua,WT/CELL],[ub,WT/CELL],[ub,y0/CELL]];
       for(let i=0;i<4;i++){ pos.push(P[i][0],P[i][1],P[i][2]); nrm.push(-dx,0,-dz); uv.push(U[i][0],U[i][1]); }
       ind.push(vi,vi+1,vi+2,vi,vi+2,vi+3); vi+=4;
       wallFaces.push({x:fx,z:fz,nx:-dx,nz:-dz,cx:x,cz:z}); } }
@@ -395,7 +396,7 @@ const wallFaces=[];
   const walls=new THREE.Mesh(geo,new THREE.MeshToonMaterial({map:WALLTEX,gradientMap:GRAD,color:C(0xffffff),side:THREE.DoubleSide})); world.add(walls);
   // dark cap so nothing leaks over the top edge
   const capGeo=new THREE.BufferGeometry(); const cp=[],ci=[]; let cvi=0;
-  for(let z=0;z<GH;z++) for(let x=0;x<GW;x++){ if(grid[idx(x,z)]!==T.WALL) continue; const x0=cw(x)-1,x1=cw(x)+1,z0=cwz(z)-1,z1=cwz(z)+1; cp.push(x0,WALLH,z0,x1,WALLH,z0,x1,WALLH,z1,x0,WALLH,z1); ci.push(cvi,cvi+2,cvi+1,cvi,cvi+3,cvi+2); cvi+=4; }
+  for(let z=0;z<GH;z++) for(let x=0;x<GW;x++){ if(grid[idx(x,z)]!==T.WALL) continue; const x0=cw(x)-1,x1=cw(x)+1,z0=cwz(z)-1,z1=cwz(z)+1, WT=wallTopAt(x,z); cp.push(x0,WT,z0,x1,WT,z0,x1,WT,z1,x0,WT,z1); ci.push(cvi,cvi+2,cvi+1,cvi,cvi+3,cvi+2); cvi+=4; }
   capGeo.setAttribute('position',new THREE.Float32BufferAttribute(cp,3)); capGeo.setIndex(ci); world.add(new THREE.Mesh(capGeo,basic(0x0b0712)));
 }
 // raised floors and stairs: tops carry the painted floor (same texture window as the flat floor), drops and risers are stone
@@ -752,7 +753,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=378;
+const BUILD=379;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;

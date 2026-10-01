@@ -3,11 +3,12 @@
 // instanced near the camera only (a few hundred triangles' worth, never the whole floor) and follow it; the floor sits just under the old floor level; the hero's feet are still on the floor; no page errors.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 const server=await serve(8991,{dist:process.env.DIST||"./dist"});
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[]; const warns=[];
 const ctx=await browser.newContext({viewport:{width:900,height:560}}); await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); }catch(e){} });
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e))); page.on("console",m=>{ if(m.type()==='warning'&&/prison floor/i.test(m.text())) warns.push(m.text().slice(0,160)); });
-await page.goto("http://127.0.0.1:8991/?silent&nogate&map=5",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__prisonfloor&&window.__prisonfloor.refill&&window.__dd.map().id==='prison',null,{timeout:120000});
+await page.goto("http://127.0.0.1:8991/?silent&nogate&map=5&floortiles",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__prisonfloor&&window.__prisonfloor.refill&&window.__dd.map().id==='prison',null,{timeout:120000});
 await page.evaluate(()=>{ try{ window.__trainer.skip(); }catch(e){} const d=window.__dd; d.start(); d.step(1/60,5); d.S.phase='build'; });
 const A=await page.evaluate(()=>{ const F=window.__prisonfloor, i=F.info(), mix=F.mix(); const tot=Object.values(mix).reduce((a,b)=>a+b,0); const d=window.__dd, sc=typeof d.scene==='function'?d.scene():d.scene; const plane=sc.children.find(o=>o.type==='Group'&&o.children.length)&&null; return { tris:i.tris, atlas:i.atlas, kinds:i.kinds, cells:i.cells, tot, mix, plainShare:+(mix[1]/tot).toFixed(2), pit:i.pitCells, far:i.farQuads }; });
 check("all six tiles load, each a 1,250-triangle height-field slab, with an atlas of their six pictures",A.kinds===6&&A.atlas===1&&A.tris.length===6&&A.tris.every(t=>t===1250),JSON.stringify({ kinds:A.kinds, tris:A.tris, atlas:A.atlas }));
@@ -22,4 +23,9 @@ check("the real relief tiles are instanced near the camera only (a few dozen of 
 check("the hero's feet are still on the floor",Math.abs(C.heroY-C.floorY)<.2,JSON.stringify({ heroY:C.heroY, floorY:C.floorY }));
 check("nothing failed to load or build",warns.length===0,warns.join(' | '));
 const realErrors=errors.filter(x=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(x)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
+// ---- build 379: by default the tiles are OFF (the yellow was ruining the vibe): no tile model is even asked for, the game's own floor shows
+{ const asked=[]; const p2=await (await browser.newContext({viewport:{width:900,height:560}})).newPage(); p2.on("request",r=>{ if(/prison-floor-\d/.test(r.url())) asked.push(r.url()); }); await p2.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); }catch(e){} });
+  await p2.goto("http://127.0.0.1:8991/?silent&nogate&map=5",{timeout:120000}); await p2.waitForFunction(()=>window.__dd&&window.__dd.map().id==='prison',null,{timeout:120000}); await sleep(2500);
+  const off=await p2.evaluate(()=>{ const d=window.__dd, sc=typeof d.scene==='function'?d.scene():d.scene; let plane=null; sc.traverse(o=>{ if(!plane&&o.isMesh&&o.geometry&&o.geometry.type==='PlaneGeometry'&&Math.abs(o.rotation.x+Math.PI/2)<1e-3&&o.geometry.parameters.width>=90) plane=o; }); return { info:window.__prisonfloor.info(), planeVisible:!!(plane&&plane.visible), lowered:!!(window.__dd.worldInfo&&0) }; });
+  check("by default (no ?floortiles) the six-tile floor is off: no tile model is requested, the hook says so, and the game's own floor plane is showing",asked.length===0&&off.info===null&&off.planeVisible,JSON.stringify({ asked:asked.length, off })); await p2.context().close(); }
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");

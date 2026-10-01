@@ -2,9 +2,9 @@ import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 const SP=process.env.SP; const server=await serve(8897);
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const ctx=await browser.newContext({viewport:{width:1100,height:700}}); const page=await ctx.newPage(); const errors=[]; page.on("pageerror",e=>errors.push(String(e))); page.on("console",m=>{ if(m.type()==="error"||m.type()==="warning") errors.push(m.text().slice(0,200)); });
-const ready=()=>page.waitForFunction(()=>window.__dd&&window.__dd.map&&window.__campaign&&window.__dd.heroModel()&&window.__dd.mobModel("goblin")&&window.__dd.mobModel("drake")&&window.__room,null,{timeout:120000});
+const ready=(room=true)=>page.waitForFunction(room=>window.__dd&&window.__dd.map&&window.__campaign&&window.__dd.heroModel()&&window.__dd.mobModel("goblin")&&window.__dd.mobModel("drake")&&(!room||window.__room),room,{timeout:120000});   // build 379: the Drawbridge has no tavern room now (its inn is closed), so only the first map is waited on for one
 await page.goto("http://127.0.0.1:8897/?silent&nogate"); await ready(); await page.evaluate(()=>window.__campaign.unlockAll());
-await page.goto("http://127.0.0.1:8897/?silent&nogate&map=4"); await ready();
+await page.goto("http://127.0.0.1:8897/?silent&nogate&map=4"); await ready(false);
 // the map: its grid, roots and mana, and where each gate's stream runs (world x=(cx-20)*2, z=(cz-7)*2: the crystal is cell 20,7)
 const r=await page.evaluate(()=>{ const d=window.__dd; window.__meta.reset(); d.resetGear(); d.start(); d.step(1/60,5); const L=d.lanes(), m=d.map(), w=d.worldInfo(), gw=m.gw; const paths=Object.fromEntries(Object.keys(L).map(k=>[k,d.pathLen(L[k].cx,L[k].cz)]));
   const trace=(f,cx,cz)=>{ let i=cz*gw+cx; const cells=[]; for(let n=0;n<600&&i>=0;n++){ cells.push([i%gw,(i/gw)|0]); i=f.nxt[i]; } return cells; }; const onFord=c=>(c[0]===4||c[0]===5)&&c[1]>=16&&c[1]<=19, onBridge=c=>c[0]>=23&&c[0]<=25&&c[1]>=16&&c[1]<=19;
