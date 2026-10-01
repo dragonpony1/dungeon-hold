@@ -5,6 +5,9 @@
 'use strict';
 const Q=new URLSearchParams(location.search), SILENT=Q.has('silent');
 const $=id=>document.getElementById(id);
+// build 423: the FIRST listener for Escape (registered before every menu's own): it notes whether anything was open the moment the key came down -- a menu, the bag, the sheet, the hideout -- so the pause card
+// (97-pause.js) can tell an Escape that closes something from one meant for it, however quickly the menu closed. Counted again on the next Escape.
+addEventListener('keydown',e=>{ if(e.code!=='Escape') return; let o=false; try{ o=(typeof Meta!=='undefined'&&Meta.isOpen&&Meta.isOpen())||!!(window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen())||document.body.classList.contains('inHideout'); }catch(er){} window.__escOverlay=o; window.__escAt=performance.now(); },true);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v, lerp=(a,b,t)=>a+(b-a)*t;
 // build 400 (Matt: "can we make the suffix's make sense on regular gear?"): an ordinary piece's "of ..." names a stat. They used to be picked at random and meant nothing. Never "of the ..." -- those are the sets.
 // build 402 (Matt: "what does vigor mean, everything in his bag turned to 'of vigor'"): 400 named the stat worth most in gear score, and health's big numbers won on every armor and amulet. Now it names the stat
@@ -799,7 +802,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=422;
+const BUILD=423;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
