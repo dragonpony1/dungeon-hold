@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="78">
+<meta name="hideout-build" content="79">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -133,7 +133,7 @@ canvas{display:block}
 .dragicon{position:fixed;width:46px;height:46px;object-fit:contain;pointer-events:none;z-index:100;transform:translate(-50%,-50%);filter:drop-shadow(0 4px 8px #000)}
 .slot.empty{opacity:0.55}
 #chestWrap{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:20}
-#chestPanel{position:relative;width:min(520px,94vw);max-height:92vh;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px #000a;font-family:Georgia,'Times New Roman',serif;background:linear-gradient(#2a1c10,#160e08);border:3px solid #a5762a}
+#chestPanel{position:relative;width:min(600px,96vw);max-height:92vh;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px #000a;font-family:Georgia,'Times New Roman',serif;background:linear-gradient(#2a1c10,#160e08);border:3px solid #a5762a}
 #chestHeader{background:linear-gradient(#4a3014,#2a1a0a);padding:14px 20px 10px;text-align:center;border-bottom:3px solid #c9a227}
 #chestHeader h1{margin:0;color:#ffe2a0;font-size:1.5em;letter-spacing:0.04em;text-shadow:0 2px 4px #000}
 #chestHeader p{margin:4px 0 0;color:#c8a878;font-size:0.85em;font-style:italic}
@@ -164,6 +164,7 @@ canvas{display:block}
 #tooltip{position:fixed;display:none;z-index:50;background:#150e08;color:#ffe9b0;border:1px solid #a5762a;border-radius:6px;padding:5px 10px;font:bold 13px Georgia,serif;pointer-events:none;box-shadow:0 4px 12px #000a;max-width:220px}
 .gamegrid{max-height:156px;overflow-y:auto}
 .islot.worn{border-color:#ffd27a!important;box-shadow:0 0 8px #ffd27a66}
+.islot .wornE{position:absolute;top:1px;right:2px;font:800 10px system-ui;color:#1a1208;background:#ffd27a;border-radius:4px;padding:0 3px;pointer-events:none}.islot{position:relative}
 </style>
 </head><body>
 <div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: inventory &middot; B: bag &middot; H: hero &middot; T: trade &middot; Esc: close a menu<br>The portal takes you back to the hall<div id="loadWrap"><div id="loadBar" class="indeterminate"><div id="loadFill"></div></div><div id="loadLine">Loading…</div></div></div>
@@ -230,8 +231,9 @@ canvas{display:block}
 
 <div id="chestWrap"><div id="chestPanel">
   <button id="chestClose">&times;</button>
-  <div id="chestHeader"><h1>BANDED CHEST</h1><p>Drag things in and out — it holds 25.</p></div>
+  <div id="chestHeader"><h1>BANDED CHEST</h1><p>Drag things in and out, or <b>shift-click</b> to send one straight across — it holds 100.</p></div>
   <div id="chestBody">
+    <div class="isection" id="chestWornHead">Worn <span style="font-size:.8em;opacity:.8">— on you now: shown, never moved</span></div><div id="chestWorn" class="islotgrid"></div>
     <div class="isection">Chest</div><div id="chestSlots" class="islotgrid"></div>
     <div class="isection">Bag</div><div id="chestBag" class="islotgrid"></div>
     <div class="isection">Hotbar</div><div id="chestHot" class="islotgrid"></div>
@@ -274,7 +276,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 78;   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 79;   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -300,7 +302,7 @@ const FORGE_GROWTH = 0.44; // how much further the 1.5x forge reaches, front and
 const starterRecord = (spot) => ({ pid: uid(), gid: spot.gid, x: spot.x, z: spot.z, ry: spot.ry });
 // Furniture you own lives in slots: a 9-slot hotbar (keys 1-9, what you place from) and a bag you drag between.
 // Each placed chest has its own slots. A slot holds one catalog id or null.
-const HOTBAR_SIZE = 9, BAG_SIZE = 27, CHEST_SIZE = 25;
+const HOTBAR_SIZE = 9, BAG_SIZE = 27, CHEST_SIZE = 100;   // build 79 (Matt: "the chest in the hideout you can buy needs to hold about 100 items"): 25 -> 100 (a chest already placed grows to it as it loads)
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'x' + Math.random().toString(36).slice(2));
 const padSlots = (a, n) => { a = (a || []).map(v => v || null); while (a.length < n) a.push(null); return a; };
 function loadSave(){
@@ -733,6 +735,8 @@ function gameToHotbar(i) { const g = gameGear()[i]; if (!g) return; const it = g
 function wornToHotbar(slot) { const M = gameMeta(); if (!M) return; const worn = GAME && GAME.__dd && GAME.__dd.gear ? GAME.__dd.gear()[slot] : null; if (!worn) return;
   if (gameRoom() < 1) { flashMsg('Your bag is full — make room for it first'); return; } if (!M.unequip || !M.unequip(slot)) { flashMsg('It would not come off'); return; }
   const it = gameTake(worn.id); if (!it) return; if (!holdToHotbar(it)) gameGive({ kind: 'carried', rec: it }); }
+// build 79: is this piece equipped right now (the game's worn set, by id)?
+function isWornPiece(v) { if (!isGearItem(v) || !v.rec || v.rec.id == null) return false; return wornGear().some(w => w && w.rec && w.rec.id === v.rec.id); }
 function wornGear() { const g = GAME && GAME.__dd && GAME.__dd.gear ? GAME.__dd.gear() : {}; return ['weapon', 'armor', 'charm', 'amulet', 'familiar'].map(k => g[k] ? { slot: k, kind: 'carried', rec: g[k] } : null); }
 function renderGameGear() { const wrap = document.getElementById('invGameWrap'); if (!wrap) return; wrap.style.display = GAME ? '' : 'none'; if (!GAME) return;
   { const wv = wornGear(), el = document.getElementById('invWorn'); if (el) { el.parentElement.style.display = wv.some(Boolean) ? '' : 'none'; tradeGridTo(el, wv, 5, i => wornToHotbar(['weapon', 'armor', 'charm', 'amulet', 'familiar'][i]), (v) => v ? 'worn' : ''); } }
@@ -2056,6 +2060,7 @@ function renderSlotGrid(container, arr, cols) {
       d.innerHTML = '<img src="' + slotIcon(v) + '">';
       const col = slotColor(v);
       if (col) { d.style.borderColor = col; d.style.boxShadow = '0 0 6px ' + col + '66'; } // gear wears its rarity colour
+      if (isWornPiece(v)) { d.classList.add('worn'); d.insertAdjacentHTML('beforeend', '<span class="wornE">E</span>'); }   // build 79: equipped -- gold, an E
       attachTooltip(d, slotTip(v));
       d.addEventListener('pointerdown', ev => startSlotDrag(ev, arr, i, d));
     }
@@ -2072,7 +2077,8 @@ function refreshSlotViews() {
     renderGameGear();
   }
   if (openChestRec) {
-    renderSlotGrid(document.getElementById('chestSlots'), openChestRec.store, 5);
+    { const wv = wornGear().filter(Boolean); document.getElementById('chestWornHead').style.display = document.getElementById('chestWorn').style.display = wv.length ? '' : 'none'; renderSlotGrid(document.getElementById('chestWorn'), wv, 10); }   // build 79: what is on you, at a glance
+    renderSlotGrid(document.getElementById('chestSlots'), openChestRec.store, 10);
     renderSlotGrid(document.getElementById('chestBag'), SAVE.bag, 9);
     renderSlotGrid(document.getElementById('chestHot'), SAVE.hotbar, 9);
   }
@@ -2081,6 +2087,8 @@ function refreshSlotViews() {
 let slotDrag = null, dropHover = null;
 function startSlotDrag(ev, arr, i, el) {
   if (ev.button !== 0 || !arr[i]) return;
+  if (openChestRec && isWornPiece(arr[i])) { ev.preventDefault(); flashMsg('Worn — take it off first'); return; }   // build 79 (Matt: "you could accidentally move something that is equipped")
+  if (ev.shiftKey && openChestRec && quickMove(arr, i)) { ev.preventDefault(); return; }   // build 79: shift-click sends it across
   ev.preventDefault();
   const img = document.createElement('img');
   img.src = slotIcon(arr[i]); img.className = 'dragicon';
@@ -2114,6 +2122,13 @@ window.addEventListener('pointerup', ev => {
   }
   refreshSlotViews();
 });
+// build 79 (Matt: "transferring items from bag to chest in the hideout needs a clean up -- either drag or better would be a shift click"): with the chest open, a shift-click sends a thing across in one go --
+// from the bag or hotbar into the chest's first free slot, from the chest into the bag's first free slot (then the hotbar's). Full on the other side: it says so and stays put.
+function quickMove(arr, i) {
+  const to = arr === openChestRec.store ? [SAVE.bag, SAVE.hotbar] : [openChestRec.store];
+  for (const dst of to) { const j = dst.indexOf(null); if (j >= 0) { dst[j] = arr[i]; arr[i] = null; writeSave(); refreshSlotViews(); return true; } }
+  flashMsg(arr === openChestRec.store ? 'Your bag is full' : 'The chest is full'); return true;
+}
 function openChest(entry) {
   const rec = SAVE.placed.find(p => p.pid === entry.pid);
   if (!rec) return;
