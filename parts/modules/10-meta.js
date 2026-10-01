@@ -28,7 +28,7 @@ function loadMeta(){ const f=freshMeta(); try{ const m=JSON.parse(localStorage.g
   st=f; }
 function saveMeta(){ metaVer++; try{ localStorage.setItem('ddMeta',JSON.stringify(st)); }catch(e){} metaHud(); }   // the HUD shows through the start screen: keep it current on every change, not only from update()
 // ---- gold / xp ----
-function addGold(n,why){ n=Math.round(+n||0); if(!n||!Number.isFinite(n)) return st.gold; st.gold=clamp(st.gold+n,0,GOLD_MAX); if(!Number.isFinite(st.gold)) st.gold=0; if(why!=='refund'){ if(n>0) run.gold+=n; else run.spent-=n; } saveMeta(); return st.gold; }
+function addGold(n,why){ n=Math.round(+n||0); if(n>0&&(why==='wave'||why==='run')&&window.__difficulty) n=Math.round(n*window.__difficulty.goldK());   /* build 415: a wave held and a run's pay follow the difficulty (95r-difficulty.js) */ if(!n||!Number.isFinite(n)) return st.gold; st.gold=clamp(st.gold+n,0,GOLD_MAX); if(!Number.isFinite(st.gold)) st.gold=0; if(why!=='refund'){ if(n>0) run.gold+=n; else run.spent-=n; } saveMeta(); return st.gold; }
 function points(){ let sum=0; SKILLS.forEach(s=>sum+=st.skills[s.id]); return Math.max(0,st.level-1-sum); }
 function addXP(n){ n=Math.round(+n||0); if(!(n>0)||!Number.isFinite(n)) return; n=Math.min(n,1e9); st.xp+=n; run.xp+=n; let ups=0; while(st.xp>=xpToNext(st.level)){ st.xp-=xpToNext(st.level); st.level++; ups++; }
   // build 336: talents (96l-talents.js) -- Meta.points below is the hero's own count

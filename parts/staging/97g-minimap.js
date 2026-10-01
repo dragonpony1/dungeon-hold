@@ -19,7 +19,8 @@ function waveText(){ const n=window.__net, guest=n&&n.role&&n.role()==='guest', 
   if(S.held||ph==='won') return ['✓ ALL '+tot+' HELD','held']; if(ph==='wave') return ['WAVE '+cur+' / '+tot,'fight']; return ['<small>NEXT</small>WAVE '+Math.min(tot,cur+1)+' / '+tot,'']; }
 let lastWv='';
 function tickWave(){ const on=(S.phase==='build'||S.phase==='wave'||S.phase==='won')&&!(window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen()); if(wv.classList.contains('on')!==on) wv.classList.toggle('on',on); if(!on) return; const top=(box.classList.contains('on')?112+SIZE+8:112)+'px'; if(wv.style.top!==top) wv.style.top=top;   /* the map hidden (M): the strip takes its place */
-  const [t,c]=waveText(), k=t+c; if(k!==lastWv){ lastWv=k; wv.innerHTML=t; wv.className='on'+(c?' '+c:''); } }
+  let [t,c]=waveText(); const DF=window.__difficulty&&window.__difficulty.level(); if(DF&&DF.id!=='normal') t+=' <small style="margin:0 0 0 6px;color:'+DF.col+'">'+DF.ic+' '+DF.name+'</small>';   /* build 415 */
+  const k=t+c; if(k!==lastWv){ lastWv=k; wv.innerHTML=t; wv.className='on'+(c?' '+c:''); } }
 const DPR=Math.min(2,window.devicePixelRatio||1); cv.width=cv.height=Math.round(SIZE*DPR); const g=cv.getContext('2d');
 let want=true; try{ want=localStorage.getItem(KEY)!=='off'; }catch(e){}
 const cnt={ draws:0, mobs:0, orbs:0, loot:0, defs:0, mates:0 };

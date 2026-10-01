@@ -881,7 +881,7 @@ function hostBroadcastWorld(dt){
   // personal resource). mana:S.mana stays too, unchanged meaning (the HOST's own pool) -- nothing else reads it
   // differently than before, so no existing caller (tests included) needed to change.
   const manas={}; manas[selfId]=S.mana; guestMana.forEach((v,id)=>{ manas[id]=v; });
-  sendSnap('world',{crystal:S.crystal,crystal2:GOAL2>=0?S.crystal2:null,crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,held:!!S.held,waveTotal:runWaves(),survival:!!SURVIVAL,mapName:MAP.name,mana:S.mana,manas,du:S.du,duCap:DU_CAP,hk:(window.__hideout&&window.__hideout.ownKey)?window.__hideout.ownKey():'main'});   // hk (build 377): the host's hideout key -- a guest visiting the hideout is sent to the HOST's table (59-hideout.js)
+  sendSnap('world',{crystal:S.crystal,crystal2:GOAL2>=0?S.crystal2:null,crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,held:!!S.held,waveTotal:runWaves(),survival:!!SURVIVAL,diff:window.__difficulty?window.__difficulty.id():'normal',mapName:MAP.name,mana:S.mana,manas,du:S.du,duCap:DU_CAP,hk:(window.__hideout&&window.__hideout.ownKey)?window.__hideout.ownKey():'main'});   // hk (build 377): the host's hideout key -- a guest visiting the hideout is sent to the HOST's table (59-hideout.js)
    // held (build 160): the host's hall is on its victory lap -- phase 'build', but no horn to wait for
 }
 // a guest's own local S.phase never actually moves through 'deathcut'/'dead'/'won' -- only the HOST's real crystal
@@ -940,7 +940,7 @@ window.__net.rejoinTo=()=>{ const c=lastRoom(); return c?rejoinHref(c):null; }; 
 // is already free when the host's reloaded page asks for it again
 function parkHost(){ if(role!=='host'||!peer||peer.destroyed||peer.__parked) return; peer.__parked=true; try{ peer.disconnect(); }catch(e){} }
 window.__net.onBroker=()=>!!(peer&&!peer.destroyed&&!peer.disconnected);   // a test hook
-onMessage('world',data=>{ hostWorld=data; if(role==='guest'&&data) SURVIVAL=!!data.survival; });   // build 176: a guest plays its host's mode (the mode row on its own title is the host's business once it follows one)
+onMessage('world',data=>{ hostWorld=data; if(role==='guest'&&data){ SURVIVAL=!!data.survival; if(data.diff&&window.__difficulty) window.__difficulty.fromHost(String(data.diff)); } });   /* build 415: and its difficulty */   // build 176: a guest plays its host's mode (the mode row on its own title is the host's business once it follows one)
 // build 147: "I couldn't hear any of the sound effects" (as a guest). Nearly every sound is played by the host's own
 // simulation -- startWave's horn, a placement, a defense firing, a mob dying -- and none of that runs on a guest, whose
 // world arrives as lists. So a guest derives the big ones from those lists: the horn when the host's phase turns to
