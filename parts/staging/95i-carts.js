@@ -9,8 +9,9 @@
 (function(){
 'use strict';
 const KINDS={
-  kegcart:{ file:'prison-kegcart.glb', fit:2.7, cfg:{ hp:90, spd:1.7, dmg:0, cd:1.2, mana:10, detour:1, swingT:.5, hitT:.25 } },
-  firecart:{ file:'prison-firecart.glb', fit:3.0, cfg:{ hp:150, spd:1.7, dmg:14, cd:2.6, mana:12, ranged:7, detour:2, swingT:2.0, hitT:.65 } } };
+  kegcart:{ file:'prison-kegcart.glb', fit:2.7, cfg:{ hp:270, spd:1.7, dmg:0, cd:1.2, mana:10, detour:1, swingT:.5, hitT:.25 } },
+  firecart:{ file:'prison-firecart.glb', fit:3.0, cfg:{ hp:450, spd:1.7, dmg:14, cd:2.6, mana:12, ranged:7, detour:2, swingT:2.0, hitT:.65 } } };
+// // build 373 (Matt: "give those siege carts extra life"): both carts have THREE times the health they had (the keg cart 90 -> 270, the fire cart 150 -> 450 before the wave scaling, and on THE DEEP PRISON the doubling of 95o-prisonmobs.js on top: a keg cart there is 540 base)
 // (the wheels turn at .81 of the Roll clip's own speed at the cart's pace: nat.walk below)
 const SIDE=.7;   // where the pushers stand: to either side of the cart's centre line (the handles), and behind its handle tips (the model's length is 2 units across its front, so the tips are one model-unit scaled back from the middle: MOBGLB[kind].back)
 for(const k in KINDS){ MOBDIM[k]={ fit:KINDS[k].fit, h:KINDS[k].fit, r:1.4, nat:{ walk:KINDS[k].cfg.spd/KINDS[k].fit/.81, run:2.4 } }; MOBS[k]=KINDS[k].cfg; if(Meta.XP) Meta.XP[k]=Meta.XP[k]||12; }
