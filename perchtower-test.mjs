@@ -30,6 +30,9 @@ async function open(q){ const page=await (await browser.newContext({viewport:{wi
   check("the ballista fires from up there (a bolt leaves from above the deck) and hurts what it hits",D.fired&&D.maxY>2.5&&D.hurt,JSON.stringify(D));
   const F=await page.evaluate(({perch})=>{ const d=window.__dd; for(const e of d.enemies) e.dead=e.dead||.001; d.select("frost"); d.step(1/60,3); const g=window.__aimAt(perch.x,perch.z); return { frostOk:g&&g.ok, why:g&&g.why, stack:window.__perch.stack() }; },{perch});
   check("only the ballista may stand on a perch for now (a frost spire aimed at it is refused, 'Already occupied')",F.frostOk===false&&F.stack.join()==="harpoon",JSON.stringify(F));
+  const UP=await page.evaluate(()=>{ const d=window.__dd; d.addMana(99999); const p=d.defs.find(x=>x.kind==='perch'&&window.__perch.towerOn(x)); if(!p) return {none:true}; const t=window.__perch.towerOn(p); t.hp=t.max; d.setHero(p.x,p.z+2.2,Math.PI); d.hero.yaw=Math.PI; d.step(1/60,2);
+    const l0=t.lvl; d.upgradeDef(); return { picked:t.lvl>l0, lvl:t.lvl, l0, perchLvl:p.lvl }; });
+  check("a ballista on a perch can be upgraded: aiming at the perch picks the tower standing on it (build 407)",UP.picked&&UP.perchLvl===1,JSON.stringify(UP));
   const E=await page.evaluate(()=>{ const d=window.__dd; d.cancelPlace&&d.cancelPlace(); for(const e of d.enemies) e.dead=e.dead||.001; const mana0=d.S.mana; const p=d.defs.find(x=>x.kind==='perch'); window.__perch.remove(p); d.step(1/60,3); return { ballistas:d.defs.filter(x=>x.kind==='harpoon').length, perches:d.defs.filter(x=>x.kind==='perch').length, back:Math.round(d.S.mana-mana0) }; });
   check("selling or losing the perch brings its ballista down with it and gives 70% of its mana back",E.ballistas===0&&E.perches===0&&E.back>=40,JSON.stringify(E));
   await page.context().close(); }
@@ -49,5 +52,6 @@ async function open(q){ const page=await (await browser.newContext({viewport:{wi
     const soil=(()=>{ for(let z=5;z<=38;z++) for(let x=5;x<=38;x++){ if(D.isBed(x,z)&&!D.hedgeCells().some(c=>c.cx===x&&c.cz===z)) return {x:d.cw(x),z:d.cwz(z)}; } return null; })(); if(!soil) return { soil:null }; if(!d.ghost()) d.select("harpoon"); d.step(1/60,3); const g=window.__aimAt(soil.x,soil.z); return { soil, g }; });
   check("a plain bed with no hedge is not a surface (refused)",R.soil===null||(R.g&&R.g.ok===false),JSON.stringify(R));
   await page.context().close(); }
-const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
+const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e));
+check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);

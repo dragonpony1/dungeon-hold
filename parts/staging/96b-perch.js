@@ -95,6 +95,9 @@ const deckFor=(kind,x,z)=>{ const s=surfaceAt(kind,x,z); return (s&&!towerOn(s.k
     const cfg=DEFS[placing]; let reason=''; if(towerOn(s.key)) reason='A tower already stands here'; else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units'; else if(S.mana<cfg.mana) reason='Not enough mana'; else if(enemies.some(e=>!e.dead&&Math.hypot(e.x-s.x,e.z-s.z)<2.2)) reason='Enemy too close';
     ghostOk=!reason; ghostReason=reason; ghostPos=[s.x,s.z]; ghostCell=[wc(s.x),wcz(s.z)]; ghost.position.set(s.x,s.y,s.z); const m=ghostOk?GHOST_OK:GHOST_BAD; ghost.traverse(o=>{ if(o.isMesh) o.material=m; });
     if(typeof ghostSector!=='undefined'&&ghostSector){ ghostSector.position.set(s.x,s.y,s.z); if(typeof tintSector==='function') tintSector(ghostSector,ghostOk?0x40ff80:0xff3030); } }; }
+// build 407 (Matt: "when ballista is on a perch, can't upgrade the ballista cuz it's not selectable"): the ballista stands at the perch's very spot, so game.js's pickDef tied them and the perch (built first) always won.
+// The perch is a stand -- nothing to upgrade, nothing to mend -- so aiming at a perch with a tower on it picks the TOWER (E upgrades it, X sells it, the card and ring are its). An empty perch is picked as ever.
+{ const prevPick=pickDef; pickDef=function(pos){ const d=prevPick.apply(this,arguments); if(d&&d.kind==='perch'){ const on=towerOn(d); if(on) return on; } return d; }; }
 window.__perch={ deckFor, towerOn, surfaceAt, stack:()=>[...STACK], remove:d=>removeDef(d), boxesFor:(x,z,rot,base)=>PERCH_BOXES.map(b=>Object.assign(turnBox(b,snapRot(rot),x,z),{top:base+b.top})), cap:CAP };
 { const prevRemove=removeDef; removeDef=function(d){ if(d.railboxes) for(const b of d.railboxes){ const i=RAILBOXES.indexOf(b); if(i>=0) RAILBOXES.splice(i,1); } prevRemove(d); }; }
 })();
