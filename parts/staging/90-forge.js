@@ -13,7 +13,10 @@ const UPFMT={dmg:v=>'+'+v,spd:v=>'+'+v+'%',hp:v=>'+'+v,def:v=>'+'+v+'%',regen:v=
 function upMax(it){ if(it&&it.named==='trimaw') return 400; /* Matt: "give it high upgrade cap like 400" -- the survival-wave-50 hydra (85-familiars.js) */ return UP_MAX[clamp(it.rarity|0,0,5)]; }
 function upUsed(it){ return it.up|0; }
 function upLeft(it){ return Math.max(0,upMax(it)-upUsed(it)); }
-function upCost(it){ return Math.max(1,Math.round((3+2*(it.rarity|0))*(1+.06*upUsed(it))*(1+.1*((it.tier||tierOf(it.lvl||1))-1)))); }
+// build 411 (Matt: "OJ says it's not spending his gold, he's getting NaN by the cost"): a piece whose saved tier is not a number (a word, or missing with an odd level -- pieces back from the hideout's forge can be) priced
+// at NaN, and gold never moves by NaN (10-meta.js addGold) -- so the upgrade went through FREE. The tier is now read as a number or worked out from the level, and a price that still is not a number is refused.
+const tierNum=it=>{ const t=+it.tier; if(Number.isFinite(t)&&t>=1) return t; const L=+it.lvl; return tierOf(Number.isFinite(L)&&L>0?L:1); };
+function upCost(it){ return Math.max(1,Math.round((3+2*clamp(+it.rarity||0,0,5))*(1+.06*upUsed(it))*(1+.1*(tierNum(it)-1)))); }
 function upCostK(it,k){ const c=upCost(it); if(k!=='fproj') return c; const n=((it.ups&&it.ups.fproj)|0)+1; return c*(FPROJ_COST_K[Math.min(n,5)]||1); }   /* build 410 */
 function upKeys(it){ return UPKEYS[it.slot]||[]; }
 // build 410 (Matt: "we should allow a few mythic set pets to get up to 5 projectiles, more and more expenditure"): a MYTHIC pet that belongs to a SET takes up to 5 projectile points (every other pet keeps the
@@ -24,7 +27,7 @@ function capOf(it,k){ if(k==='fproj'&&setPet(it)) return FPROJ_SET_CAP; const c=
 function canUp(it,k){ if(!it) return {ok:false,why:'nothing there'}; if(!upKeys(it).includes(k)) return {ok:false,why:'not on this item'}; if(upLeft(it)<=0) return {ok:false,why:'fully upgraded'};
   if(k==='fproj'){ if(((it.ups&&it.ups.fproj)|0)>=capOf(it,k)) return {ok:false,why:capOf(it,k)?'max projectiles for '+RNAME[it.rarity]+(setPet(it)||(it.rarity|0)<5?'':' (a mythic SET pet takes 5)'):'needs an Uncommon or better pet'}; }
   else if((it.stats[k]||0)+UPINC[k]>capOf(it,k)+1e-9) return {ok:false,why:'at the cap'};
-  const c=upCostK(it,k); if(Meta.gold()<c) return {ok:false,why:'need '+Meta.fmtG(c-Meta.gold())+' more gold',cost:c}; return {ok:true,why:'',cost:c}; }
+  const c=upCostK(it,k); if(!Number.isFinite(c)||c<1) return {ok:false,why:'no price for this piece'}; if(Meta.gold()<c) return {ok:false,why:'need '+Meta.fmtG(c-Meta.gold())+' more gold',cost:c}; return {ok:true,why:'',cost:c}; }
 function findItem(ref){ if(ref&&typeof ref==='object') return ref; for(const s of SLOTS){ if(gear[s]&&gear[s].id===ref) return gear[s]; } return Meta.bag().find(b=>b.id===ref)||Meta.stock().find(b=>b.id===ref)||null; }
 function rescore(it){ let sc=0; for(const k in it.stats) sc+=(it.stats[k]||0)*(STATW[k]||1); it.score=Math.round(sc*10)/10; }
 function upgrade(ref,k,n){ const it=findItem(ref); if(!it) return 0; n=Math.max(1,n|0); let done=0;
