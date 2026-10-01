@@ -17,11 +17,11 @@ const inCoop=()=>{ try{ return !!(window.__net&&window.__net.role&&window.__net.
 const COLS=13, ROWS=2, XA=2, XB=44, Z0=43, Z1=45, FLOOR_Y=6, PH=(WALLH-FLOOR_Y)/ROWS, MID=6;   // thirteen panels across the rim, two high, up to the roof; MID is the column the boss strikes
 const FIN_WAVE=6, FIN_T=16;   // the wave it happens on, and how many seconds into that wave
 const X0=cw(XA)-CELL/2, X1=cw(XB)+CELL/2, BZ=cwz(Z0)-CELL/2, ZB=cwz(Z1)+CELL/2, PWID=(X1-X0)/COLS, XC=(X0+X1)/2, XS=X0+PWID*(MID+.5);   // the wall's two ends, its front face, the back wall behind the three rows, a panel's width, the strike point
-// build 366 (Matt: "i want the cinematic to take up one and two" -- the two boss tracks, 95m-bossmusic.js: boss 1 fades out at 18 s as boss 2 begins, and 15 s into boss 2, at 33 s, the drums come in): the cutscene is 33 seconds long and then the horde is let out
+// build 366 (Matt: "i want the cinematic to take up one and two" -- the two boss tracks, 95m-bossmusic.js: boss 1 fades out at 18 s as boss 2 begins; boss 2 was cut at 15 s, and in build 367 at 11 s ("that second boss cut needs to be cut shorter"), where Drums from the Depths comes in, at 29 s): the cutscene is 29 seconds long and then the horde is let out
 // to the drums. 0-8.5 the boss glides out of the east cells along the whole wall, the cracks of each panel lighting violet as it passes; 8.5-12.3 it gathers at the middle (leaned back, a clock-face sigil spinning faster under it, the wall trembling, dust coming down);
-// the roar clip (2.4 s) at 8.5, the cast clip (all four arms up) from 10.9, the attack clip (the shears) from 13.0 and the snip at 13.7; the break is slowed to 40% as it ripples out (RIP .3 s a panel); 14.7 the three rows open; 15-33 the camera sweeps over the horde standing in the dark (restless, torches lit, the siege carts in the front rank: Matt, "could have some of those siege machines
-// in the scene"), the boss roars again at 31.4; 33 GO (drums): the crowd is let out
-const T_RUN=8.5, T_ROAR=T_RUN, T_CAST=T_ROAR+2.4, T_SWING=13.0, T_HIT=T_SWING+.7, RIP=.3, T_OPEN=T_HIT+2.4, T_GO=33, T_END=T_GO+4.6, BLEND_T=.8, SLOW=.4, CART_SLOTS=[-15,9,23];   // the cutscene's clock; where the first three carts stand across the strip
+// the roar clip (2.4 s) at 8.5, the cast clip (all four arms up) from 10.9, the attack clip (the shears) from 13.0 and the snip at 13.7; the break is slowed to 40% as it ripples out (RIP .3 s a panel); 14.7 the three rows open; 15-29 the camera sweeps over the horde standing in the dark (restless, torches lit, the siege carts in the front rank: Matt, "could have some of those siege machines
+// in the scene"), the boss roars again at 27.4; 29 GO (Drums from the Depths): the crowd is let out
+const T_RUN=8.5, T_ROAR=T_RUN, T_CAST=T_ROAR+2.4, T_SWING=13.0, T_HIT=T_SWING+.7, RIP=.3, T_OPEN=T_HIT+2.4, T_GO=29, T_END=T_GO+4.6, BLEND_T=.8, SLOW=.4, CART_SLOTS=[-15,9,23];   // the cutscene's clock; where the first three carts stand across the strip
 const MIX=[['goblin',64],['orc',24],['archer',10],['ogre',2]], TEAMS=['kegcart','firecart','kegcart'];   // standing in the dark when the wall falls (plus the carts' own orcs)
 const LATER=[['goblin',50],['orc',18],['archer',8],['ogre',2]], LATER_TEAMS=['firecart','kegcart'];   // and the second crowd, out of the dark over the next ten seconds
 const smooth=k=>k<=0?0:k>=1?1:k*k*(3-2*k);
@@ -67,7 +67,7 @@ function placeNext(q,tag){ const kind=q.shift(); if(!kind) return;
   const e=spawnEnemy(kind,'E'); if(!e||e.kind!==kind) return; e.x=(tag!=='later'&&rnd()<.7)?R(-34,34):R(X0+3,X1-3); e.z=R(BZ+1.9,ZB-1.0); e.yaw=PI; sync(e); FIN.crowd.push(e); cnt[tag||'crowd']++; }
 // ---- the camera
 const KEYS=[ { t:0, p:[30,9,56], l:[44,8,74] }, { t:3.5, p:[24,9.5,58], l:'boss' }, { t:6.5, p:[6,10,58], l:'boss' }, { t:T_RUN, p:[-3,9,60], l:'boss' }, { t:T_RUN+2.4, p:[-3,7.5,66], l:[0,9,75] }, { t:T_HIT, p:[-6,9,64], l:[0,8.5,76.5] }, { t:T_HIT+2.0, p:[0,15,40], l:[0,9.5,78] },
-  { t:T_OPEN+2.5, p:[-24,11,54], l:[-12,6.5,80] }, { t:22, p:[-4,9,64], l:[-15,6.5,80] }, { t:25, p:[20,9,62], l:[9,6.5,80] }, { t:28, p:[14,8.5,67], l:[23,6.5,80] }, { t:30.5, p:[0,12,60], l:[0,7,78] }, { t:T_GO, p:[0,14,52], l:[0,6.2,79] }, { t:T_END, p:[0,13,56], l:[0,6.2,79] } ];
+  { t:T_OPEN+2.5, p:[-24,11,54], l:[-12,6.5,80] }, { t:21, p:[-4,9,64], l:[-15,6.5,80] }, { t:23.1, p:[20,9,62], l:[9,6.5,80] }, { t:25.2, p:[14,8.5,67], l:[23,6.5,80] }, { t:27, p:[0,12,60], l:[0,7,78] }, { t:T_GO, p:[0,14,52], l:[0,6.2,79] }, { t:T_END, p:[0,13,56], l:[0,6.2,79] } ];
 function cutCamera(dt){ const t=FIN.t, b=FIN.boss, bp=b?[b.x,(b.y||FLOOR_Y)+2.6,b.z]:[XS,8,BZ-3];
   let i=0; while(i<KEYS.length-2&&t>=KEYS[i+1].t) i++; const a=KEYS[i], c=KEYS[i+1], u=smooth((t-a.t)/(c.t-a.t)); const la=a.l==='boss'?bp:a.l, lc=c.l==='boss'?bp:c.l;
   let p=[0,1,2].map(k=>a.p[k]+(c.p[k]-a.p[k])*u), l=[0,1,2].map(k=>la[k]+(lc[k]-la[k])*u);
@@ -94,10 +94,10 @@ function cutTick(dt){ FIN.t+=dt; const t=FIN.t, b=FIN.boss; const once=(k,at,fn)
   for(let n=0;n<6&&FIN.crowdQ.length;n++) placeNext(FIN.crowdQ);
   if(t<T_GO) for(const e of FIN.crowd) if(!e.dead&&e.mdl&&e.mdl.mixer) mobAnim(e,dt);
   if(window.__bossMusic) window.__bossMusic.sync(t); }
-function skip(){ if(!FIN.active||FIN.t>=T_GO-.2) return false; FIN.skipped=true; FIN.t=T_GO-.05; while(FIN.crowdQ.length) placeNext(FIN.crowdQ); if(window.__bossMusic) window.__bossMusic.toDrums(); return true; }
+function skip(){ if(!FIN.active||FIN.t>=T_GO-.2) return false; FIN.skipped=true; FIN.t=T_GO-.05; while(FIN.crowdQ.length) placeNext(FIN.crowdQ); if(window.__bossMusic) window.__bossMusic.toDepths(); return true; }
 skipBtn.onclick=()=>skip(); addEventListener('keydown',e=>{ if(e.code==='Enter') skip(); });
 function clearScene(){ for(const c of FIN.cracks){ scene.remove(c.s); c.s.material.dispose(); } FIN.cracks=[]; if(FIN.sigil){ scene.remove(FIN.sigil); FIN.sigil.material.dispose(); FIN.sigil=null; } skipBtn.style.opacity=0; skipBtn.style.pointerEvents='none'; }
-function endCut(){ FIN.active=false; FIN.done=true; const b=FIN.boss; if(b&&!b.dead){ b.spd=b.spd0; b.walking=false; b.swing=-1; b.casting=false; } clearScene(); letterbox(false); FIN.endP=camera.position.clone(); FIN.endQ=camera.quaternion.clone(); FIN.blend=BLEND_T; FIN.focus=null;
+function endCut(){ FIN.active=false; FIN.done=true; const b=FIN.boss; if(b&&!b.dead){ b.spd=b.spd0; b.walking=false; b.swing=-1; b.casting=false; } clearScene(); letterbox(false); try{ if(window.__mortarwake) window.__mortarwake.wake(); }catch(er){ console.warn('mortar wake',er); } FIN.endP=camera.position.clone(); FIN.endQ=camera.quaternion.clone(); FIN.blend=BLEND_T; FIN.focus=null;
   if(!FIN.opened) openStrip(); for(const p of panels) if(!p.broken) breakPanel(p); if(backing) backing.visible=false; FIN.laterQ=buildQueue(LATER,LATER_TEAMS); FIN.laterT=1.5; cnt.ends++; }
 function start(){ if(FIN.active||FIN.done||isGuest()||inCoop()||!ready) return false; FIN.active=true; FIN.t=0; FIN.ev={}; FIN.crowd=[]; FIN.opened=false; FIN.crowdQ=buildQueue(MIX,TEAMS); FIN.laterQ=[]; cnt.starts++; if(window.__carts) CARTK.forEach(k=>{ try{ window.__carts.load(k); }catch(er){} });
   const v=new THREE.Vector3(); camera.getWorldDirection(v); FIN.from={ p:[camera.position.x,camera.position.y,camera.position.z], l:[camera.position.x+v.x*20,camera.position.y+v.y*20,camera.position.z+v.z*20] };
@@ -121,13 +121,13 @@ WORLDANIM.push(dt=>{ for(const p of panels) p.w.update(dt);
   for(let i=dust.length-1;i>=0;i--){ const d=dust[i]; d.t+=dt; const k=d.t/d.life; if(k>=1){ world.remove(d.s); dust.splice(i,1); continue; } d.s.position.x+=d.vx*dt; d.s.position.y+=d.vy*dt; d.s.position.z+=d.vz*dt; d.s.material.opacity=.5*Math.sin(Math.min(1,k*1.6)*PI)*(1-k*.4); d.s.scale.setScalar(d.s.scale.x+dt*2.2); }
   if(!FIN.active&&FIN.laterQ.length&&S.phase!=='dead'){ FIN.laterT-=dt; if(FIN.laterT<=0){ FIN.laterT=.5; for(let n=0;n<3&&FIN.laterQ.length;n++) placeNext(FIN.laterQ,'later'); } } });
 // ---- the wall put back (for the dev panel and the tests): panels whole again, the three rows solid again
-function reset(){ if(FIN.active) return false; clearScene(); for(const p of panels) resetPanel(p); if(backing) backing.visible=true; setStrip(true); FIN.done=false; FIN.opened=false; FIN.laterQ=[]; FIN.blend=0; cnt.resets++; return true; }
+function reset(){ if(FIN.active) return false; clearScene(); try{ if(window.__mortarwake) window.__mortarwake.lock(); }catch(er){} for(const p of panels) resetPanel(p); if(backing) backing.visible=true; setStrip(true); FIN.done=false; FIN.opened=false; FIN.laterQ=[]; FIN.blend=0; cnt.resets++; return true; }
 // ---- the dev panel (F9)
 setInterval(()=>{ const p=document.getElementById('devpanel'); if(!p||document.getElementById('dp-finale')) return; const sec=document.createElement('div'); sec.className='sect'; sec.id='dp-finale';
   sec.innerHTML='<label>the big barrier (wave 6 does this itself)</label><div class="row"><button id="dp-finale-go">🎬 The wall falls</button><button id="dp-finale-back">🧱 Put the wall back</button></div>'; const note=p.querySelector('.note'); if(note) p.insertBefore(sec,note); else p.appendChild(sec);
   document.getElementById('dp-finale-go').onclick=()=>{ start(); }; document.getElementById('dp-finale-back').onclick=()=>{ reset(); }; },800);
 window.__torchFocus=()=>FIN.focus;
 window.__finale={ info:()=>Object.assign({ panels:panels.length, intactPanels:panels.filter(p=>!p.broken).length, active:FIN.active, done:FIN.done, t:+FIN.t.toFixed(2), sealed:strip.every(i=>grid[i]===T.WALL), open:strip.every(i=>grid[i]===T.FLOOR), crowdNow:FIN.crowd.filter(e=>!e.dead).length, queued:FIN.crowdQ.length, laterQueued:FIN.laterQ.length, backing:!!(backing&&backing.visible), ready, dust:dust.length },cnt),
-  start, reset, ready:()=>ready, active:()=>FIN.active, boss:()=>FIN.boss, crowd:()=>FIN.crowd, panelList:()=>panels.map(p=>({ r:p.r, c:p.c, x:+p.x.toFixed(1), broken:p.broken, tb:p.tb===null?null:+p.tb.toFixed(2) })), strip:()=>strip.slice(),
+  start, reset, ready:()=>ready, active:()=>FIN.active, done:()=>FIN.done, boss:()=>FIN.boss, crowd:()=>FIN.crowd, panelList:()=>panels.map(p=>({ r:p.r, c:p.c, x:+p.x.toFixed(1), broken:p.broken, tb:p.tb===null?null:+p.tb.toFixed(2) })), strip:()=>strip.slice(),
   geom:{ X0, X1, BZ, ZB, PWID, XS, FLOOR_Y, COLS, ROWS, MID }, times:{ T_RUN, T_ROAR, T_CAST, T_SWING, T_HIT, T_OPEN, T_GO, T_END, FIN_WAVE, FIN_T }, skip, camAt:t=>{ const keep=FIN.t; FIN.t=t; cutCamera(0); FIN.t=keep; return { p:camera.position.toArray(), l:FIN.focus }; } };
 })();
