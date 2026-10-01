@@ -74,5 +74,7 @@ function turnBox(b,r,x,z){ const c=Math.round(Math.cos(r)), s=Math.round(Math.si
     d.railboxes=PERCH_BOXES.map(b=>Object.assign(turnBox(b,d.rot,x,z),{top:base+b.top}));
     for(const b of d.railboxes) RAILBOXES.push(b);
   } return d; }; }
+// build 376 (Matt: "jacob cant stand on the perch"): the footholds exist only where the perch was PLACED -- the host. A guest's perch is a read-only puppet (99-network.js), so its own hero had no boxes to climb and fell through it. A guest now builds the same boxes (boxesFor) for every perch puppet it sees, and takes them down with it
+window.__perch={ boxesFor:(x,z,rot,base)=>PERCH_BOXES.map(b=>Object.assign(turnBox(b,snapRot(rot),x,z),{top:base+b.top})), cap:CAP };
 { const prevRemove=removeDef; removeDef=function(d){ if(d.railboxes) for(const b of d.railboxes){ const i=RAILBOXES.indexOf(b); if(i>=0) RAILBOXES.splice(i,1); } prevRemove(d); }; }
 })();

@@ -14,7 +14,7 @@ const errors=[]; const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function open(map){ const ctx=await browser.newContext(); await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); }catch(e){} });
   const p=await ctx.newPage(); p.on("pageerror",e=>errors.push(String(e)));
   await p.goto("http://127.0.0.1:8741/?silent&nogate"+(map?"&map="+map:""),{timeout:90000});
-  await p.waitForFunction(()=>window.__dd&&window.__net&&window.__party&&window.__mobsync&&window.__pigbosses,null,{timeout:90000});
+  await p.waitForFunction(()=>window.__dd&&window.__net&&window.__party&&window.__mobsync&&window.__pigbosses&&window.__archhag,null,{timeout:90000});
   await p.evaluate(()=>{ try{ window.__trainer.skip(); }catch(e){} window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,30); }); return p; }
 async function tick(pages,batches=6,size=5){ for(let b=0;b<batches;b++){ for(let i=0;i<size;i++) for(const p of pages) await p.evaluate(()=>window.__dd.step(1/60,1)); await sleep(20); } }
 async function tickUntil(pages,page,fn,arg,maxBatches=80,size=3){ for(let b=0;b<maxBatches;b++){ const v=await page.evaluate(fn,arg); if(v) return v; await tick(pages,1,size); } return await page.evaluate(fn,arg); }
@@ -44,6 +44,69 @@ async function connect(H,G,tag){ const rc=tag+"-"+Math.random().toString(36).sli
   await H.evaluate(()=>{ for(const e of window.__dd.enemies) if(/^pig/.test(e.kind)) { e.hp=0; window.__dd.kill(e); } });
   const gone=await tickUntil([H,G],G,()=>document.getElementById('pigbar').style.display==='none'?1:null,null,150,3);
   check("and the bar is gone when the bosses are",!!gone);
+  await H.context().close(); await G.context().close(); }
+
+// ================= (4) the Archer's Perch: a guest climbs it too (build 376) =================
+{ const H=await open(0), G=await open(0); await sleep(4300);
+  const c=await connect(H,G,'perch'); check('host and guest connect (the perch)',!c.hostOpen.err&&!c.join.err,JSON.stringify(c));
+  const placed=await H.evaluate(()=>{ const d=window.__dd; window.__heroes.select('troll'); d.addMana(5000); d.setHero(8,10,0); d.step(1/60,3); const p=d.place('perch',12,14,0); return p?{x:p.x,z:p.z,base:p.base}:null; });
+  check("the host places an Archer's Perch",!!placed,JSON.stringify(placed));
+  const got=await tickUntil([H,G],G,()=>window.__dd.rails().length>=3?window.__dd.rails().length:null,null,120,3);
+  check('the guest builds the perch footholds too (three boxes in its own world)',got===3,String(got));
+  const wearing=await tickUntil([H,G],G,id=>{ const p=window.__party.get(id); return p&&p.glb==='ranger.glb'?p.glb:null; },c.hostOpen.id,150,3);
+  check("the host is the Gnome Ranger: the guest's puppet of the host wears ranger.glb, not the retired troll.glb",wearing==='ranger.glb',String(wearing));
+  const drop=(dx,dz)=>G.evaluate(({dx,dz,placed})=>{ const d=window.__dd, Hh=d.hero; Hh.x=placed.x+dx; Hh.z=placed.z+dz; Hh.y=placed.base+4.2; Hh.vy=0; Hh.grounded=false; for(let i=0;i<120;i++){ Hh.x=placed.x+dx; Hh.z=placed.z+dz; d.step(1/60,1); } return +(Hh.y-placed.base).toFixed(2); },{dx,dz,placed});
+  const [f,r,k,off]=[await drop(.05,1.15),await drop(1.15,.05),await drop(-.3,-.3),await drop(-1.4,0)];
+  check('a GUEST dropped onto the front step stands at 1.47, the right step 2.06, the deck 2.5 (it fell through before), and off the back falls to the ground',Math.abs(f-1.47)<.05&&Math.abs(r-2.06)<.05&&Math.abs(k-2.5)<.05&&off<.1,JSON.stringify({f,r,k,off}));
+  await H.evaluate(()=>{ const d=window.__dd; const p=d.defs.find(x=>x.kind==='perch'); d.defs.splice(d.defs.indexOf(p),1); });
+  const gone=await tickUntil([H,G],G,()=>window.__dd.rails().length===0?1:null,null,120,3);
+  check('and the footholds go when the perch does',!!gone);
+  await H.context().close(); await G.context().close(); }
+
+// ================= (5) a tower's shot: the ballista's bolt shows on the guest's screen (build 376) =================
+{ const H=await open(0), G=await open(0); await sleep(4300);
+  const c=await connect(H,G,'shots'); check('host and guest connect (the shots)',!c.hostOpen.err&&!c.join.err,JSON.stringify(c));
+  await H.evaluate(()=>{ const d=window.__dd; for(const e of d.enemies) e.dead=e.dead||.001; d.S.mana=99999; d.S.du=0; d.S.phase='wave'; d.S.crystal=1e6; const tw=d.placeDefAt('harpoon',6,-6,0); tw.hp=tw.max=1e6; d.spawn('goblin','N'); const g=d.enemies[d.enemies.length-1]; g.hp=g.max=1e9; g.x=6; g.z=1; g.y=0; g.spd=0; g.dmg=0; g.atk=999; });
+  const sent=await tickUntil([H,G],H,()=>window.__shotsync.sent()>0?window.__shotsync.sent():null,null,200,2);
+  check('the ballista fires and the host says so',!!sent,String(sent));
+  const sawBolt=await tickUntil([H,G],G,()=>window.__shotsync.cosmetic()>0?window.__shotsync.cosmetic():null,null,200,1);
+  const seen=await G.evaluate(()=>window.__shotsync.seen());
+  check("the guest flies the bolt on its own screen (a projectile there, with no damage of its own)",!!sawBolt&&seen>0,JSON.stringify({sawBolt,seen}));
+  const moved=await G.evaluate(()=>{ const d=window.__dd; const p=window.__shotsync; return p.cosmetic(); });
+  check('and it is gone again once it has flown (not left hanging)',(await tickUntil([H,G],G,()=>window.__shotsync.cosmetic()===0?1:null,null,200,3))===1,String(moved));
+  // the heroes' own shots: a bolt and an arrow the host fires are flown on the guest's screen too
+  const hb=await H.evaluate(()=>{ const T=window.THREE; window.__staff.fireBolt('hazel',new T.Vector3(0,2,0),new T.Vector3(0,0,1),22,{life:1.5,dmg:3}); window.__bow.fireArrow('ash',new T.Vector3(2,2,0),new T.Vector3(0,0,1),30,{life:1.2,dmg:3}); return { bolts:window.__staff.bolts(), arrows:window.__bow.arrows() }; });
+  const gb=await tickUntil([H,G],G,()=>window.__staff.bolts()>0&&window.__bow.arrows()>0?{ bolts:window.__staff.bolts(), arrows:window.__bow.arrows() }:null,null,60,1);
+  check("a bolt and an arrow the host fires are flown on the guest's screen too",hb.bolts>0&&!!gb,JSON.stringify({ hb, gb }));
+  // a drake beats its wings on the guest's screen
+  await H.evaluate(()=>{ const d=window.__dd; d.spawn('drake','N'); const e=d.enemies.filter(x=>x.kind==='drake'&&!x.dead).pop(); e.hp=e.max=1e9; });
+  const wings=[]; for(let i=0;i<6;i++){ await tick([H,G],1,4); wings.push(await G.evaluate(()=>{ const id=window.__mobsync.list().find(i=>window.__mobsync.get(i).kind==='drake'); return id?window.__mobsync.get(id).wing:null; })); }
+  check("a drake's wings beat on the guest's screen (the wing hinge turns from tick to tick)",wings.filter(w=>w!==null).length>=4&&new Set(wings.filter(w=>w!==null)).size>=3,JSON.stringify(wings));
+  // the Archhag's GROW: a mob made twice the size on the host is twice the size on the guest's screen
+  const grown=await H.evaluate(()=>{ const d=window.__dd; d.spawn('orc','N'); const e=d.enemies.filter(x=>x.kind==='orc'&&!x.dead).pop(); e.hp=e.max=1e9; e.gBase={sc:e.sc,r:e.r,h:e.h}; e.sc*=2; e.big=true; return { id:e.__coopId||null, sc:e.sc }; });
+  const gs=await tickUntil([H,G],G,()=>{ const ps=window.__mobsync.list().map(id=>window.__mobsync.get(id)).filter(p=>p.kind==='orc'); return ps.length&&ps.some(p=>p.scale>1.8)?ps.map(p=>p.scale):null; },null,150,3);
+  check("a mob the Archhag has GROWN (twice the size on the host) is twice the size on the guest's screen too",!!gs,JSON.stringify(gs));
+  await H.context().close(); await G.context().close(); }
+
+// ================= (6) the Archhag on the Cloister Court: a guest sees her, not a wooden doll (build 376) =================
+{ const H=await open(2), G=await open(2); await sleep(4300);
+  const c=await connect(H,G,'hag'); check('host and guest connect (the Cloister Court)',!c.hostOpen.err&&!c.join.err,JSON.stringify(c));
+  await H.evaluate(async()=>{ const d=window.__dd; for(const e of d.enemies) e.dead=e.dead||.001; await window.__archhag.ensure(); d.S.phase='wave'; d.S.crystal=d.S.crystal2=1e6; window.__archhag.spawn(); });
+  const real=await tickUntil([H,G],G,()=>{ const ps=window.__mobsync.list().map(id=>window.__mobsync.get(id)).filter(p=>p.kind==='archhag'); return ps.length&&ps.every(p=>p.glb&&!p.stand)?ps.length:null; },null,900,3);
+  const st=await G.evaluate(()=>window.__mobsync.list().map(id=>window.__mobsync.get(id)).filter(p=>p.kind==='archhag').map(p=>({kind:p.kind,glb:p.glb,stand:p.stand})));
+  check('the guest asks for her model and she replaces the wooden mannequin on its screen',!!real,JSON.stringify(st));
+  const bar=await tickUntil([H,G],G,()=>{ const el=document.getElementById('hagbar'); return el&&el.style.display==='block'?1:null; },null,150,3);
+  check("and her boss bar shows on the guest's screen",!!bar);
+  // the garden wakes: the topiaries come off their pedestals on the guest's screen too
+  const woke=await H.evaluate(()=>window.__archhag.wake());
+  const topi=await tickUntil([H,G],G,()=>{ const ps=window.__mobsync.list().map(id=>window.__mobsync.get(id)).filter(p=>/^topiary-/.test(p.kind)); return ps.length>=3?ps.map(p=>({kind:p.kind,x:p.x,z:p.z})):null; },null,300,3);
+  check('the topiaries the host woke arrive on the guest as puppets',woke>=3&&!!topi,JSON.stringify({ woke, n:topi&&topi.length }));
+  const stones=await tickUntil([H,G],G,()=>window.__archhag.plinths()>=3?window.__archhag.plinths():null,null,200,3);
+  check("and the garden's own figures come off their stone on the guest's screen (no statue left standing beside its walking copy)",!!stones,String(stones));
+  const mv=await G.evaluate(()=>window.__mobsync.list().map(id=>window.__mobsync.get(id)).filter(p=>/^topiary-/.test(p.kind)).map(p=>[p.x,p.z]));
+  await tick([H,G],40,5);
+  const mv2=await G.evaluate(()=>window.__mobsync.list().map(id=>window.__mobsync.get(id)).filter(p=>/^topiary-/.test(p.kind)).map(p=>[p.x,p.z]));
+  check('and they MOVE there (the puppets walk, they do not stand on the spot)',mv.length>0&&mv2.some((q,i)=>mv[i]&&Math.hypot(q[0]-mv[i][0],q[1]-mv[i][1])>1),JSON.stringify({ a:mv.slice(0,2), b:mv2.slice(0,2) }));
   await H.context().close(); await G.context().close(); }
 
 // ================= (1) a teammate on a raised floor: the Deep Prison =================

@@ -25,7 +25,7 @@ function installHero(h){ heroPick=h; try{ localStorage.setItem('ddHero',h.id); }
   return fetchBytes(ASSET(h.glb),'first').then(buf=>{ if(heroPick!==h) return; if(GLBH&&GLBH.label&&!/Meshy/.test(GLBH.label)) return;   // the player dropped their own model meanwhile: keep it
     loadHeroGLB(buf,h.label,true); hero.reach=h.reach; }).catch(e=>console.warn('hero '+h.id,e)); }
 installHero(heroPick);
-window.__heroes={list:()=>HEROES.map(h=>({id:h.id,name:h.name,locked:heroLocked(h)})),pick:()=>heroPick.id,unlocks:()=>heroPick.unlocks,canUse:k=>heroPick.unlocks.includes(k),locked:id=>heroLocked(HEROES.find(h=>h.id===id)),mapOneHeld,
+window.__heroes={glb:id=>{ const h=HEROES.find(h=>h.id===id); return h?h.glb:null; },list:()=>HEROES.map(h=>({id:h.id,name:h.name,locked:heroLocked(h)})),pick:()=>heroPick.id,unlocks:()=>heroPick.unlocks,canUse:k=>heroPick.unlocks.includes(k),locked:id=>heroLocked(HEROES.find(h=>h.id===id)),mapOneHeld,
   select:id=>{ const h=HEROES.find(h=>h.id===id); if(h) return installHero(h); },   // the programmatic pick (tests, probes) ignores the lock; the picker cards and the raven honour it
   next:()=>{ const i=HEROES.findIndex(h=>h.id===heroPick.id); let nh=null; for(let k=1;k<=HEROES.length;k++){ const c=HEROES[(i+k)%HEROES.length]; if(!heroLocked(c)){ nh=c; break; } } if(!nh||nh===heroPick){ toast('Hold your first hall to unlock the other heroes'); return heroPick.id; } installHero(nh); toast('Hero: '+nh.name); if(placing&&!nh.unlocks.includes(placing)) cancelPlace(); return nh.id; }};
 // ---- each hero unlocks its own two to four defenses (the raven's job, once it grows a real picker): the hotbar
