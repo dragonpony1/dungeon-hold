@@ -41,11 +41,18 @@ check("one click: by rarity -- best first across the whole bag",nonIncreasing(or
 check("...with a heading per rarity, legendary at the top",hs.length===5&&/^LEGENDARY/.test(hs[0])&&/^COMMON/.test(hs[4]),JSON.stringify(hs));
 check("the button now reads by rarity",/by rarity/.test(await page.evaluate(()=>document.getElementById('tv-sort').textContent)));
 
+// build 404 (Matt: "make one of the sorting methods to bring all set pieces to the top"): two of the pieces become Earth set pieces and one a Wind piece (a set piece is known by its name)
+const setIds=await page.evaluate(()=>{ const b=window.__meta.bag(); const pick=(slot,r)=>b.find(x=>x.slot===slot&&x.rarity===r); const a=pick('armor',1), c=pick('charm',0), w=pick('weapon',0);
+  a.name='Fine Jerkin of the Earth'; c.name='Plain Charm of the Earth'; w.name='Worn Shortsword of the Wind'; window.__meta.setBagSort(window.__meta.bagSort()); return { earth:[a.id,c.id], wind:w.id }; });
 await page.click('#tv-sort'); await page.waitForTimeout(100);
 order=await cardOrder(page); hs=await headers(page);
-check("two clicks: newest first is the exact reverse of pickup order, no headings",JSON.stringify(order.map(c=>c.id))===JSON.stringify(pickupOrder.slice().reverse())&&hs.length===0,order.map(c=>c.slot+c.r).join(' '));
+check("two clicks: sets first -- the two Earth pieces, then the Wind piece, then everything else, each set under its own heading",
+  setIds.earth.includes(order[0].id)&&setIds.earth.includes(order[1].id)&&order[2].id===setIds.wind&&hs.length===3&&/OF THE EARTH\s*2/.test(hs[0])&&/OF THE WIND\s*1/.test(hs[1])&&/OTHER GEAR\s*5/.test(hs[2])&&/sets first/.test(await page.evaluate(()=>document.getElementById('tv-sort').textContent)),JSON.stringify(hs));
 await page.click('#tv-sort'); await page.waitForTimeout(100);
-check("three clicks: back to type",await page.evaluate(()=>window.__meta.bagSort())==='type'&&(await headers(page)).length===5);
+order=await cardOrder(page); hs=await headers(page);
+check("three clicks: newest first is the exact reverse of pickup order, no headings",JSON.stringify(order.map(c=>c.id))===JSON.stringify(pickupOrder.slice().reverse())&&hs.length===0,order.map(c=>c.slot+c.r).join(' '));
+await page.click('#tv-sort'); await page.waitForTimeout(100);
+check("four clicks: back to type",await page.evaluate(()=>window.__meta.bagSort())==='type'&&(await headers(page)).length===5);
 
 // remembered across a reload
 await page.click('#tv-sort'); await page.waitForTimeout(100);

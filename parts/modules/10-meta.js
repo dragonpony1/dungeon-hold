@@ -51,10 +51,14 @@ function holdsOnFloor(it){ return bagFull()&&precious(it)&&bagIdx(it.id)<0&&!st.
 // each; 'rarity' is best-first across the lot; 'newest' is the latest pickup first. The bag itself stays in pickup order
 // (equip() and the armory splice by id, and saves stay stable) -- the views ask sortedBag() for their order. Remembered
 // in localStorage (ddBagSort) so the choice survives a reload, like the sound and music toggles.
-const BAG_SORTS=['type','rarity','newest']; let bagSort='type'; try{ const v=localStorage.getItem('ddBagSort'); if(BAG_SORTS.includes(v)) bagSort=v; }catch(e){}
+const BAG_SORTS=['type','rarity','sets','newest'];   /* build 404 (Matt: "when sorting bag gear, make one of the sorting methods to bring all set pieces to the top"): sets */ let bagSort='type'; try{ const v=localStorage.getItem('ddBagSort'); if(BAG_SORTS.includes(v)) bagSort=v; }catch(e){}
 function setBagSort(v){ if(!BAG_SORTS.includes(v)) return false; bagSort=v; try{ localStorage.setItem('ddBagSort',v); }catch(e){} metaVer++; return true; }   // metaVer: every open view re-renders on the next frame
 function sortedBag(){ const b=st.bag.slice(); const six=it=>{ const i=SLOTS.indexOf(it.slot); return i<0?99:i; }, sc=it=>+it.score||0, lk=it=>it.locked?1:0;   // locked pieces lead their group, so what's being kept is easy to spot
-  if(bagSort==='type') b.sort((a,c)=>six(a)-six(c)||lk(c)-lk(a)||c.rarity-a.rarity||sc(c)-sc(a)); else if(bagSort==='rarity') b.sort((a,c)=>c.rarity-a.rarity||lk(c)-lk(a)||sc(c)-sc(a)||six(a)-six(c)); else b.reverse(); return b; }
+  if(bagSort==='type') b.sort((a,c)=>six(a)-six(c)||lk(c)-lk(a)||c.rarity-a.rarity||sc(c)-sc(a)); else if(bagSort==='rarity') b.sort((a,c)=>c.rarity-a.rarity||lk(c)-lk(a)||sc(c)-sc(a)||six(a)-six(c));
+  else if(bagSort==='sets'){ const so=it=>bagSetOf(it), n={}; for(const it of b){ const k=so(it); if(k) n[k]=(n[k]||0)+1; }   // every set piece first, the set you hold most of leading (nearest a bonus), then the rest by type
+    b.sort((a,c)=>{ const p=so(a), q=so(c); if(!!p!==!!q) return p?-1:1; if(p&&q&&p!==q) return (n[q]-n[p])||(p<q?-1:1); return six(a)-six(c)||lk(c)-lk(a)||c.rarity-a.rarity||sc(c)-sc(a); }); }
+  else b.reverse(); return b; }
+function bagSetOf(it){ const S=typeof Meta!=='undefined'&&Meta.sets; return (S&&S.setOf&&S.setOf(it))||null; }   // 92-sets.js: Meta.sets.setOf (a set piece is known by its name -- "of the Earth", "of Fire" ...)
 // THE LOCK: a locked piece is never scrapped at the hideout portal (59-hideout.js carries it through whole instead) and
 // never sold -- not by Sell junk, not by the Sell button, which the views disable until it's unlocked. The flag lives
 // on the item itself, so it rides along when the piece is worn, kept in the armory or saved. Nothing else reads it.
@@ -131,7 +135,7 @@ Object.assign(Meta,{
   BAG_CAP, XP, SKILLS, SKILL_MAX, xpToNext, fmtG, isJunk, bagKey,
   gold:()=>st.gold, addGold, level:()=>st.level, setLevel, xp:()=>st.xp, points, spentPoints, canRespec, respecCost, respec, spend,
   skill:id=>st.skills[id]||0, skills:()=>Object.assign({},st.skills), skillValue:id=>{ const s=SKILLS.find(s=>s.id===id); return s?s.fmt(s.per*st.skills[id]):''; },
-  bag:()=>st.bag, sortedBag, bagSort:()=>bagSort, setBagSort, BAG_SORTS, toggleLock, isLocked:id=>{ const i=bagIdx(id); return i>=0&&!!st.bag[i].locked; }, bagFull, holdsOnFloor, sell:sellItem, sellJunk, sellAll, equip, unequip,
+  bag:()=>st.bag, sortedBag, bagSetOf, bagSort:()=>bagSort, setBagSort, BAG_SORTS, toggleLock, isLocked:id=>{ const i=bagIdx(id); return i>=0&&!!st.bag[i].locked; }, bagFull, holdsOnFloor, sell:sellItem, sellJunk, sellAll, equip, unequip,
   stock:()=>st.stock, stockTier:()=>st.stockTier, tierLine, restockCost, restock, buyPrice, canBuy, buy,
   best:()=>st.best, runs:()=>st.runs, summary, version:()=>metaVer, save:saveMeta,
   state:()=>JSON.parse(JSON.stringify(st)), reset:metaReset, addXP, giveGold:n=>addGold(n,'refund'), giveItem:it=>bagItem(it,'give') });
