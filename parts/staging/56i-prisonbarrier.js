@@ -38,7 +38,7 @@ fetchBytes(ASSET('prison-wall2.glb'),'soon').then(buf=>new Promise((res,rej)=>ne
   root.updateMatrixWorld(true); const bb=new THREE.Box3().setFromObject(root), sz=bb.getSize(new THREE.Vector3()); const sx=PWID/sz.x, sy=PH/sz.y, sc=(sx+sy)/2; toonify(root,sc);
   const shards=PWK.shatter(root); if(!shards){ console.warn('prison barrier: no shards'); return; }
   for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
-    const w=new PWK.BreakableWall(root.clone(true),shards.clone(true),{ maxHealth:1e9, gravity:9.81/sc, impulse:1.35, debrisLifetime:8, onHit:()=>{}, onBreak:()=>{} });
+    const w=new PWK.BreakableWall(root.clone(true),shards.clone(true),{ maxHealth:1e9, gravity:9.81/sc, impulse:1.35, debrisLifetime:5.5, onHit:()=>{}, onBreak:()=>{} });
     // the top row's pieces stand on the bottom row's: lifted inside the group, so that the group's own floor (where every shard lands) is the rim's floor
     const off=r*PH/sy; w.intact.position.y+=off; w.fragments.position.y+=off;
     const mir=((c*5+r*3)%2)===1; w.group.scale.set(mir?-sx:sx,sy,sc); w.group.position.set(X0+PWID*(c+.5),FLOOR_Y,BZ+sc*sz.z/2+.02); w.group.rotation.y=PI; world.add(w.group);

@@ -12,10 +12,15 @@ MOBDIM[K]={ fit:4.3, h:4.3, r:1.0, nat:{ walk:.35, run:.35 } };   // fit = its h
 MOBS[K]={ hp:700, spd:1.5, dmg:26, cd:2.4, mana:60, detour:0, swingT:1.4, hitT:.7 };   // the whole attack clip over 1.4 s, the shears closing at the middle of it
 if(Meta.XP) Meta.XP[K]=Meta.XP[K]||60;
 const cnt={ loaded:0, spawned:0, snips:0, bursts:0, drops:0 };
+// build 371: THREE rigs of the Corruptor exist (Matt: "the meshy one is better i am trying to replace bob's"). 'meshy' (the default) is MESHY'S OWN rigged version of its 15k model (Meshy_AI_corruptor_of_fate_rig_*.glb: its humanoid 22-joint skeleton, which carries the four
+// arms as two pairs, one animation per file) -- merged into one model by tools/scratch-main/meshy-merge.mjs: cast and walk are Meshy's own, in place; attack and roar are slices of the cast, idle a slow sway and death a slump until Meshy's own clips of those
+// arrive (drop their files in the Corruptor folder and merge again). 'fit' is the same Meshy mesh on BOB'S four-arm skeleton with his six clips, fitted by tools/scratch-main/meshy-rig.mjs (all four arms move on their own). Pick on the dev panel (F9, remembered in
+// localStorage ddCorruptorModel, effective on the next load) or with ?corruptor=fit in the address.
+const MODELS={ meshy:'prison-corruptor-meshyrig.glb', fit:'prison-corruptor.glb' }; let which='meshy'; try{ const q=new URLSearchParams(location.search).get('corruptor'), st=localStorage.getItem('ddCorruptorModel'); which=MODELS[q]?q:MODELS[st]?st:'meshy'; }catch(er){}
 let P=null;
 function fixMats(root){ root.traverse(o=>{ if(o.isMesh&&o.material){ o.material.metalness=0; o.material.roughness=.85; if(o.material.emissive) o.material.emissive.setRGB(0,0,0); } }); }   // its metal/rough map would read as dark metal under the hall's lights
 function load(){ if(MOBGLB[K]) return Promise.resolve(); if(P) return P;
-  P=fetchBytes(ASSET('prison-corruptor.glb')).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(g=>{
+  P=fetchBytes(ASSET(MODELS[which])).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(g=>{
       const root=g.scene||g.scenes[0]; fixMats(root); const fit=fitModel(root,MOBDIM[K].fit); toonify(root,fit.scale);
       // a soft glow of its own paint, so the dark robes read in the gloom (as the wolves)
       root.traverse(o=>{ if(o.isMesh&&!o.userData.isOL&&o.material&&o.material.map&&o.material.emissive){ o.material.emissiveMap=o.material.map; o.material.emissive.setRGB(.6,.6,.6); o.material.needsUpdate=true; } });
@@ -29,7 +34,7 @@ if(MAP&&MAP.id==='prison') setTimeout(load,3000);
 // ---- its animation: CAST while it is casting (held at the end), its fall at double speed
 { const prev=mobAnim; mobAnim=function(e,dt){ if(e&&e.kind===K&&e.mdl&&e.mdl.actions){ const A=e.mdl.actions, m=e.mdl;
       if(!e.dead&&e.casting&&A.cast){ if(m.cur!==A.cast) mobPlay(m,'cast',{ restart:true, fade:.25 }); m.mixer.update(dt); return; }
-      const r=prev.apply(this,arguments); if(e.dead&&A.death&&m.cur===A.death) A.death.timeScale=2; return r; }
+      const r=prev.apply(this,arguments); if(e.dead&&A.death&&m.cur===A.death) A.death.timeScale=Math.max(1,A.death.getClip().duration/1.1);   /* the whole fall inside the 1.25 s the game keeps a dead mob */ return r; }
     return prev.apply(this,arguments); }; }
 // ---- the snip: two violet streaks crossing, a flash behind them
 let streak=null; function streakTex(){ if(streak) return streak; const c=document.createElement('canvas'); c.width=256; c.height=32; const g=c.getContext('2d'); const gr=g.createLinearGradient(0,0,256,0); gr.addColorStop(0,'rgba(255,255,255,0)'); gr.addColorStop(.5,'rgba(255,255,255,1)'); gr.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=gr; g.beginPath(); g.moveTo(0,16); g.lineTo(128,3); g.lineTo(256,16); g.lineTo(128,29); g.closePath(); g.fill(); streak=new THREE.CanvasTexture(c); return streak; }
@@ -52,5 +57,8 @@ WORLDANIM.push(dt=>{
     else if(f.kind==='glow'){ f.o.material.opacity=.9*(1-k); f.o.scale.setScalar(f.s0+(f.s1-f.s0)*k); }
     else if(f.kind==='ring'){ f.o.scale.setScalar(1+k*22); f.o.material.opacity=.85*(1-k); }
     if(k>=1){ if(f.o.parent) f.o.parent.remove(f.o); if(f.o.material) f.o.material.dispose(); fx.splice(i,1); } } });
-window.__corruptor={ load, loaded:()=>!!MOBGLB[K], snip, burst, info:()=>Object.assign({ fx:fx.length, alive:enemies.filter(e=>e.kind===K&&!e.dead).length },cnt) };
+setInterval(()=>{ const p=document.getElementById('devpanel'); if(!p||document.getElementById('dp-corr')) return; const sec=document.createElement('div'); sec.className='sect'; sec.id='dp-corr';
+  sec.innerHTML='<label>the Corruptor model (next load)</label><div class="row"><select id="dp-corr-sel"><option value="meshy">Meshy rig (2 arm pairs)</option><option value="fit">4-arm fit (Bob clips)</option></select></div>'; const note=p.querySelector('.note'); if(note) p.insertBefore(sec,note); else p.appendChild(sec);
+  const sel=document.getElementById('dp-corr-sel'); sel.value=which; sel.onchange=()=>{ try{ localStorage.setItem('ddCorruptorModel',sel.value); }catch(er){} }; },800);
+window.__corruptor={ which:()=>which, load, loaded:()=>!!MOBGLB[K], snip, burst, info:()=>Object.assign({ fx:fx.length, alive:enemies.filter(e=>e.kind===K&&!e.dead).length },cnt) };
 })();
