@@ -37,6 +37,13 @@ if(MAP&&MAP.id==='prison') setTimeout(()=>{ Object.keys(KINDS).forEach(load); },
 { const prev=updateEnemies; updateEnemies=function(dt){
     for(const e of enemies){ if(e.dead||!KINDS[e.kind]||!e.mdl||!e.mdl.mixer) continue; e.mdl.mixer.timeScale=(e.walking&&mobSpd(e)>.05)?1:0; }
     prev(dt);
+    // build 366 (Matt: "the two siege machines turn perpendicular to the line. they need to stay straight"): the core turns a mob toward the middle of the next cell, fine for a goblin, but it swings a long cart sideways whenever the crowd
+    // shoves it off the line of the path or it straddles the line between two rows (one row's path says south, the next one's west). A walking cart is turned instead to the way it is ACTUALLY MOVING, averaged over a second so the steps and
+    // shoves blend into one straight line, and slowly; it holds its facing while jammed (hardly moving); stopped or swinging it still faces what it fights
+    for(const c of enemies){ if(c.dead||!KINDS[c.kind]||!c.mdl) continue; if(c.hvx===undefined){ c.hvx=Math.sin(c.yaw); c.hvz=Math.cos(c.yaw); c.hy=c.yaw; c.px=c.x; c.pz=c.z; }
+      const vx=(c.x-c.px)/Math.max(dt,1e-4), vz=(c.z-c.pz)/Math.max(dt,1e-4), vl=Math.hypot(vx,vz), cap=vl>3.2?3.2/vl:1; c.px=c.x; c.pz=c.z;
+      if(!c.walking||c.swing>=0){ c.hy=c.yaw; continue; } const k=Math.min(1,dt/.9); c.hvx+=(vx*cap-c.hvx)*k; c.hvz+=(vz*cap-c.hvz)*k;
+      if(Math.hypot(c.hvx,c.hvz)>.45) c.hy=angLerp(c.hy,Math.atan2(c.hvx,c.hvz),1-Math.exp(-5*dt)); c.yaw=c.hy; c.mdl.g.rotation.y=c.yaw; }   /* its own heading (hy) is the cart's facing: the core's turn toward the next cell's middle, made every frame before this, is overwritten */
     for(const c of enemies){ if(!c.crew||c.crewDone) continue;
       if(c.dead){ for(const o of c.crew){ if(!o.dead){ o.spd=o.spd0; o.pushFor=null; } } c.crewDone=true; continue; }
       const alive=c.crew.filter(o=>!o.dead); c.spd=c.spd0*(alive.length/2);
@@ -65,5 +72,5 @@ function detonate(e){ if(e.boom) return; e.boom=true; cnt.blasts++; try{ if(wind
 WORLDANIM.push(dt=>{ for(let i=fx.length-1;i>=0;i--){ const f=fx[i]; f.t+=dt; if(f.t<0){ f.o.visible=false; continue; } f.o.visible=true; const k=Math.min(1,f.t/f.life); const e2=1-Math.pow(1-k,2);
     f.o.position.set(f.x0+(f.x1-f.x0)*e2+f.w*Math.sin(k*3),f.y0+(f.y1-f.y0)*e2,f.z0+(f.z1-f.z0)*e2); f.o.scale.setScalar(1.4+k*2.6); f.o.material.opacity=.85*(1-k*k);
     if(k>=1){ if(f.o.parent) f.o.parent.remove(f.o); f.o.material.dispose(); fx.splice(i,1); } } });
-window.__carts={ kinds:Object.keys(KINDS), load, loaded:k=>!!MOBGLB[k], info:()=>Object.assign({ fx:fx.length },cnt), back:k=>MOBGLB[k]&&MOBGLB[k].back, SIDE };
+window.__carts={ pathFrom:(x,z)=>{ const ci=idx(wc(x),wcz(z)), n=flowDef.nxt[ci]; return n<0?null:[(cw(n%GW)-cw(ci%GW))/2,(cwz((n/GW)|0)-cwz((ci/GW)|0))/2]; }, kinds:Object.keys(KINDS), load, loaded:k=>!!MOBGLB[k], info:()=>Object.assign({ fx:fx.length },cnt), back:k=>MOBGLB[k]&&MOBGLB[k].back, SIDE };
 })();
