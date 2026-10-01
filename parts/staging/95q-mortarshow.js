@@ -92,17 +92,29 @@ function onBreak(sp){ if(SH.active||SH.done||NOSHOW||isGuest()||inCoop()||!sp) r
 function breakSecond(){ const sp2=SH.second; const w=PW.raw().find(q=>q.spot===sp2); if(w&&!w.broken){ w.locked=false; w.hit(1e9,new THREE.Vector3(sp2.cx0,2,sp2.cz0),new THREE.Vector3(-sp2.nx,0,-sp2.nz)); } }
 function step(dt){ const t=SH.t; if(S.phase==='dead'||S.phase==='won'){ end(); return; }
   if(hero.dead<=0&&hero.hp<SH.hp0) hero.hp=SH.hp0;   // untouchable while the bars are on
-  for(const m of PW.mounts()){ if(!m.d||!m.rolled) continue; if(m.d.ammo===undefined||m.d.ammo<PW.AMMO) m.d.ammo=PW.AMMO; m.d.cd=Math.max(m.d.cd||0,1.5); }   // the whole show is free and SCRIPTED: the mortars take only the eight volleys below, never one of their own (their cooldown is held), so every shell is seen and the mist is not a wall
+  for(const m of PW.mounts()){ if(!m.d||!m.rolled) continue; if(m.d.ammo===undefined||m.d.ammo<PW.AMMO) m.d.ammo=PW.AMMO; }   // the whole show is free and SCRIPTED: the mortars take only the eight volleys below, never one of their own (their cooldown is held), so every shell is seen and the mist is not a wall
   if(!SH.ev.second&&t>=T_SECOND){ SH.ev.second=1; breakSecond(); }
   SH.dustT-=dt; if(SH.dustT<=0){ SH.dustT=.14; for(const m of PW.mounts()){ if(m.rolled||!m.holder) continue; const v=mortarPos(m.sp); dust(v.x,.5,v.z,2); } }
   if(!SH.ev.fan&&t>=T_FAN){ SH.ev.fan=1; if(!showNode) fanfare(); for(const sp of [SH.first,SH.second]){ const v=mortarPos(sp); sparks(v.x,v.y+2.4,v.z,34); } camShake=Math.max(camShake,.5); }
   while(SH.vi<VOLLEYS.length&&t>=VOLLEYS[SH.vi][0]){ volley(VOLLEYS[SH.vi][1]); SH.vi++; }
   if(t>=T_END) end(); }
-function end(){ if(!SH.active) return; SH.active=false; SH.done=true; showMusicOff(); letterbox(false); skipBtn.style.opacity=0; skipBtn.style.pointerEvents='none';
+function end(){ if(!SH.active) return; SH.active=false; SH.done=true; showMusicOff(); releaseHeld(); letterbox(false); skipBtn.style.opacity=0; skipBtn.style.pointerEvents='none';
   for(const m of PW.mounts()){ if(m.d) m.d.ammo=PW.AMMO; }   // every volley was free
   SH.endP=camera.position.clone(); SH.endQ=camera.quaternion.clone(); SH.blend=BLEND; cnt.ends++; }
 function skip(){ if(!SH.active) return false; SH.skipped=true; cnt.skips++; if(!SH.ev.second){ SH.ev.second=1; breakSecond(); } for(const m of PW.mounts()) if(!m.rolled) m.t=m.dur; end(); return true; }
-{ const prev=update; update=function(dt){ if(SH.active){ SH.t+=dt; step(dt); } return prev.apply(this,arguments); }; }
+// build 385 (Matt: "i think the game should pause so i can enjoy the cinematic"): while the show plays the hall is PAUSED for everything but the show -- the wave clock stops (no one new comes out), the towers hold their fire, nothing can hurt the
+// Heartroot, a tower or the hero, and the horde stands where it is -- except the mobs the mist has maddened, which fight each other in front of the camera, and the mortars' shells, flying and bursting. When it ends the game picks up exactly where it was
+const held=new Map();   // a mob -> its own speed, while it is held
+function holdTick(dt){ for(const e of enemies){ if(e.dead) continue; if(!held.has(e)) held.set(e,{ spd:e.spd, spd0:e.spd0 }); const h=held.get(e); if(e.madT>0){ e.spd=h.spd; if(h.spd0!==undefined) e.spd0=h.spd0; } else { e.spd=0; if(h.spd0!==undefined) e.spd0=0; } }
+  const pos=new Map(); for(const e of enemies) if(!e.dead&&!(e.madT>0)) pos.set(e,[e.x,e.z]);
+  updateEnemies(dt); updateProj(dt);
+  for(const [e,p] of pos){ if(e.dead||e.madT>0) continue; e.x=p[0]; e.z=p[1]; if(e.mdl&&e.mdl.g){ e.mdl.g.position.x=e.x; e.mdl.g.position.z=e.z; } }   /* held: not a step (a cart's crew, a shove) */ }
+function releaseHeld(){ for(const [e,h] of held){ if(e.dead) continue; e.spd=h.spd; if(h.spd0!==undefined) e.spd0=h.spd0; } held.clear(); }
+{ const prev=update; update=function(dt){ if(!SH.active) return prev.apply(this,arguments); if(S.phase==='dead'||S.phase==='won'||S.phase==='start'){ end(); return prev.apply(this,arguments); }
+    SH.t+=dt; step(dt); if(!SH.active) return prev.apply(this,arguments);
+    holdTick(dt); updateFx(dt); updateCamera(dt); for(const d of defs) towerChevrons(d,d.mdl,d.kind,d.lvl); updateHUD(); Meta.hud(); cnt.paused=(cnt.paused||0)+1; }; }
+{ const prev=hurtDef; hurtDef=function(){ if(SH.active) return; return prev.apply(this,arguments); }; }
+{ const prev=hurtCrystal; hurtCrystal=function(){ if(SH.active) return; return prev.apply(this,arguments); }; }
 { const prev=heroUpdate; heroUpdate=function(dt){ if(SH.active) return; return prev.apply(this,arguments); }; }   // held: no walking, no swing, no gravity change
 { const prev=hurtHero; hurtHero=function(){ if(SH.active) return; return prev.apply(this,arguments); }; }   // untouchable: no blow reaches him while the bars are on
 { const prev=swing; swing=function(){ if(SH.active) return; return prev.apply(this,arguments); }; }

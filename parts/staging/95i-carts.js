@@ -9,14 +9,16 @@
 (function(){
 'use strict';
 const KINDS={
-  kegcart:{ file:'prison-kegcart.glb', fit:2.7, cfg:{ hp:270, spd:1.7, dmg:14, cd:1.2, mana:10, detour:1, swingT:.5, hitT:.25, splash:2.3, siege:true } },
-  firecart:{ file:'prison-firecart.glb', fit:3.0, cfg:{ hp:450, spd:1.7, dmg:14, cd:2.6, mana:12, ranged:10, detour:2, swingT:2.0, hitT:.65, siege:true } } };
+  kegcart:{ file:'prison-kegcart.glb', fit:2.7, cfg:{ hp:270, spd:2.6, dmg:18, cd:1.2, mana:10, detour:1, swingT:.5, hitT:.25, splash:2.6, siege:true } },
+  firecart:{ file:'prison-firecart.glb', fit:3.0, cfg:{ hp:450, spd:2.6, dmg:18, cd:2.4, mana:12, ranged:17, detour:2, swingT:2.0, hitT:.65, siege:true } } };
+// build 385 (Matt: "the siege machines ... need be more menacing, shoot from a distance or go faster"): BOTH -- the carts roll half again as fast (1.7 -> 2.6, the orcs at a run behind them) and shoot from much further off: the fire cart's jet reaches 17 (was 10), every 2.4 s, 18 a blow;
+// the keg cart lobs its kegs from 20 (was 10) every 2.4 s (was 3.2), 18 a blow, a wider blast
 // build 382 (Matt: "let those siege carts take shots at my defenses ... including the halos auras"): BOTH carts shoot defenses now, ANY defense -- the bramble hedge and the four aura rings too, which no other ranged mob will pick (a perch, which has nothing to hurt, is spared). The FIRE cart is a siege mob (cfg.siege, read by the core's ranged targeting, game.js): it stops within 10 units (was 7) of a defense and spits its green jet. The KEG cart keeps rolling on its way to blow itself up, and as it rolls LOBS a keg (the core's grenade arc, splash 2.3, 14 a blow) at the nearest defense within 10 units every 3.2 s while its pushers live (a stalled one, crew dead, still just sits there ticking).
 // // build 373 (Matt: "give those siege carts extra life"): both carts have THREE times the health they had (the keg cart 90 -> 270, the fire cart 150 -> 450 before the wave scaling, and on THE DEEP PRISON the doubling of 95o-prisonmobs.js on top: a keg cart there is 540 base)
 // (the wheels turn at .81 of the Roll clip's own speed at the cart's pace: nat.walk below)
 const SIDE=.7;   // where the pushers stand: to either side of the cart's centre line (the handles), and behind its handle tips (the model's length is 2 units across its front, so the tips are one model-unit scaled back from the middle: MOBGLB[kind].back)
 for(const k in KINDS){ MOBDIM[k]={ fit:KINDS[k].fit, h:KINDS[k].fit, r:1.2, nat:{ walk:KINDS[k].cfg.spd/KINDS[k].fit/.81, run:2.4 } }; MOBS[k]=KINDS[k].cfg; if(Meta.XP) Meta.XP[k]=Meta.XP[k]||12; }
-const LOB_R=10, LOB_CD=3.2; const cnt={ teams:0, blasts:0, flames:0, rams:0, lobs:0 }; const fx=[]; const P={};
+const LOB_R=20, LOB_CD=2.4; const cnt={ teams:0, blasts:0, flames:0, rams:0, lobs:0 }; const fx=[]; const P={};
 const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
 function load(kind){ const K=KINDS[kind]; if(!K) return Promise.resolve(); if(MOBGLB[kind]) return Promise.resolve(); if(P[kind]) return P[kind];
   P[kind]=fetchBytes(ASSET(K.file)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(g=>{
