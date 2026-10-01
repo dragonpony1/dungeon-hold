@@ -6,6 +6,19 @@
 const Q=new URLSearchParams(location.search), SILENT=Q.has('silent');
 const $=id=>document.getElementById(id);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v, lerp=(a,b,t)=>a+(b-a)*t;
+// build 400 (Matt: "can we make the suffix's make sense on regular gear?"): an ordinary piece's "of ..." names its STRONGEST stat (the one worth most by STATW's weights, below). They used to be picked at random
+// and meant nothing. Never "of the ..." -- those are the sets (93-gearsets.js). Pieces already saved with one of the old random endings are renamed once, here, before anything reads the saves.
+const STAT_SUFFIX={dmg:'of Goblin Slaying',spd:'of Fury',hp:'of Vigor',def:'of Stone',regen:'of Mending',tow:'of Vigil',mana:'of Plenty',move:'of Swiftness',fdmg:'of Fangs',frate:'of Frenzy',trate:'of Volleys',tarea:'of Reach',fproj:'of Many'};
+const SUFFIX_W={dmg:3,spd:1,hp:.6,def:1.5,regen:4,tow:1.2,mana:.5,move:1.5,fdmg:2.5,frate:.8,trate:1.2,tarea:1.2,fproj:12};   // the same weights as STATW
+function honestSuffix(stats){ let best=null, bv=-1; for(const k in stats||{}){ const v=(+stats[k]||0)*(SUFFIX_W[k]||1); if(v>bv&&STAT_SUFFIX[k]){ bv=v; best=k; } } return best?STAT_SUFFIX[best]:''; }
+window.__suffix={ honest:st=>honestSuffix(st), map:()=>Object.assign({},STAT_SUFFIX), weights:()=>Object.assign({},SUFFIX_W) };   // suffix-test.mjs
+const OLD_SUFFIX=['of Goblin Slaying','of Embers','of Fury','of Stone','of Vigil','of Thorns'];
+(function renameOldSuffixes(){ try{ if(localStorage.getItem('dd_suffix_v1')) return; let n=0;
+    const fix=o=>{ if(!o||typeof o!=='object') return; if(Array.isArray(o)){ o.forEach(fix); return; }
+      if(typeof o.name==='string'&&o.stats&&typeof o.stats==='object'&&typeof o.slot==='string'&&!o.setId&&!o.named&&o.tier!=='named'){ const old=OLD_SUFFIX.find(x=>o.name.endsWith(' '+x)); if(old){ const nw=honestSuffix(o.stats); if(nw&&nw!==old){ o.name=o.name.slice(0,o.name.length-old.length)+nw; n++; } } }
+      for(const k in o) if(o[k]&&typeof o[k]==='object') fix(o[k]); };
+    for(let i=0;i<localStorage.length;i++){ const key=localStorage.key(i); if(!/^dd/.test(key)) continue; const raw=localStorage.getItem(key); if(!raw||raw[0]!=='{'&&raw[0]!=='[') continue; let v; try{ v=JSON.parse(raw); }catch(e){ continue; } const before=n; fix(v); if(n!==before) localStorage.setItem(key,JSON.stringify(v)); }
+    localStorage.setItem('dd_suffix_v1','1'); window.__suffixRenamed=n; }catch(e){} })();
 let seed=91731; const rnd=()=>{seed=(seed*1664525+1013904223)>>>0; return seed/4294967296;};
 const R=(a,b)=>a+rnd()*(b-a);
 const C=h=>new THREE.Color(h).convertSRGBToLinear();
@@ -770,7 +783,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=399;
+const BUILD=400;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1262,7 +1275,6 @@ function slotIcon(it,slot){ const s=(it&&it.slot)||slot; return s==='weapon'?WEA
 window.__emblem={slotIcon,kind:weaponKind,sicon:s=>SICON[s],card:(it,from)=>typeof tvCard==='function'?tvCard(it,from||'bag'):''};   // emblem-test.mjs
 const BASES={weapon:['Shortsword','Broadsword','Cleaver','Warhammer','Halberd','Gnome Blade'],armor:['Jerkin','Chainmail','Breastplate','Plate Harness','Tower Plate','Warden Mail'],charm:['Charm','Talisman','Idol','Sigil','Lantern','Relic'],amulet:['Pendant','Amulet','Locket','Torc','Medallion','Heartstone'],familiar:['Wisp','Cave Bat','Moss Sprite','Fire Imp','Crystal Owl','Storm Drake']};
 const PREFIX=[['Rusty','Plain','Worn','Sturdy','Old'],['Fine','Hardened','Keen','Polished'],['Gleaming','Runed','Tempered','Silvered'],['Ancient','Stormforged','Dragonbone','Moonlit'],['Mythic','Eternal','Goblinbane','Crystalheart']];
-const SUFFIX=['of Goblin Slaying','of Embers','of Fury','of Stone','of Vigil','of Thorns'];   // flavour only; "of the …" names that mean a set come from 93-gearsets.js
 const DROP={goblin:.075,archer:.15,orc:.33,ogre:1,drake:.45,troll:.42,trollboss:1}, OGRE2=.75;   // build 270 (Matt: "we just need more loot drops cuz we use gold for the upgrades too"): every ordinary gear drop 25% more likely again (goblin .06, archer .12, orc .264, drake .36, troll .336, the ogre's second piece .6), beside the new sludge jars (99g-sludgejars.js). Build 246 (Matt: "we made the fancy loot more rare now increase the trash loot, the random loot gen by 20%"): every ordinary gear drop 20% more likely than before (goblin .05, archer .10, orc .22, drake .30, troll .28; the ogre's second piece .5); the ogre's first piece and the troll boss's were already certain
  const LOOT_HOOK=3.2;   // how close a landed piece has to be before it flies to you
 const STATL={dmg:v=>'+'+v+' dmg',spd:v=>'+'+v+'% swing',hp:v=>'+'+v+' hp',def:v=>'+'+v+'% armor',regen:v=>'+'+v+' hp/s',tow:v=>'+'+v+'% defenses',mana:v=>'+'+v+'% mana',move:v=>'+'+v+'% speed',fdmg:v=>v+' pet dmg',frate:v=>'+'+v+'% pet rate',trate:v=>'+'+v+'% defense speed',tarea:v=>'+'+v+'% defense range',fproj:v=>'+'+v+' pet projectile'+(v===1?'':'s')};
@@ -1283,7 +1295,7 @@ function rollItem(minR,slot,lvl){ slot=slot||SLOTS[(LR()*SLOTS.length)|0]; const
   const pools={weapon:['dmg','spd'],armor:['hp','def','regen'],charm:['tow','mana','move'],amulet:['hp','regen','def','spd'],familiar:['fdmg','frate']}; const keys=pools[slot].slice(0,1+Math.min(r,pools[slot].length-1));
   if(r===4){ const others=ROLLABLE.filter(k=>!keys.includes(k)); keys.push(others[(LR()*others.length)|0]); }   /* a legendary's bonus stat comes from the stats a drop can roll; the forge-only ones (defense speed/range, pet projectiles) are bought, never rolled */
   const stats={}; keys.forEach(k=>{ stats[k]=rollStat(k,L,r); });
-  const name=PREFIX[r][(LR()*PREFIX[r].length)|0]+' '+BASES[slot][Math.min(BASES[slot].length-1,(r+((LR()*2)|0)))]+(r>=1?' '+SUFFIX[(LR()*SUFFIX.length)|0]:'');
+  const name=PREFIX[r][(LR()*PREFIX[r].length)|0]+' '+BASES[slot][Math.min(BASES[slot].length-1,(r+((LR()*2)|0)))]+(r>=1&&honestSuffix(stats)?' '+honestSuffix(stats):'');   /* build 400: its strongest stat names it (STAT_SUFFIX, top of file) */
   let score=0; for(const k in stats) score+=stats[k]*STATW[k];
   const value=Math.round(10*(1+L*.5)*[1,2,4,8,16][r]);
   return {slot,rarity:r,lvl:L,tier:tierOf(L),name,stats,score:Math.round(score*10)/10,value,id:Math.floor(LR()*1e9).toString(36)+L.toString(36)}; }
