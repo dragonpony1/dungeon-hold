@@ -34,7 +34,7 @@ window.__heroes={glb:id=>{ const h=HEROES.find(h=>h.id===id); return h?h.glb:nul
 const NUMKEYS=['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9'];
 { const prevSel=select; select=function(kind){ if(DEFKEYS.includes(kind)&&!heroPick.unlocks.includes(kind)){ toast(DEFS[kind].name+' needs a different hero — press H at the raven to switch'); return; } return prevSel(kind); }; }
 { const prevHud=Meta.hud; Meta.hud=()=>{ prevHud(); DEFKEYS.forEach(k=>{ const el=$('slot-'+k); if(!el) return; const i=heroPick.unlocks.indexOf(k), hide=i<0;
-  if((el.style.display==='none')!==hide) el.style.display=hide?'none':''; if(!hide){ const lab=String(i+1); const kEl=el.querySelector('.k'); if(kEl&&kEl.textContent!==lab) kEl.textContent=lab; } }); }; }
+  if((el.style.display==='none')!==hide) el.style.display=hide?'none':''; if(!hide){ const lab=String(i+1); const kEl=el.querySelector('.k'); if(kEl&&kEl.textContent!==lab) kEl.textContent=lab; if(el.style.order!==String(i)) el.style.order=String(i); }   /* build 401 (Matt: "order of the cards on the witch aren't in order"): the cards stand in key order 1-2-3-4, not the game's master list order */ }); }; }
 // the base Digit1-12 wiring (game.js) assumes the old always-all-12 hotbar; intercept in the capture phase, remap to
 // this hero's own list by position, and swallow the event so the base handler can't also fire on its old fixed kind
 addEventListener('keydown',e=>{ if(Meta.isOpen()||S.phase==='start') return; const i=NUMKEYS.indexOf(e.code); if(i<0) return; const kind=heroPick.unlocks[i]; if(kind) select(kind); e.stopImmediatePropagation(); },true);
