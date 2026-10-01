@@ -16,7 +16,7 @@ for(const x of cells){ RAILBOXES.push({ x0:cw(x)-CELL/2, x1:cw(x)+CELL/2, z0:zEd
 { const stone=mat(0x5a5276), cap=mat(0x2b2540); const wallG=G.box(CELL,WALL_H,DEPTH), merG=G.box(CELL*.48,MER_H,DEPTH+.04), capG=G.box(CELL,.12,DEPTH+.1);
   const mk=(geo,m,n)=>{ const im=new THREE.InstancedMesh(geo,m,Math.max(1,n)); im.userData.noOL=true; im.frustumCulled=false; world.add(im); return im; };
   const W=mk(wallG,stone,cells.length), Cp=mk(capG,cap,cells.length), Me=mk(merG,stone,cells.length), O=new THREE.Object3D();
-  cells.forEach((x,i)=>{ O.position.set(cw(x),Y+WALL_H/2,zEdge); O.updateMatrix(); W.setMatrixAt(i,O.matrix); O.position.set(cw(x),Y+WALL_H+.06,zEdge); O.updateMatrix(); Cp.setMatrixAt(i,O.matrix); O.position.set(cw(x)-CELL*.22,Y+WALL_H+.12+MER_H/2,zEdge); O.updateMatrix(); Me.setMatrixAt(i,O.matrix); cnt.pieces++; cnt.merlons++; });
+  cells.forEach((x,i)=>{ O.position.set(cw(x),Y+WALL_H/2,zEdge); O.updateMatrix(); W.setMatrixAt(i,O.matrix); O.position.set(cw(x),Y+WALL_H+.06,zEdge); O.updateMatrix(); Cp.setMatrixAt(i,O.matrix); O.position.set(cw(x),Y+WALL_H+.12+MER_H/2,zEdge); O.scale.setScalar((x&1)?0:1); O.updateMatrix(); Me.setMatrixAt(i,O.matrix); O.scale.setScalar(1); cnt.pieces++; if(!(x&1)) cnt.merlons++; });   /* build 418 (Matt: teeth far enough apart to fit a ballista): every other cell, centred -- a ~3-unit gap */
   for(const im of [W,Cp,Me]) im.instanceMatrix.needsUpdate=true; }
 window.__moatroof={ info:()=>Object.assign({ y:Y, x0:RF.x0, x1:RF.x1, z0:RF.z0, z1:RF.z1, stair:RF.stair },cnt) };
 })();
