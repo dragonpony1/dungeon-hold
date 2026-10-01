@@ -69,7 +69,8 @@ const open=(b,n)=>branchSpent(b)>=GATE[n.tier];
 function spend(id){ const f=nodeOf(id); if(!f) return false; const {b,n}=f; if(!avail()||!open(b,n)||rank(id)>=n.ranks) return false; mine()[id]=rank(id)+1; save(); if(typeof applyGear==='function') applyGear(); try{ Meta.save&&Meta.save(); }catch(e){} SFX.place&&SFX.place(); return true; }
 function respec(){ if(!spent()) return false; ALL[heroId()]={}; save(); if(typeof applyGear==='function') applyGear(); try{ Meta.save&&Meta.save(); }catch(e){} toast('Talents refunded — '+avail()+' to spend'); return true; }   // free: try things
 { const prev=Meta.onWaveHeld; Meta.onWaveHeld=function(w){ const r=prev.apply(this,arguments); if(!SURVIVAL&&!TUTORIAL&&MAP&&MAP.id!=='tutorial'){ const k=MAP.id+':'+S.wave; if(!HELD.has(k)){ HELD.add(k); saveHeld(); } }
-    if(tree()&&avail()>0&&window.__lesson&&window.__lesson.flow) window.__lesson.flow({ic:'✦',title:'+1 TALENT',css:'#ffd27a',steps:[{ic:{k:'N'},t:'Talents'},{ic:'✦',t:avail()+' to spend'}]},4);
+    let seen=false; try{ seen=localStorage.getItem('dd_talent_card')==='1'; }catch(e){}   /* build 397 (Matt: "the N for talent tree tooltip only needs to come up once"): the card shows the first time only, ever */
+    if(!seen&&tree()&&avail()>0&&window.__lesson&&window.__lesson.flow&&(()=>{ try{ localStorage.setItem('dd_talent_card','1'); }catch(e){} return true; })()) window.__lesson.flow({ic:'✦',title:'+1 TALENT',css:'#ffd27a',steps:[{ic:{k:'N'},t:'Talents'},{ic:'✦',t:avail()+' to spend'}]},4);
     return r; }; }
 // ---- the stats: a hero with a tree takes her numbers from it
 function talentMult(k){ const T=tree(); let v=0; for(const b of T.branches) for(const n of b.nodes){ const r=rank(n.id); if(r&&n.stat&&n.stat[k]) v+=n.stat[k]*r; } return v; }
