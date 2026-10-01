@@ -14,7 +14,7 @@ if(!HAS_ASSETS||want==='portal') return;
 const st=document.getElementById('start'); if(!st) return;
 const FILES={firebow:'bow-fire.glb',wisp:'fam-wisp-projectile.glb',imp:'fam-imp.glb',drake:'fam-drake.glb',trimaw:'named-trimaw.glb',sixseven:'named-sixseven.glb',mousetrap:'title-mousetrap.glb',firework:'title-firework.glb'};
 const SPIN={firebow:.32,wisp:.4,imp:.36,drake:.34,trimaw:.3,sixseven:.3,mousetrap:.3,firework:.32};
-const NAMES={firebow:['DRACONIC FIRE BOW',''],wisp:['WISP PROJECTILE',''],imp:['FIRE IMP',''],drake:['STORM DRAKE',''],trimaw:['TRIMAW','named mythic'],sixseven:['6/7','named mythic'],mousetrap:['THE IRON MOUSE TRAP','a trap for the Knight'],firework:['THE DRAKE POPPER','fireworks for the flyers']};
+const NAMES={firebow:['DRACONIC FIRE BOW',''],wisp:['WISP PROJECTILE',''],imp:['FIRE IMP',''],drake:['STORM DRAKE',''],trimaw:['TRIMAW','named mythic'],sixseven:['6/7','named mythic'],mousetrap:['THE IRON MOUSE TRAP','a trap for the Knight'],firework:['THE SKY WRECKER','fireworks for the flyers · the Ranger']};
 { const css=document.createElement('style'); css.textContent='#start.art.stage{isolation:isolate;background:radial-gradient(ellipse 40% 60% at var(--tsx,82%) 50%,#4c515f 0%,#23262d 48%,#060607 100%),#000}'
   +'#start.stage::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(180deg,#000b 0%,#0000 26%,#0000 62%,#000c 100%)}'
   +'#titleStage{position:fixed;inset:0;width:100%;height:100%;z-index:-2;pointer-events:none;opacity:0;transition:opacity .9s}#titleStage.on{opacity:1}'
