@@ -8,9 +8,18 @@
 const SIZE=176, PAD=6, KEY='dd_minimap';
 const css=document.createElement('style'); css.textContent=
  '#minimap{position:fixed;top:112px;right:14px;width:'+SIZE+'px;height:'+SIZE+'px;z-index:6;pointer-events:none;border-radius:10px;border:2px solid #6b5a3c;background:#0b0712b8;box-shadow:0 3px 0 #000,0 0 14px #000a;display:none}'
++'#mmWave{position:fixed;top:'+(112+SIZE+8)+'px;right:14px;width:'+(SIZE+4)+'px;box-sizing:border-box;z-index:6;pointer-events:none;text-align:center;padding:5px 6px;border-radius:9px;border:2px solid #6b5a3c;background:#0b0712d0;box-shadow:0 3px 0 #000;color:#ffd27a;font:800 14px Georgia,serif;letter-spacing:2px;display:none}#mmWave.on{display:block}#mmWave small{font:700 10px system-ui;letter-spacing:1px;color:#bfae90;margin-right:6px}#mmWave.fight{color:#ff8a6a;border-color:#a04a3a}#mmWave.held{color:#8ef05a}'
 +'#minimap.on{display:block}#minimap canvas{width:100%;height:100%;display:block;border-radius:8px}';
 document.head.appendChild(css);
 const box=document.createElement('div'); box.id='minimap'; const cv=document.createElement('canvas'); box.appendChild(cv); document.body.appendChild(box);
+// build 406 (Matt: "add next to the mini map what wave we're on so we can see during build phase"): a strip under the map -- NEXT · WAVE n/N while building, WAVE n/N (red) in the fight, ✓ ALL N HELD once the map is held.
+// A co-op guest reads the host's wave and phase (99-network.js world); the strip shows whether or not the map itself is hidden with M.
+const wv=document.createElement('div'); wv.id='mmWave'; document.body.appendChild(wv);
+function waveText(){ const n=window.__net, guest=n&&n.role&&n.role()==='guest', w=guest&&n.world?n.world():null; const ph=(w&&typeof w.phase==='string')?w.phase:S.phase, cur=(w&&Number.isFinite(w.wave))?w.wave:S.wave, tot=runWaves();
+  if(S.held||ph==='won') return ['✓ ALL '+tot+' HELD','held']; if(ph==='wave') return ['WAVE '+cur+' / '+tot,'fight']; return ['<small>NEXT</small>WAVE '+Math.min(tot,cur+1)+' / '+tot,'']; }
+let lastWv='';
+function tickWave(){ const on=(S.phase==='build'||S.phase==='wave'||S.phase==='won')&&!(window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen()); if(wv.classList.contains('on')!==on) wv.classList.toggle('on',on); if(!on) return; const top=(box.classList.contains('on')?112+SIZE+8:112)+'px'; if(wv.style.top!==top) wv.style.top=top;   /* the map hidden (M): the strip takes its place */
+  const [t,c]=waveText(), k=t+c; if(k!==lastWv){ lastWv=k; wv.innerHTML=t; wv.className='on'+(c?' '+c:''); } }
 const DPR=Math.min(2,window.devicePixelRatio||1); cv.width=cv.height=Math.round(SIZE*DPR); const g=cv.getContext('2d');
 let want=true; try{ want=localStorage.getItem(KEY)!=='off'; }catch(e){}
 const cnt={ draws:0, mobs:0, orbs:0, loot:0, defs:0, mates:0 };
@@ -39,8 +48,8 @@ function draw(){ if(!bg) drawBg(); g.clearRect(0,0,cv.width,cv.height); g.drawIm
   if(hero.dead<=0){ const x=px(hero.x), z=pz(hero.z), a=cam.yaw, fx=Math.sin(a), fz=Math.cos(a), s=5*DPR; g.beginPath(); g.moveTo(x+fx*s,z+fz*s); g.lineTo(x-fx*s*.6+fz*s*.55,z-fz*s*.6-fx*s*.55); g.lineTo(x-fx*s*.25,z-fz*s*.25); g.lineTo(x-fx*s*.6-fz*s*.55,z-fz*s*.6+fx*s*.55); g.closePath(); g.fillStyle='#ffffff'; g.fill(); g.lineWidth=DPR; g.strokeStyle='#000'; g.stroke(); } }
 const show=()=>want&&(S.phase==='build'||S.phase==='wave')&&!(window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen());
 let last=0;
-function tick(now){ const on=show(); if(box.classList.contains('on')!==on) box.classList.toggle('on',on); if(on&&now-last>70){ last=now; try{ draw(); }catch(e){} } }
+function tick(now){ tickWave(); const on=show(); if(box.classList.contains('on')!==on) box.classList.toggle('on',on); if(on&&now-last>70){ last=now; try{ draw(); }catch(e){} } }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); tick(performance.now()); }; }
 addEventListener('keydown',e=>{ if(e.code!=='KeyM'||e.repeat) return; const ae=document.activeElement; if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')) return; if(S.phase==='start') return; want=!want; try{ localStorage.setItem(KEY,want?'on':'off'); }catch(er){} toast(want?'🗺 Map on (M)':'🗺 Map off (M)'); },true);
-window.__minimap={ info:()=>Object.assign({ on:box.classList.contains('on'), want },cnt), draw, toggle:v=>{ want=v===undefined?!want:!!v; return want; }, px, pz, canvas:cv };
+window.__minimap={ wave:()=>({ on:wv.classList.contains('on'), text:wv.textContent, cls:wv.className }), info:()=>Object.assign({ on:box.classList.contains('on'), want },cnt), draw, toggle:v=>{ want=v===undefined?!want:!!v; return want; }, px, pz, canvas:cv };
 })();

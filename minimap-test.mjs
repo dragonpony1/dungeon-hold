@@ -19,5 +19,10 @@ check("it draws the mobs (red, and the dot moves with the mob), the loot (gold) 
 const C=await page.evaluate(async()=>{ const d=window.__dd; const fire=()=>window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyM',bubbles:true})); fire(); d.step(1/60,2); const off=window.__minimap.info().on; const saved=localStorage.getItem('dd_minimap'); fire(); d.step(1/60,2); const back=window.__minimap.info().on;
   const real=window.__hideout.isOpen; window.__hideout.isOpen=()=>true; d.step(1/60,2); const inHideout=window.__minimap.info().on; window.__hideout.isOpen=real; d.step(1/60,2); return { off, saved, back, inHideout, after:window.__minimap.info().on }; });
 check("M hides it (remembered) and shows it again; hidden while you are in the hideout",C.off===false&&C.saved==='off'&&C.back===true&&C.inHideout===false&&C.after===true,JSON.stringify(C));
+const W=await page.evaluate(()=>{ const d=window.__dd, M=window.__minimap; const S=d.S, ph0=S.phase, w0=S.wave, h0=S.held; const tot=d.map().waves; const out={tot};
+  S.phase='build'; S.wave=0; S.held=false; d.step(1/60,2); out.build=M.wave();
+  S.phase='wave'; S.wave=3; d.step(1/60,1); out.fight=M.wave(); S.phase='build'; S.held=true; d.step(1/60,1); out.held=M.wave();
+  S.held=h0; S.phase='build'; S.wave=w0; window.__minimap.toggle(false); d.step(1/60,2); out.topOff=document.getElementById('mmWave').style.top; window.__minimap.toggle(true); d.step(1/60,2); out.topOn=document.getElementById('mmWave').style.top; S.phase=ph0; return out; });
+check("the wave strip under the map (build 406): NEXT · WAVE 1/7 while building, WAVE 3/7 in red in the fight, ALL 7 HELD once held; with the map hidden it moves up into its place",W.build.on&&/NEXT\s*WAVE 1 \/ /.test(W.build.text)&&W.fight.text==='WAVE 3 / '+W.tot&&/fight/.test(W.fight.cls)&&W.held.text==='✓ ALL '+W.tot+' HELD'&&W.topOff==='112px'&&parseInt(W.topOn)>250,JSON.stringify(W));
 check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
