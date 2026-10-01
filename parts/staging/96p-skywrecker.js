@@ -8,8 +8,8 @@
 'use strict';
 if(TUTORIAL) return;
 const K='sky';
-DEFS[K]={ name:'Sky Wrecker', ic:'🎆', du:3, mana:70, hp:140, top:3.3, range:22, rangeUp:.8, arc:360, cd:2.6, dmg:26 };
-DEF_H[K]=3.6;
+DEFS[K]={ name:'Sky Wrecker', ic:'🎆', du:3, mana:70, hp:140, top:6, range:22, rangeUp:.8, arc:360, cd:2.6, dmg:26 };
+DEF_H[K]=7.2;   /* build 420 (Matt: "the sky wrecker is tiny"): twice the size -- Bob's rig counts its burst sparks, high above the rack, in its height */
 DEFKEYS.push(K); DEFKEY_LABELS.push('5');
 { const cfg=DEFS[K]; const s=document.createElement('div'); s.className='slot'; s.id='slot-'+K; s.innerHTML='<div class="k">5</div><div class="ic">'+cfg.ic+'</div><div class="n">'+cfg.name+'</div><div class="cst">🌱 '+cfg.du+' · '+cfg.mana+' ◆</div>';
   s.addEventListener('click',()=>select(K)); $('hotbar').appendChild(s); }
@@ -25,7 +25,7 @@ const BURST_R=2.6, SPLASH_K=.5;
 const tier=d=>Math.min(4,d.lvl||1);
 // ---- whom it shoots: flyers only, in reach and in sight; drakes first, then the one furthest along
 function candidates(d){ const rr=stat(d,'range'), out=[]; for(const e of enemies){ if(e.dead||!e.fly) continue; const dd=Math.hypot(e.x-d.x,e.z-d.z); if(dd>rr+(e.r||.5)*.5) continue;
-    const prog=flowFly.dist[idx(wc(e.x),wcz(e.z))]; out.push({ e, key:(e.kind==='drake'?-1e5:0)+(prog>=0?prog:1e6+dd) }); }
+    const prog=flowFly.dist[idx(wc(e.x),wcz(e.z))]; out.push({ e, key:(e.kind==='wraith'?-2e5:e.kind==='drake'?-1e5:0)+(prog>=0?prog:1e6+dd) }); }
   out.sort((a,b)=>a.key-b.key); return out.map(o=>o.e); }
 // ---- a rocket: a bright head and a spark trail on an arc from the rack to its flyer (it follows the flyer as it flies), then a burst
 const rockets=[], bursts=[];

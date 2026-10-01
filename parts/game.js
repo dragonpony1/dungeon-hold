@@ -799,7 +799,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=419;
+const BUILD=420;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1243,7 +1243,7 @@ function updateDefs(dt){ const trampled=[];
     else if(d.kind==='totem'||d.kind==='frost'){ const rr=stat(d,'range'); let n=0; if(d.kind==='frost'){ const k=stat(d,'chill'); const bite=[]; for(const e of enemies){ if(!e.dead&&Math.hypot(e.x-d.x,e.z-d.z)<rr+e.r*.5){ e.chillT=.5; e.chillK=Math.min(e.chillK||1,k); n++; if(d.cd<=0) bite.push(e); } } if(bite.length){ d.cd=stat(d,'cd'); for(const e of bite){ hurt(e,stat(d,'dmg'),0,0); frostBite(e); } SFX.frost(); } }   /* build 150: the cold bites too -- every mob in the ring takes dmg each cd, with a glint of ice on it */ else { for(const o of defs) if(o!==d&&o.kind!=='totem'&&Math.hypot(o.x-d.x,o.z-d.z)<=rr) n++; }
       let a=d.mdl.userData.aura; if(!a){ const col=d.kind==='frost'?0x8ee0ff:0xffd27a; a=new THREE.Group(); const ring=new THREE.Mesh(new THREE.RingGeometry(.94,1,48),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); ring.rotation.x=-PI/2; ring.userData.noOL=true; a.add(ring); const inner=new THREE.Mesh(new THREE.RingGeometry(.2,.24,24),ring.material.clone()); inner.rotation.x=-PI/2; inner.userData.noOL=true; a.add(inner); const plume=glow(col,1.5,.55); a.add(plume); a.userData.ring=ring; a.userData.inner=inner; a.userData.plume=plume; d.mdl.add(a); d.mdl.userData.aura=a; }   /* the ring on the floor at the reach, a small spinner, a plume of light at the top */
       a.position.y=.03; a.scale.set(rr/s,1/s,rr/s); a.userData.plume.scale.set(1.5/rr,1.5,1); a.userData.plume.position.set(0,cfg.top-.1,0); a.userData.inner.rotation.z+=dt*(n?2.5:.8); a.userData.ring.material.opacity=.28+.1*Math.sin(S.t*2.4)+(n?.12:0); a.userData.plume.material.opacity=.45+.15*Math.sin(S.t*3.1); }
-    else if(d.kind==='snare'){ const rr=stat(d,'range'); if(d.cd<=0){ let best=null, bd=rr; for(const e of enemies){ if(e.dead||!e.fly) continue; const dd=Math.hypot(e.x-d.x,e.z-d.z); if(dd<bd){ bd=dd; best=e; } } if(best){ d.cd=stat(d,'cd'); snareCapture(d,best); } } }
+    else if(d.kind==='snare'){ const rr=stat(d,'range'); if(d.cd<=0){ let best=null, bd=rr; for(const e of enemies){ if(e.dead||!e.fly||e.noSnare) continue; const dd=Math.hypot(e.x-d.x,e.z-d.z); if(dd<bd){ bd=dd; best=e; } } if(best){ d.cd=stat(d,'cd'); snareCapture(d,best); }   /* build 420: noSnare -- the Crimson Phase Wraith (95s-wraith.js) slips every snare */ } }
     else if(d.kind==='zap'||d.kind==='venom'||d.kind==='ember'||d.kind==='dazzle'){ const rr=stat(d,'range'); const near=[]; for(const e of enemies){ if(!e.dead&&!e.fly&&Math.hypot(e.x-d.x,e.z-d.z)<rr+e.r*.5) near.push(e); }
       const col=d.kind==='zap'?0x7fd8ff:d.kind==='venom'?0x8ef05a:d.kind==='ember'?0xff6a2a:0xffd060;
       auraRing(d,rr,col,near.length,s);
