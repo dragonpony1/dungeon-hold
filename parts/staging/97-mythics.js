@@ -22,6 +22,11 @@ const NAMED={
   gloomcap_censer:{name:'Gloomcap Censer',slot:'charm',stats:{trate:20,tarea:18,regen:3},power:'defenses near you build 50% faster and fire 15% faster'},
   hourglass_of_hollow_sand:{name:'Hourglass of Hollow Sand',slot:'charm',stats:{spd:35,move:18,mana:40},power:'once a wave, when the Heartroot is about to fall, the horde crawls for 4 s'},
   gabriels_charm:{name:"Gabriel's Charm",slot:'charm',stats:{trate:22,tarea:16,move:12},power:'twice a wave, at the horn and when the last mob has been sent, your defenses BLITZ: they fire 50% faster for 6 seconds'},   // build 266, Matt's Silver Blitz Charm ("named mythic charm, Gabriel's Charm"); the power is 97e-gabriel.js's, my call
+  // build 426 (Matt: "there are two named rings that do this, each with a 10% chance to drop per round from the beginning -- first is called Beast Mode, second is called Malamute"; "a ring as a named trinket that allows the wearer
+  // to have 2 familiars, one on each side"; "there will need to be a second slot for familiars"): worn, either opens the SECOND FAMILIAR SLOT (97h-tworings.js). reward:true keeps them out of the ordinary named-mythic roll --
+  // they have their own, 10% each per wave held.
+  beast_mode:{name:'Beast Mode',slot:'charm',stats:{fdmg:20,frate:30,tow:10},power:'a SECOND FAMILIAR: a second familiar slot opens, and a second pet flies at your other shoulder',reward:true},
+  malamute:{name:'Malamute',slot:'charm',stats:{fdmg:14,frate:20,move:14},power:'a SECOND FAMILIAR: a second familiar slot opens, and a second pet flies at your other shoulder',reward:true},
   sixseven:{name:'6/7',slot:'weapon',stats:{dmg:28,spd:16,move:12},power:'a halberd: every 6th swing throws lightning through up to 7 enemies, 70% of your damage to each'},   // build 258, Matt's Storm Halberd ("the polearm is called the 6/7"); the power is 97d-sixseven.js's, my call
   subterfuge:{name:'Subterfuge',slot:'weapon',stats:{dmg:26,spd:18,move:12},power:'a bow: every shot is five lightning arrows in a 40° wedge, each half an arrow, and each one that hits jumps to 3 more enemies (60%, 35%, 20%)'},   // build 170, Matt's; the eleventh, a game-made one (the hideout's forge doesn't know it). Its power is 86i-subterfuge.js's
 };

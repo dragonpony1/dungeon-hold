@@ -4,6 +4,7 @@ const FAM_RANGE=9, FAM_BOLT_SPD=18, FAM_BOLT_LIFE=1.2, FAM_RATE=1.2, FAM_SCALE=.
 const OLF=OL.clone(); OLF.uniforms.t.value=.012;   // thinner outline: the pet is ~0.5 units, the shared 0.028 shell would swallow it
 function outlineThin(root){ root.traverse(m=>{ if(m.isMesh&&m.material!==OL&&m.material!==OLF&&!m.userData.noOL&&!m.isSprite&&!m.userData.isOL){ const o=new THREE.Mesh(m.geometry,OLF); o.userData.isOL=true; m.add(o); } }); return root; }
 let fam=null; const famBolts=[];
+let FAM_SIDE=1, FAM_PASS2=false;   // build 426: the SECOND familiar (97h-tworings.js) runs this same code with its pet swapped in: on the other shoulder (FAM_SIDE -1), and the shared bolts are moved once a frame, not twice
 function famShade(hex,k){ const c=new THREE.Color(hex); return (k<1?c.multiplyScalar(k):c.lerp(new THREE.Color(0xffffff),k-1)).getHex(); }   // k<1 darkens, k>1 tints toward white
 function famKind(it){ const n=(it&&it.name)||''; for(const k of ['Storm Drake','Crystal Owl','Fire Imp','Sprite','Bat','Wisp']) if(n.includes(k)) return k; return 'Wisp'; }
 function famEye(x,y,z,r){ const e=M(G.sph(r||.035,6,5),basic(0x14101c),x,y,z); e.userData.noOL=true; return e; }
@@ -17,7 +18,7 @@ function famModel(it){ const col=RCOL[it.rarity]||0xcfcfcf, dark=famShade(col,.5
   else if(kind==='Crystal Owl'){ const body=M(G.sph(.15,10,8),m,0,-.04,0); body.scale.set(.95,1.25,.9); g.add(body); g.add(M(G.sph(.13,10,8),mp,0,.14,.01)); for(const s of [-1,1]){ const ring=M(G.sph(.055,8,6),basic(0xfff6d8),s*.055,.16,.1); ring.userData.noOL=true; g.add(ring); g.add(famEye(s*.055,.16,.145,.028)); const tuft=M(G.cone(.035,.1,4),md,s*.1,.27,0); tuft.rotation.z=-s*.4; g.add(tuft); const w=famWing(md,s,.14,.16,-.02,-.02); w.rotation.y=s*.7; wings.push(w); g.add(w); } const beak=M(G.cone(.03,.07,4),mat(0xffc040),0,.11,.13); beak.rotation.x=PI/2; g.add(beak); const gem=M(new THREE.OctahedronGeometry(.05,0),basic(0xbff4ff),0,.31,0); gem.userData.noOL=true; gem.userData.spin=1; motes.push(gem); g.add(gem); g.add(glow(0x9ee8ff,.7,.35)); }
   else { /* Storm Drake */ const body=M(G.sph(.13,10,8),m,0,0,0); body.scale.set(.9,.85,1.7); g.add(body); const head=M(G.sph(.1,10,8),mp,0,.08,.22); g.add(head); const snout=M(G.box(.1,.07,.1),mp,0,.06,.31); g.add(snout); g.add(famEye(-.05,.12,.27,.028)); g.add(famEye(.05,.12,.27,.028)); for(const s of [-1,1]){ const horn=M(G.cone(.03,.11,4),md,s*.06,.15,.15); horn.rotation.x=-.8; horn.rotation.z=-s*.3; g.add(horn); const w=famWing(md,s,.3,.18,.06,-.02); wings.push(w); g.add(w); } for(let i=0;i<4;i++){ const sp=M(G.cone(.025,.07,4),md,0,.12-i*.005,.1-i*.1); g.add(sp); } const tail=M(G.cone(.05,.3,5),m,0,-.02,-.33); tail.rotation.x=-PI/2; g.add(tail); const fin=M(G.cone(.06,.09,3),md,0,.0,-.45); fin.rotation.x=-PI/2; g.add(fin); g.add(glow(0x9fd8ff,.9,.35)); }
   outlineThin(g); g.scale.setScalar(FAM_SCALE); const root=new THREE.Group(); root.add(g); root.userData={wings,motes,kind}; return root; }   // root carries position/facing/kick, g the base size
-function famSpawn(it){ const g=famModel(it); const fx=Math.sin(hero.yaw), fz=Math.cos(hero.yaw); const x=hero.x-fx*.9-fz*.65, z=hero.z-fz*.9+fx*.65, y=hero.y+2.05; g.position.set(x,y,z); scene.add(g);
+function famSpawn(it){ const g=famModel(it); const fx=Math.sin(hero.yaw), fz=Math.cos(hero.yaw); const x=hero.x-fx*.9-fz*.65*FAM_SIDE, z=hero.z-fz*.9+fx*.65*FAM_SIDE, y=hero.y+2.05; g.position.set(x,y,z); scene.add(g);
   fam={id:it.id,it,g,x,y,z,yaw:hero.yaw,t:LR()*6,cd:.5,target:null,kick:0}; }
 // geometries are per model (G.* allocate), basic()/glow() materials too; mat() materials and the OL/OLF outline shaders are shared caches and stay
 function famRemove(){ if(!fam) return; scene.remove(fam.g); fam.g.traverse(m=>{ if(m.geometry&&!m.isSprite) m.geometry.dispose(); const mt=m.material; if(mt&&mt!==OL&&mt!==OLF&&(m.isSprite||mt.isMeshBasicMaterial)) mt.dispose(); }); fam=null; famClearBolts(); }
@@ -48,11 +49,11 @@ function famBoltsUpdate(dt){ for(let i=famBolts.length-1;i>=0;i--){ const b=famB
     if(hit){ const d=Math.hypot(b.vx,b.vz)||1; famHurt(hit,famDmg(),b.vx/d*.5,b.vz/d*.5); SFX.hit(); famLand(hit.x,hit.z,famDmg()); }
     if(hit||b.t>FAM_BOLT_LIFE||b.y<-2){ scene.remove(b.mesh); famBolts.splice(i,1); } } }
 function famUpdate(dt){ const it=gear.familiar;
-  if(!famActive()){ if(fam) famRemove(); else if(famBolts.length) famClearBolts(); return; }
+  if(!famActive()){ if(fam) famRemove(); else if(famBolts.length&&!FAM_PASS2) famClearBolts(); return; }
   if(!fam||fam.id!==it.id||fam.it!==it){ famRemove(); famSpawn(it); }
   const g=fam.g; fam.t+=dt; const dead=hero.dead>0; g.visible=!dead; if(dead){ if(famBolts.length) famClearBolts(); fam.target=null; return; }
   // follow: 0.9 behind, 0.65 to the right, 2.05 up — over the hero's shoulder
-  const fx=Math.sin(hero.yaw), fz=Math.cos(hero.yaw); const tx=hero.x-fx*.9-fz*.65, tz=hero.z-fz*.9+fx*.65, ty=hero.y+2.05; const k=1-Math.exp(-6*dt);
+  const fx=Math.sin(hero.yaw), fz=Math.cos(hero.yaw); const tx=hero.x-fx*.9-fz*.65*FAM_SIDE, tz=hero.z-fz*.9+fx*.65*FAM_SIDE, ty=hero.y+2.05; const k=1-Math.exp(-6*dt);
   fam.x=lerp(fam.x,tx,k); fam.z=lerp(fam.z,tz,k); fam.y=lerp(fam.y,ty,k);
   // aim + fire
   fam.cd-=dt; if(fam.cd<=0||!fam.target||fam.target.dead){ fam.target=famTarget(); }
@@ -62,7 +63,7 @@ function famUpdate(dt){ const it=gear.familiar;
   const bob=Math.sin(fam.t*3)*.08; g.position.set(fam.x,fam.y+bob,fam.z); g.rotation.y=fam.yaw; g.rotation.z=Math.sin(fam.t*1.7)*.06; fam.kick=Math.max(0,fam.kick-dt*5); const s=1+fam.kick*.25; g.scale.set(s,1/s,s);
   const ud=g.userData; const flap=Math.sin(fam.t*(ud.kind==='Storm Drake'?7:14))*.65; for(const w of ud.wings) w.rotation.z=w.userData.side*flap;
   for(const mo of ud.motes){ if(mo.userData.spin){ mo.rotation.y+=dt*2; mo.rotation.x+=dt*.7; } else { const a=fam.t*2.2+mo.userData.ph; mo.position.set(Math.cos(a)*.27,Math.sin(a*1.6)*.1,Math.sin(a)*.27); } }
-  famBoltsUpdate(dt); }
+  if(!FAM_PASS2) famBoltsUpdate(dt); }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); famUpdate(dt); }; }
 { const prev=Meta.hud; Meta.hud=()=>{ prev(); if(fam&&!famActive()) famRemove(); }; }   // hud runs in 'dead' too: clear the pet when the crystal falls
 window.__familiar={ boltList:()=>famBolts.map(b=>({vx:b.vx,vy:b.vy,vz:b.vz,thorn:!!b.thorn})), state:()=>fam?{id:fam.id,kind:fam.g.userData.kind,x:fam.x,y:fam.y,z:fam.z,yaw:fam.yaw,inScene:fam.g.parent===scene,visible:fam.g.visible,target:!!fam.target,cd:fam.cd}:null, bolts:()=>famBolts.length,boltMesh:i=>(famBolts[i||0]||{}).mesh||null, model:()=>fam&&fam.g, rate:famRate, dmg:famDmg, build:famModel };
