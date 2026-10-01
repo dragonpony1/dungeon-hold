@@ -684,10 +684,10 @@ const DEFS={
   frost:{name:'Frost Spire',ic:'❄',du:4,mana:60,hp:130,top:2.8,range:6,rangeUp:.8,arc:360,chill:.6,chillUp:.06,cd:.9,dmg:2},   // a cold tower: mobs in its ring crawl at 60% (6 points slower a mark) AND take a bite of cold every .9 s (build 150: 'they need to do cold/slowing damage'); the deepest cold wins, it never stacks                                       // a thorn wall that hurts attackers and regrows when left alone
   snare:{name:'Snare Tower',ic:'🕸',du:4,mana:65,hp:130,top:2.6,range:9,rangeUp:1,arc:360,cd:6,dmg:0},                    // a net-winch tower for flying mobs only: on cooldown it nets the nearest flyer in range and takes it off the field outright — no damage stat, it doesn't hurt what it doesn't catch
   // four elemental halo rings — flat glowing sigils on the floor, like the mushroom ring but each doing its own thing
-  zap:{name:'Storm Halo',ic:'⚡',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,cd:3.6,dmg:7},   // build 384 (Matt: "turn down the aura attacks speed"): the three damaging halos strike half as often (cd x2: Storm 1.8 -> 3.6, Venom and Ember .5 -> 1.0), the same blow each time
+  zap:{name:'Storm Halo',ic:'⚡',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,cd:1.8,dmg:7},   // build 384 (Matt: "turn down the aura attacks speed"): the three damaging halos strike half as often (cd x2: Storm 1.8 -> 3.6, Venom and Ember .5 -> 1.0), the same blow each time
                       // electric: a burst on every mob in the ring at once, on a cooldown — a jolt, not a tick
-  venom:{name:'Venom Halo',ic:'☠',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,cd:1.0,dmg:1.4,poisonDur:3},      // poison: a DOT that keeps ticking for a few seconds after a mob leaves the ring, unlike the others
-  ember:{name:'Ember Halo',ic:'🔥',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,cd:1.0,dmg:2.2},                 // fire: burns everything standing in the ring, same tick pattern as the mushroom ring
+  venom:{name:'Venom Halo',ic:'☠',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,cd:.5,dmg:1.4,poisonDur:3},      // poison: a DOT that keeps ticking for a few seconds after a mob leaves the ring, unlike the others
+  ember:{name:'Ember Halo',ic:'🔥',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,cd:.5,dmg:2.2},                 // fire: burns everything standing in the ring, same tick pattern as the mushroom ring
   dazzle:{name:'Dazzling Halo',ic:'🌀',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,confuseDur:1.2}};           // confusion: no damage — a mob in the ring wanders instead of advancing, for as long as it stays in range plus a little after
 const DAZZLE_ONCE=2.5;
 const DEFKEYS=['harpoon','acorn','ball','slice','spike','totem','frost','snare','zap','venom','ember','dazzle']; const DEFKEY_LABELS=['1','2','3','4','5','6','7','8','9','0','-','='];
@@ -703,7 +703,9 @@ function markGrow(lvl){ return 1+.07*(Math.min(lvl||1,CHEV_FROM)-1); }   // a ma
 // a defense's sector of fire at its current mark
 function arcOf(d){ const cfg=DEFS[d.kind]; if(cfg.arcs) return cfg.arcs[Math.min(cfg.arcs.length-1,(d.lvl||1)-1)]; return cfg.arc||360; }
 function mobSpd(e){ return e.spd*(e.slowT>0?DEFS.slice.slow:1)*(e.chillT>0?(e.chillK||DEFS.frost.chill):1)*(e.holdT>0?0:1)*(e.crawlT>0?.15:1); }   // holdT: Rootsplitter's roots; crawlT: the Hourglass (97-mythics.js)   // spored mobs crawl; chilled ones too
-const MOBS={goblin:{hp:10,spd:3.4,dmg:3,cd:1.0,mana:1,detour:3}, orc:{hp:45,spd:2.1,dmg:8,cd:1.4,mana:3,detour:1}, archer:{hp:22,spd:2.8,dmg:4,cd:1.6,mana:2,ranged:11,detour:4}, drake:{hp:32,spd:2.6,dmg:9,cd:1.8,mana:4,detour:0,fly:2.6}, ogre:{hp:200,spd:1.7,dmg:20,cd:2.2,mana:8,detour:0,swingT:1.1,hitT:.64}, troll:{hp:65,spd:2.3,dmg:10,cd:2.0,mana:6,ranged:13,detour:3},
+// build 424 (Matt: "have archers walk closer before shooting, increase the damage frequency of auras slightly"): the archer (bandit) shoots from 7, not 11 -- close enough that a halo on its road reaches it;
+// then (Matt: "we need to speed up aura damage some more, we nerfed it too much" / "back to faster ticks on all auras"): the halos back to their pace before build 384 -- Storm 1.8 s, Venom and Ember 0.5 s.
+const MOBS={goblin:{hp:10,spd:3.4,dmg:3,cd:1.0,mana:1,detour:3}, orc:{hp:45,spd:2.1,dmg:8,cd:1.4,mana:3,detour:1}, archer:{hp:22,spd:2.8,dmg:4,cd:1.6,mana:2,ranged:7,detour:4}, drake:{hp:32,spd:2.6,dmg:9,cd:1.8,mana:4,detour:0,fly:2.6}, ogre:{hp:200,spd:1.7,dmg:20,cd:2.2,mana:8,detour:0,swingT:1.1,hitT:.64}, troll:{hp:65,spd:2.3,dmg:10,cd:2.0,mana:6,ranged:13,detour:3},
   trollboss:{hp:340,spd:1.9,dmg:14,cd:2.6,mana:14,ranged:11,splash:2.2,detour:2,healAmt:14,healR:6.5,healCd:3.2}};   // the lavender troll: a healer mini-boss — a slow lob that splashes, and a heal-pulse that mends nearby mobs (kill this one first)
 const DU_CAP=MAP.du||40, SENS=0.0042;   // roots: a bigger map gives more to build with
 const CRYSTAL_MAX=MAP.crystalHp||150;   // the crystal's life: half again what it was, so a leak costs a wave, not the run; a map may set its own (the training ground doubles it)
@@ -802,7 +804,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=423;
+const BUILD=424;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1049,7 +1051,7 @@ function updateEnemies(dt){
     if(e.shoutT>0){ e.shoutT-=dt; target=null; }
     e.walking=false;
     if(target){ const dx=target.x-e.x, dz=target.z-e.z, d=Math.hypot(dx,dz)||.001; const ty=Math.atan2(dx,dz);
-      if(target.kind==='move'||d>target.reach){ const sp=mobSpd(e); let mx=dx/d, mz=dz/d, facing=ty;
+      if(target.kind==='move'||d>target.reach||e.confuseT>0){ const sp=mobSpd(e);   /* build 424 (Matt: "is dazzling not having effect on bandits"): a dazed mob wanders instead of ATTACKING too -- a bandit in range used to keep shooting */ let mx=dx/d, mz=dz/d, facing=ty;
         if(e.confuseT>0){ e.confuseAng=(e.confuseAng===undefined?rnd()*TAU:e.confuseAng)+R(-2.2,2.2)*dt; mx=Math.sin(e.confuseAng); mz=Math.cos(e.confuseAng); facing=e.confuseAng; }   // the dazzling halo: wanders instead of advancing, for as long as it's confused
         moveCircle(e,(mx*sp+e.sx)*dt,(mz*sp+e.sz)*dt,e.r*.8,false); e.ph+=dt*9; e.yaw=angLerp(e.yaw,facing,1-Math.exp(-10*dt)); e.walking=true; }
       else { e.yaw=angLerp(e.yaw,ty,1-Math.exp(-10*dt)); if(e.atk<=0){ e.atk=e.cd; attack(e,target); } } }
