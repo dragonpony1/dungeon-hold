@@ -1,6 +1,6 @@
 // ===== THE SPECTRAL MOTH HORROR (build 422). Matt's art (Pictures\dungeon art,\mobs\spectral moth horror\animated\hi3d-spectral-moth-2k-pbr_2.glb, Bob's rig with one clip, Spectral_Moth_Hover_Flight; textures cut
 // to 1024: parts/assets/moth.glb) and his words: "the spectral moth flies toward the heartroot and drops moth eggs that do damage".
-//  * A FLYER: it takes the flyers' road to the Heartroot (the core's flowFly, like a drake, a little higher) and strikes it when it gets there. The Snare Tower can catch it; the Sky Wrecker and the towers that
+//  * A FLYER: it takes the flyers' road to the Heartroot (the core's flowFly, like a drake, a little higher) and strikes it when it gets there. The Snare Tower can't hold it (build 428); the Sky Wrecker and the towers that
 //    shoot flyers bring it down.
 //  * EGGS: every EGG_CD (2.5 s) it lets one fall -- at once if it is over a tower and its last egg is a second old. The egg drops to the floor, lies there pulsing pale for HATCH (1.6 s), then BURSTS in a ring of
 //    spectral dust: towers within BURST_R take EGG_TOWER (scaled with the moth's own damage), the hero EGG_HERO, the Heartroot EGG_CRYSTAL if it burst within 4 of it.
@@ -29,7 +29,7 @@ function load(){ if(MOBGLB[K]) return Promise.resolve(); if(loadP) return loadP;
 { const prev=waveComp; waveComp=function(w){ const c=prev.apply(this,arguments); const n=howMany(w); if(!n||!c||!Array.isArray(c.q)||!c.q.length) return c;
     const ts=c.q.map(x=>+x.t||0), t0=Math.min(...ts), t1=Math.max(...ts); const add=[]; for(let i=0;i<n;i++){ const src=c.q[((i+1)*c.q.length/(n+1))|0]; add.push({ t:+(t0+(t1-t0)*(i+1)/(n+1)).toFixed(2), kind:K, lane:src.lane }); }
     return Object.assign({},c,{ q:c.q.concat(add).sort((a,b)=>(+a.t||0)-(+b.t||0)) }); }; }
-{ const prev=spawnEnemy; spawnEnemy=function(kind){ const r=prev.apply(this,arguments); if(kind===K){ const e=enemies[enemies.length-1]; if(e&&e.kind===K&&e.eggT===undefined){ e.eggT=EGG_CD*(.4+Math.random()*.4); e.sinceEgg=0; cnt.spawned++; } } return r; }; }
+{ const prev=spawnEnemy; spawnEnemy=function(kind){ const r=prev.apply(this,arguments); if(kind===K){ const e=enemies[enemies.length-1]; if(e&&e.kind===K&&e.eggT===undefined){ e.eggT=EGG_CD*(.4+Math.random()*.4); e.sinceEgg=0; e.noSnare=true;   /* build 428 (Matt: "yes moth too"): the snare can't hold a moth either */ cnt.spawned++; } } return r; }; }
 // ---- the eggs
 const eggs=[];
 let EGG_GEO=null, EGG_MAT=null;

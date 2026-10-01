@@ -27,5 +27,7 @@ check("over a tower it drops an egg at once; the egg bursts and hurts the tower 
 const D=await page.evaluate(()=>{ const d=window.__dd, Mo=window.__moth; for(const e of d.enemies) d.kill(e); for(const t of d.defs.slice()) { t.hp=t.max; } d.S.crystal=1000; const c0=d.S.crystal; const lane=d.waveComp(d.map().wbase+1).q[0].lane;
   d.spawn('moth',lane); const m=d.enemies[d.enemies.length-1]; m.hp=m.max=1e5; m.spd=0; m.x=1; m.z=1; m.y=4; m.eggT=0; for(let i=0;i<60*2.5;i++){ d.step(1/60,1); m.x=1; m.z=1; m.eggT=99; } return { crystalLost:c0-d.S.crystal }; });
 check("an egg bursting by the Heartroot hurts it",D.crystalLost>0,JSON.stringify(D));
+const SN=await page.evaluate(()=>{ const d=window.__dd; for(const e of d.enemies) d.kill(e); const lane=d.waveComp(d.map().wbase+1).q[0].lane; d.spawn('moth',lane); const m=d.enemies[d.enemies.length-1]; m.hp=m.max=1e5; m.spd=0; const sn=d.placeDefAt('snare',m.x+2,m.z,0); if(sn) sn.cd=0; for(let i=0;i<60*3;i++){ d.step(1/60,1); d.S.crystal=d.S.crystal2=1e9; } return { placed:!!sn, noSnare:!!m.noSnare, caught:!!(m.snared||m.caught||m.snareT>0) }; });
+check("the snare tower can't hold a moth (build 428)",SN.noSnare&&!SN.caught,JSON.stringify(SN));
 check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
