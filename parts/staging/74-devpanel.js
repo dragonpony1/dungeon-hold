@@ -38,7 +38,7 @@ function setRec(slot,setId,famKind,lookOverride){ const tail=(SETS.find(s=>s[0]=
   const base=slot==='familiar'?(famKind||'Wisp'):SLOT_BASE[slot];
   return {slot,name:base+' '+tail,setId,rarity:5,lvl:20,stats}; }
 function giveIt(rec){ const it=window.__mythic.normalize(rec); if(!it){ toast('could not build that item'); return; } Meta.onPickup(it,{x:hero.x,y:hero.y+1,z:hero.z}); toast('Gave: '+it.name); }
-function dropIt(rec){ const it=window.__mythic.normalize(rec); if(!it){ toast('could not build that item'); return; } const a=Math.random()*6.283;
+function dropIt(rec){ const it=window.__mythic.normalize(rec); if(!it){ toast('could not build that item'); return; } if(window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen()){ Meta.onPickup(it,{x:hero.x,y:hero.y+1,z:hero.z}); toast('🎒 In your bag: '+it.name); return; }   /* build 396 (Matt: OJ in the hideout dropped himself gear and it landed out in the hall): in the hideout there is no hall floor to drop on -- it goes straight into the bag the hideout shows */ const a=Math.random()*6.283;
   // build 208 (Matt: "why i couldnt drop on the floor from dev hud"): 1.4 units was well inside LOOT_HOOK's own 3.2-unit
   // auto-pickup radius (game.js) -- anything dropped this close gets magnetically pulled back into the bag within about
   // half a second, before there's ever a real chance to look at it standing on the floor. Clear of the hook now.
