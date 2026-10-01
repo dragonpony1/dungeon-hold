@@ -17,7 +17,7 @@ const inCoop=()=>{ try{ return !!(window.__net&&window.__net.role&&window.__net.
 const COLS=13, ROWS=2, XA=2, XB=44, Z0=43, Z1=45, FLOOR_Y=6, PH=(WALLH-FLOOR_Y)/ROWS, MID=6;   // thirteen panels across the rim, two high, up to the roof; MID is the column the boss strikes
 const FIN_WAVE=6, FIN_T=16;   // the wave it happens on, and how many seconds into that wave
 const X0=cw(XA)-CELL/2, X1=cw(XB)+CELL/2, BZ=cwz(Z0)-CELL/2, ZB=cwz(Z1)+CELL/2, PWID=(X1-X0)/COLS, XC=(X0+X1)/2, XS=X0+PWID*(MID+.5);   // the wall's two ends, its front face, the back wall behind the three rows, a panel's width, the strike point
-const T_RUN=2.8, T_SWING=T_RUN+1.2, T_HIT=T_SWING+.38, RIP=.17, T_OPEN=T_HIT+.9, T_REVEAL=T_HIT+2.2, T_END=T_HIT+5.3, BLEND_T=.8;   // the cutscene's clock
+const T_RUN=2.8, T_SWING=T_RUN+1.2, T_HIT=T_SWING+.38, RIP=.17, T_OPEN=T_HIT+.9, T_GO=T_OPEN+.2, T_REVEAL=T_HIT+2.2, T_END=T_GO+4.6, BLEND_T=.8;   // the cutscene's clock
 const MIX=[['goblin',64],['orc',24],['archer',10],['ogre',2]], TEAMS=['kegcart','firecart','kegcart'];   // standing in the dark when the wall falls (plus the carts' own orcs)
 const LATER=[['goblin',50],['orc',18],['archer',8],['ogre',2]], LATER_TEAMS=['firecart','kegcart'];   // and the second crowd, out of the dark over the next ten seconds
 const smooth=k=>k<=0?0:k>=1?1:k*k*(3-2*k);
@@ -59,7 +59,7 @@ function placeNext(q,tag){ const kind=q.shift(); if(!kind) return;
     for(const o of (c.crew||[])){ o.x=c.x-fx_*BACK+rx*o.pushSide*SIDE; o.z=c.z-fz_*BACK+rz*o.pushSide*SIDE; o.yaw=c.yaw; sync(o); } cnt.carts++; return; }
   const e=spawnEnemy(kind,'E'); if(!e||e.kind!==kind) return; e.x=(tag!=='later'&&rnd()<.7)?R(-34,34):R(X0+3,X1-3); e.z=R(BZ+1.9,ZB-1.0); e.yaw=PI; sync(e); FIN.crowd.push(e); cnt[tag||'crowd']++; }
 // ---- the camera
-const KEYS=[ { t:0, p:[14,12.5,34], l:'boss' }, { t:T_RUN, p:[2,11,45], l:'boss' }, { t:T_HIT, p:[-6,9,64], l:[0,8.5,76.5] }, { t:T_HIT+1.7, p:[0,15,40], l:[0,9.5,78] }, { t:T_REVEAL+.4, p:[0,14.5,50], l:[0,7,80] }, { t:T_END, p:[0,12,62], l:[0,6.2,81] } ];
+const KEYS=[ { t:0, p:[14,12.5,34], l:'boss' }, { t:T_RUN, p:[2,11,45], l:'boss' }, { t:T_HIT, p:[-6,9,64], l:[0,8.5,76.5] }, { t:T_HIT+1.7, p:[0,15,40], l:[0,9.5,78] }, { t:T_REVEAL+.4, p:[0,14.5,50], l:[0,7,80] }, { t:T_END, p:[0,13,56], l:[0,6.2,79] } ];
 function cutCamera(dt){ const t=FIN.t, b=FIN.boss, bp=b?[b.x,(b.y||FLOOR_Y)+2.6,b.z]:[XS,8,BZ-3];
   let i=0; while(i<KEYS.length-2&&t>=KEYS[i+1].t) i++; const a=KEYS[i], c=KEYS[i+1], u=smooth((t-a.t)/(c.t-a.t)); const la=a.l==='boss'?bp:a.l, lc=c.l==='boss'?bp:c.l;
   let p=[0,1,2].map(k=>a.p[k]+(c.p[k]-a.p[k])*u), l=[0,1,2].map(k=>la[k]+(lc[k]-la[k])*u);
@@ -69,24 +69,28 @@ function cutCamera(dt){ const t=FIN.t, b=FIN.boss, bp=b?[b.x,(b.y||FLOOR_Y)+2.6,
 // ---- the scene
 function breakPanel(p){ p.broken=true; const sgn=Math.sign(p.c-MID); const pt=new THREE.Vector3(p.x-sgn*PWID*.6,FLOOR_Y+(p.r?PH+1:1.5),BZ), dir=new THREE.Vector3(0,0,-1);
   p.w.destroy(pt,dir); puff(p.x,FLOOR_Y+p.r*PH+2,BZ-.5,p.r?3:4,PWID); camShake=Math.max(camShake,.45); cnt.broken++; try{ if(cnt.broken%3===1&&SFX.boom) SFX.boom(); else if(SFX.hit) SFX.hit(); }catch(er){} }
-function strike(){ if(backing) backing.visible=false; const base=T_HIT; for(const p of panels) p.tb=base+RIP*Math.abs(p.c-MID)+(p.r?.14:0); camShake=1.3; try{ SFX.boom&&SFX.boom(); }catch(er){} }
+function strike(){ if(backing) backing.visible=false; const base=T_HIT; for(const p of panels) p.tb=base+RIP*Math.abs(p.c-MID)+(p.r?.14:0); camShake=1.3; try{ SFX.boom&&SFX.boom(); }catch(er){} if(window.__corruptor) window.__corruptor.snip(XS,FLOOR_Y+3,BZ-.8); }
 function openStrip(){ setStrip(false); FIN.opened=true; }
 function cutTick(dt){ FIN.t+=dt; const t=FIN.t, b=FIN.boss; const once=(k,at,fn)=>{ if(t>=at&&!FIN.ev[k]){ FIN.ev[k]=1; fn(); } };
-  if(b&&!b.dead){ const u=Math.min(1,t/T_RUN), k=u*(2-u); b.x=FIN.bx0+(XS-FIN.bx0)*k; b.z=FIN.bz0+((BZ-2.4)-FIN.bz0)*k; b.yaw=-PI/2*(1-smooth((t-T_RUN)/.5)); b.walking=t<T_RUN; if(b.shoutT>0) b.shoutT-=dt; if(t>=T_SWING){ b.shoutT=0; b.swing=(t<T_HIT+.3)?0:-1; } sync(b); mobAnim(b,dt); }
-  once('roar',T_RUN,()=>{ if(b&&b.mdl&&b.mdl.actions&&b.mdl.actions.shout) ogreRoar(b,1); else camShake=Math.max(camShake,.7); });
+  if(b&&!b.dead&&t<T_GO){ const u=Math.min(1,t/T_RUN), k=u*(2-u); b.x=FIN.bx0+(XS-FIN.bx0)*k; b.z=FIN.bz0+((BZ-2.4)-FIN.bz0)*k; b.yaw=-PI/2*(1-smooth((t-T_RUN)/.5)); b.walking=t<T_RUN; if(b.shoutT>0) b.shoutT-=dt; if(t>=T_SWING){ b.shoutT=0; b.swing=(t<T_HIT+.3)?(t-T_SWING):-1; } sync(b); mobAnim(b,dt); }
+  once('roar',T_RUN,()=>{ if(b&&b.mdl&&b.mdl.actions&&b.mdl.actions.shout) ogreRoar(b,1); else { camShake=Math.max(camShake,.7); try{ SFX.roar&&SFX.roar(); }catch(er){} } if(b&&window.__corruptor&&b.kind==='corruptor') window.__corruptor.burst(b.x,b.y||FLOOR_Y,b.z); });
+  once('go',T_GO,()=>{ if(b&&!b.dead){ b.spd=b.spd0; b.walking=false; b.swing=-1; } });
   once('hit',T_HIT,strike); once('open',T_OPEN,openStrip);
   for(const p of panels) if(!p.broken&&p.tb!==null&&t>=p.tb) breakPanel(p);
   for(let n=0;n<6&&FIN.crowdQ.length;n++) placeNext(FIN.crowdQ);
-  for(const e of FIN.crowd) if(!e.dead&&e.mdl&&e.mdl.mixer) mobAnim(e,dt); }
+  if(t<T_GO) for(const e of FIN.crowd) if(!e.dead&&e.mdl&&e.mdl.mixer) mobAnim(e,dt); }
 function endCut(){ FIN.active=false; FIN.done=true; const b=FIN.boss; if(b&&!b.dead){ b.spd=b.spd0; b.walking=false; b.swing=-1; } letterbox(false); FIN.endP=camera.position.clone(); FIN.endQ=camera.quaternion.clone(); FIN.blend=BLEND_T; FIN.focus=null;
   if(!FIN.opened) openStrip(); for(const p of panels) if(!p.broken) breakPanel(p); if(backing) backing.visible=false; FIN.laterQ=buildQueue(LATER,LATER_TEAMS); FIN.laterT=1.5; cnt.ends++; }
 function start(){ if(FIN.active||FIN.done||isGuest()||inCoop()||!ready) return false; FIN.active=true; FIN.t=0; FIN.ev={}; FIN.crowd=[]; FIN.opened=false; FIN.crowdQ=buildQueue(MIX,TEAMS); FIN.laterQ=[]; cnt.starts++; if(window.__carts) CARTK.forEach(k=>{ try{ window.__carts.load(k); }catch(er){} });
   const v=new THREE.Vector3(); camera.getWorldDirection(v); FIN.from={ p:[camera.position.x,camera.position.y,camera.position.z], l:[camera.position.x+v.x*20,camera.position.y+v.y*20,camera.position.z+v.z*20] };
-  const b=spawnEnemy('ogre','E'); FIN.boss=b; if(b){ b.spd0=b.spd; b.spd=11; b.finaleBoss=true; FIN.bx0=b.x; FIN.bz0=b.z; const gl=glow(0xc040ff,5/b.sc,.55); gl.position.y=b.h*.55/b.sc; b.mdl.g.add(gl); }
+  FIN.hp0=hero.hp; try{ if(window.__corruptor) window.__corruptor.load(); }catch(er){}
+  const b=spawnEnemy(window.__corruptor&&window.__corruptor.loaded()?'corruptor':'ogre','E'); FIN.boss=b; if(b){ b.spd0=b.spd; b.spd=11; b.finaleBoss=true; FIN.bx0=b.x; FIN.bz0=b.z; const gl=glow(0xc040ff,5/b.sc,.5); gl.position.y=b.h*.55/b.sc; b.mdl.g.add(gl); }
   letterbox(true); try{ SFX.roar&&SFX.roar(); }catch(er){} return true; }
 // ---- the game holds still while it plays: only the world's own animation, the cutscene's camera and the crowd's idling run
 { const prev=update; update=function(dt){ if(!FIN.active||S.phase==='start'||S.phase==='deathcut'||S.phase==='dead'||S.phase==='won') return prev.apply(this,arguments);
-    cutTick(dt); updateFx(dt); updateCamera(dt); updateHUD(); Meta.hud(); if(FIN.t>=T_END) endCut(); }; }
+    cutTick(dt); if(FIN.t>=T_GO&&S.phase!=='dead'&&S.phase!=='won'&&!Meta.isOpen()){ updateDefs(dt); updateEnemies(dt); updateProj(dt); updateOrbs(dt); updateLoot(dt); updateWave(dt); Meta.update(dt); }
+    if(hero.dead<=0&&FIN.hp0&&hero.hp<FIN.hp0) hero.hp=FIN.hp0;   // untouchable while the bars are on
+    updateFx(dt); updateCamera(dt); updateHUD(); Meta.hud(); if(FIN.t>=T_END) endCut(); }; }
 { const prev=updateCamera; updateCamera=function(dt){ if(FIN.active){ cutCamera(dt); return; } prev.apply(this,arguments);
     if(FIN.blend>0&&FIN.endP){ FIN.blend=Math.max(0,FIN.blend-dt); const k=smooth(1-FIN.blend/BLEND_T), q=camera.quaternion.clone(); camera.position.copy(FIN.endP).lerp(camera.position,k); camera.quaternion.copy(FIN.endQ).slerp(q,k); } }; }
 // ---- the sixth wave begins, and sixteen seconds in the wall falls (a marker in the wave's own spawn list: the wave cannot end before it)
@@ -104,6 +108,6 @@ setInterval(()=>{ const p=document.getElementById('devpanel'); if(!p||document.g
   document.getElementById('dp-finale-go').onclick=()=>{ start(); }; document.getElementById('dp-finale-back').onclick=()=>{ reset(); }; },800);
 window.__torchFocus=()=>FIN.focus;
 window.__finale={ info:()=>Object.assign({ panels:panels.length, intactPanels:panels.filter(p=>!p.broken).length, active:FIN.active, done:FIN.done, t:+FIN.t.toFixed(2), sealed:strip.every(i=>grid[i]===T.WALL), open:strip.every(i=>grid[i]===T.FLOOR), crowdNow:FIN.crowd.filter(e=>!e.dead).length, queued:FIN.crowdQ.length, laterQueued:FIN.laterQ.length, backing:!!(backing&&backing.visible), ready, dust:dust.length },cnt),
-  start, reset, ready:()=>ready, boss:()=>FIN.boss, crowd:()=>FIN.crowd, panelList:()=>panels.map(p=>({ r:p.r, c:p.c, x:+p.x.toFixed(1), broken:p.broken, tb:p.tb===null?null:+p.tb.toFixed(2) })), strip:()=>strip.slice(),
-  geom:{ X0, X1, BZ, ZB, PWID, XS, FLOOR_Y, COLS, ROWS, MID }, times:{ T_RUN, T_SWING, T_HIT, T_OPEN, T_REVEAL, T_END, FIN_WAVE, FIN_T }, camAt:t=>{ const keep=FIN.t; FIN.t=t; cutCamera(0); FIN.t=keep; return { p:camera.position.toArray(), l:FIN.focus }; } };
+  start, reset, ready:()=>ready, active:()=>FIN.active, boss:()=>FIN.boss, crowd:()=>FIN.crowd, panelList:()=>panels.map(p=>({ r:p.r, c:p.c, x:+p.x.toFixed(1), broken:p.broken, tb:p.tb===null?null:+p.tb.toFixed(2) })), strip:()=>strip.slice(),
+  geom:{ X0, X1, BZ, ZB, PWID, XS, FLOOR_Y, COLS, ROWS, MID }, times:{ T_RUN, T_SWING, T_HIT, T_OPEN, T_GO, T_REVEAL, T_END, FIN_WAVE, FIN_T }, camAt:t=>{ const keep=FIN.t; FIN.t=t; cutCamera(0); FIN.t=keep; return { p:camera.position.toArray(), l:FIN.focus }; } };
 })();
