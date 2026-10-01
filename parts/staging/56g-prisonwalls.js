@@ -147,7 +147,10 @@ fetchBytes(ASSET('prison-hexbomb.glb'),'soon').then(buf=>new Promise((res,rej)=>
 function hexShell(shell){ if(!HEXB.proto||!shell||!shell.mesh) return; shell.mesh.children.forEach(c=>{ c.visible=false; }); const cn=HEXB.proto.clone(true); cn.position.copy(HEXB.off); const piv=new THREE.Group(); piv.name='hexbomb'; piv.scale.setScalar(HEXB.k); piv.add(cn); piv.rotation.set(rnd()*6,0,rnd()*6); shell.mesh.add(piv); shell.__hex=true; flying.push({ shell, piv, sx:5+rnd()*3, sz:2+rnd()*2 }); }
 // far downfield (Matt: "once that thing hits, far downfield"): the secret mortars reach 1.8 times as far as a built trebuchet, and they lob at the THICKEST CLUSTER of mobs in their cone -- skipping any already in a mist -- so the mist lands where the most mobs can fight each other
 { const prevStat=stat; stat=function(d,k){ const v=prevStat.apply(this,arguments); return (d&&d.secret&&k==='range')?v*1.8:v; }; }
-{ const prevFire=fire; fire=function(d,e){ if(d&&d.secret&&d.kind==='ball'){ try{ const rng=stat(d,'range'), half=(arcOf(d)||100)/2*PI/180, fx=Math.sin(d.yaw), fz=Math.cos(d.yaw); let best=null, bs=-1e9;
+// build 369 (Matt: "lol let cut these mortar off at about 8 rounds each and see what happens"): each secret mortar has AMMO (8) shells; every shot spends one, and when the last is gone it goes dry -- a puff of smoke, its green light out, no more shells (it stays where it is)
+const AMMO=8;
+function dryOut(d){ if(d.dry) return; d.dry=1; puff(d.x,d.base+1.4,d.z,6,2.4); floatText(d.x,d.top+1.6,d.z,'\uD83D\uDCA8','#aab4b0'); try{ SFX.hit&&SFX.hit(); }catch(er){} cnt.dry=(cnt.dry||0)+1; }
+{ const prevFire=fire; fire=function(d,e){ if(d&&d.secret&&d.kind==='ball'){ if(d.ammo===undefined) d.ammo=AMMO; if(d.ammo<=0){ dryOut(d); return; } d.ammo--; cnt.shells=(cnt.shells||0)+1; try{ const rng=stat(d,'range'), half=(arcOf(d)||100)/2*PI/180, fx=Math.sin(d.yaw), fz=Math.cos(d.yaw); let best=null, bs=-1e9;
       for(const q of enemies){ if(q.dead||q.fly) continue; const dx=q.x-d.x, dz=q.z-d.z, dist=Math.hypot(dx,dz); if(dist>rng||dist<6) continue; if((dx*fx+dz*fz)/dist<Math.cos(half)) continue; let n=0; for(const o of enemies){ if(!o.dead&&Math.hypot(o.x-q.x,o.z-q.z)<7) n++; } const covered=window.__blight&&window.__blight.madCover(q.x,q.z); const sc=n*10+dist*.05-(covered?1000:0)-(q.madT>0?400:0); if(sc>bs){ bs=sc; best=q; } }
       if(best) e=best; }catch(er){ console.warn('prison mortar aim',er); } } return prevFire.call(this,d,e); }; }
 { const prev=turnipSplat; turnipSplat=function(p){ prev.apply(this,arguments); if(p&&p.__hex&&window.__blight){ try{ const covered=window.__blight.madCover(p.x,p.z); window.__blight.explode(p.x,p.z,covered?{ noDamage:true, noCloud:true, scale:.5, shell:true, quiet:true }:{ noDamage:true, scale:.8, cloudR:10, cloudT:11, shell:true, quiet:true, mad:true, poison:2 }); }catch(er){ console.warn('prison hexbomb blast',er); } } }; }
@@ -174,6 +177,10 @@ function meleeWalls(){ if(isGuest()) return; const fx=Math.sin(hero.yaw), fz=Mat
 let clock=0;
 WORLDANIM.push(dt=>{ clock+=dt; for(const w of walls) w.update(dt);
   for(let i=pendingMount.length-1;i>=0;i--){ const sp=pendingMount[i]; if(sp.def&&MORT.proto&&mountMortar(sp.def,sp)) pendingMount.splice(i,1); }
+  // the ammo pips: eight small green lights in a row above each mortar once it has rolled out, one going dim with every shell fired; the green light on the mortar dies with the last
+  { const cr=camera.matrixWorld.elements; for(const m of mounts){ const d=m.d; if(!m.pips){ m.pips=[]; for(let i=0;i<AMMO;i++){ const s=glow(0x70ff90,.95,.9); s.visible=false; world.add(s); m.pips.push(s); } }
+      const alive=defs.includes(d), on=alive&&m.rolled; const left=d.ammo===undefined?AMMO:d.ammo; m.pips.forEach((s,i)=>{ s.visible=on; if(on){ s.position.set(d.x+cr[0]*(i-(AMMO-1)/2)*.5,d.base+4.4+Math.sin(clock*3+i)*.04,d.z+cr[2]*(i-(AMMO-1)/2)*.5); const live=i<left; s.material.opacity=live?.92:.2; s.material.color.setHex(live?0x70ff90:0x6a7a70); s.scale.setScalar(live?.95:.55); } });
+      if(m.gl2){ const want=left>0?1.6:0; m.gl2.intensity+=(want-m.gl2.intensity)*Math.min(1,dt*3); } else { const l=m.holder.children.find(c=>c.isPointLight); if(l) m.gl2=l; } } }
   for(const m of mounts){ if(m.d.mdl&&m.holder.parent!==m.d.mdl) m.d.mdl.add(m.holder);
     m.mx.update(dt); m.t+=dt; if(!m.rolled){ const k=Math.min(1,m.t/m.dur); m.holder.position.z=m.back*(1-k*k*(3-2*k)); if(k>=1){ m.rolled=true; if(m.roll){ m.roll.stop(); } } }
     for(const c of m.d.mdl.children){ if(c!==m.holder&&c.name!=='chevrons') c.visible=false; } }
@@ -189,9 +196,9 @@ WORLDANIM.push(dt=>{ clock+=dt; for(const w of walls) w.update(dt);
 function arrowBlows(){ if(isGuest()||!window.__bow||!window.__bow.arrows||!window.__bow.arrows()) return; if(!walls.some(w=>!w.broken)) return;
   for(const a of window.__bow.flying()){ if(a.y>OPEN_H+1) continue; for(const w of walls){ if(w.broken) continue; const sp=w.spot; if(!nearPlane(sp,a.x,a.z,2.6)) continue; if(a.dx*-sp.nx+a.dz*-sp.nz<.25) continue; const np=nearPt(sp,a.x,a.z); w.hit(HIT,new THREE.Vector3(np.x,Math.min(Math.max(a.y,.5),OPEN_H),np.z),new THREE.Vector3(-sp.nx,0,-sp.nz)); cnt.arrowHits=(cnt.arrowHits||0)+1; } } }
 WORLDANIM.push(()=>arrowBlows());
-window.__prisonwalls={ shatter, BreakableWall, raw:()=>walls, walls:()=>walls.map(w=>({ id:w.spot.id, kind:w.kind, health:w.health, broken:w.broken, locked:!!w.locked, awake:!!w.awake, x:+w.group.position.x.toFixed(2), z:+w.group.position.z.toFixed(2), chunks:w.chunks.length, debris:w.fragments.visible, glow:!!(w.beacon&&w.beacon.gs.parent) })),
+window.__prisonwalls={ shatter, BreakableWall, AMMO, raw:()=>walls, walls:()=>walls.map(w=>({ id:w.spot.id, kind:w.kind, health:w.health, broken:w.broken, locked:!!w.locked, awake:!!w.awake, x:+w.group.position.x.toFixed(2), z:+w.group.position.z.toFixed(2), chunks:w.chunks.length, debris:w.fragments.visible, glow:!!(w.beacon&&w.beacon.gs.parent) })),
   hit:(id,n)=>{ const w=walls.find(x=>x.spot.id===id); if(!w) return false; const sp=w.spot; w.time+=1; return w.hit(n||HIT,new THREE.Vector3(sp.cx0,1.5,sp.cz0),new THREE.Vector3(-sp.nx,0,-sp.nz)); },
   mortProto:()=>MORT.proto,
-  mortars:()=>mounts.map(m=>({ id:m.sp.id, rolled:m.rolled, fires:m.fires, hasMuzzle:!!m.muzzle, shells:flying.length, clips:MORT.clips.map(c=>c.name) })),
+  mortars:()=>mounts.map(m=>({ id:m.sp.id, rolled:m.rolled, fires:m.fires, ammo:m.d.ammo===undefined?AMMO:m.d.ammo, dry:!!m.d.dry, pipsLit:(m.pips||[]).filter((s,i)=>s.visible&&i<(m.d.ammo===undefined?AMMO:m.d.ammo)).length, hasMuzzle:!!m.muzzle, shells:flying.length, clips:MORT.clips.map(c=>c.name) })),
   spots:()=>SPOTS.map(s=>({ id:s.id, open:!!s.def, def:s.def?{ rot:s.def.rot, kind:s.def.kind, lvl:s.def.lvl, secret:!!s.def.secret, hp:s.def.hp, max:s.def.max }:null })), info:()=>Object.assign({},cnt) };
 })();

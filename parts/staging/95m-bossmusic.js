@@ -14,9 +14,10 @@ window.__bossMusic={ info:()=>null };
 if(!MAP||MAP.id!=='prison') return;
 if(typeof setMusic!=='function') return;
 const B1_FADE_AT=18, B1_FADE=2.0, B2_AT=18, B2_LEN=11, B2_FADE=.8, DEPTHS_AT=B2_AT+B2_LEN, DEPTHS_OFF=7;   // (56i's T_GO is the same 29)
+// (Matt: "the drums are so quiet can we turn them up": its volume went from .5 to 1.15 -- about +7 dB; the file is bass-heavy drums, which read quieter than the boss tracks at the same level)
 // the BATTLE track that follows boss 2: Drums from the Depths (152 s; from its 7-second mark, looping 7 to 2:26) -- or, kept as a SECOND OPTION at Matt's word ("well keep this one as a second option"), Fundamental_30_EXT01044.mp3 (45.9 s: a hit and a build
 // for twelve seconds, then a steady groove to 0:39 and a tail; played from its start, looping 12 to 39.5). Chosen on the dev panel (F9, remembered in localStorage ddBattleTrack) or with ?battle=alt in the address; Drums from the Depths is the default.
-const BATTLE_TRACKS={ depths:{ name:'Drums from the Depths', file:'assets/music-drums-from-the-depths.mp3', vol:.5, offset:7, loopStart:7, loopEnd:146 }, alt:{ name:'Fundamental 30 (EXT01044)', file:'assets/music-fundamental-30.mp3', vol:.95, offset:0, loopStart:12, loopEnd:39.5 } };
+const BATTLE_TRACKS={ depths:{ name:'Drums from the Depths', file:'assets/music-drums-from-the-depths.mp3', vol:1.15, offset:7, loopStart:7, loopEnd:146 }, alt:{ name:'Fundamental 30 (EXT01044)', file:'assets/music-fundamental-30.mp3', vol:.95, offset:0, loopStart:12, loopEnd:39.5 } };
 let battle='depths'; try{ const q=new URLSearchParams(location.search).get('battle'), st=localStorage.getItem('ddBattleTrack'); battle=BATTLE_TRACKS[q]?q:BATTLE_TRACKS[st]?st:'depths'; }catch(er){}
 const FILES={ boss1:'assets/music-boss1.mp3', boss2:'assets/music-boss2.mp3', depths:BATTLE_TRACKS.depths.file, alt:BATTLE_TRACKS.alt.file };
 const VOL={ boss1:.95, boss2:.95, depths:BATTLE_TRACKS.depths.vol, alt:BATTLE_TRACKS.alt.vol };
