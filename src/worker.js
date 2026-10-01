@@ -26,14 +26,21 @@ function corsHeaders(request) {
   };
 }
 
+const KEY_PATH = /^\/api\/hideout\/k\/([A-Za-z0-9_-]{4,64})(\/.*)$/;
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/api/hideout/')) {
       const cors = corsHeaders(request);
       if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
-      const stub = env.HIDEOUT.get(env.HIDEOUT.idFromName('main'));
-      const res = await stub.fetch(request);
+      // game build 377: a hideout KEY in the path (/api/hideout/k/<key>/gear...) picks whose table this is -- each player has their own hideout, and a guest
+      // visiting a host's hideout is sent the HOST's key. No key (the original shared table, the standalone hideout page, every older game build) is 'main', exactly as before.
+      let name = 'main', inner = request;
+      const km = url.pathname.match(KEY_PATH);
+      if (km) { name = km[1]; const u = new URL(request.url); u.pathname = '/api/hideout' + km[2]; inner = new Request(u, request); }
+      const stub = env.HIDEOUT.get(env.HIDEOUT.idFromName(name));
+      const res = await stub.fetch(inner);
       if (!Object.keys(cors).length) return res;
       const out = new Response(res.body, res);
       for (const [k, v] of Object.entries(cors)) out.headers.set(k, v);
