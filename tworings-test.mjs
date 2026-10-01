@@ -6,7 +6,7 @@ import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 const server=await serve(9010,{dist:process.env.DIST||"./dist"});
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
-const page=await (await browser.newContext({viewport:{width:1280,height:800}})).newPage(); page.on("pageerror",e=>errors.push(String(e)));
+const page=await (await browser.newContext({viewport:{width:1280,height:800}})).newPage(); page.on("pageerror",e=>errors.push(String(e))); const reqs=[]; page.on("request",r=>reqs.push(r.url()));
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
 await page.goto("http://127.0.0.1:9010/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__tworings&&window.__mythic&&window.__meta&&window.__dd.heroModel(),null,{timeout:120000});
 await page.evaluate(async()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} await window.__heroes.select('knight'); d.start(); d.step(1/60,3); window.__freeze=true; window.__meta.setLevel&&window.__meta.setLevel(40); });
@@ -28,5 +28,7 @@ const D=await page.evaluate(()=>{ const d=window.__dd, R=window.__tworings; d.sp
 check("the second pet fights too (it picks a target)",D.t2&&D.hurt,JSON.stringify(D));
 const E=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta, R=window.__tworings; const saved=JSON.parse(localStorage.getItem('ddGear')).familiar2; const other=d.rollItem(1,'charm',5); M.giveItem(other); M.equip(other.id); d.step(1/60,2); return { saved:!!(saved&&saved.id), ringOn:R.ringOn(), back:!R.info().second&&M.bag().some(b=>b.slot==='familiar') }; });
 check("it is saved with your gear; take the ring off and the 2nd pet goes back to the bag",E.saved&&!E.ringOn&&E.back,JSON.stringify(E));
+await page.evaluate(()=>{ const d=window.__dd; d.S.phase='build'; window.__tworings.dropRing('beast_mode'); for(let i=0;i<30;i++) d.step(1/60,1); }); await new Promise(r=>setTimeout(r,2500));
+check("a dropped Beast Mode stands on the floor as Matt's own 3D ring (build 427)",reqs.some(u=>/named-beast_mode/.test(u)),JSON.stringify(reqs.filter(u=>/named-/.test(u)).map(u=>u.split('/').pop())));
 check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
