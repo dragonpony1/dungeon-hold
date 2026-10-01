@@ -179,12 +179,12 @@ const MAPS=[
     f(16,30,4,9,T.FLOOR); h(16,30,4,9,0);
     f(22,24,3,5,T.DAIS); g(23,4,T.CRYSTAL);   // the Heartroot in the apex, on its dais
     ramp(6,10,35,37,2,4,6); ramp(31,35,24,26,2,2,4); ramp(16,20,13,15,2,0,2);   // the flights (rising south): rim to middle at the west end, middle to lower at the east end, lower to pit at the west end
-    g(45,44,T.SPAWN); h(45,45,44,44,6); g(23,46,T.SPAWN); h(23,23,46,46,6); g(7,28,T.SPAWN); h(7,7,28,28,4); g(34,19,T.SPAWN); h(34,34,19,19,2); },   // the busted cells: the rim's east end and south wall, the middle terrace's west wall, the lower terrace's east wall
-  lanes:{E:{cx:45,cz:44,face:-PI/2,name:'East cells',from:1}, S:{cx:23,cz:46,face:PI,name:'South cells',from:2}, W:{cx:7,cz:28,face:PI/2,name:'West landing',from:3}, NE:{cx:34,cz:19,face:-PI/2,name:'Lower east',from:4}},
+    g(45,41,T.SPAWN); h(45,45,41,41,6); g(1,41,T.SPAWN); h(1,1,41,41,6); g(7,28,T.SPAWN); h(7,7,28,28,4); g(34,19,T.SPAWN); h(34,34,19,19,2); },   // the busted cells: the rim's east end and west end (build 363: both in front of the big barrier, which closes off the rim's last three rows -- 56i-prisonbarrier.js), the middle terrace's west wall, the lower terrace's east wall
+  lanes:{E:{cx:45,cz:41,face:-PI/2,name:'East cells',from:1}, S:{cx:1,cz:41,face:PI/2,name:'West cells',from:2}, W:{cx:7,cz:28,face:PI/2,name:'Middle landing',from:3}, NE:{cx:34,cz:19,face:-PI/2,name:'Lower east',from:4}},
   hall:[-9,-9,-9,-9],pillars:[],barrels:[],crates:[],chandeliers:[],beams:{zs:[],w:0},tavern:{dx:0,dz:0},noTavern:true,
   lights:(()=>{ const L=[[0,3.4,0,0xb494ff,1.3,15],[0,1.2,5,0x58c070,.7,12]];
     for(const [cx,cz,up] of [[20,9,3.4],[26,9,3.4],[16,18,3.6],[30,18,3.6],[23,21,3.6],[12,30,3.6],[34,30,3.6],[23,28,3.6],[8,42,4.2],[23,41,4.2],[38,42,4.2],[23,45,4.2]]) L.push({cx,cz,up,c:0xff8a2a,i:1.3,d:14});   // braziers down the terraces
-    for(const [cx,cz] of [[45,44],[23,46],[7,28],[34,19]]) L.push({cx,cz,up:3.4,c:0xc040ff,i:1.6,d:13});   // the broken cells glow where the horde comes out
+    for(const [cx,cz] of [[45,41],[1,41],[7,28],[34,19]]) L.push({cx,cz,up:3.4,c:0xc040ff,i:1.6,d:13});   // the broken cells glow where the horde comes out
     return L; })()}];
 // THE TUTORIAL HALL (build 166, Matt: "we need to reimagine the entire tutorial ... prior to room one there is a tutorial hall ...
 // its a tutorial room with one hall and in your face instruction"). A tiny map of its own, deliberately NOT in MAPS (the campaign's
@@ -745,7 +745,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=362;
+const BUILD=363;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;

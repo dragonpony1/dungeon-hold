@@ -29,8 +29,9 @@ WORLDANIM.push(dt=>{
   for(let i=bearers.length-1;i>=0;i--){ const e=bearers[i]; if(e.dead||!e.torch){ bearers.splice(i,1); continue; } flicker(e.torch); }
   for(let i=fallen.length-1;i>=0;i--){ const f=fallen[i]; f.t+=dt; flicker(f.g); if(f.t>DROP_T){ const k=Math.max(0,1-(f.t-DROP_T)/1.2); f.g.scale.setScalar(k||.001); if(f.t>DROP_T+1.2){ scene.remove(f.g); fallen.splice(i,1); } } }
   // the four lights go to the four torches nearest you (a torch further than the lights' reach is not lit at all)
-  const src=[]; for(const e of bearers){ const fl=e.torch.userData.parts.fl; fl.getWorldPosition(V); src.push({ x:V.x, y:V.y+.3, z:V.z, d:Math.hypot(V.x-hero.x,V.z-hero.z) }); }
-  for(const f of fallen){ const fl=f.g.userData.parts.fl; fl.getWorldPosition(V); src.push({ x:V.x, y:V.y+.4, z:V.z, d:Math.hypot(V.x-hero.x,V.z-hero.z)*1.15, fade:f.t>DROP_T?Math.max(0,1-(f.t-DROP_T)/1.2):1 }); }
+  const F=(window.__torchFocus&&window.__torchFocus())||hero;   // the cutscene of the big barrier (56i-prisonbarrier.js) hands the lights to the torches it is looking at
+  const src=[]; for(const e of bearers){ const fl=e.torch.userData.parts.fl; fl.getWorldPosition(V); src.push({ x:V.x, y:V.y+.3, z:V.z, d:Math.hypot(V.x-F.x,V.z-F.z) }); }
+  for(const f of fallen){ const fl=f.g.userData.parts.fl; fl.getWorldPosition(V); src.push({ x:V.x, y:V.y+.4, z:V.z, d:Math.hypot(V.x-F.x,V.z-F.z)*1.15, fade:f.t>DROP_T?Math.max(0,1-(f.t-DROP_T)/1.2):1 }); }
   src.sort((a,b)=>a.d-b.d);
   for(let i=0;i<POOL;i++){ const l=lights[i], s=src[i]; let target=0; if(s&&s.d<70){ l.position.set(s.x,s.y,s.z); target=(2.2+Math.sin(S.t*11+i)*.35+Math.sin(S.t*5.3+i*2)*.25)*(s.fade===undefined?1:s.fade); } l.intensity+=(target-l.intensity)*Math.min(1,dt*9); if(l.intensity<.02&&!target) l.position.y=-60; } });
 window.__torchmobs={ info:()=>Object.assign({ alive:bearers.length, fallen:fallen.length, pool:POOL, lit:lights.filter(l=>l.intensity>.05).length, lights:lights.length },cnt), bearers:()=>bearers.slice(), lights:()=>lights, force:e=>{ if(e&&!e.torch) attach(e); } };
