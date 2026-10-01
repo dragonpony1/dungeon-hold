@@ -5,7 +5,7 @@
 (function(){
 'use strict';
 if(TUTORIAL) return;
-const K='trap', HALF_L=3.1, HALF_W=1.05, BOSS_K=.25;
+const K='trap', HALF_L=3.1, HALF_W=1.05, BOSS_K=.25, ARM_WAIT=5;   // ARM_WAIT (build 391, Matt: "once the mouse trap resets make it wait 5 seconds"): its bar back up, it waits five more seconds before it can spring again -- then a click and a glint: set
 const BOSSES=new Set(['corruptor','trollboss','pigflail','pigdagger','pigsling','cyclops','archhag']);
 DEFS[K]={ name:'Mouse Trap', ic:'🪤', du:2, mana:25, hp:999999, top:.35, range:3, arc:360, cd:15, dmg:0 };
 NOWALK_DEF[K]=1;   // walked straight over: nothing routes round it, stops to smash it or shoots at it
@@ -34,12 +34,13 @@ const OPEN=PI*.92;
 { const prevPlace=placeDefAt; placeDefAt=function(kind,x,z,rot){ if(kind!==K) return prevPlace.apply(this,arguments); const d=prevPlace.call(this,kind,x,z,snapRot(rot)); if(d){ d.rot=d.yaw=snapRot(d.rot); d.mdl.rotation.y=d.rot; d.cd=0; d.snapT=-1; } return d; }; }
 const cnt={ springs:0, kills:0, bossHits:0 };
 const onBoard=(d,e)=>{ const [ax,az]=axis(d.rot), dx=e.x-d.x, dz=e.z-d.z, u=dx*ax+dz*az, v=-dx*az+dz*ax, r=(e.r||.5)*.6; return Math.abs(u)<=HALF_L+r&&Math.abs(v)<=HALF_W+r; };
-function spring(d){ cnt.springs++; d.snapT=0; d.cd=stat(d,'cd'); let n=0;
+function spring(d){ cnt.springs++; d.snapT=0; d.cd=stat(d,'cd'); d.armT=ARM_WAIT; d.armed=false; let n=0;
   for(const e of enemies){ if(e.dead||e.fly||!onBoard(d,e)) continue; if(BOSSES.has(e.kind)){ hurt(e,Math.max(1,Math.round(e.max*BOSS_K)),0,0); cnt.bossHits++; } else { e.hp=0; kill(e); cnt.kills++; n++; } }
   camShake=Math.max(camShake,.35); try{ SFX.thud&&SFX.thud(); SFX.hit&&SFX.hit(); }catch(er){} const fl=baseFloor(d.x,d.z); const g=glow(0xf2e0b0,4,.8); g.position.set(d.x,fl+.6,d.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); if(typeof shockRing==='function') shockRing(d.x,fl,d.z,3.2);
   if(n>1) floatText(d.x,fl+2,d.z,'×'+n,'#ffe08a'); return n; }
 // ---- every frame: a set trap springs on the first mob on its board; a sprung one creeps back up over its reset
-{ const prev=updateDefs; updateDefs=function(dt){ prev.apply(this,arguments); for(const d of defs){ if(d.kind!==K) continue; if(d.cd<=0&&enemies.some(e=>!e.dead&&!e.fly&&onBoard(d,e))) spring(d);
+{ const prev=updateDefs; updateDefs=function(dt){ prev.apply(this,arguments); for(const d of defs){ if(d.kind!==K) continue; if(d.cd<=0&&d.armT>0){ d.armT-=dt; if(d.armT<=0){ d.armed=true; cnt.arms=(cnt.arms||0)+1; try{ SFX.hit&&SFX.hit(); }catch(er){} const g=glow(0xfff0b0,2.2,.9); g.position.set(d.x,(d.base||0)+1.2,d.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); } }   /* reset, then the wait */
+      if(d.cd<=0&&!(d.armT>0)&&enemies.some(e=>!e.dead&&!e.fly&&onBoard(d,e))) spring(d);
       const bar=d.mdl&&d.mdl.userData.bar; if(!bar) continue; if(d.snapT>=0&&d.snapT<.12){ d.snapT+=dt; bar.rotation.z=OPEN*(1-Math.min(1,d.snapT/.12)); } else { if(d.snapT>=0) d.snapT=-1; const full=stat(d,'cd'), k=d.cd<=0?1:Math.max(0,1-d.cd/full); bar.rotation.z=OPEN*k; } } }; }
 window.__mousetrap={ kind:K, info:()=>Object.assign({},cnt), onBoard, spring, BOSSES };
 })();
