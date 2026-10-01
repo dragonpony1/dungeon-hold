@@ -53,7 +53,7 @@ check("...and that emptiness is already persisted in ddMeta",await page.evaluate
 check("lastCarry reports what went through (4 scrapped, none carried whole: nothing was locked)",JSON.stringify(await page.evaluate(()=>window.__hideout.lastCarry()))==='{"n":4,"counts":{"common":2,"uncommon":0,"rare":1,"epic":1,"legendary":0},"carried":[],"kept":0}',JSON.stringify(await page.evaluate(()=>window.__hideout.lastCarry())));
 
 const frameSrc=await page.evaluate(()=>document.getElementById('hideoutFrame')&&document.getElementById('hideoutFrame').src);
-check("the overlay is an iframe on hideout/index.html?embed=1 (same origin)",!!frameSrc&&frameSrc===BASE+"/hideout/index.html?embed=1",frameSrc);
+check("the overlay is an iframe on hideout/index.html?embed=1 (same origin; a new player's own hideout key rides along, build 377)",!!frameSrc&&(frameSrc===BASE+"/hideout/index.html?embed=1"||/^\S+\/hideout\/index\.html\?embed=1&hk=h-[a-z0-9]{10}$/.test(frameSrc||"")),frameSrc);
 const frame=await frameOf(page,'hideout/index.html');
 check("the hideout frame exists",!!frame);
 if(frame){

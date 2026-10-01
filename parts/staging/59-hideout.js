@@ -37,6 +37,20 @@ const HIDEOUT_URL='hideout/index.html';
 const HIDEOUT_WORKER='https://dungeon-hold.52bulls.workers.dev';   // where the hideout's shared-gear Durable Object lives; its Worker allows CORS from dragonpony1.github.io
 const HIDEOUT_API=Q.get('hideoutapi')||(location.hostname==='dragonpony1.github.io'||location.hostname==='rootgate.52bulls.workers.dev'?HIDEOUT_WORKER:'');   // build 307: the game's own Cloudflare site too   // the API base handed to the derived page: the Worker from GitHub Pages, same-origin everywhere else (the Worker's own deployment, local tests)
 const HIDEOUT_NAV=Q.has('hideoutnav')?(Q.get('hideoutnav')||'/hideout.html'):null;   // full-page navigation instead of the overlay (see the header)
+// ---- build 377 (Matt: "the whole point of being co-op is that you can go in and share space together ... of course you should have your own hideout if you're playing single player by yourself, but not when you're playing with somebody else"):
+// the hideout's gear on display lives in ONE server table per hideout KEY (the Worker's /api/hideout/k/<key>/...). Before this there was a single table for every player alive, so a friend's hideout was yours and what he moved moved in yours.
+//   - playing alone (or hosting) you open YOUR OWN key; a guest visiting a host's hideout is sent the HOST's key (the host puts it in its world snapshot, 99-network.js), so everyone in a co-op visit stands in the one room and sees the one table
+//   - the key is kept in localStorage ddHideoutKey. Nothing breaks for anyone who already keeps a hideout: with no key yet and a hideout save on this device, the key is 'main' (the original table, so Matt's gear is where he left it);
+//     a brand-new player gets a private random one. Open the game once with ?hideoutkey=new to be given a private table (a friend who had been using 'main'), or ?hideoutkey=<4-64 letters/digits> to choose one
+const KEY_RE=/^[A-Za-z0-9_-]{4,64}$/, HKEY='ddHideoutKey';
+function randomKey(){ let k='h-'; const a=new Uint8Array(10); try{ crypto.getRandomValues(a); }catch(e){ for(let i=0;i<10;i++) a[i]=Math.floor(Math.random()*256); } for(const b of a) k+=(b%36).toString(36); return k; }
+function ownHideoutKey(){ try{ const q=Q.get('hideoutkey'); let k=localStorage.getItem(HKEY); if(k&&!KEY_RE.test(k)) k=null;
+    if(q&&(q==='new'?!k||k==='main':KEY_RE.test(q))){ k=q==='new'?randomKey():q; localStorage.setItem(HKEY,k); }
+    if(k) return k;
+    if(localStorage.getItem('dd_hideout_save_v2')) return 'main';   /* already keeps a hideout, no key chosen: the original table */
+    k=randomKey(); localStorage.setItem(HKEY,k); return k; }catch(e){ return 'main'; } }
+function hideoutKey(){ const role=window.__net&&window.__net.role?window.__net.role():null; if(role==='guest'){ const w=window.__net.world&&window.__net.world(); return (w&&typeof w.hk==='string'&&KEY_RE.test(w.hk))?w.hk:'main'; }   /* a guest stands in the HOST's hideout (an older host sends none: it only ever had the one table) */ return ownHideoutKey(); }
+const hkParam=()=>{ const k=hideoutKey(); return k==='main'?'':'&hk='+encodeURIComponent(k); };   // 'main' is the original path: nothing is sent, so the request is exactly what it always was
 const BAG_KEY='dd_gear_bag';
 const CARRY_KEY='dd_gear_carried';   // whole items (locked pieces), see the header
 const RARITY_KEY=['common','uncommon','rare','epic','legendary'];   // RNAME, lower-cased, by the game's own numeric rarity 0..4
@@ -64,7 +78,7 @@ function makeFrame(){ if(frame) return frame;
   wrap=document.createElement('div'); wrap.id='hideoutWrap'; wrap.style.cssText='position:fixed;inset:0;z-index:20;background:#000;visibility:hidden;'; wrap.inert=true;   /* hidden AND inert: the kept frame must never hold focus or keys while the hall is in charge */
   frame=document.createElement('iframe'); frame.id='hideoutFrame';
   const coopRole=window.__net&&window.__net.role?window.__net.role():null;   // build 234: the hideout page learns whether this is a co-op visit (and as whom) from its address
-  frame.src=HIDEOUT_URL+'?embed=1'+(coopRole?'&coop='+coopRole:'')+(HIDEOUT_API?'&api='+encodeURIComponent(HIDEOUT_API):'');
+  frame.src=HIDEOUT_URL+'?embed=1'+(coopRole?'&coop='+coopRole:'')+(HIDEOUT_API?'&api='+encodeURIComponent(HIDEOUT_API):'')+hkParam();
   frame.setAttribute('allow','fullscreen');   /* pointer lock needs no allow entry in a same-origin frame, and 'pointer-lock' is not a feature name Chrome knows (it logged an error) */ frame.style.cssText='width:100%;height:100%;border:0;display:block;';
   frame.addEventListener('load',()=>{ loaded=true; if(!shown) post('hideout:hide'); });   // a frame made ahead of the visit starts hidden the moment its page can listen
   wrap.appendChild(frame); document.body.appendChild(wrap); return frame; }
@@ -107,5 +121,5 @@ function passThrough(){ go(SCRAP_AT_DOOR); }
 setInterval(()=>{ const ph=hallPhase(); if(shown&&ph!=='build'&&ph!=='start') closeHideout(ph==='wave'?'The horn sounds — back to the hall!':null);
   if(hideoutLite()&&frame&&!shown) teardown();   /* a page that turned lite after a frame was kept (it hosted or joined after a solo start): the kept frame goes now */
   if(!frame&&preloadT===null&&(S.phase==='build'||S.phase==='start')&&window.__loadtime&&window.__loadtime().all!==null) preloadT=setTimeout(preload,1500);   /* build 307 (Matt: "the waiting isn't good"): the title screen too, once the game's own loads are all in, so a first trip from the title's HIDEOUT button is ready as well */ },250);   // build 142: only once the hall's own loads are all in (the load timer's 'everything'), so its ~33 MB never competes with a map still streaming -- map two needs ~109 MB of its own   // the first build phase of a run: four seconds in (the hall's own priority loads have gone out by then), the hideout starts loading behind the hall
-window.__hideout={pass:()=>passThrough(),scrapAtDoor:v=>{ if(v!==undefined) SCRAP_AT_DOOR=!!v; return SCRAP_AT_DOOR; },hooks,frameWin:()=>frame?frame.contentWindow:null,lite:hideoutLite,isOpen:()=>shown,open:openHideout,close:()=>closeHideout(),near:portalNear,url:()=>frame?frame.src:null,opens:()=>opens,preloaded:()=>!!frame&&!shown,loaded:()=>loaded,preload,passThrough,carry:carryGear,lastCarry:()=>lastCarry,readBag,readCarried,BAG_KEY,CARRY_KEY,build:()=>HIDEOUT_BUILD};
+window.__hideout={key:hideoutKey,ownKey:ownHideoutKey,pass:()=>passThrough(),scrapAtDoor:v=>{ if(v!==undefined) SCRAP_AT_DOOR=!!v; return SCRAP_AT_DOOR; },hooks,frameWin:()=>frame?frame.contentWindow:null,lite:hideoutLite,isOpen:()=>shown,open:openHideout,close:()=>closeHideout(),near:portalNear,url:()=>frame?frame.src:null,opens:()=>opens,preloaded:()=>!!frame&&!shown,loaded:()=>loaded,preload,passThrough,carry:carryGear,lastCarry:()=>lastCarry,readBag,readCarried,BAG_KEY,CARRY_KEY,build:()=>HIDEOUT_BUILD};
 })();

@@ -41,12 +41,14 @@ function embedHideout(h){
   if(!(h.match(/["']\/(assets|vendor)\//g)||[]).length) throw new Error("hideout: no site-root asset/vendor paths found -- upstream layout changed?");
   h=h.replace(/(["'])\/(assets|vendor)\//g,"$1$2/");
   if(!(h.match(/fetch\('\/api\/hideout\//g)||[]).length) throw new Error("hideout: no /api/hideout/ fetches found -- upstream layout changed?");
-  h=h.replace(/fetch\('\/api\/hideout\//g,"fetch(HIDEOUT_API_BASE+'/api/hideout/");
+  h=h.replace(/fetch\('\/api\/hideout\//g,"fetch(HIDEOUT_API_BASE+HIDEOUT_API_PATH+'");   // game build 377: HIDEOUT_API_PATH is '/api/hideout/' or, with a hideout key (?hk=), '/api/hideout/k/<key>/' -- whose gear table this is
   const exit="window.location.href = '/';"; if(h.split(exit).length!==2) throw new Error("hideout: the portal's exit ("+exit+") not found exactly once -- upstream changed?");
   h=h.replace(exit,"hideoutLeave();");
   const prelude="<script>/* injected by assemble.mjs (embedHideout) -- not part of the upstream hideout page */\n"
    +"const HIDEOUT_EMBEDDED=window.parent!==window;\n"
    +"const HIDEOUT_API_BASE=(new URLSearchParams(location.search).get('api')||'').replace(/\\/$/,'');\n"
+   +"const HIDEOUT_KEY=(new URLSearchParams(location.search).get('hk')||'');   /* build 377: whose hideout this is (59-hideout.js hideoutKey) */\n"
+   +"const HIDEOUT_API_PATH='/api/hideout/'+(/^[A-Za-z0-9_-]{4,64}$/.test(HIDEOUT_KEY)?'k/'+HIDEOUT_KEY+'/':'');\n"
    +"function hideoutLeave(){ if(HIDEOUT_EMBEDDED){ if(document.pointerLockElement) document.exitPointerLock(); window.parent.postMessage({type:'hideout:exit'},'*'); } else window.location.href='../'; }\n"
    +"if(HIDEOUT_EMBEDDED) addEventListener('DOMContentLoaded',()=>{ const s=document.getElementById('start'); if(!s) return; const b=document.createElement('button'); b.id='leaveBtn'; b.textContent='\\u2190 BACK TO THE HALL'; b.style.cssText='display:inline-block;margin-top:22px;cursor:pointer;font:bold 15px Georgia,serif;letter-spacing:1px;color:#fff;background:linear-gradient(#7a2a2e,#3e1416);border:2px solid #e8b94a;border-radius:8px;padding:10px 18px'; b.addEventListener('click',e=>{ e.stopPropagation(); hideoutLeave(); }); s.appendChild(document.createElement('br')); s.appendChild(b); });\n"
    +"</script>\n";
