@@ -15,7 +15,8 @@ const EGG_CD=2.5, OVER_CD=1, HATCH=1.6, BURST_R=2.6, EGG_TOWER=2.6, EGG_HERO=8, 
 const cnt={ spawned:0, eggs:0, bursts:0, towerHits:0, heroHits:0, crystalHits:0 };
 const ON=new Set(['throne','court','feast','moat','prison']);
 const howMany=w=>{ if(TUTORIAL) return 0; if(window.__finalstand&&window.__finalstand.isFinal&&window.__finalstand.isFinal(w)) return 0;
-  if(SURVIVAL) return w>=8?Math.min(4,1+((w-8)/10|0)):0;   /* Survival: after the map's own waves, every wave, slowly more (a wave never shrinks) */ if(!MAP||!ON.has(MAP.id)) return 0; const mw=w-(MAP.wbase|0); return mw<2?0:mw<4?1:mw<6?2:3; };
+  if(SURVIVAL) return w>=8?Math.min(4,1+((w-8)/10|0)):0;   /* Survival: after the map's own waves, every wave, slowly more (a wave never shrinks) */ if(!MAP||!ON.has(MAP.id)) return 0; const mw=w-(MAP.wbase|0); if(MAP.id==='prison') return [0,0,3,4,4,5,6][mw]||0;   /* build 425 (Matt: "add moths and wraiths to map 6 ... come in on wave 2 or 3"): the prison's waves are ~200 strong -- one moth was lost in them */
+  return mw<2?0:mw<4?1:mw<6?2:3; };
 // ---- the model, fetched once (the once-only guard every loader keeps)
 let loadP=null;
 function load(){ if(MOBGLB[K]) return Promise.resolve(); if(loadP) return loadP;

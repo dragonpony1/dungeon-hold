@@ -28,7 +28,8 @@ function load(){ if(MOBGLB[K]) return Promise.resolve(); if(loadP) return loadP;
 // ---- one to a wave, a third of the way in
 { const prev=waveComp; waveComp=function(w){ const c=prev.apply(this,arguments); if(!c||!Array.isArray(c.q)||!c.q.length||!wantsWave(w)) return c;
     const ts=c.q.map(x=>+x.t||0), t0=Math.min(...ts), t1=Math.max(...ts), lanes=Object.keys(LANES); const lane=c.q[(c.q.length/3)|0].lane||lanes[0];
-    const q=c.q.concat([{ t:+(t0+(t1-t0)/3).toFixed(2), kind:K, lane }]).sort((a,b)=>(+a.t||0)-(+b.t||0)); return Object.assign({},c,{ q }); }; }
+    const add=[{ t:+(t0+(t1-t0)/3).toFixed(2), kind:K, lane }]; if(!SURVIVAL&&MAP&&MAP.id==='prison'&&(w-(MAP.wbase|0))>=5){ const l2=c.q[(c.q.length*2/3)|0].lane||lane; add.push({ t:+(t0+(t1-t0)*2/3).toFixed(2), kind:K, lane:l2 }); }   /* build 425: two in the prison's fifth and sixth waves */
+    const q=c.q.concat(add).sort((a,b)=>(+a.t||0)-(+b.t||0)); return Object.assign({},c,{ q }); }; }
 // ---- the corner he hides in: the corner of the walkable ground furthest from the Heartroot
 let corner=null;
 function hideSpot(){ if(corner) return corner; let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9; for(let cz=0;cz<GH;cz++) for(let cx=0;cx<GW;cx++){ if(!walk(grid[idx(cx,cz)])) continue; const x=cw(cx), z=cwz(cz); if(x<x0) x0=x; if(x>x1) x1=x; if(z<z0) z0=z; if(z>z1) z1=z; }
