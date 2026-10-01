@@ -6,7 +6,7 @@
 // drop in later). Runs where the mobs are real (solo / the host); a co-op guest sees the pit and the held mobs, not the sinking (a puppet mob's look is the host's).
 (function(){
 if(TUTORIAL) return;
-DEFS.pit={name:'Pitfall',ic:'🕳',du:5,mana:80,hp:999999,top:.05,range:2.2,rangeUp:.3,arc:360,cd:7,dmg:14,hold:2.6,crush:5,bigFrac:.4};
+DEFS.pit={name:'Pitfall',ic:'🕳',du:5,mana:90,   /* build 387 (Matt: "sparky and pitfall max mana cost"): 80 -> 90, the most any defense costs (the Mycelium Cage's) */ hp:999999,top:.05,range:2.2,rangeUp:.3,arc:360,cd:7,dmg:14,hold:2.6,crush:5,bigFrac:.4};
 DEFKEYS.push('pit'); DEFKEY_LABELS.push('4');
 { const cfg=DEFS.pit; const s=document.createElement('div'); s.className='slot'; s.id='slot-pit';
   s.innerHTML='<div class="k">4</div><div class="ic">'+cfg.ic+'</div><div class="n">'+cfg.name+'</div><div class="cst">🌱 '+cfg.du+' · '+cfg.mana+' ◆</div>';

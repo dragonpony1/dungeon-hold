@@ -1,0 +1,27 @@
+// ===== THE MOUSE TRAP (build 387; parts/staging/96o-mousetrap.js). Matt: "the mouse trap doesn't take damage but it is slow and it kills everything caught in its rectangular footprint, low mana cost" / "sparky and pitfall max mana cost, mouse trap
+// lowest and slowest". Checked: the Gnome Knight's fourth tower; the cheapest defense and the slowest reset; three cells long, a quarter turn at a time; the horde walks over it; the first mob on it springs it and every mob on the board dies, one
+// beside the board lives, a boss loses a quarter of its health; it does nothing while it resets and springs again once it is set; nothing hurts it; flyers pass over; Sparky and the Pitfall cost the most.
+import { chromium } from "playwright"; import { serve } from "./serve.mjs";
+const server=await serve(8986,{dist:process.env.DIST||"./dist"});
+const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
+const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
+const page=await (await browser.newContext({viewport:{width:900,height:560}})).newPage(); page.on("pageerror",e=>errors.push(String(e)));
+await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); }catch(e){} });
+await page.goto("http://127.0.0.1:8986/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__mousetrap&&window.__heroes&&window.__dd.heroModel(),null,{timeout:120000});
+await page.evaluate(async()=>{ try{ window.__trainer.skip(); }catch(e){} const d=window.__dd; await window.__heroes.select('knight'); d.start(); d.step(1/60,5); window.__freeze=true; });
+const A=await page.evaluate(()=>{ const D=window.__dd.DEFS; const costs=Object.keys(D).filter(k=>k!=='perch').map(k=>[k,D[k].mana]);   /* the Archer's Perch is free by design: a stand, not a tower */ const min=Math.min(...costs.map(c=>c[1])), max=Math.max(...costs.map(c=>c[1])); const cds=Object.keys(D).filter(k=>D[k].cd).map(k=>[k,D[k].cd]); return { unlocks:window.__heroes.unlocks(), trap:D.trap.mana, min, max, sparky:D.shock.mana, pit:D.pit.mana, slowest:cds.sort((a,b)=>b[1]-a[1])[0][0] }; });
+check("the Mouse Trap is the Knight's fourth tower, the cheapest defense and the slowest to reset; Sparky and the Pitfall cost the most (90)",A.unlocks.join()==="harpoon,spike,totem,trap"&&A.trap===A.min&&A.slowest==='trap'&&A.sparky===A.max&&A.pit===A.max&&A.max===90,JSON.stringify(A));
+const B=await page.evaluate(()=>{ const d=window.__dd; for(const e of d.enemies) e.dead=e.dead||.001; d.S.mana=9999; d.S.du=0; d.S.phase='wave'; d.S.crystal=1e9; d.setHero(-14,12,0);
+  const t=d.placeDefAt('trap',0,-8,0.3); window.__trap=t; const gw=d.map().gw; const flowOk=t.cells.every(i=>d.flow().dist[i]>=0);
+  const mk=(dx,dz,kind)=>{ d.spawn(kind||'goblin','N'); const g=d.enemies[d.enemies.length-1]; g.hp=g.max=Math.max(g.max,100); g.spd=0; g.dmg=0; g.atk=1e9; g.x=t.x+dx; g.z=t.z+dz; return g; };
+  const on=[mk(-2.5,0),mk(0,.5),mk(2.6,-.4,'orc'),mk(1,0,'ogre')], off=mk(0,3.4), boss=mk(-1,0,'trollboss'); const bossMax=boss.max; boss.hp=bossMax;
+  d.step(1/60,2); return { rot:t.rot, cells:t.cells.length, flowOk, onDead:on.map(g=>!!g.dead), offAlive:!off.dead, bossHp:+(boss.hp/bossMax).toFixed(2), bossAlive:!boss.dead, cd:+t.cd.toFixed(1), springs:window.__mousetrap.info().springs }; });
+check("three cells long, set square to the grid; the horde's road runs straight over it",B.cells===3&&Math.abs(B.rot)<1e-9&&B.flowOk,JSON.stringify(B));
+check("a mob steps on it: it springs, every mob on the board dies (goblin, orc, ogre), the one beside the board lives, the boss loses a quarter of its health",B.springs===1&&B.onDead.every(Boolean)&&B.offAlive&&B.bossAlive&&B.bossHp===.75&&B.cd>14,JSON.stringify(B));
+const C=await page.evaluate(()=>{ const d=window.__dd, t=window.__trap; for(const e of d.enemies) if(!e.dead&&e.kind!=='trollboss') e.dead=.001; for(const e of d.enemies) if(e.kind==='trollboss') e.dead=.001; d.spawn('goblin','N'); const g=d.enemies[d.enemies.length-1]; g.spd=0; g.atk=1e9; g.x=t.x; g.z=t.z; for(let i=0;i<60*5;i++) d.step(1/60,1); const mid={ alive:!g.dead, springs:window.__mousetrap.info().springs };
+  for(let i=0;i<60*11;i++) d.step(1/60,1); return { mid, after:{ dead:!!g.dead, springs:window.__mousetrap.info().springs } }; });
+check("it is SLOW: while it resets a mob stands on it unharmed; once it is set again (15 s) it springs and kills it",C.mid.alive&&C.mid.springs===1&&C.after.dead&&C.after.springs===2,JSON.stringify(C));
+const D=await page.evaluate(()=>{ const d=window.__dd, t=window.__trap; const hp=t.hp; for(let i=0;i<5;i++) d.hurtDef?d.hurtDef(t,500):null; t.cd=0; d.spawn('drake','N'); const dr=d.enemies[d.enemies.length-1]; dr.spd=0; dr.x=t.x; dr.z=t.z; d.step(1/60,2); return { hp:t.hp===hp, alive:d.defs.includes(t), drake:!dr.dead }; });
+check("nothing hurts it, and a drake flies over it without springing it",D.hp&&D.alive&&D.drake,JSON.stringify(D));
+check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,3)));
+await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);

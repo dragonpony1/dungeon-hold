@@ -10,7 +10,7 @@
 'use strict';
 if(TUTORIAL) return;
 const K='shock';
-DEFS[K]={ name:'Electrifier', ic:'🗲', du:4, mana:75, hp:130, top:2.6, range:10, rangeUp:.6, arc:360, cd:2.2, dmg:9 };
+DEFS[K]={ name:'Electrifier', ic:'🗲', du:4, mana:90,   /* build 387 (Matt: "sparky and pitfall max mana cost"): 75 -> 90, the most any defense costs */  hp:130, top:2.6, range:10, rangeUp:.6, arc:360, cd:2.2, dmg:9 };
 DEF_H[K]=2.9; DEF_HITS_BACK[K]=1;
 DEFKEYS.push(K); DEFKEY_LABELS.push('4');
 { const cfg=DEFS[K]; const s=document.createElement('div'); s.className='slot'; s.id='slot-'+K; s.innerHTML='<div class="k">4</div><div class="ic">'+cfg.ic+'</div><div class="n">'+cfg.name+'</div><div class="cst">🌱 '+cfg.du+' · '+cfg.mana+' ◆</div>';
