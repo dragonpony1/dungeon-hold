@@ -652,10 +652,12 @@ const DEFS={
   frost:{name:'Frost Spire',ic:'❄',du:4,mana:60,hp:130,top:2.8,range:6,rangeUp:.8,arc:360,chill:.6,chillUp:.06,cd:.9,dmg:2},   // a cold tower: mobs in its ring crawl at 60% (6 points slower a mark) AND take a bite of cold every .9 s (build 150: 'they need to do cold/slowing damage'); the deepest cold wins, it never stacks                                       // a thorn wall that hurts attackers and regrows when left alone
   snare:{name:'Snare Tower',ic:'🕸',du:4,mana:65,hp:130,top:2.6,range:9,rangeUp:1,arc:360,cd:6,dmg:0},                    // a net-winch tower for flying mobs only: on cooldown it nets the nearest flyer in range and takes it off the field outright — no damage stat, it doesn't hurt what it doesn't catch
   // four elemental halo rings — flat glowing sigils on the floor, like the mushroom ring but each doing its own thing
-  zap:{name:'Storm Halo',ic:'⚡',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,cd:1.8,dmg:7},                     // electric: a burst on every mob in the ring at once, on a cooldown — a jolt, not a tick
-  venom:{name:'Venom Halo',ic:'☠',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,cd:.5,dmg:1.4,poisonDur:3},      // poison: a DOT that keeps ticking for a few seconds after a mob leaves the ring, unlike the others
-  ember:{name:'Ember Halo',ic:'🔥',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,cd:.5,dmg:2.2},                 // fire: burns everything standing in the ring, same tick pattern as the mushroom ring
+  zap:{name:'Storm Halo',ic:'⚡',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,cd:3.6,dmg:7},   // build 384 (Matt: "turn down the aura attacks speed"): the three damaging halos strike half as often (cd x2: Storm 1.8 -> 3.6, Venom and Ember .5 -> 1.0), the same blow each time
+                      // electric: a burst on every mob in the ring at once, on a cooldown — a jolt, not a tick
+  venom:{name:'Venom Halo',ic:'☠',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,cd:1.0,dmg:1.4,poisonDur:3},      // poison: a DOT that keeps ticking for a few seconds after a mob leaves the ring, unlike the others
+  ember:{name:'Ember Halo',ic:'🔥',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,cd:1.0,dmg:2.2},                 // fire: burns everything standing in the ring, same tick pattern as the mushroom ring
   dazzle:{name:'Dazzling Halo',ic:'🌀',du:4,mana:65,hp:120,top:.08,range:5,rangeUp:.8,arc:360,confuseDur:1.2}};           // confusion: no damage — a mob in the ring wanders instead of advancing, for as long as it stays in range plus a little after
+const DAZZLE_ONCE=2.5;
 const DEFKEYS=['harpoon','acorn','ball','slice','spike','totem','frost','snare','zap','venom','ember','dazzle']; const DEFKEY_LABELS=['1','2','3','4','5','6','7','8','9','0','-','='];
 // build 177 (Matt: "add more upgrades but just like chevrons once its a level 4" / "shouldn't need to get to 10 upgrades"): a tower
 // now climbs to Mark VII. MAXLVL is the one knob -- the roman names, the upgrade toast, the card and the chevrons all follow it.
@@ -767,7 +769,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=383;
+const BUILD=384;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1208,7 +1210,7 @@ function updateDefs(dt){ const trampled=[];
     else if(d.kind==='zap'||d.kind==='venom'||d.kind==='ember'||d.kind==='dazzle'){ const rr=stat(d,'range'); const near=[]; for(const e of enemies){ if(!e.dead&&!e.fly&&Math.hypot(e.x-d.x,e.z-d.z)<rr+e.r*.5) near.push(e); }
       const col=d.kind==='zap'?0x7fd8ff:d.kind==='venom'?0x8ef05a:d.kind==='ember'?0xff6a2a:0xffd060;
       auraRing(d,rr,col,near.length,s);
-      if(d.kind==='dazzle'){ for(const e of near) e.confuseT=Math.max(e.confuseT||0,stat(d,'confuseDur')); }   /* build 182: routed through stat() (its own fallback already returned cfg.confuseDur unchanged) so a Halo Surge can double it same as dmg/poisonDur, below */
+      if(d.kind==='dazzle'){ for(const e of near){ if(e.dazzled) continue; e.dazzled=true; e.confuseT=Math.max(e.confuseT||0,stat(d,'confuseDur')*DAZZLE_ONCE); } }   /* build 384 (Matt: "when a mob is attacked by the dazzling aura it can only be affected once"): one dose a mob, ever -- the first ring it walks into dazes it for DAZZLE_ONCE times the halo's own confusion (1.2 s -> 3 s), then it is immune to every dazzling halo */   /* build 182: routed through stat() (its own fallback already returned cfg.confuseDur unchanged) so a Halo Surge can double it same as dmg/poisonDur, below */
       else if(d.kind==='venom'){ if(near.length&&d.cd<=0){ d.cd=stat(d,'cd'); for(const e of near){ e.poisonT=stat(d,'poisonDur'); e.poisonDmg=stat(d,'dmg'); } } }   /* build 182: same stat() routing as confuseDur above */
       else if(near.length&&d.cd<=0){ d.cd=stat(d,'cd'); for(const e of near) hurt(e,stat(d,'dmg'),0,0); SFX.hit(); } } }
   for(const d of trampled){ removeDef(d); SFX.destroy(); toast(DEFS[d.kind].name+' trampled flat!'); }

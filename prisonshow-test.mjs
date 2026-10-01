@@ -6,7 +6,7 @@ import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 const server=await serve(8997,{dist:process.env.DIST||"./dist"});
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
+const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader","--autoplay-policy=no-user-gesture-required"]}); const errors=[];
 async function open(q){ const page=await (await browser.newContext({viewport:{width:900,height:560}})).newPage(); page.on("pageerror",e=>errors.push(String(e))); page.on("console",m=>{ if(m.type()==='warning'&&/mortar|show|prison/i.test(m.text())) errors.push("warn: "+m.text().slice(0,160)); });
   await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); }catch(e){} });
   await page.goto("http://127.0.0.1:8997/?silent&nogate&map=5"+(q||""),{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__mortarshow&&window.__mortarshow.times&&window.__prisonwalls&&window.__prisonwalls.mounts&&window.__blight&&window.__dd.map().id==='prison',null,{timeout:120000}); await sleep(5000);
@@ -47,5 +47,16 @@ const breakFirst=page=>page.evaluate(()=>{ const w=window.__prisonwalls.raw().fi
 { const page=await open('&noshow'); await breakFirst(page); const N=await page.evaluate(()=>{ const d=window.__dd; for(let i=0;i<60*3;i++){ d.step(1/60,1); d.S.crystal=1e9; } return window.__mortarshow.info().starts; }); check("with ?noshow the door just opens (no show: the older tests rely on it)",N===0,String(N)); await page.context().close(); }
 { const page=await open(); await page.evaluate(()=>{ window.__net.role=()=>'host'; }); await breakFirst(page); const C=await page.evaluate(()=>{ const d=window.__dd; for(let i=0;i<60*3;i++){ d.step(1/60,1); d.S.crystal=1e9; } return { starts:window.__mortarshow.info().starts, mounts:window.__prisonwalls.mounts().length }; }); check("in a co-op hall there is no cutscene (the door just opens and its mortar rolls out as before)",C.starts===0&&C.mounts===1,JSON.stringify(C)); await page.context().close(); }
 { const page=await open(); await breakFirst(page); await page.evaluate(()=>{ const d=window.__dd; for(let i=0;i<60*30;i++){ d.step(1/60,1); d.S.crystal=1e9; } }); const R=await page.evaluate(()=>{ const sp=window.__prisonwalls.raw()[0].spot; const again=window.__mortarshow.onBreak(sp); return { again, starts:window.__mortarshow.info().starts, active:window.__mortarshow.info().active }; }); check("it plays once a run: after the one show a further break starts nothing",R.again===false&&R.starts===1&&!R.active,JSON.stringify(R)); await page.context().close(); }
+// ================= Matt's music (build 384): his Power-Up track from its 7-second mark, the wall's music ducked under it =================
+{ const ctx=await browser.newContext({viewport:{width:900,height:560}}); await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","on"); localStorage.setItem("ddMusic","on"); }catch(e){} });
+  const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
+  await page.goto("http://127.0.0.1:8997/?nogate&map=5",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__mortarshow&&window.__mortarshow.music&&window.__prisonwalls&&window.__prisonwalls.mounts&&window.__dd.map().id==='prison',null,{timeout:120000});
+  await page.mouse.click(400,300); await sleep(500);
+  const loaded=await page.evaluate(async()=>{ const b=await window.__mortarshow.loadMusic(); return b?+b.duration.toFixed(0):null; });
+  await page.evaluate(()=>{ try{ window.__trainer.skip(); }catch(e){} const d=window.__dd; d.start(); d.step(1/60,5); window.__freeze=true; d.S.crystal=1e9; d.S.phase='wave'; window.__mortarwake.wake(); const w=window.__prisonwalls.raw().find(q=>!q.broken); w.locked=false; w.hit(1e9,new window.THREE.Vector3(w.spot.cx0,2,w.spot.cz0),new window.THREE.Vector3(0,0,-1)); });
+  const M1=await page.evaluate(()=>{ const d=window.__dd; for(let i=0;i<60;i++){ d.step(1/60,1); d.S.crystal=1e9; } return window.__mortarshow.music(); });
+  const M2=await page.evaluate(()=>{ const d=window.__dd; window.__mortarshow.skip(); for(let i=0;i<30;i++) d.step(1/60,1); return window.__mortarshow.music(); });
+  check("the show plays Matt's track (185 s, from its 7-second mark) and lets it go when it ends",loaded>=180&&M1.loaded&&M1.playing&&M1.played===1&&M1.offset===7&&!M2.playing,JSON.stringify({ loaded, M1, M2 }));
+  await ctx.close(); }
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
