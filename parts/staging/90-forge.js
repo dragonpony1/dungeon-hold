@@ -14,12 +14,17 @@ function upMax(it){ if(it&&it.named==='trimaw') return 400; /* Matt: "give it hi
 function upUsed(it){ return it.up|0; }
 function upLeft(it){ return Math.max(0,upMax(it)-upUsed(it)); }
 function upCost(it){ return Math.max(1,Math.round((3+2*(it.rarity|0))*(1+.06*upUsed(it))*(1+.1*((it.tier||tierOf(it.lvl||1))-1)))); }
+function upCostK(it,k){ const c=upCost(it); if(k!=='fproj') return c; const n=((it.ups&&it.ups.fproj)|0)+1; return c*(FPROJ_COST_K[Math.min(n,5)]||1); }   /* build 410 */
 function upKeys(it){ return UPKEYS[it.slot]||[]; }
-function capOf(it,k){ const c=UPCAP[k]; if(Array.isArray(c)) return c[clamp(it.rarity|0,0,5)]; return c===undefined?Infinity:c; }
+// build 410 (Matt: "we should allow a few mythic set pets to get up to 5 projectiles, more and more expenditure"): a MYTHIC pet that belongs to a SET takes up to 5 projectile points (every other pet keeps the
+// rarity table above), and those last ones cost more and more: the 4th x5 the going rate, the 5th x12 (the 1st-3rd as ever).
+const FPROJ_SET_CAP=5, FPROJ_COST_K=[1,1,1,1,5,12];   /* by the projectile point being bought (1st..5th) */
+const setPet=it=>!!(it&&it.slot==='familiar'&&(it.rarity|0)>=5&&Meta.sets&&Meta.sets.setOf&&Meta.sets.setOf(it));
+function capOf(it,k){ if(k==='fproj'&&setPet(it)) return FPROJ_SET_CAP; const c=UPCAP[k]; if(Array.isArray(c)) return c[clamp(it.rarity|0,0,5)]; return c===undefined?Infinity:c; }
 function canUp(it,k){ if(!it) return {ok:false,why:'nothing there'}; if(!upKeys(it).includes(k)) return {ok:false,why:'not on this item'}; if(upLeft(it)<=0) return {ok:false,why:'fully upgraded'};
-  if(k==='fproj'){ if(((it.ups&&it.ups.fproj)|0)>=capOf(it,k)) return {ok:false,why:capOf(it,k)?'max projectiles for '+RNAME[it.rarity]:'needs an Uncommon or better pet'}; }
+  if(k==='fproj'){ if(((it.ups&&it.ups.fproj)|0)>=capOf(it,k)) return {ok:false,why:capOf(it,k)?'max projectiles for '+RNAME[it.rarity]+(setPet(it)||(it.rarity|0)<5?'':' (a mythic SET pet takes 5)'):'needs an Uncommon or better pet'}; }
   else if((it.stats[k]||0)+UPINC[k]>capOf(it,k)+1e-9) return {ok:false,why:'at the cap'};
-  const c=upCost(it); if(Meta.gold()<c) return {ok:false,why:'need '+Meta.fmtG(c-Meta.gold())+' more gold',cost:c}; return {ok:true,why:'',cost:c}; }
+  const c=upCostK(it,k); if(Meta.gold()<c) return {ok:false,why:'need '+Meta.fmtG(c-Meta.gold())+' more gold',cost:c}; return {ok:true,why:'',cost:c}; }
 function findItem(ref){ if(ref&&typeof ref==='object') return ref; for(const s of SLOTS){ if(gear[s]&&gear[s].id===ref) return gear[s]; } return Meta.bag().find(b=>b.id===ref)||Meta.stock().find(b=>b.id===ref)||null; }
 function rescore(it){ let sc=0; for(const k in it.stats) sc+=(it.stats[k]||0)*(STATW[k]||1); it.score=Math.round(sc*10)/10; }
 function upgrade(ref,k,n){ const it=findItem(ref); if(!it) return 0; n=Math.max(1,n|0); let done=0;
@@ -30,6 +35,6 @@ function sane(it){ if(!it||!it.stats) return; it.up=clamp(Math.floor(+it.up||0),
 for(const s of SLOTS) if(gear[s]) sane(gear[s]); Meta.bag().forEach(sane); Meta.stock().forEach(sane);
 // the stat line everywhere (bag, shop, sheet, toasts) says its upgrades out of the allowance (Common 50 … Legendary 200)
 const statStrForge=statStr; statStr=function(it){ const s=statStrForge(it); return (it&&it.stats)?s+' · ⬆ '+upUsed(it)+'/'+upMax(it):s; };   // every card says how far it can go, even before the first point
-const forge={max:upMax,used:upUsed,left:upLeft,cost:upCost,keys:upKeys,can:canUp,upgrade,inc:UPINC,cap:capOf,label:k=>UPLBL[k]||k,fmt:(k,v)=>(UPFMT[k]||(x=>x))(v),find:findItem,defStat:(d,k)=>stat(d,k)};
+const forge={costFor:upCostK,setPet,max:upMax,used:upUsed,left:upLeft,cost:upCost,keys:upKeys,can:canUp,upgrade,inc:UPINC,cap:capOf,label:k=>UPLBL[k]||k,fmt:(k,v)=>(UPFMT[k]||(x=>x))(v),find:findItem,defStat:(d,k)=>stat(d,k)};
 Meta.forge=forge; window.__forge=forge;
 })();

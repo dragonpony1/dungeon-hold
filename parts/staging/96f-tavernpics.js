@@ -69,7 +69,7 @@ function forgeHtml(it){ const f=F(); if(!f||!it||!it.stats) return ''; const u=f
   for(const k of f.keys(it)){ const c=f.can(it,k), v=it.stats[k]||0, pts=(it.ups&&it.ups[k])|0; const btn=(n,lab)=>'<button class="tv-btn'+(n===1?' hot':'')+'" data-act="tvup" data-id="'+it.id+'" data-key="'+k+'" data-n="'+n+'"'+(c.ok?'':' disabled')+' title="'+esc(c.ok?words(k)+': +'+n+' upgrade'+(n>1?'s':''):c.why)+'">'+lab+'</button>';
     const blocked=!c.ok&&c.why!=='' && !/gold/.test(c.why);
     h+='<div class="tvf-t'+(pts?' on':'')+'" title="'+esc(words(k))+(pts?' · '+pts+' put in':'')+'"><div class="i">'+ic(k)+'</div><div class="v'+(v?'':' z')+'">'+(v?esc(val(k,v)):'—')+'</div><div class="p">+'+f.inc[k]+' each</div>'+
-      (left&&!blocked?'<div class="b">'+btn(1,'+1 · ● '+Meta.fmtG(cost))+btn(5,'+5')+'</div>':'<div class="lk" title="'+esc(c.why)+'">'+(left?'🔒':'★')+'</div>')+'</div>'; }
+      (left&&!blocked?'<div class="b">'+btn(1,'+1 · ● '+Meta.fmtG(f.costFor?f.costFor(it,k):cost))+btn(5,'+5')+'</div>':'<div class="lk" title="'+esc(c.why)+'">'+(left?'🔒':'★')+'</div>')+'</div>'; }
   return h+'</div>'+(left&&gold<cost?'<div class="dm" style="margin-top:6px;color:#ff9a7a">● '+Meta.fmtG(cost-gold)+' more gold for the next one</div>':'')+'</div>'; }
 { const prev=tvRenderDetail; tvRenderDetail=function(){ prev(); const s=TV.sel, el=$('tv-detail'); if(el) el.classList.remove('tvf-on'); if(!s||!el||el.classList.contains('hide')||(s.from!=='eq'&&s.from!=='bag')) return;
     const it=s.from==='eq'?gear[s.slot]:Meta.bag().find(b=>b.id===s.id); if(!it) return; el.classList.add('tvf-on'); const db=el.querySelector('.db'); if(!db) return; db.insertAdjacentHTML('beforebegin',forgeHtml(it));
