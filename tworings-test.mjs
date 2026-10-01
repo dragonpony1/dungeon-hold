@@ -30,5 +30,7 @@ const E=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta, R=window
 check("it is saved with your gear; take the ring off and the 2nd pet goes back to the bag",E.saved&&!E.ringOn&&E.back,JSON.stringify(E));
 await page.evaluate(()=>{ const d=window.__dd; d.S.phase='build'; window.__tworings.dropRing('beast_mode'); window.__tworings.dropRing('malamute'); for(let i=0;i<30;i++) d.step(1/60,1); }); await new Promise(r=>setTimeout(r,2500));
 check("dropped, Beast Mode and Malamute stand on the floor as Matt's own 3D rings (builds 427, 429)",reqs.some(u=>/named-beast_mode/.test(u))&&reqs.some(u=>/named-malamute/.test(u)),JSON.stringify(reqs.filter(u=>/named-/.test(u)).map(u=>u.split('/').pop())));
+const ART=await page.evaluate(async()=>{ const it=window.__tworings.dropRing('malamute'), it2=window.__tworings.dropRing('beast_mode'); const st=async u=>u?(await fetch(u)).status:0; return { m:it&&it.art, b:it2&&it2.art, ms:await st(it&&it.art), bs:await st(it2&&it2.art) }; });
+check("each ring carries Matt's own picture for its card (build 430)",/malamute.jpg$/.test(ART.m||'')&&/beast_mode.jpg$/.test(ART.b||'')&&ART.ms===200&&ART.bs===200,JSON.stringify(ART));
 check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);

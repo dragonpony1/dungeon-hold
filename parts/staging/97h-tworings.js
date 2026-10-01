@@ -25,7 +25,9 @@ function secondPass(dt){ const f2=ringOn()?gear.familiar2:null; if(!f2&&!fam2) r
   try{ famUpdate(dt); } catch(e){ console.warn('second familiar',e); } finally { fam2=fam; fam=f1; gear.familiar=g1; gear.familiar2=g2; FAM_SIDE=1; FAM_PASS2=false; } }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); tick(); secondPass(dt); }; }
 // ---- the ring off: the 2nd familiar back to the bag
-function tick(){ const f=gear.familiar2; if(!f||ringOn()) return; if(Meta.giveItem&&Meta.giveItem(f)){ gear.familiar2=null; cnt.returned++; saveGear(); try{ applyGear(); }catch(e){} toast('🦉 Your 2nd familiar went back to your bag'); } }
+// build 430: a ring dropped before its picture existed gets it now (Matt's thumbnails: named/beast_mode.jpg, named/malamute.jpg)
+let artDone=false; function fillArt(){ if(artDone) return; const A=window.__mythicDrops&&window.__mythicDrops.art; if(!A) return; artDone=true; const all=[gear.charm].concat(Meta.bag(),Meta.armory?Meta.armory():[]); for(const it of all){ if(it&&it.named&&RING_SET.has(it.named)&&!it.art){ const p=A(it); if(p) it.art=p; } } }
+function tick(){ fillArt(); const f=gear.familiar2; if(!f||ringOn()) return; if(Meta.giveItem&&Meta.giveItem(f)){ gear.familiar2=null; cnt.returned++; saveGear(); try{ applyGear(); }catch(e){} toast('🦉 Your 2nd familiar went back to your bag'); } }
 // ---- equip / unequip the 2nd
 function equip2(id){ if(!ringOn()) return false; const bag=Meta.bag(); const i=bag.findIndex(b=>b.id===id); if(i<0||bag[i].slot!=='familiar') return false; const it=bag.splice(i,1)[0]; const old=gear.familiar2; gear.familiar2=it; if(old) bag.push(old);
   saveGear(); Meta.save&&Meta.save(); try{ applyGear(); }catch(e){} return true; }
