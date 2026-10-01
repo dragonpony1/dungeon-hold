@@ -76,6 +76,8 @@ function sellItem(id){ const i=bagIdx(id); if(i<0||st.bag[i].locked) return 0; c
 // junk = not an upgrade: scores below what is worn in that slot, or a Common that does not beat it. With nothing worn it is the only thing the player could wear, and a Common that beats the worn item is an upgrade, never junk
 function isJunk(it){ if(it.locked) return false; const eq=gear[it.slot]; if(!eq||eq.id===it.id) return false; return it.score<eq.score||(it.rarity===0&&it.score<=eq.score); }
 function sellJunk(){ let n=0, g=0; for(let i=st.bag.length-1;i>=0;i--){ const it=st.bag[i]; if(isJunk(it)){ st.bag.splice(i,1); g+=it.value; n++; } } if(n){ addGold(g,'sell'); SFX.mana(); } return {n,gold:g}; }
+// build 382 (Matt: "sell all button, which includes all unlocked regardless"): EVERY unlocked piece in the bag, whatever its rarity and whether or not it beats what is worn -- only a locked piece stays. (What is worn is not in the bag.) Pressed on purpose, with a second tap to confirm in the tavern's bag (20-tavern.js).
+function sellAll(){ let n=0, g=0; for(let i=st.bag.length-1;i>=0;i--){ const it=st.bag[i]; if(it.locked) continue; st.bag.splice(i,1); g+=it.value; n++; } if(n){ addGold(g,'sell'); SFX.mana(); } return {n,gold:g}; }
 function equip(id){ const i=bagIdx(id); if(i<0) return false; if(st.bag[i].named){ const on=SLOTS.filter(s=>gear[s]&&gear[s].named&&s!==st.bag[i].slot).length; if(on>=2){ toast('Two named mythics at once is the limit'); return false; } }   /* build 152: Matt's rule */ const it=st.bag.splice(i,1)[0], old=gear[it.slot]; gear[it.slot]=it; if(old) st.bag.push(old); applyGear(); saveGear(); saveMeta(); SFX.loot(it.rarity); return true; }
 function unequip(slot){ const it=gear[slot]; if(!it) return false; if(bagFull()){ toast('Bag is full'); return false; } gear[slot]=null; st.bag.push(it); applyGear(); saveGear(); saveMeta(); return true; }
 // ---- shop ----
@@ -129,7 +131,7 @@ Object.assign(Meta,{
   BAG_CAP, XP, SKILLS, SKILL_MAX, xpToNext, fmtG, isJunk, bagKey,
   gold:()=>st.gold, addGold, level:()=>st.level, setLevel, xp:()=>st.xp, points, spentPoints, canRespec, respecCost, respec, spend,
   skill:id=>st.skills[id]||0, skills:()=>Object.assign({},st.skills), skillValue:id=>{ const s=SKILLS.find(s=>s.id===id); return s?s.fmt(s.per*st.skills[id]):''; },
-  bag:()=>st.bag, sortedBag, bagSort:()=>bagSort, setBagSort, BAG_SORTS, toggleLock, isLocked:id=>{ const i=bagIdx(id); return i>=0&&!!st.bag[i].locked; }, bagFull, holdsOnFloor, sell:sellItem, sellJunk, equip, unequip,
+  bag:()=>st.bag, sortedBag, bagSort:()=>bagSort, setBagSort, BAG_SORTS, toggleLock, isLocked:id=>{ const i=bagIdx(id); return i>=0&&!!st.bag[i].locked; }, bagFull, holdsOnFloor, sell:sellItem, sellJunk, sellAll, equip, unequip,
   stock:()=>st.stock, stockTier:()=>st.stockTier, tierLine, restockCost, restock, buyPrice, canBuy, buy,
   best:()=>st.best, runs:()=>st.runs, summary, version:()=>metaVer, save:saveMeta,
   state:()=>JSON.parse(JSON.stringify(st)), reset:metaReset, addXP, giveGold:n=>addGold(n,'refund'), giveItem:it=>bagItem(it,'give') });

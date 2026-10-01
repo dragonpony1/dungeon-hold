@@ -10,7 +10,7 @@ window.__mortarwake={ info:()=>null };
 if(!MAP||MAP.id!=='prison') return;
 const PW=window.__prisonwalls; if(!PW||!PW.raw) return;
 const inCoop=()=>{ try{ return !!(window.__net&&window.__net.role&&window.__net.role()); }catch(er){ return false; } };
-const CARD_T=9;
+const PROMPT_T=30;   // build 382 (Matt: "light the walls faintly and save the tooltip until about 30 seconds in, remove with enter"): the wall's fall only lights the two rooms FAINTLY (the glow, nothing else); 30 seconds into it the whole prompt comes -- the big hot glow, the pillars of light, the horn, the arrows and the picture card -- and the card stays until Enter (or a wall breaks)
 const AW={ awake:false, t:0, arrows:new Map(), pillars:new Map(), card:null, wakes:0 };
 const policyLock=()=>!(SURVIVAL||inCoop()||S.wave>6);
 const fx=[];
@@ -37,20 +37,22 @@ function placeArrow(w,a,t){ const sp=w.spot, W=innerWidth, H=innerHeight; V.set(
   else { let dx=V.x, dy=-V.y; if(!front){ dx=-dx; dy=-dy; } if(Math.hypot(dx,dy)<.001){ dx=0; dy=1; } const an=Math.atan2(dy,dx), Rr=Math.min(W,H)*.4+Math.sin(t*5)*6; px=W/2+Math.cos(an)*Rr*(W/H>1.2?1.35:1); py=H/2+Math.sin(an)*Rr; rot=an+PI/2; }
   a.style.display='block'; a.style.transform='translate('+(px-20)+'px,'+(py-26)+'px) rotate('+rot+'rad)'; }
 // ---- waking and locking
-function wake(){ if(AW.awake) return false; AW.awake=true; AW.t=0; AW.wakes++; for(const w of PW.raw()){ if(w.broken) continue; w.locked=false; w.awake=true; makePillar(w); flashAt(w); }
-  camShake=Math.max(camShake,.55); try{ SFX.boom&&SFX.boom(); SFX.horn&&SFX.horn(); }catch(er){} showCard(); return true; }
+function wake(){ if(AW.awake) return false; AW.awake=true; AW.hinted=false; AW.t=0; AW.wakes++; for(const w of PW.raw()){ if(w.broken) continue; w.locked=false; w.awake=false; w.faint=true; } return true; }   // lit faintly; the prompt waits (hint, below)
+function hint(){ if(AW.hinted) return; AW.hinted=true; for(const w of PW.raw()){ if(w.broken) continue; w.faint=false; w.awake=true; makePillar(w); flashAt(w); }
+  camShake=Math.max(camShake,.55); try{ SFX.boom&&SFX.boom(); SFX.horn&&SFX.horn(); }catch(er){} showCard(); }
+addEventListener('keydown',e=>{ if(e.code==='Enter'&&AW.card&&AW.card.dataset.on==='1'){ AW.card.dataset.on='0'; hideCard(); } });   // Enter takes the card away
 function clearLook(){ for(const [w,g] of AW.pillars){ scene.remove(g); g.traverse(o=>{ if(o.isMesh){ o.geometry.dispose(); o.material.dispose(); } }); } AW.pillars.clear(); for(const [w,a] of AW.arrows){ a.remove(); } AW.arrows.clear(); hideCard(); }
-function lock(){ AW.awake=false; for(const w of PW.raw()){ if(!w.broken){ w.awake=false; w.locked=policyLock(); } } clearLook(); return true; }
+function lock(){ AW.awake=false; AW.hinted=false; for(const w of PW.raw()){ if(!w.broken){ w.awake=false; w.faint=false; w.locked=policyLock(); } } clearLook(); return true; }
 WORLDANIM.push(dt=>{
   const want=policyLock()&&!AW.awake; const walls=PW.raw(); for(const w of walls){ if(w.broken) continue; w.locked=want; if(!AW.awake) w.awake=false; }
-  if(AW.awake){ AW.t+=dt; const cine=!!(window.__finale&&window.__finale.active&&window.__finale.active()); const show=!cine&&(S.phase==='wave'||S.phase==='build')&&!Meta.isOpen();
+  if(AW.awake){ AW.t+=dt; if(!AW.hinted&&AW.t>=PROMPT_T) hint(); const cine=!!(window.__finale&&window.__finale.active&&window.__finale.active()); const show=!cine&&(S.phase==='wave'||S.phase==='build')&&!Meta.isOpen();
     for(const w of walls){ const g=AW.pillars.get(w); if(w.broken){ if(g){ scene.remove(g); AW.pillars.delete(w); } const a=AW.arrows.get(w); if(a){ a.remove(); AW.arrows.delete(w); } continue; }
       if(g){ const k=.5+.5*Math.sin(S.t*2.4+(w.beacon?w.beacon.ph:0)); g.children.forEach(m=>{ m.material.opacity=.38+.3*k; }); }
-      const a=arrowFor(w); if(show) placeArrow(w,a,S.t); else a.style.display='none'; }
-    if(AW.card&&AW.card.dataset.on==='1'&&(AW.t>CARD_T||walls.some(w=>w.broken))){ AW.card.dataset.on='0'; hideCard(); } }
+      if(!AW.hinted) continue; const a=arrowFor(w); if(show) placeArrow(w,a,S.t); else a.style.display='none'; }
+    if(AW.card&&AW.card.dataset.on==='1'&&walls.some(w=>w.broken)){ AW.card.dataset.on='0'; hideCard(); } }
   for(let i=fx.length-1;i>=0;i--){ const f=fx[i]; f.t+=dt; const k=f.t/f.life; if(k>=1){ scene.remove(f.s); f.s.material.dispose(); fx.splice(i,1); continue; } f.s.material.opacity=.95*(1-k); f.s.scale.setScalar(10+k*22); } });
 setInterval(()=>{ const p=document.getElementById('devpanel'); if(!p||document.getElementById('dp-mortarwake')) return; const sec=document.createElement('div'); sec.className='sect'; sec.id='dp-mortarwake';
   sec.innerHTML='<label>the mortar rooms (they wake when the wall falls)</label><div class="row"><button id="dp-mw-wake">🔓 Wake them</button><button id="dp-mw-lock">🔒 Lock them</button></div>'; const note=p.querySelector('.note'); if(note) p.insertBefore(sec,note); else p.appendChild(sec);
   document.getElementById('dp-mw-wake').onclick=()=>wake(); document.getElementById('dp-mw-lock').onclick=()=>lock(); },800);
-window.__mortarwake={ wake, lock, info:()=>({ awake:AW.awake, t:+AW.t.toFixed(1), policy:policyLock(), wakes:AW.wakes, pillars:AW.pillars.size, arrows:AW.arrows.size, arrowsShown:[...AW.arrows.values()].filter(a=>a.style.display==='block').length, card:!!AW.card&&AW.card.dataset.on==='1', locked:PW.raw().map(w=>!!w.locked), awakeFlags:PW.raw().map(w=>!!w.awake) }) };
+window.__mortarwake={ wake, lock, hint, info:()=>({ awake:AW.awake, hinted:!!AW.hinted, faint:PW.raw().map(w=>!!w.faint), t:+AW.t.toFixed(1), policy:policyLock(), wakes:AW.wakes, pillars:AW.pillars.size, arrows:AW.arrows.size, arrowsShown:[...AW.arrows.values()].filter(a=>a.style.display==='block').length, card:!!AW.card&&AW.card.dataset.on==='1', locked:PW.raw().map(w=>!!w.locked), awakeFlags:PW.raw().map(w=>!!w.awake) }) };
 })();

@@ -1,0 +1,41 @@
+// ===== THE FINAL STAND (build 382; parts/staging/95p-finalstand.js, plus game.js ranged targeting, 96i-aurawear.js, 95i-carts.js). Matt: "give wave 7 300 mobs all at once not trickling out. this is their final stand let them attack auras and all
+// defenses, increase their attack damage and their health, THIS IS IT" / "I WANT TO FILL THESE LANES WITH MOBS". Checked: the Deep Prison's seventh and last wave is 300 mobs (292 walkers/flyers + four siege carts with their orcs) all queued inside
+// three seconds out of all four gates, in the mix asked for (carts leading); the sixth wave is NOT that; once the wave begins 280+ of them are alive on the field within a few seconds (not trickling); mobs of the wave have 1.5x the health and
+// 1.8x the damage; the aura rings and the cage stop being immune for the wave (the horde's route treats a ring as a tower, its health goes down to a blow) and are put back after; the siege carts shoot defenses including auras.
+import { chromium } from "playwright"; import { serve } from "./serve.mjs";
+const server=await serve(8995,{dist:process.env.DIST||"./dist"});
+const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
+const page=await (await browser.newContext({viewport:{width:900,height:560}})).newPage(); page.on("pageerror",e=>errors.push(String(e)));
+await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); }catch(e){} });
+await page.goto("http://127.0.0.1:8995/?silent&nogate&map=5",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__finalstand&&window.__finalstand.mix&&window.__carts&&window.__dd.map().id==='prison',null,{timeout:120000});
+await page.evaluate(async()=>{ try{ window.__trainer.skip(); }catch(e){} const d=window.__dd; d.start(); d.step(1/60,5); window.__freeze=true; await Promise.all(window.__carts.kinds.map(k=>window.__carts.load(k))); });
+// ---- the plan of the wave
+const P=await page.evaluate(()=>{ const d=window.__dd, mw=d.map().wbase; const c7=d.waveComp(mw+7), c6=d.waveComp(mw+6); const kinds={}, lanes={}; let tmax=0; for(const s of c7.q){ kinds[s.kind]=(kinds[s.kind]||0)+1; lanes[s.lane]=(lanes[s.lane]||0)+1; tmax=Math.max(tmax,s.t); }
+  return { n7:c7.q.length, n6:c6.q.length, desc:c7.desc, kinds, lanes, tmax:+tmax.toFixed(2), tmin:+Math.min(...c7.q.map(s=>s.t)).toFixed(2), info:window.__finalstand.info() }; });
+check("the seventh wave is 292 walkers and flyers plus four siege carts, all queued inside three seconds (not trickling), from all four gates",P.n7===292&&P.tmax<=3.1&&P.tmin<1&&['E','S','W','NE'].every(l=>P.lanes[l]>=50)&&P.kinds.firecart===2&&P.kinds.kegcart===2,JSON.stringify({ n:P.n7, tmax:P.tmax, lanes:P.lanes, kinds:P.kinds }));
+check("the mix asked for: 136 goblins, 68 orcs, 40 archers, 10 troll archers, 24 ogres, 10 drakes",P.kinds.goblin===136&&P.kinds.orc===68&&P.kinds.archer===40&&P.kinds.troll===10&&P.kinds.ogre===24&&P.kinds.drake===10,JSON.stringify(P.kinds));
+check("the sixth wave (the wall) is not the final stand, and the banner says what this is",P.n6<250&&P.n6!==292&&/FINAL STAND/.test(P.desc),JSON.stringify({ n6:P.n6, desc:P.desc }));
+// ---- the stand begins
+const B=await page.evaluate(async()=>{ const d=window.__dd; for(const e of d.enemies) if(!e.dead) e.dead=.001; d.S.crystal=1e9; d.S.mana=99999; d.S.phase='build'; d.S.wave=6; d.setHero(0,6,Math.PI);
+  d.spawn('ogre','W'); const ogreOut=d.enemies.filter(e=>e.kind==='ogre'&&!e.dead).pop(); const out={ hp:ogreOut.max, dmg:ogreOut.dmg }; ogreOut.dead=.001;
+  d.startWave(); let t0=performance.now(); const log=[]; for(let f=0;f<60*6;f++){ d.step(1/60,1); d.S.crystal=1e9; if(f===60||f===120||f===240||f===359) log.push(d.enemies.filter(e=>!e.dead).length); }
+  const alive=d.enemies.filter(e=>!e.dead); const byKind={}; alive.forEach(e=>{ byKind[e.kind]=(byKind[e.kind]||0)+1; }); const ogre=alive.find(e=>e.kind==='ogre'); return { wave:d.S.wave, phase:d.S.phase, active:window.__finalstand.active(), flag:!!window.__finalStand, log, alive:alive.length, carts:(byKind.firecart||0)+(byKind.kegcart||0), ogreOut:out, ogreIn:ogre?{ hp:ogre.max, dmg:ogre.dmg }:null, fps:+(60*6/((performance.now()-t0)/1000)).toFixed(1) }; });
+check("the seventh wave begins: the stand is on",B.wave===7&&B.phase==='wave'&&B.active&&B.flag,JSON.stringify({ wave:B.wave, active:B.active }));
+check("and the horde is OUT, not trickling: a few seconds in 280+ are alive on the field, carts among them",B.alive>=280&&B.carts>=3,JSON.stringify({ log:B.log, alive:B.alive, carts:B.carts, simFps:B.fps }));
+check("every mob of the wave is stronger: an ogre has 1.5x the health and 1.8x the damage of one outside the wave",B.ogreIn&&Math.abs(B.ogreIn.hp/B.ogreOut.hp-1.5)<.1&&Math.abs(B.ogreIn.dmg/B.ogreOut.dmg-1.8)<.12,JSON.stringify({ out:B.ogreOut, in:B.ogreIn }));
+// ---- the auras and the cage lose their immunity for the wave
+const C=await page.evaluate(()=>{ const d=window.__dd; for(const e of d.enemies) if(!e.dead) e.dead=.001; d.spawn('goblin','W'); const keep=d.enemies.filter(e=>!e.dead).pop(); keep.hp=keep.max=1e9; keep.spd=0; keep.dmg=0; keep.atk=1e6; window.__keep=keep; const gw=d.map().gw; const cx=23, cz=40; const z=d.place('zap',cx,cz,0); d.step(1/60,2); const blockedIn=d.flow().dist[cz*gw+cx]===-1;
+  const hp0=z.hp; d.spawn('ogre','E'); const og=d.enemies.filter(e=>e.kind==='ogre'&&!e.dead).pop(); og.hp=og.max=1e9; og.spd=0; og.x=d.cw(cx)+1.2; og.z=d.cwz(cz); og.dmg=80; og.atk=0; for(let f=0;f<240;f++){ d.step(1/60,1); d.S.crystal=1e9; if(z.hp<hp0) break; }
+  return { blockedIn, hpDrop:+(hp0-z.hp).toFixed(1), kind:z.kind }; });
+check("during the stand an aura ring is an ordinary tower: the horde's route cannot walk through it, and an ogre's blows take its health",C.blockedIn&&C.hpDrop>0,JSON.stringify(C));
+const E=await page.evaluate(()=>{ const d=window.__dd; for(const e of d.enemies) if(!e.dead) e.dead=.001; window.__keep=null; d.S.phase='build'; for(let f=0;f<10;f++) d.step(1/60,1); const gw=d.map().gw; const z=d.defs.find(x=>x.kind==='zap'); const hp0=z.hp; d.spawn('ogre','E'); const og=d.enemies.filter(e=>e.kind==='ogre'&&!e.dead).pop(); og.hp=og.max=1e9; og.spd=0; og.x=z.x+1.2; og.z=z.z; og.dmg=80; og.atk=0; for(let f=0;f<240;f++){ d.step(1/60,1); d.S.crystal=1e9; }
+  return { flag:!!window.__finalStand, active:window.__finalstand.active(), walkable:d.flow().dist[40*gw+23]>=0, hpDrop:+(hp0-z.hp).toFixed(1) }; });
+check("and when the wave is over it is put back: a ring is walked through and untouchable again (only its own zaps wear it)",!E.flag&&!E.active&&E.walkable&&E.hpDrop<=1,JSON.stringify(E));   // (a sliver of wear from its own zaps is not a blow: the ogre hits for 80)
+// ---- the siege carts shoot auras too
+const F=await page.evaluate(()=>{ const d=window.__dd; for(const e of d.enemies) if(!e.dead) e.dead=.001; d.S.phase='wave'; d.S.wave=3; d.S.crystal=1e9; const z=d.defs.find(x=>x.kind==='zap'); const hp0=z.hp; d.spawn('kegcart','E'); const cart=d.enemies.filter(e=>e.kind==='kegcart'&&!e.dead).pop(); cart.hp=cart.max=1e9; d.enemies.filter(e=>e.pushFor===cart).forEach(o=>{ o.hp=o.max=1e9; });
+  cart.x=z.x+8; cart.z=z.z; cart.y=z.y||0; cart.spd0=cart.spd; for(let f=0;f<60*12;f++){ d.step(1/60,1); d.S.crystal=1e9; cart.x=z.x+8; cart.z=z.z; if(z.hp<hp0-1) break; } return { drop:+(hp0-z.hp).toFixed(1), lobs:window.__carts.info().lobs }; });
+check("outside the stand too, a keg cart lobs its kegs at an aura ring in range and hurts it (the carts shoot defenses, auras included)",F.drop>0&&F.lobs>0,JSON.stringify(F));
+const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
+await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);

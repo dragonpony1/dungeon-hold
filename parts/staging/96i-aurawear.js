@@ -12,7 +12,9 @@ reflow();
 const WEAR=[.25,.1,.03,.005];
 const wearOf=d=>WEAR[Math.min(WEAR.length-1,Math.max(0,(d.lvl||1)-1))];
 let WEARING=false, worn=0, blocked=0;
-{ const prev=hurtDef; hurtDef=function(d,dmg){ if(d&&AURA.has(d.kind)&&!WEARING){ blocked++; return; } return prev.apply(this,arguments); }; }
+// build 382 (Matt: "let those siege carts take shots at my defenses ... including the halos auras" / "this is their final stand let them attack auras and all defenses"): a ring is hurt after all while a SIEGE mob (the carts, 95i) is within 16 units of it, and by anything at all on the FINAL STAND (95p-finalstand.js sets window.__finalStand)
+const auraOpen=d=>!!window.__finalStand||enemies.some(e=>!e.dead&&MOBS[e.kind]&&MOBS[e.kind].siege&&Math.hypot(e.x-d.x,e.z-d.z)<16);
+{ const prev=hurtDef; hurtDef=function(d,dmg){ if(d&&AURA.has(d.kind)&&!WEARING&&!auraOpen(d)){ blocked++; return; } return prev.apply(this,arguments); }; }
 function wear(d){ const w=wearOf(d); d.hp=Math.max(0,d.hp-w); worn+=w; if(d.hp<=0){ WEARING=true; try{ hurtDef(d,.001); }finally{ WEARING=false; } } }   // worn right out: the normal destroy path
 { const prev=updateDefs; updateDefs=function(dt){ const before=new Map(); for(const d of defs) if(AURA.has(d.kind)) before.set(d,d.cd);
     prev.apply(this,arguments);

@@ -9,13 +9,14 @@
 (function(){
 'use strict';
 const KINDS={
-  kegcart:{ file:'prison-kegcart.glb', fit:2.7, cfg:{ hp:270, spd:1.7, dmg:0, cd:1.2, mana:10, detour:1, swingT:.5, hitT:.25 } },
-  firecart:{ file:'prison-firecart.glb', fit:3.0, cfg:{ hp:450, spd:1.7, dmg:14, cd:2.6, mana:12, ranged:7, detour:2, swingT:2.0, hitT:.65 } } };
+  kegcart:{ file:'prison-kegcart.glb', fit:2.7, cfg:{ hp:270, spd:1.7, dmg:14, cd:1.2, mana:10, detour:1, swingT:.5, hitT:.25, splash:2.3, siege:true } },
+  firecart:{ file:'prison-firecart.glb', fit:3.0, cfg:{ hp:450, spd:1.7, dmg:14, cd:2.6, mana:12, ranged:10, detour:2, swingT:2.0, hitT:.65, siege:true } } };
+// build 382 (Matt: "let those siege carts take shots at my defenses ... including the halos auras"): BOTH carts shoot defenses now, ANY defense -- the bramble hedge and the four aura rings too, which no other ranged mob will pick (a perch, which has nothing to hurt, is spared). The FIRE cart is a siege mob (cfg.siege, read by the core's ranged targeting, game.js): it stops within 10 units (was 7) of a defense and spits its green jet. The KEG cart keeps rolling on its way to blow itself up, and as it rolls LOBS a keg (the core's grenade arc, splash 2.3, 14 a blow) at the nearest defense within 10 units every 3.2 s while its pushers live (a stalled one, crew dead, still just sits there ticking).
 // // build 373 (Matt: "give those siege carts extra life"): both carts have THREE times the health they had (the keg cart 90 -> 270, the fire cart 150 -> 450 before the wave scaling, and on THE DEEP PRISON the doubling of 95o-prisonmobs.js on top: a keg cart there is 540 base)
 // (the wheels turn at .81 of the Roll clip's own speed at the cart's pace: nat.walk below)
 const SIDE=.7;   // where the pushers stand: to either side of the cart's centre line (the handles), and behind its handle tips (the model's length is 2 units across its front, so the tips are one model-unit scaled back from the middle: MOBGLB[kind].back)
 for(const k in KINDS){ MOBDIM[k]={ fit:KINDS[k].fit, h:KINDS[k].fit, r:1.2, nat:{ walk:KINDS[k].cfg.spd/KINDS[k].fit/.81, run:2.4 } }; MOBS[k]=KINDS[k].cfg; if(Meta.XP) Meta.XP[k]=Meta.XP[k]||12; }
-const cnt={ teams:0, blasts:0, flames:0, rams:0 }; const fx=[]; const P={};
+const LOB_R=10, LOB_CD=3.2; const cnt={ teams:0, blasts:0, flames:0, rams:0, lobs:0 }; const fx=[]; const P={};
 const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
 function load(kind){ const K=KINDS[kind]; if(!K) return Promise.resolve(); if(MOBGLB[kind]) return Promise.resolve(); if(P[kind]) return P[kind];
   P[kind]=fetchBytes(ASSET(K.file)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(g=>{
@@ -38,6 +39,8 @@ if(MAP&&MAP.id==='prison') setTimeout(()=>{ Object.keys(KINDS).forEach(load); },
 { const prev=updateEnemies; updateEnemies=function(dt){
     for(const e of enemies){ if(e.dead||!KINDS[e.kind]||!e.mdl||!e.mdl.mixer) continue; e.mdl.mixer.timeScale=(e.walking&&mobSpd(e)>.05)?1:0; }
     prev(dt);
+    // build 382: the keg cart's lobs
+    if(!isGuest()) for(const c of enemies){ if(c.dead||c.kind!=='kegcart'||!(c.spd>.01)) continue; c.lobT=(c.lobT===undefined?1.2:c.lobT)-dt; if(c.lobT>0) continue; let best=null, bd=LOB_R; for(const d of defs){ if(d.kind==='perch') continue; const dd=Math.hypot(d.x-c.x,d.z-c.z); if(dd<bd&&los(c.x,c.z,d.x,d.z)){ bd=dd; best=d; } } if(best){ c.lobT=LOB_CD; fireArrow(c,best.x,1.0,best.z,{kind:'def',obj:best}); cnt.lobs++; } else c.lobT=.4; }
     // build 366 (Matt: "the two siege machines turn perpendicular to the line. they need to stay straight"): the core turns a mob toward the middle of the next cell, fine for a goblin, but it swings a long cart sideways whenever the crowd
     // shoves it off the line of the path or it straddles the line between two rows (one row's path says south, the next one's west). A walking cart is turned instead to the way it is ACTUALLY MOVING, averaged over a second so the steps and
     // shoves blend into one straight line, and slowly; it holds its facing while jammed (hardly moving); stopped or swinging it still faces what it fights

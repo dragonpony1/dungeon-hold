@@ -24,8 +24,11 @@ const X0=cw(XA)-CELL/2, X1=cw(XB)+CELL/2, BZ=cwz(Z0)-CELL/2, ZB=cwz(Z1)+CELL/2, 
 const T_RUN=9.5, T_ROAR=T_RUN, T_CAST=T_ROAR+2.4, T_SWING=14.0, T_HIT=T_SWING+.7, RIP=.3, T_OPEN=T_HIT+2.4, T_GO=29, T_END=T_GO+4.6, BLEND_T=.8, SLOW=.4, CART_SLOTS=[-15,9,23];   // the cutscene's clock; where the first three carts stand across the strip
 const MIX=[['goblin',64],['orc',24],['archer',10],['ogre',2]], TEAMS=['kegcart','firecart','kegcart'];   // standing in the dark when the wall falls (plus the carts' own orcs)
 const LATER=[['goblin',50],['orc',18],['archer',8],['ogre',2]], LATER_TEAMS=['firecart','kegcart'];   // and the second crowd, out of the dark over the next ten seconds
+// build 382 (Matt: "this boss wave 6 in the prison we need another 100 mobs pouring out during their march forward with huge boluses all at once then need to be overwhelming to a fully built out defense"): FOUR BOLUSES of 25 (12 goblins, 7 orcs, 3 archers, 3 ogres each, a siege cart with the first and the third) -- 100 more -- pour out of the breach one after another while the
+// horde marches, 14, 28, 42 and 56 seconds after the crowd is let out (the wave clock's seconds). Each is a marker in the wave's own spawn list (so the wave cannot end before the last), comes out within a fifth of a second, with a rumble and a cloud of dust along the breach.
+const BOLUS_AT=[14,28,42,56], BOLUS_MIX=[['goblin',12],['orc',7],['archer',3],['ogre',3]], BOLUS_TEAMS=[['firecart'],[],['kegcart'],[]];
 const smooth=k=>k<=0?0:k>=1?1:k*k*(3-2*k);
-const cnt={ built:0, broken:0, starts:0, ends:0, crowd:0, carts:0, later:0, resets:0 };
+const cnt={ built:0, broken:0, starts:0, ends:0, crowd:0, carts:0, later:0, resets:0, bolus:0, boluses:0 };
 // ---- the three rows are solid until the wall falls
 const strip=[]; for(let z=Z0;z<=Z1;z++) for(let x=XA;x<=XB;x++) strip.push(idx(x,z));
 function setStrip(solid){ for(const i of strip) grid[i]=solid?T.WALL:T.FLOOR; reflow(); }
@@ -55,16 +58,16 @@ const letterbox=on=>bars.forEach(d=>{ d.style.height=on?'12vh':'0'; });
 const skipBtn=document.createElement('div'); skipBtn.textContent='\u23ED'; skipBtn.style.cssText='position:fixed;right:2.2vw;bottom:2.4vh;z-index:91;font-size:3.2vh;line-height:1;color:#e6d8ff;background:#1b1026cc;border:1px solid #6a4a9a;border-radius:8px;padding:.5vh 1vw;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .5s'; document.body.appendChild(skipBtn);
 const slowK=t=>{ const a=smooth((t-(T_HIT-.5))/.5), b=smooth((t-(T_HIT+1.9))/.9); return 1-(1-SLOW)*a*(1-b); };   // 1 normal, 40% through the break and its ripple, eased in and out
 // ---- the crowd
-const FIN={ active:false, done:false, t:0, boss:null, ev:{}, crowd:[], crowdQ:[], laterQ:[], laterT:0, blend:0, from:null, endP:null, endQ:null, focus:null, cracks:[], sigil:null, dustT:0, skipped:false, cartN:0 };
+const FIN={ active:false, done:false, t:0, boss:null, ev:{}, crowd:[], crowdQ:[], laterQ:[], bolusQ:[], laterT:0, blend:0, from:null, endP:null, endQ:null, focus:null, cracks:[], sigil:null, dustT:0, skipped:false, cartN:0 };
 const CARTK=new Set(['kegcart','firecart']);
 function buildQueue(mix,teams){ const q=[]; for(const [k,n] of mix) for(let i=0;i<n;i++) q.push(k); for(let i=q.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; const t=q[i]; q[i]=q[j]; q[j]=t; } for(const k of teams) q.splice((rnd()*(q.length+1))|0,0,k); return q; }
 function sync(e){ e.y=baseFloor(e.x,e.z); const g=e.mdl.g; g.position.set(e.x,e.y+(e.lift||0),e.z); g.rotation.y=e.yaw; }
 function placeNext(q,tag){ const kind=q.shift(); if(!kind) return;
   if(CARTK.has(kind)){ if(!(window.__carts&&window.__carts.loaded(kind))){ try{ window.__carts&&window.__carts.load(kind); }catch(er){} return; }
     const c=spawnEnemy(kind,'E'); if(!c||c.kind!==kind) return; const BACK=(MOBGLB[kind]&&MOBGLB[kind].back)||3, SIDE=(window.__carts&&window.__carts.SIDE)||.7;
-    c.x=(tag==='later')?R(X0+5,X1-5):CART_SLOTS[(FIN.cartN++)%CART_SLOTS.length]+R(-1,1); c.z=Math.min(BZ+2.1,ZB-1.0-BACK); c.yaw=PI; sync(c); const fx_=Math.sin(c.yaw), fz_=Math.cos(c.yaw), rx=fz_, rz=-fx_;
+    c.x=(tag==='later'||tag==='bolus')?R(X0+5,X1-5):CART_SLOTS[(FIN.cartN++)%CART_SLOTS.length]+R(-1,1); c.z=Math.min(BZ+2.1,ZB-1.0-BACK); c.yaw=PI; sync(c); const fx_=Math.sin(c.yaw), fz_=Math.cos(c.yaw), rx=fz_, rz=-fx_;
     for(const o of (c.crew||[])){ o.x=c.x-fx_*BACK+rx*o.pushSide*SIDE; o.z=c.z-fz_*BACK+rz*o.pushSide*SIDE; o.yaw=c.yaw; sync(o); } cnt.carts++; return; }
-  const e=spawnEnemy(kind,'E'); if(!e||e.kind!==kind) return; e.x=(tag!=='later'&&rnd()<.7)?R(-34,34):R(X0+3,X1-3); e.z=R(BZ+1.9,ZB-1.0); e.yaw=PI; sync(e); FIN.crowd.push(e); cnt[tag||'crowd']++; }
+  const e=spawnEnemy(kind,'E'); if(!e||e.kind!==kind) return; e.x=(tag!=='later'&&tag!=='bolus'&&rnd()<.7)?R(-34,34):R(X0+3,X1-3); e.z=R(BZ+1.9,ZB-1.0); e.yaw=PI; sync(e); FIN.crowd.push(e); cnt[tag||'crowd']++; }
 // ---- the camera
 const KEYS=[ { t:0, p:[30,9,56], l:[44,8,74] }, { t:3.5, p:[24,9.5,58], l:'boss' }, { t:6.5, p:[6,10,58], l:'boss' }, { t:T_RUN, p:[-3,9,60], l:'boss' }, { t:T_RUN+2.4, p:[-3,7.5,66], l:[0,9,75] }, { t:T_HIT, p:[-6,9,64], l:[0,8.5,76.5] }, { t:T_HIT+2.0, p:[0,15,40], l:[0,9.5,78] },
   { t:T_OPEN+2.5, p:[-24,11,54], l:[-12,6.5,80] }, { t:21, p:[-4,9,64], l:[-15,6.5,80] }, { t:23.1, p:[20,9,62], l:[9,6.5,80] }, { t:25.2, p:[14,8.5,67], l:[23,6.5,80] }, { t:27, p:[0,12,60], l:[0,7,78] }, { t:T_GO, p:[0,14,52], l:[0,6.2,79] }, { t:T_END, p:[0,13,56], l:[0,6.2,79] } ];
@@ -99,7 +102,7 @@ skipBtn.onclick=()=>skip(); addEventListener('keydown',e=>{ if(e.code==='Enter')
 function clearScene(){ for(const c of FIN.cracks){ scene.remove(c.s); c.s.material.dispose(); } FIN.cracks=[]; if(FIN.sigil){ scene.remove(FIN.sigil); FIN.sigil.material.dispose(); FIN.sigil=null; } skipBtn.style.opacity=0; skipBtn.style.pointerEvents='none'; }
 function endCut(){ FIN.active=false; FIN.done=true; const b=FIN.boss; if(b&&!b.dead){ b.spd=b.spd0; b.walking=false; b.swing=-1; b.casting=false; } clearScene(); letterbox(false); try{ if(window.__mortarwake) window.__mortarwake.wake(); }catch(er){ console.warn('mortar wake',er); } FIN.endP=camera.position.clone(); FIN.endQ=camera.quaternion.clone(); FIN.blend=BLEND_T; FIN.focus=null;
   if(!FIN.opened) openStrip(); for(const p of panels) if(!p.broken) breakPanel(p); if(backing) backing.visible=false; FIN.laterQ=buildQueue(LATER,LATER_TEAMS); FIN.laterT=1.5; cnt.ends++; }
-function start(){ if(FIN.active||FIN.done||isGuest()||inCoop()||!ready) return false; FIN.active=true; FIN.t=0; FIN.ev={}; FIN.crowd=[]; FIN.opened=false; FIN.crowdQ=buildQueue(MIX,TEAMS); FIN.laterQ=[]; cnt.starts++; if(window.__carts) CARTK.forEach(k=>{ try{ window.__carts.load(k); }catch(er){} });
+function start(){ if(FIN.active||FIN.done||isGuest()||inCoop()||!ready) return false; FIN.active=true; FIN.t=0; FIN.ev={}; FIN.crowd=[]; FIN.opened=false; FIN.crowdQ=buildQueue(MIX,TEAMS); FIN.laterQ=[]; FIN.bolusQ=[]; cnt.starts++; for(let i=0;i<BOLUS_AT.length;i++) spawnQ.push({ t:S.waveT+BOLUS_AT[i], kind:'__bolus'+i, lane:'E' }); spawnQ.sort((a,b)=>a.t-b.t); if(window.__carts) CARTK.forEach(k=>{ try{ window.__carts.load(k); }catch(er){} });
   const v=new THREE.Vector3(); camera.getWorldDirection(v); FIN.from={ p:[camera.position.x,camera.position.y,camera.position.z], l:[camera.position.x+v.x*20,camera.position.y+v.y*20,camera.position.z+v.z*20] };
   FIN.hp0=hero.hp; try{ if(window.__corruptor) window.__corruptor.load(); }catch(er){}
   const b=spawnEnemy(window.__corruptor&&window.__corruptor.loaded()?'corruptor':'ogre','E'); FIN.boss=b; if(b){ b.spd0=b.spd; b.spd=1.0;   /* build 372 (Matt: "he walks to fast"): the walk clip plays at the mob's speed over its size -- 11 made it flap at 7 times; at 1.0 it plays at the slowest gait (.7), a slow glide while the scripted travel carries him */ b.finaleBoss=true; FIN.bx0=b.x; FIN.bz0=b.z; const gl=glow(0xc040ff,5/b.sc,.5); gl.position.y=b.h*.55/b.sc; b.mdl.g.add(gl); }
@@ -115,13 +118,15 @@ function start(){ if(FIN.active||FIN.done||isGuest()||inCoop()||!ready) return f
     if(FIN.blend>0&&FIN.endP){ FIN.blend=Math.max(0,FIN.blend-dt); const k=smooth(1-FIN.blend/BLEND_T), q=camera.quaternion.clone(); camera.position.copy(FIN.endP).lerp(camera.position,k); camera.quaternion.copy(FIN.endQ).slerp(q,k); } }; }
 // ---- the sixth wave begins, and sixteen seconds in the wall falls (a marker in the wave's own spawn list: the wave cannot end before it)
 { const prev=startWave; startWave=function(){ const w0=S.wave; const r=prev.apply(this,arguments); if(!SURVIVAL&&!FIN.done&&!FIN.active&&S.phase==='wave'&&S.wave===FIN_WAVE&&w0!==S.wave){ spawnQ.push({ t:FIN_T, kind:'__finale', lane:'E' }); spawnQ.sort((a,b)=>a.t-b.t); } return r; }; }
-{ const prev=spawnEnemy; spawnEnemy=function(kind,lane){ if(kind==='__finale'){ if(!start()&&!ready&&!isGuest()&&!FIN.done) spawnQ.push({ t:S.waveT+1, kind:'__finale', lane:'E' }); return null; } return prev.apply(this,arguments); }; }
+function releaseBolus(i){ if(isGuest()||inCoop()||S.phase==='dead') return; FIN.bolusQ=FIN.bolusQ.concat(buildQueue(BOLUS_MIX,BOLUS_TEAMS[i]||[])); cnt.boluses++; camShake=Math.max(camShake,.7); for(let k=0;k<7;k++) puff(R(X0+6,X1-6),FLOOR_Y+.5,BZ+1.5,7,5); }
+{ const prev=spawnEnemy; spawnEnemy=function(kind,lane){ if(typeof kind==='string'&&kind.slice(0,7)==='__bolus'){ releaseBolus(+kind.slice(7)); return null; } if(kind==='__finale'){ if(!start()&&!ready&&!isGuest()&&!FIN.done) spawnQ.push({ t:S.waveT+1, kind:'__finale', lane:'E' }); return null; } return prev.apply(this,arguments); }; }
 // ---- per frame: the panels' tumble, the dust, the crowd that follows out of the dark
 WORLDANIM.push(dt=>{ for(const p of panels) p.w.update(dt);
   for(let i=dust.length-1;i>=0;i--){ const d=dust[i]; d.t+=dt; const k=d.t/d.life; if(k>=1){ world.remove(d.s); dust.splice(i,1); continue; } d.s.position.x+=d.vx*dt; d.s.position.y+=d.vy*dt; d.s.position.z+=d.vz*dt; d.s.material.opacity=.5*Math.sin(Math.min(1,k*1.6)*PI)*(1-k*.4); d.s.scale.setScalar(d.s.scale.x+dt*2.2); }
+  if(!FIN.active&&FIN.bolusQ.length&&S.phase!=='dead'){ for(let n=0;n<4&&FIN.bolusQ.length;n++) placeNext(FIN.bolusQ,'bolus'); }
   if(!FIN.active&&FIN.laterQ.length&&S.phase!=='dead'){ FIN.laterT-=dt; if(FIN.laterT<=0){ FIN.laterT=.5; for(let n=0;n<3&&FIN.laterQ.length;n++) placeNext(FIN.laterQ,'later'); } } });
 // ---- the wall put back (for the dev panel and the tests): panels whole again, the three rows solid again
-function reset(){ if(FIN.active) return false; clearScene(); try{ if(window.__mortarwake) window.__mortarwake.lock(); }catch(er){} for(const p of panels) resetPanel(p); if(backing) backing.visible=true; setStrip(true); FIN.done=false; FIN.opened=false; FIN.laterQ=[]; FIN.blend=0; cnt.resets++; return true; }
+function reset(){ if(FIN.active) return false; clearScene(); try{ if(window.__mortarwake) window.__mortarwake.lock(); }catch(er){} for(const p of panels) resetPanel(p); if(backing) backing.visible=true; setStrip(true); FIN.done=false; FIN.opened=false; FIN.laterQ=[]; FIN.bolusQ=[]; spawnQ=spawnQ.filter(q=>!/^__bolus/.test(q.kind)); FIN.blend=0; cnt.resets++; return true; }
 // ---- the dev panel (F9)
 setInterval(()=>{ const p=document.getElementById('devpanel'); if(!p||document.getElementById('dp-finale')) return; const sec=document.createElement('div'); sec.className='sect'; sec.id='dp-finale';
   sec.innerHTML='<label>the big barrier (wave 6 does this itself)</label><div class="row"><button id="dp-finale-go">🎬 The wall falls</button><button id="dp-finale-back">🧱 Put the wall back</button></div>'; const note=p.querySelector('.note'); if(note) p.insertBefore(sec,note); else p.appendChild(sec);
