@@ -35,13 +35,14 @@ fetchBytes(ASSET('prison-railing.glb'),'soon').then(buf=>new Promise((res,rej)=>
   WORLDANIM.push(()=>{ if((frame++%2)===0) refill(); }); refill(); cnt.loaded=1;
   window.__prisonpaths.mesh=im; window.__prisonpaths.refill=refill;
   }catch(e){ console.warn('prison railing',e); } }).catch(e=>console.warn('prison railing',e));
-// ---- build 388: the rim's TWO flights (game.js: the west one, and the new east one Matt asked for). The east flight lands beside the middle terrace's gap, so by the shortest road nearly the whole rim would take it and choke it instead. So every second
+// ---- build 388-389: the PIT's two flights (game.js: the west one, and the new east one Matt asked for). The east flight sits right where the lower terrace's gap brings the horde in, so by the shortest road nearly the whole rim would take it and choke it instead. So every second
 // mob that walks out is a WEST-goer: while it is on the rim it follows a field of its own in which the east flight is shut (FIELD_W, worked out with the rest at every reflow), and the horde splits between the two; off the rim it is an ordinary mob again
-const EAST_FLIGHT=[36,40,35,37], RIM_ROW=35; let FW=null, splitN=0; const split={ west:0, east:0 };
+const EAST_FLIGHT=[26,30,13,15];   // build 389: the second flight is the PIT's (the lower terrace's east one), not the rim's
+const onLower=e=>{ const cz=wcz(e.z), y=e.y||0; return cz>=13&&cz<=23&&y>1.5&&y<2.6; }; let FW=null, splitN=0; const split={ west:0, east:0 };
 function fieldW(){ const [x0,x1,z0,z1]=EAST_FLIGHT, saved=[]; for(let z=z0;z<=z1;z++) for(let x=x0;x<=x1;x++){ const i=idx(x,z); saved.push([i,MOBBLOCK[i]]); MOBBLOCK[i]=1; } try{ FW={ def:bfs(true), free:bfs(false) }; } finally { for(const [i,v] of saved) MOBBLOCK[i]=v; } }
 { const prev=reflow; reflow=function(){ prev.apply(this,arguments); fieldW(); }; } fieldW();
 { const prev=spawnEnemy; spawnEnemy=function(){ const r=prev.apply(this,arguments); for(let i=enemies.length-1;i>=0;i--){ const e=enemies[i]; if(e.__split!==undefined) break; e.__split=(e.fly||e.kind==='kegcart'||e.kind==='firecart'||e.pushFor)?0:((splitN++%2)?1:2);   /* a siege cart (and its crew) keeps the one road: a long cart turning back along the rim jams it */ if(e.__split===1) split.west++; else if(e.__split===2) split.east++; } return r; }; }
-{ const prev=updateEnemies; updateEnemies=function(dt){ for(const e of enemies){ if(e.dead||e.__split!==1) continue; const cz=wcz(e.z); if(cz>=RIM_ROW&&(e.y||0)>4.5&&FW){ e.fD=FW.def; e.fF=FW.free; } else if(e.fD){ e.fD=null; e.fF=null; } } return prev.apply(this,arguments); }; }
+{ const prev=updateEnemies; updateEnemies=function(dt){ for(const e of enemies){ if(e.dead||e.__split!==1) continue; if(onLower(e)&&FW){ e.fD=FW.def; e.fF=FW.free; } else if(e.fD){ e.fD=null; e.fF=null; } } return prev.apply(this,arguments); }; }
 // ---- the test hook
 const flowFrom=(cx,cz)=>{ let i=idx(cx,cz), n=0; while(i>=0&&!isGoal(i)&&n<900){ i=flowFree.nxt[i]; n++; } return i>=0&&isGoal(i)?n:-1; };
 window.__prisonpaths=Object.assign(window.__prisonpaths,{ info:()=>Object.assign({},cnt), pieces:()=>pieces.slice(), reach:()=>Object.fromEntries(Object.entries(LANES).map(([k,l])=>[k,flowFrom(l.cx,l.cz)])), blocked:(cx,cz)=>!!MOBBLOCK[idx(cx,cz)], flowFrom, split:()=>Object.assign({},split), westDist:(cx,cz)=>FW?FW.free.dist[idx(cx,cz)]:null, solid:(x,z,y,h)=>solidAt(x,z,y,!!h) });

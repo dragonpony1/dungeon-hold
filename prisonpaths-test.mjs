@@ -15,7 +15,7 @@ const R=await page.evaluate(()=>{ const P=window.__prisonpaths, d=window.__dd; c
   // walk every gate's road cell by cell and count the hero-only cells on it
   const roads={}; for(const [k,l] of Object.entries(typeof d.lanes==="function"?d.lanes():d.lanes)){ const ff=d.flow(); let i=l.cz*GW+l.cx, n=0, bad=0, rows=new Set(); while(i>=0&&n<900){ const cx=i%GW, cz=(i/GW)|0; if(P.blocked(cx,cz)) bad++; rows.add(cz); const nx=ff.nxt[i]; if(nx<0||(cx===23&&cz===4)) break; i=nx; n++; } roads[k]={ len:n, bad }; }
   return { reach, roads, blockedCount:(()=>{ let c=0; for(let z=0;z<48;z++) for(let x=0;x<47;x++) if(P.blocked(x,z)) c++; return c; })(), info:P.info() }; });
-check("every gate has a long road to the Heartroot, longer than before the rails: the rim gates 90+/100+ (build 388: the east one has its own flight now, beside the gap), the middle feeder 50+, the lower one 28+",R.reach.E>=90&&R.reach.S>=100&&R.reach.W>=50&&R.reach.NE>=28&&Math.max(...Object.values(R.reach))<260,JSON.stringify(R.reach));
+check("every gate has a long road to the Heartroot, longer than before the rails: the rim gates 110+/100+, the middle feeder 50+, the lower one 24+ (build 389: the pit's east flight is near it)",R.reach.E>=110&&R.reach.S>=100&&R.reach.W>=50&&R.reach.NE>=24&&Math.max(...Object.values(R.reach))<260,JSON.stringify(R.reach));
 check("the horde's road never touches a hero-only cell (none of the four roads crosses a railing line, a gate or the hero's stairs)",Object.keys(R.roads).length===6&&Object.values(R.roads).every(r=>r.bad===0&&r.len>20),JSON.stringify(R.roads));
 check("the hero-only cells are what was drawn: 27 for his three stairs, two railing lines (26 + 16 cells; his gates are inside them) = 69",R.blockedCount===27+26+16,String(R.blockedCount));
 // ---- the hero walks the road down the middle
@@ -42,12 +42,12 @@ check("walkers from all four gates come the long way to the Heartroot and not on
 const cart=await page.evaluate(async()=>{ const d=window.__dd; await window.__carts.load('kegcart'); for(const e of d.enemies) e.dead=e.dead||.001; d.setHero(0,6,Math.PI); d.S.crystal=1e6; d.S.phase='wave'; d.spawn('kegcart','S'); const c=d.enemies.filter(e=>e.kind==='kegcart'&&!e.dead).pop(); const crew=d.enemies.filter(e=>e.pushFor===c); c.hp=c.max=1e9; crew.forEach(o=>{ o.hp=o.max=1e9; });
   const z=2*41+1-9; c.x=9; c.z=z; c.y=6; crew.forEach((o,i)=>{ o.x=9+(i?.8:-.8); o.z=z+1.4; o.y=6; }); let near=1e9, f=0; const ys=new Set(); for(;f<24000;f++){ d.step(1/60,1); d.S.crystal=1e6; near=Math.min(near,Math.hypot(c.x,c.z-(2*4+1-9))); ys.add(Math.round(c.y||0)); if(near<5) break; } return { secs:Math.round(f/60), near:+near.toFixed(1), levels:[...ys].sort().join(',') }; });
 check('a siege cart (the big hull) goes the whole way down the new roads, from the rim strip to the Heartroot, over every level, in under four minutes',cart.near<=5&&cart.secs<240&&['0','2','4','6'].every(y=>cart.levels.split(',').includes(y)),JSON.stringify(cart));
-// ---- build 388: the rim's second flight (east), and the horde split between the two
-const SP=await page.evaluate(()=>{ const d=window.__dd; for(const e of d.enemies) e.dead=e.dead||.001; d.setHero(0,6,Math.PI); d.S.crystal=1e9; d.S.phase='wave'; const cw=x=>2*x+1-47, cwz=z=>2*z+1-9; const mobs=[];
-  for(let i=0;i<40;i++){ d.spawn('goblin','E'); const g=d.enemies[d.enemies.length-1]; g.hp=g.max=1e9; g.x=cw(23)+(i%8-4)*1.6; g.z=cwz(39)+((i/8)|0)*.6; g.y=6; mobs.push(g); }
-  const W=new Set(), E=new Set(); for(let f=0;f<60*25;f++){ d.step(1/60,1); d.S.crystal=1e9; for(const g of mobs){ if(g.dead) continue; const cx=Math.floor((g.x+47)/2), cz=Math.floor((g.z+9)/2); if(cz>=35&&cz<=37){ if(cx>=6&&cx<=10) W.add(g); if(cx>=36&&cx<=40) E.add(g); } } }
-  return { west:W.size, east:E.size, ramp:d.hgtAt?d.hgtAt(38,36):null, split:window.__prisonpaths.split() }; });
-check("the rim has a second flight at its east end, and forty goblins let out in the middle of the rim split between the two flights (neither carries less than a third of them)",SP.west>=13&&SP.east>=13&&SP.west+SP.east>=36,JSON.stringify(SP));
+// ---- build 389: the pit's second flight (east), and the horde split between the two
+const SP=await page.evaluate(()=>{ const d=window.__dd; for(const e of d.enemies) e.dead=e.dead||.001; d.setHero(-30,60,0); d.S.crystal=1e9; d.S.phase='wave'; const cw=x=>2*x+1-47, cwz=z=>2*z+1-9; const mobs=[];
+  for(let i=0;i<40;i++){ d.spawn('goblin','NE'); const g=d.enemies[d.enemies.length-1]; g.hp=g.max=1e9; g.x=cw(31)+(i%4)*.6; g.z=cwz(21)+((i/4)|0)*.4; g.y=2; mobs.push(g); }
+  const W=new Set(), E=new Set(); for(let f=0;f<60*30;f++){ d.step(1/60,1); d.S.crystal=1e9; for(const g of mobs){ if(g.dead||W.has(g)||E.has(g)) continue; const cx=Math.floor((g.x+47)/2), cz=Math.floor((g.z+9)/2); if(cz<=12){ if(cx<=21) W.add(g); else if(cx>=25) E.add(g); } } }
+  return { west:W.size, east:E.size, ramp:+d.floorH(cw(28),cwz(14)).toFixed(2), split:window.__prisonpaths.split() }; });
+check("the pit has a second flight at the east (the other side of the hero's stairs), and forty goblins coming round the lower terrace split between the two (neither carries less than a third of them)",SP.ramp>0&&SP.ramp<2&&SP.west>=13&&SP.east>=13&&SP.west+SP.east>=36,JSON.stringify(SP));
 // ---- towers
 const T=await page.evaluate(()=>{ const d=window.__dd; d.S.mana=99999; d.S.du=0; const out={}; const tryPlace=(name,cx,cz)=>{ const r=d.place('harpoon',cx,cz,0); out[name]=!!r; if(r){ out[name+'Base']=r.base!==undefined?r.base:null; } return r; };
   const defsOf=()=>d.defs;

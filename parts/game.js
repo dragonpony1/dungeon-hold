@@ -183,7 +183,7 @@ const MAPS=[
     f(16,30,4,9,T.FLOOR); h(16,30,4,9,0);
     f(22,24,3,5,T.DAIS); g(23,4,T.CRYSTAL);   // the Heartroot in the apex, on its dais
     ramp(6,10,35,37,2,4,6); ramp(10,14,24,26,2,2,4); ramp(16,20,13,15,2,0,2);
-    ramp(36,40,35,37,2,4,6);   // build 388 (Matt: "there needs to be a second set of stairs on the left side so the mobs aren't all choked off on the single stair"): a SECOND flight from the rim down to the middle terrace, at its EAST end (the left, looking from the Heartroot at the rim), five wide like the first -- the rim's horde (both its gates and the crowd behind the wall) splits between the two, the east half coming down beside the middle terrace's gap   // the flights (rising south): rim to middle at the west end, middle to lower at the west end (build 374: it was the east end), lower to pit at the west end
+    ramp(26,30,13,15,2,0,2);   // build 389 (Matt: "there needs to be a second set of stairs on the left side so the mobs aren't all choked off on the single stair" ... "i think you call it the pit, that's where we need the second set"): a SECOND flight from the lower terrace down into the PIT, at the east (the mirror of the west one, the other side of the hero's own stairs), five wide -- the whole horde's last stair is split between the two (56k-prisonpaths.js). (Build 388 had put it on the rim instead: gone again.)   // the flights (rising south): rim to middle at the west end, middle to lower at the west end (build 374: it was the east end), lower to pit at the west end
     // build 374 (Matt: "the last thing on this map is getting our pathing down" / "i like the B plus A idea"): the two long terraces are cut into two lanes by a railing, joined at the EAST end -- the horde walks each terrace out and back -- and the hero gets his own stairs and a gate through each railing, straight down the middle, that the horde ignores
     ramp(22,24,35,37,2,4,6); ramp(22,24,24,26,2,2,4); ramp(22,24,13,15,2,0,2); block(22,24,35,37); block(22,24,24,26); block(22,24,13,15);   // the hero's stairs (three wide, the middle of each cliff)
     block(8,33,29,29); block(13,28,18,18);   // the railing lines: middle terrace (west wall to its east gap, x 34-38) and lower terrace (west wall to its east gap, x 29-33); the hero's gates through them (x 22-24) are blocked to the horde as well
@@ -770,7 +770,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=388;
+const BUILD=389;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
