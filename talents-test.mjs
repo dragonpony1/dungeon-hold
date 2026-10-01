@@ -2,7 +2,7 @@
 // tell much diffrence ... unless it adds some physical advantage" / "give em the game, while they're playing". Checked: the tab says TALENTS and draws the Witch's tree (3 branches x 5 tiers);
 // points are one a level plus one a campaign wave held; tiers open at 0/3/6/7/10 in their branch; ranks feed her numbers (Charged Bolts -> hero damage) and her real cast (bigger bolts, a
 // pierce, a blast, a spread of three every 5th cast); marks and ooze are drawn; Forked Lightning chains every 4th bolt; Doom blows up every 10th kill; the Tempest strikes four more times;
-// a wave held gives a point and a card; N opens the tree; respec is free; the Knight (no tree yet) keeps the flat skills; no page errors.
+// a wave held gives a point and a card; N opens the tree; respec is free; the Fighter (no tree yet) keeps the flat skills; no page errors.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 const server=await serve(8984,{dist:process.env.DIST||"./dist"});
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
@@ -38,7 +38,7 @@ const g=await page.evaluate(async()=>{ const T=window.__talents, d=window.__dd; 
   window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyN',bubbles:true})); await new Promise(r=>setTimeout(r,200)); const open=window.__tavern.isOpen(); const html=(document.getElementById('tv-skills')||{}).innerHTML||''; const nodes=(html.match(/data-tal="/g)||[]).length; const tabs=[...document.querySelectorAll('#tavern button, #tavern .tv-tab')].map(x=>x.textContent).filter(t=>/TALENTS|SKILLS/.test(t));
   const before=T.spent(); const node=document.querySelector('#tv-skills [data-tal="ward"]'); if(node) node.click(); await new Promise(r=>setTimeout(r,100)); const after=T.spent(); window.__tavern.close(); return { t0, t1, t2, card:/\+1 TALENT/.test(card), open, nodes, tabs, clicked:after===before+1 }; });
 check("a wave held gives a point (once per wave) and a +1 TALENT card; N opens the TALENTS tab (15 nodes); a click on a node spends a point",g.t1===g.t0+1&&g.t2===g.t1&&g.card&&g.open&&g.nodes===15&&g.tabs.some(t=>/TALENTS/.test(t))&&!g.tabs.some(t=>/SKILLS/.test(t))&&g.clicked,JSON.stringify(g));
-const h=await page.evaluate(()=>{ const T=window.__talents, M=window.__meta; const gold0=M.gold(); const ok=T.respec(); const free=M.gold()===gold0&&T.spent()===0; window.__heroes.select('knight'); return { ok, free, knightTree:T.tree(), knightMult:M.mult('dmg') }; });
-check("respec is free; the Knight (no tree yet) keeps the flat skills",h.ok&&h.free&&!h.knightTree&&typeof h.knightMult==='number',JSON.stringify(h));
+const h=await page.evaluate(()=>{ const T=window.__talents, M=window.__meta; const gold0=M.gold(); const ok=T.respec(); const free=M.gold()===gold0&&T.spent()===0; window.__heroes.select('fighter'); return { ok, free, knightTree:T.tree(), knightMult:M.mult('dmg') }; });
+check("respec is free; the Fighter (no tree yet, build 395: the Knight has one now) keeps the flat skills",h.ok&&h.free&&!h.knightTree&&typeof h.knightMult==='number',JSON.stringify(h));
 const realErrors=errors.filter(x=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(x)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");
