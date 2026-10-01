@@ -150,22 +150,26 @@ const MAPS=[
     f(2,47,20,53,T.FLOOR); f(23,25,20,53,T.CARPET);                                                   // the green before the walls, the royal road down the middle
     g(24,53,T.SPAWN); f(1,1,24,26,T.FLOOR); g(1,25,T.SPAWN); f(48,48,24,26,T.FLOOR); g(48,25,T.SPAWN);   // gates: the road's far end, the west and east woods
     f(47,48,7,9,T.FLOOR); g(48,8,T.SPAWN);                                                            // the sally port in the ward's east wall
-    f(29,39,29,37,T.WALL); f(30,38,30,36,T.FLOOR); /* g(34,29,T.FLOOR) -- the door -- is CLOSED for now */ f(34,34,31,33,T.CARPET); [[30,31],[31,35],[37,32],[37,33],[37,34],[34,36]].forEach(([x,z])=>g(x,z,T.PROP));   // the roadside inn (the tavern), build 380: moved 12 squares north, nearer the main hall (it stood on rows 41-49; Matt: "move the entire outbuilding 12 squres closer to the main hall"). Build 379 (Matt: "get rid of the tavern but leave the building and bring the height down one square" / "i want to keep the building the tavern was in just" / "just for now just close up the tavern part"): the building stays exactly as it was, but its door is walled shut (no way in: the same as the Cloister Court's closed tavern), the tavern room is off (noTavern below) and its walls stand one square (2 units) lower than the walls round it (lowWalls below). To open the tavern again: put g(34,41,T.FLOOR) back and drop noTavern
+    f(29,39,26,34,T.WALL); f(30,38,27,33,T.FLOOR); /* g(34,26,T.FLOOR) -- the door -- is CLOSED for now */ f(34,34,28,30,T.CARPET); [[30,28],[31,32],[37,29],[37,30],[37,31],[34,33]].forEach(([x,z])=>g(x,z,T.PROP));   // the roadside inn (the tavern), build 380, and build 383 three more squares north (Matt: "on room 5 move that outbuilding 3 more squares north")
+    // build 383 (Matt: "give me stair access to the roof of the main hall, the top will be a defense area so build it out roughly"): the MAIN HALL's ROOF, a paved platform 8 up (x14-35, rows -5..1: the map is padded 8 rows to the north for it, padN below), its front edge where the curtain wall was, a crenellated parapet along it (56l-moatroof.js), the keep rising behind it; a STAIR up to it from the ward at its east end (three wide, eight long)
+    f(14,35,-5,1,T.CARPET); h(14,35,-5,1,8); ramp(33,35,2,9,1,0,8);   // (the inn, earlier: build 380 moved it 12 squares north, nearer the main hall (it stood on rows 41-49; Matt: "move the entire outbuilding 12 squres closer to the main hall"). Build 379 (Matt: "get rid of the tavern but leave the building and bring the height down one square" / "i want to keep the building the tavern was in just" / "just for now just close up the tavern part"): the building stays exactly as it was, but its door is walled shut (no way in: the same as the Cloister Court's closed tavern), the tavern room is off (noTavern below) and its walls stand one square (2 units) lower than the walls round it (lowWalls below). To open the tavern again: put g(34,41,T.FLOOR) back and drop noTavern
     [[22,24],[26,24],[22,32],[26,32],[22,40],[26,40],[22,48],[26,48]].forEach(([x,z])=>g(x,z,T.PROP));   // lamp posts along the road
     [[21,21],[27,21],[9,3],[16,3],[31,3],[38,3]].forEach(([x,z])=>g(x,z,T.PROP));                    // statues: two at the bridge foot, four kings along the keep
     [[21,12],[27,12],[17,5],[17,9]].forEach(([x,z])=>g(x,z,T.PROP));                                 // braziers at the gate and the dais
     [[3,21],[3,33],[3,45],[3,52],[46,21],[46,33],[46,52],[9,52],[16,52],[42,52],[10,30],[42,30],[13,44],[7,38],[43,36],[19,50]].forEach(([x,z])=>g(x,z,T.PROP)); },   // trees (build 380: the one at 39,30 stood where the inn now is: it is at 42,30)   // trees
   lanes:{S:{cx:24,cz:53,face:PI,name:'Road',from:1}, W:{cx:1,cz:25,face:PI/2,name:'West wood',from:2}, E:{cx:48,cz:25,face:-PI/2,name:'East wood',from:3}, NE:{cx:48,cz:8,face:-PI/2,name:'Sally port',from:5}},
-  hall:[3,46,2,13],pillars:[],barrels:[[44,3],[44,12]],crates:[[5,3]],chandeliers:[],beams:{zs:[],w:0},tavern:{dx:18,dz:5},noTavern:true,lowWalls:[[29,39,29,37,2]],
+  hall:[3,46,2,13],pillars:[],barrels:[[44,3],[44,12]],crates:[[5,3]],chandeliers:[],beams:{zs:[],w:0},tavern:{dx:18,dz:2},noTavern:true,lowWalls:[[29,39,26,34,2]],
+  padN:8, openTop:[[0,49,-8,0]], roof:{ x0:14, x1:35, z0:-5, z1:1, y:8, stair:[33,35] },   // build 383: eight rows added to the north for the hall roof (every number of this map is as it was: padNorth below moves them), and the wall mass up there has no black top
   trees:[[3,21],[3,33],[3,45],[3,52],[46,21],[46,33],[46,52],[9,52],[16,52],[42,52],[10,30],[42,30],[13,44],[7,38],[43,36],[19,50]],
-  castle:{towers:[[21.5,14.5,2,14],[26.5,14.5,2,14],[2.5,14.5,1.8,12],[47.5,14.5,1.8,12],[13.5,.5,2.4,26,'cone'],[34.5,.5,2.4,26,'cone']],keep:[[14,34,-5,1,20]],arches:[[23,25,14,15,6.5]],bridge:[23,25,16,19],chains:[[21.6,12.6,15.6,22.4,1.2,19.6],[26.4,12.6,15.6,25.6,1.2,19.6]],
-    lamps:[[22,24],[26,24],[22,32],[26,32],[22,40],[26,40],[22,48],[26,48]],statues:[[21,21,0],[27,21,0],[9,3,0],[16,3,0],[31,3,0],[38,3,0]],braziers:[[21,12],[27,12],[17,5],[17,9]]},
+  castle:{towers:[[21.5,14.5,2,14],[26.5,14.5,2,14],[2.5,14.5,1.8,12],[47.5,14.5,1.8,12],[12.5,-6.5,2.4,26,'cone'],[37.5,-6.5,2.4,26,'cone']],keep:[[14,35,-8,-6,20]],arches:[[23,25,14,15,6.5]],bridge:[23,25,16,19],chains:[[21.6,12.6,15.6,22.4,1.2,19.6],[26.4,12.6,15.6,25.6,1.2,19.6]],
+    lamps:[[22,24],[26,24],[22,32],[26,32],[22,40],[26,40],[22,48],[26,48]],statues:[[21,21,0],[27,21,0],[9,3,0],[16,3,0],[31,3,0],[38,3,0]],braziers:[[21,12],[27,12],[17,5],[17,9],[15,-4],[34,-4],[15,0],[24,-4]]},
   lights:[{cx:20,cz:7,up:4.2,c:0xb494ff,i:1.3,d:15},{cx:23,cz:13,up:3.4,c:0xff8a2a,i:1.4,d:14},{cx:25,cz:13,up:3.4,c:0xff8a2a,i:1.4,d:14},
    {cx:21,cz:12,up:2.2,c:0xff7a1a,i:1.6,d:10},{cx:27,cz:12,up:2.2,c:0xff7a1a,i:1.6,d:10},{cx:17,cz:5,up:2.2,c:0xff7a1a,i:1.6,d:10},{cx:17,cz:9,up:2.2,c:0xff7a1a,i:1.6,d:10},
    {cx:8,cz:3,up:4,c:0xff8a2a,i:1.3,d:14},{cx:24,cz:3,up:4,c:0xff8a2a,i:1.3,d:14},{cx:40,cz:3,up:4,c:0xff8a2a,i:1.3,d:14},{cx:5,cz:10,up:4,c:0xff8a2a,i:1.2,d:13},{cx:44,cz:10,up:4,c:0xff8a2a,i:1.2,d:13},
    {cx:22,cz:24,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:24,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:22,cz:32,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:32,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:22,cz:40,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:40,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:22,cz:48,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:48,up:3.6,c:0xffb05a,i:1.1,d:12},
    {cx:24,cz:53,up:3.4,c:0xc040ff,i:.9,d:10},{cx:1,cz:25,up:3.4,c:0xc040ff,i:.9,d:10},{cx:48,cz:25,up:3.4,c:0xc040ff,i:.9,d:10},{cx:48,cz:8,up:3.4,c:0xc040ff,i:.9,d:10},
-   {cx:34,cz:28,up:4.2,c:0xffb05a,i:1.3,d:13},{cx:32,cz:30,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:36,cz:34,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:34,cz:35,up:2.2,c:0xff7a1a,i:1.6,d:9,oz:.4}]},   // (the inn's lamps and hearth, with it: build 380)
+   {cx:34,cz:25,up:4.2,c:0xffb05a,i:1.3,d:13},{cx:32,cz:27,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:36,cz:31,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:34,cz:32,up:2.2,c:0xff7a1a,i:1.6,d:9,oz:.4},
+   {cx:18,cz:-2,up:3.6,c:0xff8a2a,i:1.3,d:15},{cx:30,cz:-2,up:3.6,c:0xff8a2a,i:1.3,d:15},{cx:34,cz:6,up:3,c:0xffb05a,i:1.1,d:12}]},   // build 383: the inn three north; the hall roof's torches and the stair   // (the inn's lamps and hearth, with it: build 380)
  // THE DEEP PRISON (build 342; Matt: a big cavern of cells, the Heartroot at the very bottom, "a top down flow ... you can see them coming down flights all around", then "it was gonna be a triangle with the
  // heartroot in one corner"). A TRIANGLE in plan: the wide end is the rim, a flat stone ledge six up along the south wall where the cells are; the sides close in toward the north until they meet at the apex, where
  // the Heartroot sits in the corner on the pit floor. Between them three terraces step down (rim 6, middle 4, lower 2, pit 0). The horde breaks out of busted cells along the rim and ZIGZAGS down: the rim's flight
@@ -183,12 +187,13 @@ const MAPS=[
     ramp(22,24,35,37,2,4,6); ramp(22,24,24,26,2,2,4); ramp(22,24,13,15,2,0,2); block(22,24,35,37); block(22,24,24,26); block(22,24,13,15);   // the hero's stairs (three wide, the middle of each cliff)
     block(8,33,29,29); block(13,28,18,18);   // the railing lines: middle terrace (west wall to its east gap, x 34-38) and lower terrace (west wall to its east gap, x 29-33); the hero's gates through them (x 22-24) are blocked to the horde as well
     block(22,24,29,29); block(22,24,18,18);
-    g(45,41,T.SPAWN); h(45,45,41,41,6); g(1,41,T.SPAWN); h(1,1,41,41,6); g(7,28,T.SPAWN); h(7,7,28,28,4); g(34,19,T.SPAWN); h(34,34,19,19,2); },   // the busted cells: the rim's east end and west end (build 363: both in front of the big barrier, which closes off the rim's last three rows -- 56i-prisonbarrier.js), the middle terrace's west wall, the lower terrace's east wall
-  lanes:{E:{cx:45,cz:41,face:-PI/2,name:'East cells',from:1}, S:{cx:1,cz:41,face:PI/2,name:'West cells',from:2}, W:{cx:7,cz:28,face:PI/2,name:'Middle landing',from:3}, NE:{cx:34,cz:19,face:-PI/2,name:'Lower east',from:4}},
+    g(45,41,T.SPAWN); h(45,45,41,41,6); g(1,41,T.SPAWN); h(1,1,41,41,6); g(7,28,T.SPAWN); h(7,7,28,28,4); g(34,19,T.SPAWN); h(34,34,19,19,2);
+    g(41,32,T.SPAWN); h(41,41,32,32,4); g(11,21,T.SPAWN); h(11,11,21,21,2); },   // build 383 (Matt: "we need at least one more spawn door in the map 6 to give more boluses of mobs and disperse ballista shots"): TWO more busted cells, so every terrace now breaks out on both sides -- the middle terrace's EAST wall (its south lane) and the lower terrace's WEST wall (its south lane)   // the busted cells: the rim's east end and west end (build 363: both in front of the big barrier, which closes off the rim's last three rows -- 56i-prisonbarrier.js), the middle terrace's west wall, the lower terrace's east wall
+  lanes:{E:{cx:45,cz:41,face:-PI/2,name:'East cells',from:1}, S:{cx:1,cz:41,face:PI/2,name:'West cells',from:2}, W:{cx:7,cz:28,face:PI/2,name:'Middle landing',from:3}, NE:{cx:34,cz:19,face:-PI/2,name:'Lower east',from:4}, ME:{cx:41,cz:32,face:-PI/2,name:'Middle east',from:5}, LW:{cx:11,cz:21,face:PI/2,name:'Lower west',from:5}},
   hall:[-9,-9,-9,-9],pillars:[],barrels:[],crates:[],chandeliers:[],beams:{zs:[],w:0},tavern:{dx:0,dz:0},noTavern:true,
   lights:(()=>{ const L=[[0,3.4,0,0xb494ff,1.3,15],[0,1.2,5,0x58c070,.7,12]];
     for(const [cx,cz,up] of [[20,9,3.4],[26,9,3.4],[16,18,3.6],[30,18,3.6],[23,21,3.6],[12,30,3.6],[34,30,3.6],[23,28,3.6],[8,42,4.2],[23,41,4.2],[38,42,4.2],[23,45,4.2]]) L.push({cx,cz,up,c:0xff8a2a,i:1.3,d:14});   // braziers down the terraces
-    for(const [cx,cz] of [[45,41],[1,41],[7,28],[34,19]]) L.push({cx,cz,up:3.4,c:0xc040ff,i:1.6,d:13});   // the broken cells glow where the horde comes out
+    for(const [cx,cz] of [[45,41],[1,41],[7,28],[34,19],[41,32],[11,21]]) L.push({cx,cz,up:3.4,c:0xc040ff,i:1.6,d:13});   // the broken cells glow where the horde comes out
     return L; })()}];
 // THE TUTORIAL HALL (build 166, Matt: "we need to reimagine the entire tutorial ... prior to room one there is a tutorial hall ...
 // its a tutorial room with one hall and in your face instruction"). A tiny map of its own, deliberately NOT in MAPS (the campaign's
@@ -211,6 +216,14 @@ const MAPS_CLEARED=(()=>{ try{ return Math.max(0,Math.min(MAPS.length,parseInt(l
 // Only that pair lifts this player's own unlock gate, and only for this one page load (the lobby strips both from the address
 // bar as soon as it has read them); ?coopmap without a room code, and ?map= for everyone, stay gated exactly as before.
 const MAPI=TUTORIAL?0:(()=>{ const cm=parseInt(Q.get('coopmap')); if(Q.get('coopjoin')&&cm>=0) return Math.min(cm,MAPS.length-1); let i=parseInt(Q.get('map')); if(!(i>=0)){ try{ i=parseInt(localStorage.getItem('ddMap'))||0; }catch(e){ i=0; } } return Math.max(0,Math.min(i,MAPS_CLEARED,MAPS.length-1)); })();   // a map past the last one cleared is locked
+// build 383: a map may be PADDED to the north (m.padN rows) -- the Drawbridge, to make room for its main hall's roof. Its own numbers stay as they were written: here every cell row in it is moved padN rows south and the grid grows by padN (the Heartroot moves with them, so the world itself does not move)
+function padNorth(m){ const n=m.padN|0; if(!n||m.__padded) return; m.__padded=true; m.gh+=n; m.crystal=[m.crystal[0],m.crystal[1]+n]; const b=m.build;
+  m.build=function(f,g,h,ramp,block){ return b.call(this,(x0,x1,z0,z1,t)=>f(x0,x1,z0+n,z1+n,t),(x,z,t)=>g(x,z+n,t),(x0,x1,z0,z1,y)=>h(x0,x1,z0+n,z1+n,y),(x0,x1,z0,z1,dir,y0,y1)=>ramp(x0,x1,z0+n,z1+n,dir,y0,y1),block&&((x0,x1,z0,z1,on)=>block(x0,x1,z0+n,z1+n,on))); };
+  for(const L of Object.values(m.lanes||{})) L.cz+=n; if(m.hall) m.hall=[m.hall[0],m.hall[1],m.hall[2]+n,m.hall[3]+n]; const zz=a=>(a||[]).map(p=>[p[0],p[1]+n].concat(p.slice(2))); m.barrels=zz(m.barrels); m.crates=zz(m.crates); m.trees=zz(m.trees);
+  m.lights=(m.lights||[]).map(l=>Array.isArray(l)?l:Object.assign({},l,{cz:l.cz+n})); const rect=a=>(a||[]).map(r=>[r[0],r[1],r[2]+n,r[3]+n].concat(r.slice(4))); m.lowWalls=m.lowWalls&&rect(m.lowWalls); m.openTop=m.openTop&&rect(m.openTop); if(m.tavern) m.tavern=Object.assign({},m.tavern,{dz:m.tavern.dz+n});
+  if(m.roof) m.roof=Object.assign({},m.roof,{z0:m.roof.z0+n,z1:m.roof.z1+n});
+  const C=m.castle; if(C){ C.towers=zz(C.towers); C.keep=rect(C.keep); C.arches=rect(C.arches); if(C.bridge) C.bridge=rect([C.bridge])[0]; C.chains=(C.chains||[]).map(c=>[c[0],c[1],c[2]+n,c[3],c[4],c[5]+n]); C.lamps=zz(C.lamps); C.statues=zz(C.statues); C.braziers=zz(C.braziers); } }
+MAPS.forEach(padNorth);
 const MAP=TUTORIAL?TUT_MAP:MAPS[MAPI]; MAP.wbase=MAPS.slice(0,MAPI).reduce((a,m)=>a+m.waves,0);
 // SURVIVAL (build 176). Matt: "we need a mode choice so i can do a map in survival mode" ... "the max waves is 50 for now" ... "the thing
 // that should make it harder and harder is sheer volume of mobs". A map already held in the campaign can be played again in Survival:
@@ -396,7 +409,8 @@ const wallTopAt=(x,z)=>{ const L=MAP.lowWalls; if(L) for(const [x0,x1,z0,z1,d] o
   const walls=new THREE.Mesh(geo,new THREE.MeshToonMaterial({map:WALLTEX,gradientMap:GRAD,color:C(0xffffff),side:THREE.DoubleSide})); world.add(walls);
   // dark cap so nothing leaks over the top edge
   const capGeo=new THREE.BufferGeometry(); const cp=[],ci=[]; let cvi=0;
-  for(let z=0;z<GH;z++) for(let x=0;x<GW;x++){ if(grid[idx(x,z)]!==T.WALL) continue; const x0=cw(x)-1,x1=cw(x)+1,z0=cwz(z)-1,z1=cwz(z)+1, WT=wallTopAt(x,z); cp.push(x0,WT,z0,x1,WT,z0,x1,WT,z1,x0,WT,z1); ci.push(cvi,cvi+2,cvi+1,cvi,cvi+3,cvi+2); cvi+=4; }
+  const openTop=(x,z)=>{ const O=MAP.openTop; if(!O) return false; if(!O.some(([a,b,c,d])=>x>=a&&x<=b&&z>=c&&z<=d)) return false; for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){ const t=gat(x+dx,z+dz); if(t!==T.WALL) return false; } return true; };   // build 383: no black top on a wall mass with nothing walkable beside it (the Drawbridge's padding behind its curtain wall)
+  for(let z=0;z<GH;z++) for(let x=0;x<GW;x++){ if(grid[idx(x,z)]!==T.WALL) continue; if(openTop(x,z)) continue; const x0=cw(x)-1,x1=cw(x)+1,z0=cwz(z)-1,z1=cwz(z)+1, WT=wallTopAt(x,z); cp.push(x0,WT,z0,x1,WT,z0,x1,WT,z1,x0,WT,z1); ci.push(cvi,cvi+2,cvi+1,cvi,cvi+3,cvi+2); cvi+=4; }
   capGeo.setAttribute('position',new THREE.Float32BufferAttribute(cp,3)); capGeo.setIndex(ci); world.add(new THREE.Mesh(capGeo,basic(0x0b0712)));
 }
 // raised floors and stairs: tops carry the painted floor (same texture window as the flat floor), drops and risers are stone
@@ -753,7 +767,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=382;
+const BUILD=383;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;

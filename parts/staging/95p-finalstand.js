@@ -12,7 +12,7 @@ window.__finalstand={ info:()=>null };
 if(!MAP||MAP.id!=='prison') return;
 const HP_K=1.5, DMG_K=1.8, SPREAD=2.6, T0=.4;
 const MIX=[['goblin',136],['orc',68],['archer',40],['troll',10],['ogre',24],['drake',10]], TEAMS=['firecart','kegcart','firecart','kegcart'];
-const LANE_CYCLE=['E','S','W','NE','E','S','E','S','W','NE'];   // the rim's two cells carry the most, the two feeders the rest
+const LANE_CYCLE=['E','S','W','NE','ME','LW','E','S','E','S','W','NE','ME','LW'];   // the rim's two cells carry the most, the four feeders the rest (build 383: six gates)
 const BOSSES=new Set(['corruptor','trollboss']);
 const cnt={ built:0, begins:0, ends:0, boosted:0 };
 const isFinal=w=>!SURVIVAL&&MAP.wbase!==undefined&&(w-MAP.wbase)===MAP.waves;

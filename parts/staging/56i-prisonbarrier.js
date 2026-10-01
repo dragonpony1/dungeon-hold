@@ -27,6 +27,8 @@ const LATER=[['goblin',50],['orc',18],['archer',8],['ogre',2]], LATER_TEAMS=['fi
 // build 382 (Matt: "this boss wave 6 in the prison we need another 100 mobs pouring out during their march forward with huge boluses all at once then need to be overwhelming to a fully built out defense"): FOUR BOLUSES of 25 (12 goblins, 7 orcs, 3 archers, 3 ogres each, a siege cart with the first and the third) -- 100 more -- pour out of the breach one after another while the
 // horde marches, 14, 28, 42 and 56 seconds after the crowd is let out (the wave clock's seconds). Each is a marker in the wave's own spawn list (so the wave cannot end before the last), comes out within a fifth of a second, with a rumble and a cloud of dust along the breach.
 const BOLUS_AT=[14,28,42,56], BOLUS_MIX=[['goblin',12],['orc',7],['archer',3],['ogre',3]], BOLUS_TEAMS=[['firecart'],[],['kegcart'],[]];
+// build 383 (Matt: "at least one more spawn door ... to give more boluses of mobs and disperse ballista shots"): the second and fourth boluses burst out of the two new doors instead of the breach -- the middle terrace's east wall and the lower terrace's west wall -- so the surges come from three places
+const BOLUS_GATE=[null,'ME',null,'LW'];
 const smooth=k=>k<=0?0:k>=1?1:k*k*(3-2*k);
 const cnt={ built:0, broken:0, starts:0, ends:0, crowd:0, carts:0, later:0, resets:0, bolus:0, boluses:0 };
 // ---- the three rows are solid until the wall falls
@@ -58,7 +60,7 @@ const letterbox=on=>bars.forEach(d=>{ d.style.height=on?'12vh':'0'; });
 const skipBtn=document.createElement('div'); skipBtn.textContent='\u23ED'; skipBtn.style.cssText='position:fixed;right:2.2vw;bottom:2.4vh;z-index:91;font-size:3.2vh;line-height:1;color:#e6d8ff;background:#1b1026cc;border:1px solid #6a4a9a;border-radius:8px;padding:.5vh 1vw;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .5s'; document.body.appendChild(skipBtn);
 const slowK=t=>{ const a=smooth((t-(T_HIT-.5))/.5), b=smooth((t-(T_HIT+1.9))/.9); return 1-(1-SLOW)*a*(1-b); };   // 1 normal, 40% through the break and its ripple, eased in and out
 // ---- the crowd
-const FIN={ active:false, done:false, t:0, boss:null, ev:{}, crowd:[], crowdQ:[], laterQ:[], bolusQ:[], laterT:0, blend:0, from:null, endP:null, endQ:null, focus:null, cracks:[], sigil:null, dustT:0, skipped:false, cartN:0 };
+const FIN={ active:false, done:false, t:0, boss:null, ev:{}, crowd:[], crowdQ:[], laterQ:[], bolusQ:[], gateQ:[], laterT:0, blend:0, from:null, endP:null, endQ:null, focus:null, cracks:[], sigil:null, dustT:0, skipped:false, cartN:0 };
 const CARTK=new Set(['kegcart','firecart']);
 function buildQueue(mix,teams){ const q=[]; for(const [k,n] of mix) for(let i=0;i<n;i++) q.push(k); for(let i=q.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; const t=q[i]; q[i]=q[j]; q[j]=t; } for(const k of teams) q.splice((rnd()*(q.length+1))|0,0,k); return q; }
 function sync(e){ e.y=baseFloor(e.x,e.z); const g=e.mdl.g; g.position.set(e.x,e.y+(e.lift||0),e.z); g.rotation.y=e.yaw; }
@@ -118,15 +120,17 @@ function start(){ if(FIN.active||FIN.done||isGuest()||inCoop()||!ready) return f
     if(FIN.blend>0&&FIN.endP){ FIN.blend=Math.max(0,FIN.blend-dt); const k=smooth(1-FIN.blend/BLEND_T), q=camera.quaternion.clone(); camera.position.copy(FIN.endP).lerp(camera.position,k); camera.quaternion.copy(FIN.endQ).slerp(q,k); } }; }
 // ---- the sixth wave begins, and sixteen seconds in the wall falls (a marker in the wave's own spawn list: the wave cannot end before it)
 { const prev=startWave; startWave=function(){ const w0=S.wave; const r=prev.apply(this,arguments); if(!SURVIVAL&&!FIN.done&&!FIN.active&&S.phase==='wave'&&S.wave===FIN_WAVE&&w0!==S.wave){ spawnQ.push({ t:FIN_T, kind:'__finale', lane:'E' }); spawnQ.sort((a,b)=>a.t-b.t); } return r; }; }
-function releaseBolus(i){ if(isGuest()||inCoop()||S.phase==='dead') return; FIN.bolusQ=FIN.bolusQ.concat(buildQueue(BOLUS_MIX,BOLUS_TEAMS[i]||[])); cnt.boluses++; camShake=Math.max(camShake,.7); for(let k=0;k<7;k++) puff(R(X0+6,X1-6),FLOOR_Y+.5,BZ+1.5,7,5); }
+function releaseBolus(i){ if(isGuest()||inCoop()||S.phase==='dead') return; const gate=BOLUS_GATE[i]; if(gate&&LANES[gate]){ for(const k of buildQueue(BOLUS_MIX,BOLUS_TEAMS[i]||[])) FIN.gateQ.push([k,gate]); cnt.boluses++; cnt.gateBoluses=(cnt.gateBoluses||0)+1; camShake=Math.max(camShake,.5); return; }
+  FIN.bolusQ=FIN.bolusQ.concat(buildQueue(BOLUS_MIX,BOLUS_TEAMS[i]||[])); cnt.boluses++; camShake=Math.max(camShake,.7); for(let k=0;k<7;k++) puff(R(X0+6,X1-6),FLOOR_Y+.5,BZ+1.5,7,5); }
 { const prev=spawnEnemy; spawnEnemy=function(kind,lane){ if(typeof kind==='string'&&kind.slice(0,7)==='__bolus'){ releaseBolus(+kind.slice(7)); return null; } if(kind==='__finale'){ if(!start()&&!ready&&!isGuest()&&!FIN.done) spawnQ.push({ t:S.waveT+1, kind:'__finale', lane:'E' }); return null; } return prev.apply(this,arguments); }; }
 // ---- per frame: the panels' tumble, the dust, the crowd that follows out of the dark
 WORLDANIM.push(dt=>{ for(const p of panels) p.w.update(dt);
   for(let i=dust.length-1;i>=0;i--){ const d=dust[i]; d.t+=dt; const k=d.t/d.life; if(k>=1){ world.remove(d.s); dust.splice(i,1); continue; } d.s.position.x+=d.vx*dt; d.s.position.y+=d.vy*dt; d.s.position.z+=d.vz*dt; d.s.material.opacity=.5*Math.sin(Math.min(1,k*1.6)*PI)*(1-k*.4); d.s.scale.setScalar(d.s.scale.x+dt*2.2); }
   if(!FIN.active&&FIN.bolusQ.length&&S.phase!=='dead'){ for(let n=0;n<4&&FIN.bolusQ.length;n++) placeNext(FIN.bolusQ,'bolus'); }
+  if(!FIN.active&&FIN.gateQ.length&&S.phase!=='dead'){ for(let n=0;n<4&&FIN.gateQ.length;n++){ const [k,g]=FIN.gateQ.shift(); const e=spawnEnemy(k,g); if(e) cnt.bolus++; } }
   if(!FIN.active&&FIN.laterQ.length&&S.phase!=='dead'){ FIN.laterT-=dt; if(FIN.laterT<=0){ FIN.laterT=.5; for(let n=0;n<3&&FIN.laterQ.length;n++) placeNext(FIN.laterQ,'later'); } } });
 // ---- the wall put back (for the dev panel and the tests): panels whole again, the three rows solid again
-function reset(){ if(FIN.active) return false; clearScene(); try{ if(window.__mortarwake) window.__mortarwake.lock(); }catch(er){} for(const p of panels) resetPanel(p); if(backing) backing.visible=true; setStrip(true); FIN.done=false; FIN.opened=false; FIN.laterQ=[]; FIN.bolusQ=[]; spawnQ=spawnQ.filter(q=>!/^__bolus/.test(q.kind)); FIN.blend=0; cnt.resets++; return true; }
+function reset(){ if(FIN.active) return false; clearScene(); try{ if(window.__mortarwake) window.__mortarwake.lock(); }catch(er){} for(const p of panels) resetPanel(p); if(backing) backing.visible=true; setStrip(true); FIN.done=false; FIN.opened=false; FIN.laterQ=[]; FIN.bolusQ=[]; FIN.gateQ=[]; spawnQ=spawnQ.filter(q=>!/^__bolus/.test(q.kind)); FIN.blend=0; cnt.resets++; return true; }
 // ---- the dev panel (F9)
 setInterval(()=>{ const p=document.getElementById('devpanel'); if(!p||document.getElementById('dp-finale')) return; const sec=document.createElement('div'); sec.className='sect'; sec.id='dp-finale';
   sec.innerHTML='<label>the big barrier (wave 6 does this itself)</label><div class="row"><button id="dp-finale-go">🎬 The wall falls</button><button id="dp-finale-back">🧱 Put the wall back</button></div>'; const note=p.querySelector('.note'); if(note) p.insertBefore(sec,note); else p.appendChild(sec);

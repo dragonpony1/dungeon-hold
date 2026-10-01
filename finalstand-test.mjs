@@ -14,7 +14,7 @@ await page.evaluate(async()=>{ try{ window.__trainer.skip(); }catch(e){} const d
 // ---- the plan of the wave
 const P=await page.evaluate(()=>{ const d=window.__dd, mw=d.map().wbase; const c7=d.waveComp(mw+7), c6=d.waveComp(mw+6); const kinds={}, lanes={}; let tmax=0; for(const s of c7.q){ kinds[s.kind]=(kinds[s.kind]||0)+1; lanes[s.lane]=(lanes[s.lane]||0)+1; tmax=Math.max(tmax,s.t); }
   return { n7:c7.q.length, n6:c6.q.length, desc:c7.desc, kinds, lanes, tmax:+tmax.toFixed(2), tmin:+Math.min(...c7.q.map(s=>s.t)).toFixed(2), info:window.__finalstand.info() }; });
-check("the seventh wave is 292 walkers and flyers plus four siege carts, all queued inside three seconds (not trickling), from all four gates",P.n7===292&&P.tmax<=3.1&&P.tmin<1&&['E','S','W','NE'].every(l=>P.lanes[l]>=50)&&P.kinds.firecart===2&&P.kinds.kegcart===2,JSON.stringify({ n:P.n7, tmax:P.tmax, lanes:P.lanes, kinds:P.kinds }));
+check("the seventh wave is 292 walkers and flyers plus four siege carts, all queued inside three seconds (not trickling), from all six gates",P.n7===292&&P.tmax<=3.1&&P.tmin<1&&['E','S','W','NE','ME','LW'].every(l=>P.lanes[l]>=40)&&P.kinds.firecart===2&&P.kinds.kegcart===2,JSON.stringify({ n:P.n7, tmax:P.tmax, lanes:P.lanes, kinds:P.kinds }));
 check("the mix asked for: 136 goblins, 68 orcs, 40 archers, 10 troll archers, 24 ogres, 10 drakes",P.kinds.goblin===136&&P.kinds.orc===68&&P.kinds.archer===40&&P.kinds.troll===10&&P.kinds.ogre===24&&P.kinds.drake===10,JSON.stringify(P.kinds));
 check("the sixth wave (the wall) is not the final stand, and the banner says what this is",P.n6<250&&P.n6!==292&&/FINAL STAND/.test(P.desc),JSON.stringify({ n6:P.n6, desc:P.desc }));
 // ---- the stand begins

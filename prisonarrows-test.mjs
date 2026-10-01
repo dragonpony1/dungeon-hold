@@ -6,7 +6,7 @@ const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PAS
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
 const ctx=await browser.newContext({viewport:{width:900,height:560}}); await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); }catch(e){} });
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
-await page.goto("http://127.0.0.1:8993/?silent&nogate&map=5",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__bow&&window.__prisonwalls&&window.__mortarwake&&window.__dd.map().id==='prison',null,{timeout:120000});
+await page.goto("http://127.0.0.1:8993/?silent&nogate&map=5&noshow",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__bow&&window.__prisonwalls&&window.__mortarwake&&window.__dd.map().id==='prison',null,{timeout:120000});
 await page.evaluate(()=>{ try{ window.__trainer.skip(); }catch(e){} const d=window.__dd; d.start(); d.step(1/60,5); });
 for(let i=0;i<300;i++){ const n=await page.evaluate(()=>{ window.__dd.step(1/60,1); return window.__prisonwalls.walls().length; }); if(n===2) break; await new Promise(r=>setTimeout(r,100)); }
 // an arrow loosed at a wall from the pit, flying north (-z) into it: from (x, 1.5, 12)
