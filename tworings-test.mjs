@@ -28,7 +28,7 @@ const D=await page.evaluate(()=>{ const d=window.__dd, R=window.__tworings; d.sp
 check("the second pet fights too (it picks a target)",D.t2&&D.hurt,JSON.stringify(D));
 const E=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta, R=window.__tworings; const saved=JSON.parse(localStorage.getItem('ddGear')).familiar2; const other=d.rollItem(1,'charm',5); M.giveItem(other); M.equip(other.id); d.step(1/60,2); return { saved:!!(saved&&saved.id), ringOn:R.ringOn(), back:!R.info().second&&M.bag().some(b=>b.slot==='familiar') }; });
 check("it is saved with your gear; take the ring off and the 2nd pet goes back to the bag",E.saved&&!E.ringOn&&E.back,JSON.stringify(E));
-await page.evaluate(()=>{ const d=window.__dd; d.S.phase='build'; window.__tworings.dropRing('beast_mode'); for(let i=0;i<30;i++) d.step(1/60,1); }); await new Promise(r=>setTimeout(r,2500));
-check("a dropped Beast Mode stands on the floor as Matt's own 3D ring (build 427)",reqs.some(u=>/named-beast_mode/.test(u)),JSON.stringify(reqs.filter(u=>/named-/.test(u)).map(u=>u.split('/').pop())));
+await page.evaluate(()=>{ const d=window.__dd; d.S.phase='build'; window.__tworings.dropRing('beast_mode'); window.__tworings.dropRing('malamute'); for(let i=0;i<30;i++) d.step(1/60,1); }); await new Promise(r=>setTimeout(r,2500));
+check("dropped, Beast Mode and Malamute stand on the floor as Matt's own 3D rings (builds 427, 429)",reqs.some(u=>/named-beast_mode/.test(u))&&reqs.some(u=>/named-malamute/.test(u)),JSON.stringify(reqs.filter(u=>/named-/.test(u)).map(u=>u.split('/').pop())));
 check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
