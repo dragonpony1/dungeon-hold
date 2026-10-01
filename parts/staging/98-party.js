@@ -55,7 +55,8 @@ function dressTick(p,dt){ if(p.pglow&&window.__procglow) window.__procglow.tick(
 // what the network layer (or, today, a test script) calls each time it hears where a party member is: puppets ease
 // toward the latest target rather than snapping to it, since real updates will arrive far slower than the render
 // framerate and a snap would read as teleporting
-function setTarget(id,x,z,yaw){ const p=PARTY.get(id); if(!p) return; p.targetX=x; p.targetZ=z; if(yaw!==undefined) p.targetYaw=yaw; if(!p.ready){ p.x=x; p.z=z; p.yaw=p.targetYaw; } }
+// build 375 (Matt, in a game with Jacob on the pig bosses' map: "i see his towers but not him"): a teammate's puppet was only ever given x, z and a facing, so it stood at floor 0 -- UNDER any raised floor (the Deep Prison's terraces are 2, 4 and 6 up; the dais and stairs of the older halls). The height now rides along (y); an older host that sends none gets the floor under the puppet's feet
+function setTarget(id,x,z,yaw,y){ const p=PARTY.get(id); if(!p) return; p.targetX=x; p.targetZ=z; if(yaw!==undefined) p.targetYaw=yaw; if(y!==undefined&&isFinite(y)) p.targetY=y; if(!p.ready){ p.x=x; p.z=z; p.yaw=p.targetYaw; if(p.targetY!==undefined) p.y=p.targetY; } }
 const TURN=8;   // rad/s the yaw eases toward its target at
 function updateParty(dt){
   PARTY.forEach(p=>{ if(!p.ready) return;
@@ -70,10 +71,11 @@ function updateParty(dt){
     let dy=p.targetYaw-p.yaw; dy=((dy+PI)%(2*PI)+2*PI)%(2*PI)-PI; const maxTurn=TURN*dt; p.yaw+=Math.max(-maxTurn,Math.min(maxTurn,dy));
     const st=p.moving?(p.actions.run?'run':'walk'):'idle';
     if(p.actions[st]) playPuppet(p,st,{fade:.15}); else if(p.actions.idle) playPuppet(p,'idle',{fade:.15});
+    { const ty=p.targetY!==undefined?p.targetY:baseFloor(p.x,p.z); p.y=(typeof p.y!=='number'||!isFinite(p.y))?ty:p.y+(ty-p.y)*Math.min(1,dt*14); }   /* ride the floor (and a jump) at a few frames' lag, not a pop */
     p.mixer.update(dt); p.wrap.position.set(p.x,p.y,p.z); p.wrap.rotation.y=p.yaw; dress(p); dressTick(p,dt); });
 }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); updateParty(dt); }; }
 window.__party={ add, remove, setTarget, setLook,
   list:()=>[...PARTY.keys()],
-  get:id=>{ const p=PARTY.get(id); if(!p) return null; return {id:p.id,glb:p.glb,x:+p.x.toFixed(3),z:+p.z.toFixed(3),yaw:+p.yaw.toFixed(3),ready:p.ready,moving:p.moving,cur:p.cur?Object.keys(p.actions).find(k=>p.actions[k]===p.cur):null,label:p.label,look:p.look||null,weapon:!!(p.wobj&&p.wobj.parent),weaponName:p.wobj&&p.wobj.userData.sword?p.wobj.userData.sword.name:null,familiar:!!p.fam,familiarKind:p.fam&&p.fam.userData?p.fam.userData.kind||null:null,glow:!!(p.glow&&p.glow.length),glowTier:p.glow&&p.glow.length?(p.glowTier||5):0}; } };   // build 181: glowTier (armorlook-test.mjs) -- the softer three-piece shell now rides the same puppet glow, told which tier to draw
+  get:id=>{ const p=PARTY.get(id); if(!p) return null; return {id:p.id,glb:p.glb,x:+p.x.toFixed(3),y:+(p.y||0).toFixed(3),z:+p.z.toFixed(3),yaw:+p.yaw.toFixed(3),ready:p.ready,moving:p.moving,cur:p.cur?Object.keys(p.actions).find(k=>p.actions[k]===p.cur):null,label:p.label,look:p.look||null,weapon:!!(p.wobj&&p.wobj.parent),weaponName:p.wobj&&p.wobj.userData.sword?p.wobj.userData.sword.name:null,familiar:!!p.fam,familiarKind:p.fam&&p.fam.userData?p.fam.userData.kind||null:null,glow:!!(p.glow&&p.glow.length),glowTier:p.glow&&p.glow.length?(p.glowTier||5):0}; } };   // build 181: glowTier (armorlook-test.mjs) -- the softer three-piece shell now rides the same puppet glow, told which tier to draw
 })();

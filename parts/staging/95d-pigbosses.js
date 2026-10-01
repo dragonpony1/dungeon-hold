@@ -138,9 +138,10 @@ el.innerHTML=['pigflail:FLAIL','pigdagger:DAGGER','pigsling:SLING'].map(s=>{ con
   return `<div class="row" data-k="${k}">${name}<div class="track"><i class="fill"></i></div></div>`; }).join('');
 document.body.appendChild(el);
 const rowEl=k=>el.querySelector(`.row[data-k="${k}"]`);
+const foes=()=>(window.__net&&window.__net.role&&window.__net.role()==='guest'&&window.__mobsync)?window.__mobsync.foes():enemies;   // build 375: a guest's mobs are puppets (99-network.js), not `enemies` -- the bar reads those there
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt);
-    let anyAlive=false;
-    for(const k of Object.keys(PIGS)){ const e=enemies.find(x=>x.kind===k&&!x.dead); const row=rowEl(k);
+    let anyAlive=false; const F=foes();
+    for(const k of Object.keys(PIGS)){ const e=F.find(x=>x.kind===k&&!x.dead); const row=rowEl(k);
       if(e){ anyAlive=true; row.style.display='block'; row.querySelector('.fill').style.width=Math.max(0,100*e.hp/e.max)+'%'; }
       else row.style.display='none'; }
     el.style.display=anyAlive?'block':'none';

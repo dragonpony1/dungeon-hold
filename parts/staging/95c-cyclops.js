@@ -119,7 +119,8 @@ const css=document.createElement('style'); css.textContent=
 document.head.appendChild(css);
 const el=document.createElement('div'); el.id='cycbar'; el.innerHTML='☠ THE CYCLOPS<div class="track"><i class="fill"></i></div>'; document.body.appendChild(el);
 const fillEl=()=>el.querySelector('.fill');
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); const e=enemies.find(x=>x.kind==='cyclops'&&!x.dead);
+const foes=()=>(window.__net&&window.__net.role&&window.__net.role()==='guest'&&window.__mobsync)?window.__mobsync.foes():enemies;   // build 375: a guest's mobs are puppets (99-network.js), not `enemies` -- the bar reads those there
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); const e=foes().find(x=>x.kind==='cyclops'&&!x.dead);
     if(e){ el.style.display='block'; fillEl().style.width=Math.max(0,100*e.hp/e.max)+'%'; } else el.style.display='none'; }; }
 // ---------------------------------------------------------------- the reward: no Gladehart yet (a separate pet-companion
 // entity that isn't built), so a solid one-time payout instead -- a real payoff for the fight today, upgraded to the

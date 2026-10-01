@@ -630,7 +630,7 @@ function guestInputTick(dt){
     // the host renders every guest as a puppet on its own screen too, straight from the state it just simulated —
     // no need to round-trip its own broadcast, which never loops back to the sender anyway
     window.__party.add(id,HERO_GLB[inp.pick]||'witch.glb',heroLabel(inp.pick));   // every tick: add() returns at once for the same rig and re-skins on a pick change (build 150)
-    window.__party.setTarget(id,g.x,g.z,g.yaw); if(window.__party.setLook) window.__party.setLook(id,inp.look||null);   // build 150: the host dresses its copy of the guest from the look that rides the guest's input
+    window.__party.setTarget(id,g.x,g.z,g.yaw,g.y); if(window.__party.setLook) window.__party.setLook(id,inp.look||null);   // build 150: the host dresses its copy of the guest from the look that rides the guest's input
   });
 }
 // build 159 (5/7): a guest's Voidwoven Mantle. 97-mythics.js wraps hurtHero, but a guest is hurt here, so a guest's mantle never swallowed
@@ -826,8 +826,8 @@ function hostBroadcastHeroes(dt){
   if(role!=='host'||!conns.size) return;
   syncT+=dt; if(syncT<1/15) return; syncT=0;   // 15Hz: plenty for a puppet that already eases toward its target (98-party.js) rather than snapping to it
   const h=window.__dd.hero;
-  const list=[{id:selfId,x:+h.x.toFixed(3),z:+h.z.toFixed(3),yaw:+h.yaw.toFixed(3),pick:window.__heroes.pick(),look:lookOf()}];
-  guestHero.forEach((g,id)=>{ const inp=guestIn.get(id); list.push({id,x:+g.x.toFixed(3),z:+g.z.toFixed(3),yaw:+g.yaw.toFixed(3),pick:(inp&&inp.pick)||'witch',look:(inp&&inp.look)||null}); });   // a guest's look rides its input (build 150); relayed here so every guest sees every other
+  const list=[{id:selfId,x:+h.x.toFixed(3),y:+(h.y||0).toFixed(2),z:+h.z.toFixed(3),yaw:+h.yaw.toFixed(3),pick:window.__heroes.pick(),look:lookOf()}];
+  guestHero.forEach((g,id)=>{ const inp=guestIn.get(id); list.push({id,x:+g.x.toFixed(3),y:+(g.y||0).toFixed(2),z:+g.z.toFixed(3),yaw:+g.yaw.toFixed(3),pick:(inp&&inp.pick)||'witch',look:(inp&&inp.look)||null}); });   // a guest's look rides its input (build 150); relayed here so every guest sees every other
   sendSnap('heroes',{list});
 }
 onMessage('heroes',data=>{
@@ -835,7 +835,7 @@ onMessage('heroes',data=>{
   const ids=new Set();
   data.list.forEach(h=>{ ids.add(h.id); if(h.id===mine) return;   // that's me -- I already render my own local hero directly, not as a puppet of myself
     window.__party.add(h.id,HERO_GLB[h.pick]||'witch.glb',heroLabel(h.pick));   // same: a teammate's pick change re-skins their puppet here
-    window.__party.setTarget(h.id,h.x,h.z,h.yaw); if(window.__party.setLook) window.__party.setLook(h.id,h.look||null); });
+    window.__party.setTarget(h.id,h.x,h.z,h.yaw,h.y); if(window.__party.setLook) window.__party.setLook(h.id,h.look||null); });
   // a guest only ever hears about a departure through the roster shrinking (there's no direct connection between
   // two guests to carry a __leave event between them) -- so dropping whoever the latest roster no longer lists is
   // the only way any non-host screen finds out a fellow guest left
@@ -1005,9 +1005,16 @@ function runPay(w,won){ w=w|0; return w>0?25*w+(won?150:0):0; }
 // mobAnim needs a fairly complete fake-enemy shape (e.swing, e.shoutT, mobSpd(e)'s slow/chill state) that isn't
 // worth building yet for a puppet nobody can hurt or be hurt by until combat (the next phase) exists.
 const MOBPUP=new Map();   // id -> {kind,mdl,x,y,z,yaw,tx,ty,tz,tyaw,walking,ph}
+// build 375 (Matt: a guest "sees wooden doll for pig bosses"): the bosses and a few other kinds load their models only when the HOST's game spawns one (each module's own spawnEnemy wrapper), so on a guest makeMob(kind) fell back to the plain wooden mannequin and stayed one. A guest now asks for the model the first time it sees such a kind, and a puppet built as the stand-in is rebuilt the moment the model lands (mobPuppetsTick)
+const KIND_LOAD={ pigflail:()=>window.__pigbosses&&window.__pigbosses.ensure(), pigdagger:()=>window.__pigbosses&&window.__pigbosses.ensure(), pigsling:()=>window.__pigbosses&&window.__pigbosses.ensure(),
+  cyclops:()=>window.__cyclops&&window.__cyclops.ensure(), archhag:()=>window.__archhag&&window.__archhag.ensure&&window.__archhag.ensure(), stickman:()=>window.__archhag&&window.__archhag.ensure&&window.__archhag.ensure(), direwolf:()=>window.__direwolf&&window.__direwolf.load&&window.__direwolf.load(),
+  corruptor:()=>window.__corruptor&&window.__corruptor.load(), kegcart:()=>window.__carts&&window.__carts.load('kegcart'), firecart:()=>window.__carts&&window.__carts.load('firecart') };
+const KIND_ASKED=new Set();
+function askKindModel(kind){ if(MOBGLB[kind]||KIND_ASKED.has(kind)||!KIND_LOAD[kind]) return; KIND_ASKED.add(kind); try{ KIND_LOAD[kind](); }catch(e){ console.warn('mob model '+kind,e); } }
 function mobPuppetAdd(id,kind){
+  askKindModel(kind);
   const m=makeMob(kind); scene.add(m.g);
-  const p={kind,mdl:m,x:0,y:0,z:0,yaw:0,tx:0,ty:0,tz:0,tyaw:0,walking:false,ph:0};
+  const p={kind,mdl:m,x:0,y:0,z:0,yaw:0,tx:0,ty:0,tz:0,tyaw:0,walking:false,ph:0,stand:!MOBGLB[kind]&&!!KIND_LOAD[kind]};
   MOBPUP.set(id,p); return p;
 }
 function mobPuppetRemove(id){ const p=MOBPUP.get(id); if(!p) return; scene.remove(p.mdl.g); MOBPUP.delete(id); }   // no manual geometry/material dispose: makeMob's rigs are built the same way spawnEnemy's are, and the game's own enemy despawn (updateEnemies) never disposes them either -- they're shared/cached per kind, not per-instance
@@ -1015,7 +1022,7 @@ let mobHitFeedback=0;   // how many times a guest's own screen has shown "someth
 // build 150 ("guest bat not fighting at all"): a guest's pet aims at the host's mobs through these proxies of the mob puppets
 // (30-familiar.js famFoes), stable per id so a chain-lightning hit list keeps working; a hit on one goes to the host as famHit
 const MOBPROX=new Map(); const PROX_SIZE={ogre:[.95,2.3],trollboss:[.8,2.1],orc:[.6,1.6],archer:[.5,1.4],drake:[.6,1.2]};
-function mobProxies(){ if(role!=='guest') return enemies; const out=[]; MOBPUP.forEach((p,id)=>{ let q=MOBPROX.get(id); if(!q){ const sz=PROX_SIZE[p.kind]||[.5,1.3]; q={puppet:true,__coopId:id,kind:p.kind,r:sz[0],h:sz[1],dead:0,slowT:0,fly:p.kind==='drake'}; MOBPROX.set(id,q); } q.x=p.x; q.y=p.y; q.z=p.z; q.hp=p.hp; q.squash=p.squash||0; q.dead=(p.hp<=0)?1:0; if(!q.dead) out.push(q); }); MOBPROX.forEach((q,id)=>{ if(!MOBPUP.has(id)) MOBPROX.delete(id); }); return out; }   // squash (build 159, 5/7): "just hit", as hurt() marks a real mob -- Old Lamplight's pet fires at whatever is being hit (97-mythics.js), and on a guest nothing ever was
+function mobProxies(){ if(role!=='guest') return enemies; const out=[]; MOBPUP.forEach((p,id)=>{ let q=MOBPROX.get(id); if(!q){ const sz=PROX_SIZE[p.kind]||[.5,1.3]; q={puppet:true,__coopId:id,kind:p.kind,r:sz[0],h:sz[1],dead:0,slowT:0,fly:p.kind==='drake'}; MOBPROX.set(id,q); } q.x=p.x; q.y=p.y; q.z=p.z; q.hp=p.hp; q.max=p.max||p.maxSeen||p.hp; q.squash=p.squash||0; q.dead=(p.hp<=0)?1:0; if(!q.dead) out.push(q); }); MOBPROX.forEach((q,id)=>{ if(!MOBPUP.has(id)) MOBPROX.delete(id); }); return out; }   // squash (build 159, 5/7): "just hit", as hurt() marks a real mob -- Old Lamplight's pet fires at whatever is being hit (97-mythics.js), and on a guest nothing ever was
 onMessage('famHit',(data,fromId)=>{ if(role!=='host'||!data) return; const e=enemies.find(e=>e.__coopId===data.id&&!e.dead); if(!e) return; const dmg=Math.max(0,Math.min(400,+data.dmg||0)); if(dmg>0) hurt(e,dmg,+data.kx||0,+data.kz||0);   // a guest's pet lands on the host's REAL mob, as guestHitCone and hostGuestShot do for the guest's own blows
   // build 159 (5/7): and what the pet's hit does besides (famHurt's ex): the Moss Sprite's spores slow it, the Fire Imp sets it burning --
   // this page's own burnUpdate (85-familiars.js) ticks the burn from here, as for the host's own Imp. Capped at a little over the
@@ -1023,10 +1030,11 @@ onMessage('famHit',(data,fromId)=>{ if(role!=='host'||!data) return; const e=ene
   if(e.dead) return; const sl=+data.slow, bu=+data.burn;
   if(sl>0) e.slowT=Math.max(e.slowT||0,Math.min(5,sl));
   if(bu>0){ e.burnT=Math.min(5,bu); e.burnDmg=Math.max(0,Math.min(50,+data.burnDmg||0)); e.burnTick=e.burnTick||0; } });
-window.__mobsync={ foes:mobProxies, list:()=>[...MOBPUP.keys()], get:id=>{ const p=MOBPUP.get(id); if(!p) return null; return {id,kind:p.kind,x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2),yaw:+p.yaw.toFixed(2),walking:p.walking,hp:p.hp}; }, hitFeedback:()=>mobHitFeedback,
+window.__mobsync={ foes:mobProxies, list:()=>[...MOBPUP.keys()], get:id=>{ const p=MOBPUP.get(id); if(!p) return null; return {id,kind:p.kind,glb:!!(p.mdl&&p.mdl.glb),stand:!!p.stand,max:p.max||0,x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2),yaw:+p.yaw.toFixed(2),walking:p.walking,hp:p.hp}; }, hitFeedback:()=>mobHitFeedback,
   unpack:d=>unpackMobs(d) };   // build 159 (6/7), a test hook: a packed 'mobs' message back into the old list (coop-tests-test.mjs)
 function mobPuppetsTick(dt){
-  MOBPUP.forEach(p=>{ const k=1-Math.exp(-10*dt); const m=p.mdl; if(p.squash>0) p.squash=Math.max(0,p.squash-dt*7);   // hurt()'s own fade (game.js updateEnemies)
+  MOBPUP.forEach(p=>{ if(p.stand&&MOBGLB[p.kind]){ scene.remove(p.mdl.g); p.mdl=makeMob(p.kind); scene.add(p.mdl.g); p.stand=false; }   /* the real model has landed: out with the mannequin */
+    const k=1-Math.exp(-10*dt); const m=p.mdl; if(p.squash>0) p.squash=Math.max(0,p.squash-dt*7);   // hurt()'s own fade (game.js updateEnemies)
     p.x=lerp(p.x,p.tx,k); p.y=lerp(p.y,p.ty,k); p.z=lerp(p.z,p.tz,k); p.yaw=angLerp(p.yaw,p.tyaw,k);
     if(m.glb){ const A=m.actions; const name=p.walking?(A.walk?'walk':(A.run?'run':null)):'idle'; if(name&&A[name]) mobPlay(m,name,{fade:.15}); m.mixer.update(dt); }
     else { p.ph+=dt*(p.walking?9:0); const w=p.walking?1:0;
@@ -1047,9 +1055,9 @@ const diedQ=[];   // build 147: mobs killed on the host since its last enemies l
 const MOBS_V=1, DIED_KEEP=100;
 function packMobs(live){ const k=[], ki=new Map();
   return {k,l:live.map(e=>{ let n=ki.get(e.kind); if(n===undefined){ n=k.length; k.push(e.kind); ki.set(e.kind,n); } const m=/^e([1-9]\d{0,14})$/.exec(e.__coopId);
-    return [m?+m[1]:e.__coopId,n,+e.x.toFixed(2),+e.y.toFixed(2),+e.z.toFixed(2),+e.yaw.toFixed(2),e.walking?1:0,+e.hp.toFixed(1)]; })}; }   // an id that isn't 'e<n>' (a test names its own) goes as the string itself
+    const row=[m?+m[1]:e.__coopId,n,+e.x.toFixed(2),+e.y.toFixed(2),+e.z.toFixed(2),+e.yaw.toFixed(2),e.walking?1:0,+e.hp.toFixed(1)]; if(e.max>=250) row.push(Math.round(e.max)); return row; })}; }   // build 375: a big mob (a boss, a cart) also says its full health, for a guest's boss bar   // an id that isn't 'e<n>' (a test names its own) goes as the string itself
 function unpackMobs(d){ const k=Array.isArray(d&&d.k)?d.k:[];
-  return (Array.isArray(d&&d.l)?d.l:[]).filter(Array.isArray).map(r=>({id:typeof r[0]==='number'?'e'+r[0]:String(r[0]),kind:k[r[1]],x:+r[2]||0,y:+r[3]||0,z:+r[4]||0,yaw:+r[5]||0,walking:!!r[6],hp:+r[7]||0})); }
+  return (Array.isArray(d&&d.l)?d.l:[]).filter(Array.isArray).map(r=>({id:typeof r[0]==='number'?'e'+r[0]:String(r[0]),kind:k[r[1]],x:+r[2]||0,y:+r[3]||0,z:+r[4]||0,yaw:+r[5]||0,walking:!!r[6],hp:+r[7]||0,max:+r[8]||0})); }
 function hostBroadcastEnemies(dt){
   if(role==='host'&&!conns.size) diedQ.length=0;   // build 159 (P6): hosting alone (a START with nobody in yet, or everyone gone) there's no one to tell -- the queue used to grow all run and land on the first joiner in one lump
   if(role!=='host'||!conns.size) return;
@@ -1062,7 +1070,7 @@ function hostBroadcastEnemies(dt){
     const dd=c.__died?c.__died.concat(died):died; c.__died=null;
     const g=guestIn.get(id);
     if(g&&g.mz===MOBS_V){ if(!rows) rows=packMobs(live); c.send(JSON.stringify({type:'mobs',data:{k:rows.k,l:rows.l,died:dd}})); }
-    else { if(!list) list=live.map(e=>({id:e.__coopId,kind:e.kind,x:+e.x.toFixed(2),y:+e.y.toFixed(2),z:+e.z.toFixed(2),yaw:+e.yaw.toFixed(2),walking:!!e.walking,hp:+e.hp.toFixed(1)}));   // y matters for flyers (drake etc, spawned at e.fly's altitude) -- without it they'd render as if grounded; hp is new (see below)
+    else { if(!list) list=live.map(e=>({id:e.__coopId,kind:e.kind,x:+e.x.toFixed(2),y:+e.y.toFixed(2),z:+e.z.toFixed(2),yaw:+e.yaw.toFixed(2),walking:!!e.walking,hp:+e.hp.toFixed(1),max:e.max>=250?Math.round(e.max):0}));   // y matters for flyers (drake etc, spawned at e.fly's altitude) -- without it they'd render as if grounded; hp is new (see below)
       c.send(JSON.stringify({type:'enemies',data:{list,died:dd}})); } });
 }
 // hp above is new: real hits (guestHitCone, hostGuestShot's bolts/arrows) already land on the host's REAL enemies --
@@ -1080,7 +1088,7 @@ function applyMobs(list,died){
     let p=MOBPUP.get(e.id);
     if(!p){ p=mobPuppetAdd(e.id,e.kind); p.x=p.tx=e.x; p.y=p.ty=e.y; p.z=p.tz=e.z; p.yaw=p.tyaw=e.yaw; p.hp=e.hp; p.kind=e.kind; }   // snap on first sight, no popping in from the origin, and no false "hit" flash for however damaged it already was
     else if(e.hp<p.hp-.05){ floatText(p.x,p.y+1.5,p.z,String(Math.round((p.hp-e.hp)*10)/10),'#ffd060'); SFX.hit(); mobHitFeedback++; p.squash=1; }   // squash: see mobProxies
-    p.tx=e.x; p.ty=e.y; p.tz=e.z; p.tyaw=e.yaw; p.walking=e.walking; p.hp=e.hp; });
+    p.tx=e.x; p.ty=e.y; p.tz=e.z; p.tyaw=e.yaw; p.walking=e.walking; p.hp=e.hp; if(e.max) p.max=e.max; p.maxSeen=Math.max(p.maxSeen||0,e.hp); });
   (Array.isArray(died)?died:[]).forEach(d=>{ const now=performance.now(); if(now-GSFX.dieT>80){ GSFX.dieT=now; if((d.kind==='ogre'||d.kind==='trollboss')&&SFX.bigDie) SFX.bigDie(); else SFX.die(); } GSFX.die++; });   // build 147: the death sound for each mob the host says died since its last list (throttled to one every 80 ms so a splash kill is a thud, not a drumroll)
   [...MOBPUP.keys()].forEach(id=>{ if(!ids.has(id)) mobPuppetRemove(id); });   // a dead or despawned enemy just stops being in the list -- same roster-diff removal 99-network.js already uses for heroes
 }
