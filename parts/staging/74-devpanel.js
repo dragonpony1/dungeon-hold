@@ -26,7 +26,7 @@ function css(){ if($('devpanelcss')) return; const s=document.createElement('sty
 // path a hideout-returned piece takes -- then either into the bag (Meta.onPickup, as returnGear does) or straight onto
 // the floor (dropLoot) so its real stand/card shows exactly as a genuine drop would.
 const SETS=[['void','of the Void'],['crimson','of Chaos'],['rock','of the Earth'],['lava','of Fire'],['angelic','of Radiance'],['storm','of the Storm'],['shadow','of Shadow'],['ice','of Ice'],['wind','of the Wind']];
-const SLOT_BASE={weapon:'Weapon',armor:'Armor',amulet:'Amulet',familiar:'Familiar',charm:'Trinket'};
+const SLOT_BASE={weapon:'Weapon',armor:'Armor',amulet:'Amulet',familiar:'Familiar',charm:'Charm'};
 const SET_STAT={weapon:['dmg','spd','tow'],armor:['hp','def','regen'],amulet:['mana','tow','hp'],familiar:['fdmg','frate','move'],charm:['move','trate','tarea']};
 const MYTHIC_STAT={dmg:24,spd:45,hp:156,def:24,regen:4.5,tow:41,mana:65,move:20,fdmg:35,frate:63,trate:20,tarea:18};
 const FAM_KINDS=['Wisp','Bat','Sprite','Fire Imp','Crystal Owl','Storm Drake'];

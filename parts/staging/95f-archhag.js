@@ -53,7 +53,8 @@ function hagAura(e){ const g=e.mdl.g; if(g.userData.hagAura) return; const grp=n
   for(let i=0;i<6;i++){ const r=new THREE.Mesh(new THREE.CircleGeometry(.13,5),ring.material); const a=i/6*TAU; r.position.set(Math.cos(a)*1.4,.075,Math.sin(a)*1.4); r.rotation.x=-PI/2; r.userData.noOL=true; grp.add(r); }   // runes on the ring
   g.add(grp); g.userData.hagAura=grp; }
 if(typeof TRACKS!=='undefined') TRACKS.archhag='assets/music-archhag.mp3';   // build 310: his drumline, fetched with her model (never at start)
-function load(){ if(typeof musFetch==='function'&&typeof TRACKS!=='undefined'&&TRACKS.archhag) musFetch('archhag'); loadSticks(); loadTopiRigs(); if(window.__direwolf&&window.__direwolf.load) window.__direwolf.load();   // build 330: her wolves too, wherever she comes if(MOBGLB[K]) return Promise.resolve(); if(loadP) return loadP;
+function load(){ if(typeof musFetch==='function'&&typeof TRACKS!=='undefined'&&TRACKS.archhag) musFetch('archhag'); loadSticks(); loadTopiRigs(); if(window.__direwolf&&window.__direwolf.load) window.__direwolf.load();   /* build 330: her wolves too, wherever she comes */
+  if(MOBGLB[K]) return Promise.resolve(); if(loadP) return loadP;   /* build 413: these two had been swallowed by the comment above since build 330 -- load() ran every frame from wave 5, re-downloading and re-parsing her 15 MB each frame (Matt: "on wave 6 ... the 4 assets that are hung causing the game to slide show") */
   const names=['walk','attack','idle','death'];
   loadP=Promise.all(names.map(k=>fetchBytes(ASSET(FILES[k])).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej)))))
     .then(gs=>{ try{ const root=gs[0].scene||gs[0].scenes[0]; fixMats(root); const fit=fitModel(root,MOBDIM[K].fit); toonify(root,fit.scale); hagLook(root);

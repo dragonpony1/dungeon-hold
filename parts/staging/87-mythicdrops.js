@@ -20,7 +20,7 @@ let MYTHIC_DROP=.01, NAMED_DROP=.05, NAMED_MOB=.00015;   // build 249: MYTHIC_DR
 //   // NAMED_MOB (build 238, Matt: "allow it at .015% on a regular mob in a regular wave"): any ordinary mob kill during a wave -- one in ~6,700 -- may drop a NAMED mythic where it fell; bosses never do
 const SETS=[['void','of the Void'],['crimson','of Chaos'],['rock','of the Earth'],['lava','of Fire'],['angelic','of Radiance'],['storm','of the Storm'],['shadow','of Shadow'],['ice','of Ice'],['wind','of the Wind']];
 const gateOk=id=>{ const g=window.__setGate; return !g||g.mythic(id); };   // 97b-setgate.js: which sets may drop in this room and wave (asked at call time; none gated until it loads)
-const BASE={armor:'Armor',amulet:'Amulet',charm:'Trinket',familiar:'Familiar'};
+const BASE={armor:'Armor',amulet:'Amulet',charm:'Charm',familiar:'Familiar'};   // build 412 (Matt: "sometimes the game calls them charms and other times trinkets"): Charm, as the slot is called everywhere
 const GOLDC='#ffcf3a';
 // build 241 (Matt: the higher-end pieces are rare on purpose and "when one drops a sound comes with it, it's an attention grabber, so you want to stop and go look"): a mythic or a named mythic
 // landing gets a rising four-note fanfare, LOUDER than an ordinary drop chime, and a tall beam of light over it for eight seconds (set-pack pieces already have their own chime and column, 93-gearsets.js)

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="77">
+<meta name="hideout-build" content="78">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -274,7 +274,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 77;   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 78;   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -898,7 +898,7 @@ const MYTHIC_GEAR = {
   amulet:   { name:'Mythic Amulet',   icon: ITEMS_DIR+'mythic_amulet.png' },
   armor:    { name:'Mythic Armor',    icon: ITEMS_DIR+'mythic_armor.png' },
   familiar: { name:'Mythic Familiar', icon: ITEMS_DIR+'mythic_familiar.png' },
-  trinket:  { name:'Mythic Trinket',  icon: ITEMS_DIR+'mythic_trinket.png' },
+  trinket:  { name:'Mythic Charm',  icon: ITEMS_DIR+'mythic_trinket.png' },
 };
 const GAME_SLOT = { weapon:'weapon', armor:'armor', amulet:'amulet', familiar:'familiar', trinket:'charm' }; // the game calls our trinket a charm
 const MYTHIC_RARITY = 5; // one step above the game's legendary (4) — the game has to learn this tier to let you wear them
@@ -1682,7 +1682,7 @@ function pieceFromCarried(c) {
   // build 37: a named mythic or a mythic set piece carried in from the hall used to fall through to here and show as the slot's
   // generic art, labelled "Common" (RARITIES stops at legendary). The game's record is the whole item, so it says what it is.
   const nid = c.named && (NAMED_ALIAS[c.named] || c.named), N = nid && NAMED_MYTHICS[nid];
-  const word = ({ weapon:'Weapon', armor:'Armor', amulet:'Amulet', familiar:'Familiar', charm:'Trinket' })[c.slot] || 'Gear';
+  const word = ({ weapon:'Weapon', armor:'Armor', amulet:'Amulet', familiar:'Familiar', charm:'Charm' })[c.slot] || 'Gear';
   if (N) {
     const st = statText(c.stats);
     return { kind:'carried', key:'c:'+c.id, id:c.id, type:c.slot, tier:'named', name:N.name,

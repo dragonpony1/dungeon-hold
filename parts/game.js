@@ -17,6 +17,10 @@ function honestSuffix(stats,L,r){ let best=null, bv=-1; const lr=L>0&&r>=0;
   for(const k in stats||{}){ if(!STAT_SUFFIX[k]) continue; const m=lr?statMean(k,L,r):0; const v=m?(+stats[k]||0)/m:(lr?0:(+stats[k]||0)*(SUFFIX_W[k]||1)); if(v>bv){ bv=v; best=k; } } return best?STAT_SUFFIX[best]:''; }
 window.__suffix={ honest:(st,L,r)=>honestSuffix(st,L,r), map:()=>Object.assign({},STAT_SUFFIX), mean:statMean };   // suffix-test.mjs
 const ANY_SUFFIX=['of Embers','of Thorns','of Vigor','of Vigil','of Plenty'].concat(Object.values(STAT_SUFFIX)).sort((p,q)=>q.length-p.length);   // the old random six, 400's names, today's
+// build 412: a charm saved as a "Trinket" (the old mythic set name) is a Charm, renamed once here too
+(function renameTrinkets(){ try{ if(localStorage.getItem('dd_charmname_v1')) return; let n=0; const fix=o=>{ if(!o||typeof o!=='object') return; if(Array.isArray(o)){ o.forEach(fix); return; } if(typeof o.name==='string'&&o.slot==='charm'&&/Trinket/.test(o.name)){ o.name=o.name.replace(/Trinket/g,'Charm'); n++; } for(const k in o) if(o[k]&&typeof o[k]==='object') fix(o[k]); };
+    for(let i=0;i<localStorage.length;i++){ const key=localStorage.key(i); if(!/^dd/.test(key)) continue; const raw=localStorage.getItem(key); if(!raw||raw[0]!=='{'&&raw[0]!=='[') continue; let v; try{ v=JSON.parse(raw); }catch(e){ continue; } const before=n; fix(v); if(n!==before) localStorage.setItem(key,JSON.stringify(v)); }
+    localStorage.setItem('dd_charmname_v1','1'); window.__trinketRenamed=n; }catch(e){} })();
 (function renameSuffixes(){ try{ if(localStorage.getItem('dd_suffix_v2')) return; let n=0;
     const fix=o=>{ if(!o||typeof o!=='object') return; if(Array.isArray(o)){ o.forEach(fix); return; }
       if(typeof o.name==='string'&&o.stats&&typeof o.stats==='object'&&typeof o.slot==='string'&&!o.setId&&!o.named&&o.tier!=='named'){ const old=ANY_SUFFIX.find(x=>o.name.endsWith(' '+x)); if(old){ const nw=honestSuffix(o.stats,o.lvl,o.rarity); if(nw&&nw!==old){ o.name=o.name.slice(0,o.name.length-old.length)+nw; n++; } } }
@@ -787,7 +791,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=411;
+const BUILD=413;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
