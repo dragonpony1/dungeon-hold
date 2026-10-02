@@ -5,6 +5,7 @@
 (function(){
 window.__weapons.registerReal('staff-fire','staff-fire.glb',{gripF:.36,lenScale:1.64});
 window.__weapons.registerReal('polearm-fire','polearm-fire.glb',{gripF:.3,lenScale:1.64});
+window.__weapons.registerReal('sword-fire','sword-fire.glb');   // build 488: Matt's Fire sword (GEAR SETS / Fire set / animated), turned blade-up (tools/glb-flip.mjs)
 let warmed=false; function warm(){ if(warmed) return; warmed=true; window.__weapons.model('staff-fire',()=>{}); window.__weapons.model('polearm-fire',()=>{}); }
 { const prev=dropLoot; dropLoot=function(it){ try{ if(it&&it.slot==='weapon'&&window.__weapons.setModel&&window.__weapons.setModel(it,'staff')==='staff-fire') warm(); }catch(e){} return prev.apply(this,arguments); }; }
 window.__realfire={warm,warmed:()=>warmed};
