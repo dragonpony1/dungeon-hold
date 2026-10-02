@@ -167,7 +167,7 @@ const MAPS=[
   lights:[[0,4.2,0,0xb494ff,1.3,15],[14,7,0,0xffb05a,.9,15],[30,7,0,0xffb05a,.9,15],[46,7,0,0xffb05a,.9,15],{cx:20,cz:3,y:2.4,c:0xff7a1a,i:1.8,d:12},{cx:34,cz:3,y:2.4,c:0xff7a1a,i:1.8,d:12},{cx:20,cz:24,y:2.4,c:0xff7a1a,i:1.8,d:12},{cx:34,cz:24,y:2.4,c:0xff7a1a,i:1.8,d:12},
    {cx:6,cz:11,y:4.4,c:0xff8a2a,i:1.4,d:13},{cx:6,cz:16,y:4.4,c:0xff8a2a,i:1.4,d:13},{cx:12,cz:4,y:4,c:0xff8a2a,i:1.4,d:13},{cx:12,cz:23,y:4,c:0xff8a2a,i:1.4,d:13},{cx:42,cz:4,y:4,c:0xff8a2a,i:1.4,d:13},{cx:42,cz:23,y:4,c:0xff8a2a,i:1.4,d:13},
    {cx:50,cz:13,y:4,c:0xc040ff,i:.9,d:10},{cx:24,cz:1,y:4,c:0xc040ff,i:.9,d:10},{cx:32,cz:27,y:4,c:0xc040ff,i:.9,d:10},{cx:46,cz:26,y:4.2,c:0xffb05a,i:1.3,d:13},{cx:44,cz:28,y:3.8,c:0xff8a2a,i:1.2,d:12},{cx:48,cz:32,y:3.8,c:0xff8a2a,i:1.2,d:12},{cx:46,cz:33,y:2.2,c:0xff7a1a,i:1.6,d:9,oz:.4}]},
- {id:'moat',name:'THE DRAWBRIDGE',sub:'the castle\'s outer ward behind a moat: one drawbridge, an old ford at the west end, a wide green before the walls · gates on the road and in the woods, a sally port late · seven waves',gw:50,gh:56,crystal:[20,7],crystal2:[34,40],goal2Lanes:['E'],mobRamp:[37,42,26,35],waves:7,wallH:18,   /* build 450 (Matt: "all of the east mobs will go to the roof of the inn where a second heartroot will be"): the INN HEARTROOT, and the east gate's horde climbs to it */ fog:[48,134],du:90,mana:520,style:{outdoor:true,grass:true,road:true,windows:true},
+ {id:'moat',name:'THE DRAWBRIDGE',sub:'the castle\'s outer ward behind a moat: one drawbridge, an old ford at the west end, a wide green before the walls · gates on the road and in the woods, a sally port late · seven waves',gw:50,gh:56,crystal:[20,7],crystal2:[34,40],goal2Lanes:['E'],mobRamp:[37,42,26,35],stairRails:[[29,36,2,10],[37,42,26,35]],   /* build 453 (Matt: "we need rails or walls along the edges of these stairs"): 56k7-stairrails.js */ waves:7,wallH:18,   /* build 450 (Matt: "all of the east mobs will go to the roof of the inn where a second heartroot will be"): the INN HEARTROOT, and the east gate's horde climbs to it */ fog:[48,134],du:90,mana:520,style:{outdoor:true,grass:true,road:true,windows:true},
   build(f,g,h,ramp){ f(3,46,2,13,T.FLOOR); f(23,25,2,13,T.CARPET); f(18,22,4,10,T.CARPET); f(19,21,6,8,T.DAIS); g(20,7,T.CRYSTAL);   // the outer ward: the road runs from the gate to the keep's door, the crystal on a dais beside it
     f(21,27,14,15,T.CARPET); f(4,5,14,15,T.FLOOR);   /* build 451 (Matt: "make the drawbridge wider and the door into the castle wider with it" -- asked: 7 wide, was 3) */                                                     // the gate through the curtain wall, and a postern at the west end
     f(1,48,16,19,T.WATER); f(21,27,16,19,T.CARPET); f(4,5,16,19,T.CARPET);                            // the moat, the drawbridge over it, the old ford (a causeway) below the postern
@@ -811,7 +811,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=452;
+const BUILD=453;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;

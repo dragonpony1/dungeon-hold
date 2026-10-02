@@ -24,5 +24,7 @@ const B=await page.evaluate(()=>{ const d=window.__dd; d.S.phase='wave'; d.S.cry
 check("a goblin from the east gate climbs the ramp onto the inn and strikes the inn Heartroot",B.goal2&&B.topY>=15&&B.hitInn&&B.castle,JSON.stringify(B));
 const C=await page.evaluate(()=>{ const d=window.__dd, W=window.__moatwalk, h=d.hero; const a=W.at(41,37); d.setHero(a.x,a.z,0); h.y=0; d.step(1/60,2); let ok=true; const ys=[]; for(const [cx,cz] of [[41,27],[38,27],[38,37]]){ const t=W.at(cx,cz); ok=W.walkTo(t.x,t.z)&&ok; ys.push(+h.y.toFixed(2)); } return { ok, y:+h.y.toFixed(2), ys }; });   /* build 452: the switchback */
 check("the hero can climb the switchback onto the inn's roof too (build 452)",C.ok&&C.y>=15.9,JSON.stringify(C));
+const R=await page.evaluate(()=>{ const d=window.__dd, W=window.__moatwalk, h=d.hero; const a=W.at(38,31); d.setHero(a.x,a.z,0); h.y=12; d.step(1/60,2); const b=W.at(35,31); const off=W.walkTo(b.x,b.z); return { rails:window.__stairrails.info().rails, off, y:+h.y.toFixed(1) }; });
+check('build 453: stone railings along the switchbacks -- halfway up the inn stair, walking off its side is stopped',R.rails>20&&!R.off&&R.y>=11,JSON.stringify(R));
 const realErrors=errors.filter(x=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(x)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
