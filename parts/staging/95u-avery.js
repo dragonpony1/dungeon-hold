@@ -16,7 +16,7 @@ if(TUTORIAL||!MAP||MAP.id!=='moat') return;
 const K='avery', P=MAP.padN|0;
 MOBS[K]={ hp:5200, spd:0, dmg:0, cd:99, mana:120, detour:0, fly:8 };
 MOBDIM[K]={ fit:6.6, h:5, r:2.6, nat:{walk:1,run:1} };
-const ROOF=16, CRUISE=ROOF+8, SPD={ cruise:7.5, swoop:15, perch:9 }, ATK_CD=[4.6,3.0], PERCH_EVERY=4, PERCH_T=6, HEAD=-.71, DROP_T=1.2;   // HEAD: Bob's flyer faces 41 deg off its own +z (head bone vs pelvis, bone map): turned back so she flies nose first
+const ROOF=16, CRUISE=ROOF+4,   /* build 479 (Matt: "at her highest altitude she's almost too high to see"): was 8 over the roofs */ SPD={ cruise:7.5, swoop:15, perch:9 }, ATK_CD=[4.6,3.0], PERCH_EVERY=4, PERCH_T=6, HEAD=-.71, DROP_T=1.2;   // HEAD: Bob's flyer faces 41 deg off its own +z (head bone vs pelvis, bone map): turned back so she flies nose first
 const TOWER_K=.3, TOWER_MIN=50, HEART_DMG=12, REACH=30;
 const WAY=[[8,6],[16,-3],[34,-3],[44,5],[40,13],[32,22],[34,38],[40,30],[24,14],[10,13]].map(([x,z])=>({ x:cw(x), z:cwz(z+P) }));   // round the castle roofs, out over the inn and back
 const PERCH={ x:cw(24), z:cwz(-2+P) };   // the middle of the hall roof
@@ -148,7 +148,7 @@ function setY(e,y){ e.climb=y-(e.y||0); e.fly=Math.max(.6,y-baseFloor(e.x,e.z));
     for(const e of enemies){ if(e.kind!==K||e.dead||!e.ast) continue; e.atk=1e9; e.holdT=0; e.slowT=0; e.chillT=0; e.at+=dt; e.beatT=Math.max(0,(e.beatT||0)-dt);
       if(e.phase===1&&e.hp<=e.max*.5){ e.phase=2; banner('💅 AVERY IS FURIOUS','faster swoops, double the feathers'); camShake=Math.max(camShake,.6); burst(e.x,e.y+2,e.z,e.x,baseFloor(e.x,e.z),e.z,16); e.beatT=1.5; }
       const fast=e.phase===2?1.25:1;
-      if(e.ast==='cruise'){ setY(e,CRUISE+Math.sin(S.t*.7)*1.2); const w=WAY[e.aw%WAY.length]; if(headTo(e,w.x,w.z,SPD.cruise*fast,dt)<2.5){ e.aw++; if(e.aw%2===0) e.beatT=Math.max(e.beatT,1.4); }   // a few strong beats every other turn of her round
+      if(e.ast==='cruise'){ setY(e,CRUISE+Math.sin(S.t*.7)*.8); const w=WAY[e.aw%WAY.length]; if(headTo(e,w.x,w.z,SPD.cruise*fast,dt)<2.5){ e.aw++; if(e.aw%2===0) e.beatT=Math.max(e.beatT,1.4); }   // a few strong beats every other turn of her round
         const turn=e.bank||0, climbing=e.climb>1.2||e.beatT>0; if(Math.abs(turn)>.35) e.banking=turn>0?'Bank_Left':'Bank_Right'; else if(Math.abs(turn)<.15) e.banking=null; pose(e,e.banking||(climbing?'Hover':'Glide'),climbing?'Wingbeat':'Glide');
         e.acd-=dt; if(e.acd<=0){ if(e.aswoops>0&&e.aswoops%PERCH_EVERY===0&&!e.perched){ e.ast='perch'; e.perched=true; e.at=0; cnt.perches++; }
           else { const tg=pickTarget(e); if(tg){ e.atg=tg; e.ast='swoop'; e.at=0; e.beatT=.8; } e.acd=ATK_CD[e.phase-1]; } } }
