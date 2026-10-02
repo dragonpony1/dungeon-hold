@@ -62,5 +62,8 @@ const H0=await guestPage.evaluate(()=>window.__gsfx().crystal);
 await hostPage.evaluate(()=>{ window.__dd.S.crystal2=60; }); await tickBoth(6,5); const H1=await guestPage.evaluate(()=>window.__gsfx().crystal);
 await hostPage.evaluate(()=>{ window.__dd.S.crystal3=40; }); await tickBoth(6,5); const H2=await guestPage.evaluate(()=>window.__gsfx().crystal);
 check('build 500: the guest hears the hit and alarm when the inn or the keep Heartroot is struck',H1>H0&&H2>H1,JSON.stringify({H0,H1,H2}));
+await hostPage.evaluate(()=>{ const d=window.__dd; d.S.phase='wave'; for(let i=0;i<5;i++) d.spawn('goblin','S'); }); await tickBoth(6,5);
+const L=await Promise.all([hostPage.evaluate(()=>document.getElementById('phaset').textContent),guestPage.evaluate(()=>document.getElementById('phaset').textContent)]);
+check('build 503: the guest sees the enemies-left count under the wave, the same as the host',/enem(y|ies) left/.test(L[1])&&L[0]===L[1],JSON.stringify(L));
 check('no page errors',errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); sig.close&&sig.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);

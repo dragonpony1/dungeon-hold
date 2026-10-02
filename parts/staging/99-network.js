@@ -887,7 +887,7 @@ function hostBroadcastWorld(dt){
   // personal resource). mana:S.mana stays too, unchanged meaning (the HOST's own pool) -- nothing else reads it
   // differently than before, so no existing caller (tests included) needed to change.
   const manas={}; manas[selfId]=S.mana; guestMana.forEach((v,id)=>{ manas[id]=v; });
-  sendSnap('world',{crystal:S.crystal,crystal2:GOAL2>=0?S.crystal2:null,crystal3:(typeof GOAL3!=='undefined'&&GOAL3>=0)?S.crystal3:null,   /* build 499 (Matt, with Jacob: "his heartroot health didn't change when one took damage"): the Drawbridge's third, the keep's */ crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,held:!!S.held,waveTotal:runWaves(),survival:!!SURVIVAL,diff:window.__difficulty?window.__difficulty.id():'normal',mapName:MAP.name,mana:S.mana,manas,du:S.du,duCap:DU_CAP,hk:(window.__hideout&&window.__hideout.ownKey)?window.__hideout.ownKey():'main'});   // hk (build 377): the host's hideout key -- a guest visiting the hideout is sent to the HOST's table (59-hideout.js)
+  sendSnap('world',{crystal:S.crystal,left:enemies.filter(e=>!e.dead).length+spawnQ.length,   /* build 503 (Matt, with Jacob: "he does not see enemies left under the wave count") */ crystal2:GOAL2>=0?S.crystal2:null,crystal3:(typeof GOAL3!=='undefined'&&GOAL3>=0)?S.crystal3:null,   /* build 499 (Matt, with Jacob: "his heartroot health didn't change when one took damage"): the Drawbridge's third, the keep's */ crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,held:!!S.held,waveTotal:runWaves(),survival:!!SURVIVAL,diff:window.__difficulty?window.__difficulty.id():'normal',mapName:MAP.name,mana:S.mana,manas,du:S.du,duCap:DU_CAP,hk:(window.__hideout&&window.__hideout.ownKey)?window.__hideout.ownKey():'main'});   // hk (build 377): the host's hideout key -- a guest visiting the hideout is sent to the HOST's table (59-hideout.js)
    // held (build 160): the host's hall is on its victory lap -- phase 'build', but no horn to wait for
 }
 // a guest's own local S.phase never actually moves through 'deathcut'/'dead'/'won' -- only the HOST's real crystal
@@ -994,7 +994,7 @@ function runPay(w,won){ w=w|0; return w>0?25*w+(won?150:0):0; }
 { const prevH=Meta.hud; Meta.hud=()=>{ prevH();
   if(role==='guest'&&hostWorld){ const w=hostWorld; guestWorldSfx(w);
     $('cbar').style.width=Math.max(0,w.crystal/w.crystalMax*100)+'%';
-    if(w.phase==='wave'){ $('wavet').textContent=(w.survival?'SURVIVAL · WAVE ':'WAVE ')+w.wave+' / '+w.waveTotal; $('phaset').textContent='Helping defend the hall'; }   // build 176: the host's Survival run reads as one here too (waveTotal is its fifty)
+    if(w.phase==='wave'){ $('wavet').textContent=(w.survival?'SURVIVAL · WAVE ':'WAVE ')+w.wave+' / '+w.waveTotal; $('phaset').textContent=Number.isFinite(w.left)?w.left+' enem'+(w.left===1?'y':'ies')+' left':'Helping defend the hall'; }   // build 503: the host's count, as the host sees it   // build 176: the host's Survival run reads as one here too (waveTotal is its fifty)
     else if(w.phase==='build'&&w.held){ $('wavet').textContent=w.survival?'SURVIVAL COMPLETE — '+w.mapName+' STANDS':'HALL HELD — '+w.mapName+' CLEARED'; $('phaset').textContent='The hall is yours to roam — the host moves the party on when ready'; }   // build 160: the host's victory lap
     else if(w.phase==='build'){ $('wavet').textContent=w.wave?'HALL HELD — BUILD PHASE':'BUILD PHASE'; $('phaset').textContent='Only the host can start the next wave'; }
     else if(w.phase==='won'){ $('wavet').textContent='HALL HELD — '+w.mapName+' CLEARED'; $('phaset').textContent=''; }
