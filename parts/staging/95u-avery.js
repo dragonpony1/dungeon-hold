@@ -27,9 +27,20 @@ let loadP=null, bust=null;
 // build 476 (Matt: "does she have any more rigging that could make her wings move" -- "let's see what you can do with the flying"): Bob's twelve clips each move all 42 bones; cut by bone into four
 // layers that play at once and change on their own -- BODY (root, spine, legs), WINGS, TAIL, HEAD (neck, head, ears, jaw)
 const GROUPS={ body:/^(CTRL_root|pelvis|spine|chest|hind_|fore_)/, wings:/^wing_/, tail:/^tail_/, head:/^(neck|head|ear|jaw)/ }, SUB={};
-function layer(e,gname,clip,o){ o=o||{}; const L=e.lay||(e.lay={ cur:{}, act:{} }); if(L.cur[gname]===clip&&!o.restart) return; const sub=SUB[gname]&&SUB[gname][clip]; if(!sub) return;
-  const a=e.mdl.mixer.clipAction(sub); a.reset(); a.timeScale=o.speed||1; a.setEffectiveWeight(1); if(o.once){ a.setLoop(THREE.LoopOnce,1); a.clampWhenFinished=true; } else a.setLoop(THREE.LoopRepeat,Infinity);
+function layer(e,gname,clip,o){ o=o||{}; const L=e.lay||(e.lay={ cur:{}, act:{}, at:{} }); if(L.cur[gname]===clip&&!o.restart) return; const sub=SUB[gname]&&SUB[gname][clip]; if(!sub) return;
+  const now=performance.now()/1000; if(!o.force&&L.at[gname]!==undefined&&now-L.at[gname]<HOLD_MIN) return; L.at[gname]=now;
+  const a=e.mdl.mixer.clipAction(sub); a.reset(); a.timeScale=o.speed||(gname==='wings'&&SPEED[clip])||1; a.setEffectiveWeight(1); if(o.once){ a.setLoop(THREE.LoopOnce,1); a.clampWhenFinished=true; } else a.setLoop(THREE.LoopRepeat,Infinity);
   const prev=L.act[gname]; a.play(); if(prev&&prev!==a) a.crossFadeFrom(prev,o.fade!==undefined?o.fade:.35,false); L.cur[gname]=clip; L.act[gname]=a; }
+// build 477 (Matt: "she sort of twitches a little but you don't see her huge wings actually move much"): Bob's ranges are "deliberately modest" -- his wingbeat swings the wing 17 deg either
+// way (two flaps in 3 s), the hover half that, the fold 7 deg. Each wing bone's turn away from its GLIDE pose (the spread wing) is multiplied: the arm x3, the forearm x3.5, the fingers x6 -- his
+// own motion, its own direction and timing, only bigger -- and the fold far more, to a real tuck. (Capped at 160 deg a bone.)
+const AMP={ Wingbeat:{ arm:3, fore:3.5, fin:6 }, Hover:{ arm:3.5, fore:4, fin:6 }, Wing_Fold:{ arm:7, fore:6, fin:6 } };
+function amplifyWings(){ const base=SUB.wings&&SUB.wings.Glide; if(!base) return; const q0=new THREE.Quaternion(), q=new THREE.Quaternion(), d=new THREE.Quaternion(), inv=new THREE.Quaternion();
+  for(const clip in AMP){ const c=SUB.wings[clip]; if(!c) continue; for(const t of c.tracks){ if(!/quaternion$/.test(t.name)) continue; const bt=base.tracks.find(x=>x.name===t.name); if(!bt) continue;
+      const bone=t.name.split('.')[0], k=/arm/.test(bone)&&!/fore/.test(bone)?AMP[clip].arm:/forearm/.test(bone)?AMP[clip].fore:AMP[clip].fin; q0.fromArray(bt.values,0); inv.copy(q0).invert();
+      const v=t.values; for(let i=0;i<v.length;i+=4){ q.fromArray(v,i); d.multiplyQuaternions(inv,q).normalize(); if(d.w<0){ d.x=-d.x; d.y=-d.y; d.z=-d.z; d.w=-d.w; }
+        const th=2*Math.acos(Math.min(1,d.w)), sn=Math.sin(th/2); if(sn<1e-6) continue; const th2=Math.min(th*k,160*PI/180), s2=Math.sin(th2/2)/sn; d.set(d.x*s2,d.y*s2,d.z*s2,Math.cos(th2/2)); q.multiplyQuaternions(q0,d).normalize(); q.toArray(v,i); } } } }
+const HOLD_MIN=.5, SPEED={ Wingbeat:1.4, Hover:1.5 };   // a layer keeps a clip at least half a second (no flicker between two); the flaps a little quicker than Bob's 1.5 s
 function pose(e,body,wings,tail,head,o){ o=o||{}; layer(e,'body',body,o); layer(e,'wings',wings,o.wingsOnce?Object.assign({},o,{ once:true }):o); layer(e,'tail',tail||'Tail_Swish'); layer(e,'head',head||'Look_Around',{ speed:.8 }); }
 function parse(file){ return fetchBytes(ASSET(file)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))); }
 function load(){ if(loadP) return loadP;
@@ -39,6 +50,7 @@ function load(){ if(loadP) return loadP;
       tail:by('Tail_Swish'), look:by('Look_Around'), reach:by('Foreleg_Reach'), jaw:by('Jaw_Open'), breathe:by('Breathe'), fold:by('Wing_Fold') }; for(const k in map) if(!map[k]) delete map[k];
     MOBGLB[K]={ wrap:fit.wrap, map:{}, scale:fit.scale };   // build 476: no whole-body clips for the core to play -- she is driven in layers (below)
     for(const c of (f.animations||[])) for(const gname in GROUPS){ const tr=c.tracks.filter(t=>GROUPS[gname].test(t.name.split('.')[0])); (SUB[gname]=SUB[gname]||{})[c.name]=new THREE.AnimationClip(c.name+'_'+gname,c.duration,tr); }
+    amplifyWings();
     const br=b.scene||b.scenes[0]; const bfit=fitModel(br,3.2); toonify(br,bfit.scale); const clip=(b.animations||[]).find(a=>a.name==='Intro_Stamp')||(b.animations||[])[0];
     bust={ g:bfit.wrap, clip, mixer:null };
   }).catch(e=>{ console.warn('avery model',e); loadP=null; });
@@ -136,7 +148,7 @@ function setY(e,y){ e.climb=y-(e.y||0); e.fly=Math.max(.6,y-baseFloor(e.x,e.z));
       if(e.phase===1&&e.hp<=e.max*.5){ e.phase=2; banner('💅 AVERY IS FURIOUS','faster swoops, double the feathers'); camShake=Math.max(camShake,.6); burst(e.x,e.y+2,e.z,e.x,baseFloor(e.x,e.z),e.z,16); e.beatT=1.5; }
       const fast=e.phase===2?1.25:1;
       if(e.ast==='cruise'){ setY(e,CRUISE+Math.sin(S.t*.7)*1.2); const w=WAY[e.aw%WAY.length]; if(headTo(e,w.x,w.z,SPD.cruise*fast,dt)<2.5){ e.aw++; if(e.aw%2===0) e.beatT=Math.max(e.beatT,1.4); }   // a few strong beats every other turn of her round
-        const turn=e.bank||0, climbing=e.climb>1.2||e.beatT>0; pose(e,Math.abs(turn)>.3?(turn>0?'Bank_Left':'Bank_Right'):(climbing?'Hover':'Glide'),climbing?'Wingbeat':'Glide');
+        const turn=e.bank||0, climbing=e.climb>1.2||e.beatT>0; if(Math.abs(turn)>.35) e.banking=turn>0?'Bank_Left':'Bank_Right'; else if(Math.abs(turn)<.15) e.banking=null; pose(e,e.banking||(climbing?'Hover':'Glide'),climbing?'Wingbeat':'Glide');
         e.acd-=dt; if(e.acd<=0){ if(e.aswoops>0&&e.aswoops%PERCH_EVERY===0&&!e.perched){ e.ast='perch'; e.perched=true; e.at=0; cnt.perches++; }
           else { const tg=pickTarget(e); if(tg){ e.atg=tg; e.ast='swoop'; e.at=0; e.beatT=.8; } e.acd=ATK_CD[e.phase-1]; } } }
       else if(e.ast==='swoop'){ const tg=e.atg; if(tg.def&&!defs.includes(tg.def)){ e.ast='cruise'; continue; } setY(e,tg.y+6);
@@ -162,12 +174,12 @@ function windSet(){ const look=(()=>{ try{ const m=window.__weapons&&window.__we
   return [{ slot:'weapon', name:'Mythic '+look[0].toUpperCase()+look.slice(1)+' of the Wind', setId:'wind', look, rarity:5, lvl:20, stats:ST.weapon },
     { slot:'armor', name:'Armor of the Wind', setId:'wind', rarity:5, lvl:20, stats:ST.armor }, { slot:'amulet', name:'Amulet of the Wind', setId:'wind', rarity:5, lvl:20, stats:ST.amulet },
     { slot:'familiar', name:'Storm Drake of the Wind', setId:'wind', rarity:5, lvl:20, stats:ST.familiar }, { slot:'charm', name:'Charm of the Wind', setId:'wind', rarity:5, lvl:20, stats:ST.charm }]; }
-{ const prev=kill; kill=function(e){ const was=e&&!e.dead&&e.kind===K; const r=prev.apply(this,arguments); if(was){ cnt.deaths++; try{ pose(e,'Hindleg_Tuck','Wing_Fold',null,'Jaw_Open',{ wingsOnce:true, fade:.15 }); }catch(er){}
+{ const prev=kill; kill=function(e){ const was=e&&!e.dead&&e.kind===K; const r=prev.apply(this,arguments); if(was){ cnt.deaths++; try{ pose(e,'Hindleg_Tuck','Wing_Fold',null,'Jaw_Open',{ wingsOnce:true, fade:.15, force:true }); }catch(er){}
     burst(e.x,e.y+2,e.z,e.x,baseFloor(e.x,e.z),e.z,40); for(let k=0;k<5;k++){ const g=glow([0xff4fd8,0xffd27a,0xb05aff,0xffffff,0xff8ae0][k],5+k,.9); g.position.set(e.x+(Math.random()-.5)*4,e.y+1+Math.random()*3,e.z+(Math.random()-.5)*4); scene.add(g); projs.push({ kind:'splat', t:0, mesh:g }); }
     camShake=Math.max(camShake,.9); banner('💋 AVERY FALLS','the Wind set is yours');
     const N=window.__mythic&&window.__mythic.normalize; windSet().forEach((rec,i)=>{ const it=N?N(rec):null; if(!it) return; const a=i/5*TAU; dropLoot(it,hero.x+Math.cos(a)*3.5,hero.z+Math.sin(a)*3.5,true); });
     setTimeout(()=>{ if(!enemies.some(x=>x.kind===K&&!x.dead)) beamsOff(); },2500); } return r; }; }
 window.__avery={ kind:K, load, loaded:()=>!!(MOBGLB[K]&&bust), info:()=>Object.assign({ cut:!!cut, cutT:cut?+cut.t.toFixed(2):null, beams:BEAMS.length, feathers:FALL.length },cnt),
   state:()=>enemies.filter(e=>!e.dead&&e.kind===K).map(e=>({ st:e.ast, phase:e.phase, x:+e.x.toFixed(1), z:+e.z.toFixed(1), y:+(e.y||0).toFixed(1), hp:Math.round(e.hp), max:e.max, swoops:e.aswoops })),
-  startCut, endCut, skip:()=>{ if(cut) cut.t=END-.01; }, windSet, way:WAY, perch:PERCH };
+  peek:(wclip,frac)=>{ const e=enemies.find(x=>x.kind===K&&!x.dead); if(!e) return false; e.ast='peek'; const mx=e.mdl.mixer; mx.stopAllAction(); e.lay={ cur:{}, act:{}, at:{} }; for(const [g,c] of [['body','Hover'],['wings',wclip],['tail','Tail_Swish'],['head','Look_Around']]){ const sub=SUB[g]&&SUB[g][c]; if(!sub) continue; const act=mx.clipAction(sub); act.reset(); act.play(); act.time=sub.duration*frac; act.paused=true; } mx.update(0); return true; },   /* test hook: hold her in one pose (avery-test pictures) */ startCut, endCut, skip:()=>{ if(cut) cut.t=END-.01; }, windSet, way:WAY, perch:PERCH };
 })();
