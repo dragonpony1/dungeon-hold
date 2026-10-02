@@ -57,7 +57,7 @@ use('throne-sconce.glb',1.5,p=>{ warmGlow(p); for(const s of TORCH){ s.t.visible
     else { small.push([cw(x),y,cwz(z)]); done.add(x+','+z); } }
   const flat=Q(-PI/2,0);
   use('throne-floor.glb',2.7,p=>{ instance(p,big.map(([x,y,z])=>mtx(x,y+.02,z,flat,2,2,1)).concat(small.map(([x,y,z])=>mtx(x,y+.02,z,flat,1,1,1))),true); counts.floorBig=big.length; counts.floorSmall=small.length; });
-  const carpet=[]; for(let z=HZ0;z<=HZ1;z++) for(let x=HX0;x<=HX1;x++){ const i=idx(x,z); if(grid[i]===T.CARPET&&!rampA[i]) carpet.push(mtx(cw(x),(hgt[i]||0)+.04,cwz(z),flat,1,1,1)); }
+  const carpet=[]; for(let z=HZ0;z<=HZ1;z++) for(let x=HX0;x<=HX1;x++){ const i=idx(x,z); if(grid[i]===T.CARPET&&!rampA[i]) carpet.push(mtx(cw(x),(hgt[i]||0)+.21,cwz(z),flat,1,1,.35)); }   // build 469 (Matt: "you see how the purple rug is buried in the floor tile? we've seen this before"): the floor tile is drawn a little past its square and its gems stand .14 proud -- they came up through the rug's edges and middle. The rug is flattened to a third of its depth and laid on top of the tiles
   use('throne-carpet-tile.glb',2.7,p=>{ instance(p,carpet,true); counts.carpet=carpet.length; }); }
 // ---------------- WALLS: the stone panel on every wall face of the hall (instanced), the painted windows hidden
 (world.userData.windowParts||[]).forEach(o=>{ o.visible=false; });

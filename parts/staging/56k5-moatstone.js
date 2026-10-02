@@ -71,6 +71,12 @@ const ROAD=MAP.castleRoad; if(ROAD){ const [x0,x1,z0,z1]=ROAD, W=(x1-x0+1)*CELL,
   const tex=new THREE.TextureLoader().load(ASSET('castle-road.jpg')); tex.wrapS=THREE.ClampToEdgeWrapping; tex.wrapT=THREE.MirroredRepeatWrapping; tex.repeat.set(1,Math.max(1,Math.round(L/W))); tex.encoding=THREE.sRGBEncoding; tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
   const road=new THREE.Mesh(new THREE.PlaneGeometry(W,L),new THREE.MeshToonMaterial({map:tex,gradientMap:GRAD,color:C(0xffffff),polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
   road.rotation.x=-Math.PI/2; road.position.set(X,(hgt[idx(x0,z0+P)]||0)+.03,Z); road.userData.noOL=true; world.add(road); cnt.road=true; }
+// ---- the bridge-foot statues (Matt: "this just finished, it should replace the two statues out in front by the bridge"): his black chess knight (moat-knight.glb) stands on each plinth where the
+// stone gnome king stood, looking out over the green at whatever comes up the road
+{ const kings=(world.userData.statueKings||[]).slice(); if(kings.length){ kings.forEach(k=>{ k.visible=false; });   /* the king hides at once; his plinth when the knight arrives */
+  fetchBytes(ASSET('moat-knight.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{
+    const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,4.8); toonify(root,fit.scale); const w=fit.wrap;
+    for(const k of kings){ const g=k.parent; g.children.forEach(c=>{ c.visible=false; }); const t=w.clone(); t.position.set(0,0,0); g.add(t); cnt.knights=(cnt.knights|0)+1; } }).catch(e=>{ console.warn('moat knight',e); kings.forEach(k=>{ k.visible=true; }); }); } }   // the knight brings its own carved pedestal: the old plinth goes too
 // ---- the Cloister's white tree on the green (its trunk cells are solid: game.js)
 const TREE=MAP.whiteTree; if(TREE){ fetchBytes(ASSET('court-tree.glb'),'later').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{
     const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,TREE[2]||21); toonify(root,fit.scale); const t=fit.wrap; const x=(cw(TREE[0])+cw(TREE[0]+1))/2, z=(cwz(TREE[1]+P)+cwz(TREE[1]+P+1))/2;
