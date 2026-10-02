@@ -126,7 +126,7 @@ function tvBagCols(bag,all){ const P=Meta.packs, ord=P&&P.list?P.list():[], SN={
       h+=its.map(tile).join(''); });   /* set by set, one after another: each tile carries its set's colour down its left edge and its badge in the corner */
     h+='</div></div>'; } return h+'</div>'; }
 // hover a tile: the full card, everything on it (the same card the old grid showed: picture chips, set dots, the upgrade bar, the "vs worn" call)
-(function(){ let hv=null; const find=id=>Meta.bag().find(b=>b.id===id)||SLOTS.map(sl=>gear[sl]).find(g=>g&&g.id===id);
+(function(){ let hv=null; const find=id=>Meta.bag().find(b=>b.id===id)||SLOTS.map(sl=>gear[sl]).find(g=>g&&g.id===id)||(window.__wardItems||[]).find(g=>g&&g.id===id);   /* build 447: the hideout wardrobe's pieces too */
   document.addEventListener('mouseover',e=>{ const t=e.target.closest&&(e.target.closest('.tv-tile')||e.target.closest('.tv-bag2.cols .tv-eq .tv-card[data-from="eq"]')); if(!hv){ hv=document.createElement('div'); hv.id='tv-hover'; document.body.appendChild(hv); }
     if(!t){ hv.style.display='none'; return; } const it=find(t.dataset.id); if(!it){ hv.style.display='none'; return; }
     hv.innerHTML=tvCard(it,'bag',tvVs(it)); hv.style.display='block'; const r=t.getBoundingClientRect(), W=260, H=hv.offsetHeight; let x=r.right+8; if(x+W>innerWidth-6) x=r.left-W-8; let y=Math.min(r.top,innerHeight-H-8); hv.style.left=Math.max(6,x)+'px'; hv.style.top=Math.max(6,y)+'px'; });
