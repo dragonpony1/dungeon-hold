@@ -35,7 +35,11 @@ let last2=null, strip2T=0;
     const strip=document.getElementById('alarm'); if(last2!==null&&c2<last2&&c2>0&&(S.phase==='wave'||S.phase==='build'||guest)&&strip){ strip.textContent='⚠ THE INN HEARTROOT IS UNDER ATTACK'; strip.classList.add('on'); strip2T=2.5; }
     if(strip2T>0){ strip2T-=dt; if(strip2T<=0&&strip){ strip.classList.remove('on'); strip.textContent='⚠ THE HEARTROOT IS UNDER ATTACK'; } } last2=c2; }; }
 // ---- build 454: the KEEP HEARTROOT, the same way: the model cloned onto the hall roof's north-west corner, its bar third, its own alarm
-const H3G=new THREE.Group(); if(GOAL3>=0){ H3G.position.set(C3X,hgt[GOAL3]||0,C3Z); world.add(H3G); } let H3CG=null; const H3SH=[];
+const H3Y=MAP.crystal3Y!=null?MAP.crystal3Y:(GOAL3>=0?hgt[GOAL3]:0);   /* build 458: it stands on the yard roof (a slab, not the ground under it) */
+const H3G=new THREE.Group(); if(GOAL3>=0){ H3G.position.set(C3X,H3Y,C3Z); world.add(H3G); }
+// the flyers making for it keep up at the roof over the castle yard (game.js asks); nothing on foot treads its square below the roof (MOBBLOCK), so no walker strikes it from underneath
+const Wk=MAP.walk; window.__flyFloor=(x,z)=>{ if(!Wk||!Wk.ward) return -1e9; const cx=wc(x), cz=wcz(z); return (cx>=Wk.ward[0]-1&&cx<=Wk.ward[1]+1&&cz>=Wk.ward[2]+P-1&&cz<=Wk.ward[3]+P+1)?H3Y:-1e9; };
+if(GOAL3>=0&&MAP.crystal3Y!=null){ MOBBLOCK[GOAL3]=1; reflow(); } let H3CG=null; const H3SH=[];
 function buildHeart3(){ if(GOAL3<0||H3CG||!crystalG.userData.model) return; for(const ch of crystalG.children){ const cl=ch.clone(true); cl.traverse(ob=>{ if(ob.material) ob.material=Array.isArray(ob.material)?ob.material.map(m=>m.clone()):ob.material.clone(); }); H3G.add(cl); if(ch===crystalG.userData.cg) H3CG=cl; }
   if(H3CG) H3CG.children.forEach(s=>{ if(s.userData&&s.userData.a!==undefined) H3SH.push(s); }); }
 let bar3=null; if(GOAL3>=0&&bar1B){ const b=bar1B.cloneNode(true); const i=b.querySelector('i'); if(i){ i.id='cbar3'; i.style.width='100%'; } const lbl=b.querySelector('b'); if(lbl) lbl.textContent='KEEP HEARTROOT'; const after=(bar2&&bar2.parentNode)||bar1B; after.parentNode.insertBefore(b,after.nextSibling); bar3=i; }
@@ -45,5 +49,5 @@ if(GOAL3>=0){ const prev=Meta.update; Meta.update=dt=>{ prev(dt); buildHeart3();
     crystal3Shake=Math.max(0,crystal3Shake-dt); const c3=S.crystal3; if(bar3) bar3.style.width=Math.max(0,c3/CRYSTAL_MAX*100)+'%';
     const strip=document.getElementById('alarm'); if(last3!==null&&c3<last3&&c3>0&&(S.phase==='wave'||S.phase==='build')&&strip){ strip.textContent='⚠ THE KEEP HEARTROOT IS UNDER ATTACK'; strip.classList.add('on'); strip3T=2.5; }
     if(strip3T>0){ strip3T-=dt; if(strip3T<=0&&strip){ strip.classList.remove('on'); strip.textContent='⚠ THE HEARTROOT IS UNDER ATTACK'; } } last3=c3; }; }
-window.__moatinn={ keep:()=>({ goal3:GOAL3>=0?[GOAL3%GW,(GOAL3/GW)|0]:null, h3:GOAL3>=0?hgt[GOAL3]:null, heart3:!!H3CG, bar3:!!bar3, keepSent:cnt.keep }), f3:()=>F3, info:()=>({ sent:cnt.sent, heart2:!!H2CG, bar2:!!bar2, goal2:[GOAL2%GW,(GOAL2/GW)|0], h2:hgt[GOAL2] }), f2:()=>F2, steps:(cx,cz,which)=>{ const F=which===2?F2.free:flowFree; let i=idx(cx,cz), n=0; while(i>=0&&!isGoal(i)&&n<900){ i=F.nxt[i]; n++; } return i>=0&&isGoal(i)?{ n, end:i===GOAL2?2:1 }:null; } };
+window.__moatinn={ keep:()=>({ goal3:GOAL3>=0?[GOAL3%GW,(GOAL3/GW)|0]:null, h3:GOAL3>=0?H3Y:null, heart3:!!H3CG, bar3:!!bar3, keepSent:cnt.keep }), f3:()=>F3, info:()=>({ sent:cnt.sent, heart2:!!H2CG, bar2:!!bar2, goal2:[GOAL2%GW,(GOAL2/GW)|0], h2:hgt[GOAL2] }), f2:()=>F2, steps:(cx,cz,which)=>{ const F=which===2?F2.free:flowFree; let i=idx(cx,cz), n=0; while(i>=0&&!isGoal(i)&&n<900){ i=F.nxt[i]; n++; } return i>=0&&isGoal(i)?{ n, end:i===GOAL2?2:1 }:null; } };
 })();
