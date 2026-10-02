@@ -20,5 +20,16 @@ const b=await f.evaluate(()=>({ forge:document.getElementById('forgeWrap').style
 check("closing the bag comes straight back to the forge (no 'click to enter' card over it)",b.forge==='flex'&&b.start!=='flex',JSON.stringify(b));
 await f.evaluate(()=>document.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyB',key:'b'}))); await sleep(400);
 const c=await page.evaluate(()=>window.__tavern.isOpen()); check("B in the forge opens it too",c,String(c)); await page.evaluate(()=>window.__tavern.close());
+// build 444 / hideout 84 (Matt: Esc from the bag, forge, cauldron or anything must leave you in the open room, not the big entry card)
+await f.evaluate(()=>{ entered=true; document.getElementById('start').style.display='none'; openForge(); }); await sleep(200);
+await f.evaluate(()=>document.dispatchEvent(new KeyboardEvent('keydown',{code:'Escape',key:'Escape'}))); await sleep(400);
+const d=await f.evaluate(()=>({ forge:document.getElementById('forgeWrap').style.display, start:document.getElementById('start').style.display, sign:document.getElementById('clickPlay').style.display }));
+check('Esc out of the forge: the forge closes, the room stays in view with the small CLICK TO PLAY sign (no big entry card)',d.forge==='none'&&d.start!=='flex'&&d.sign==='block',JSON.stringify(d));
+await f.evaluate(()=>{ openCauldron&&openCauldron(); }); await sleep(200); await f.evaluate(()=>document.dispatchEvent(new KeyboardEvent('keydown',{code:'Escape',key:'Escape'}))); await sleep(400);
+const e2=await f.evaluate(()=>({ c:document.getElementById('cauldronWrap').style.display, start:document.getElementById('start').style.display, sign:document.getElementById('clickPlay').style.display }));
+check('...and the same out of the cauldron',e2.c==='none'&&e2.start!=='flex'&&e2.sign==='block',JSON.stringify(e2));
+await f.evaluate(()=>openHallBag()); await sleep(400); const sg=await f.evaluate(()=>document.getElementById('clickPlay').style.display); await page.evaluate(()=>window.__tavern.close()); await sleep(500);
+const g=await f.evaluate(()=>({ start:document.getElementById('start').style.display, sign:document.getElementById('clickPlay').style.display }));
+check('...and out of the bag (the sign hides while the bag is up, comes back after)',sg==='none'&&g.start!=='flex'&&g.sign==='block',JSON.stringify({sg,g}));
 const realErrors=errors.filter(x=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(x)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
