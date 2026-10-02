@@ -20,11 +20,13 @@ const R=await page.evaluate(async()=>{ const d=window.__dd; try{ window.__traine
   const verts=await new Promise(res=>window.__weapons.model('sword-chaos',m=>{ let n=0; (m&&m.traverse)&&m.traverse(o=>{ if(o.isMesh&&o.geometry&&o.geometry.attributes.position) n+=o.geometry.attributes.position.count; }); res(n); }));
   const vverts=await new Promise(res=>window.__weapons.model('sword-void',m=>{ let n=0; (m&&m.traverse)&&m.traverse(o=>{ if(o.isMesh&&o.geometry&&o.geometry.attributes.position) n+=o.geometry.attributes.position.count; }); res(n); }));
   const overts=await new Promise(res=>window.__weapons.model('void',m=>{ let n=0; (m&&m.traverse)&&m.traverse(o=>{ if(o.isMesh&&o.geometry&&o.geometry.attributes.position) n+=o.geometry.attributes.position.count; }); res(n); }));
-  return { names, models:{ sw:mf(sw), am:mf(am), ch:mf(ch), ic:mf(ic) }, verts, vverts, overts }; });
+  const anim=window.__weaponStand.list?window.__weaponStand.list().filter(s=>/set_chaos|set_void|chaos|void/.test(s.name)).map(s=>s.name+':'+!!s.mixer):[];
+  return { names, models:{ sw:mf(sw), am:mf(am), ch:mf(ch), ic:mf(ic) }, verts, vverts, overts, anim }; });
 check("the Chaos sword is Matt's model (thousands of points), not the code-built one",R.verts>3000,JSON.stringify(R.verts));
 check('the Chaos weapon (as this hero holds it), amulet and charm stand on the floor in 3D',R.names.some(n=>/^(sword|staff|polearm|bow)-chaos$/.test(n))&&R.names.includes('named-set_chaos_amulet')&&R.names.includes('named-set_chaos_charm'),JSON.stringify(R));
 check("the Void longsword is Matt's model under both of the set's names",R.vverts>3000&&R.overts>3000,JSON.stringify({ v:R.vverts, o:R.overts }));
 check('the Void amulet and charm stand on the floor in 3D',R.names.includes('named-set_void_amulet')&&R.names.includes('named-set_void_charm'),JSON.stringify(R.names));
+check("Bob's animated pieces play their moves on the floor (the Chaos amulet and charm sway)",R.anim.includes('named-set_chaos_amulet:true')&&R.anim.includes('named-set_chaos_charm:true'),JSON.stringify(R.anim));
 check('a set without its own 3D amulet yet keeps its card (Ice)',R.models.ic===null,JSON.stringify(R.models));
 await page.evaluate(()=>{ const d=window.__dd, h=d.hero; d.setCam(Math.PI,.35,7); d.step(1/60,30); }); await page.screenshot({path:'tools/test-logs/setart-floor.png'});
 check('no page errors',errors.length===0,JSON.stringify(errors.slice(0,3)));

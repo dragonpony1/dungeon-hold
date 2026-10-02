@@ -42,9 +42,9 @@ Object.assign(NAMED_REAL,{fam_wisp:{file:'fam-wisp.glb',h:.95,lift:.55},fam_bat:
 Object.assign(NAMED_REAL,{ set_chaos_amulet:{file:'set-chaos-amulet.glb',h:.9,lift:.6}, set_chaos_charm:{file:'set-chaos-charm.glb',h:.9,lift:.6},
   set_void_amulet:{file:'set-void-amulet.glb',h:.9,lift:.6}, set_void_charm:{file:'set-void-charm.glb',h:.9,lift:.6} });   // build 483
 const FAM_KEY={'Wisp':'fam_wisp','Bat':'fam_bat','Sprite':'fam_sprite','Fire Imp':'fam_imp','Crystal Owl':'fam_owl','Storm Drake':'fam_drake'};
-const NR_GLB={}, NR_P={}, NR_PENDING=[];
+const NR_GLB={}, NR_P={}, NR_PENDING=[], NR_CLIP={};   // NR_CLIP (build 485): a named/set model's own animation (Bob's Hanging_Sway_Loop), played on its stand
 function loadNamedReal(k){ const cfg=NAMED_REAL[k]; if(!cfg||NR_GLB[k]||NR_P[k]) return; NR_P[k]=fetchBytes(ASSET(cfg.file)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ try{
-      const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,cfg.h); toonify(root,fit.scale); NR_GLB[k]=fit.wrap;
+      const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,cfg.h); toonify(root,fit.scale); NR_GLB[k]=fit.wrap; if(gltf.animations&&gltf.animations.length) NR_CLIP[k]=gltf.animations[0];
     }catch(e){ console.warn('named model '+k,e); } }).catch(e=>console.warn('named model '+k,e)); }
 function pmat(){ if(!PM) PM=new THREE.PointsMaterial({map:GLOWT,size:.3,vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,sizeAttenuation:true}); return PM; }   // shared by every drop: each mote's colour (and fade) is its vertex colour
 // the model this page's hero would hold for the item, or null for anything without its own (a plain sword, a Forest piece)
@@ -75,9 +75,11 @@ function stand(l,it){ const name=modelFor(it); if(!name) return null;
   l.mesh.userData.item.visible=false; l.mesh.children.forEach(c=>{ if(c===l.mesh.userData.item) return; if(c.material&&c.material.color){ c.material.color.copy(c1); if(c.isSprite){ c.material.opacity=.35; c.scale.set(1.8,1.8,1); } else if(c!==l.mesh.userData.ring) c.material.opacity=.14; } });
   root.position.copy(l.mesh.position); scene.add(root);
   const S={l,root,spin,obj,halo,foot,pts,m,name,t:rnd()*6,staff:/^staff-/.test(name),bow:/^bow-/.test(name),pulses:[]}; obj.traverse(o=>{ if(o.name==='glowPulse') S.pulses.push(o); });
+  // build 485 (Matt sent Bob's animated set pieces -- "should be void set animated"): a model that came with its own moves plays them on its stand -- a pendant's sway on its chain, a sword's flourish
+  { const clip=nrKey?NR_CLIP[nrKey]:(window.__weapons.clips&&(window.__weapons.clips(name)||[])[0]); if(clip){ try{ S.mixer=new THREE.AnimationMixer(obj); const a=S.mixer.clipAction(clip); a.play(); a.time=rnd()*clip.duration; S.mixer.update(0); }catch(e){ S.mixer=null; } } }
   l.mesh.userData.stand=S; STANDS.push(S); tickOne(S,0); return S; }
 function tickOne(S,dt){ const l=S.l; S.t+=dt; S.root.position.copy(l.mesh.position); S.root.visible=l.mesh.visible; l.mesh.userData.item.visible=false;   // (a set's card that fails to load turns the placeholder back on: 93-gearsets.js)
-  S.spin.rotation.y+=dt*SPIN; S.spin.position.y=Math.sin(S.t*1.6)*.035;
+  S.spin.rotation.y+=dt*SPIN; S.spin.position.y=Math.sin(S.t*1.6)*.035; if(S.mixer) S.mixer.update(dt);
   S.halo.material.opacity=.26+.08*Math.sin(S.t*2.1); S.pulses.forEach((p,i)=>{ p.material.opacity=.38+.2*Math.sin(S.t*3.3+i*1.7); });
   if(S.staff&&window.__staff.animate) window.__staff.animate(S.obj,dt); else if(S.bow&&window.__bow.animate) window.__bow.animate(S.obj,dt);   // a staff's crystal turns and its motes orbit, a bow's too
   const P=S.pts.geometry.attributes.position.array, Cc=S.pts.geometry.attributes.color.array;
@@ -90,5 +92,5 @@ function tick(dt){ for(let i=STANDS.length-1;i>=0;i--){ const S=STANDS[i]; if(!S
 { const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); if(l&&l.mesh&&it&&(it.slot==='weapon'||modelFor(it))){ try{ stand(l,it); }catch(e){ console.warn('weapon stand',e); } } return l; }; }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); tick(dt); }; }
 window.__weaponStand={count:()=>STANDS.length,modelFor,
-  list:()=>STANDS.map(S=>({name:S.name,x:+S.root.position.x.toFixed(2),y:+S.root.position.y.toFixed(2),z:+S.root.position.z.toFixed(2),spin:+S.spin.rotation.y.toFixed(3),motes:S.m.length,inScene:!!S.root.parent,height:+(heightFor(S.name)).toFixed(2),card:!!S.l.mesh.userData.artSprite,placeholder:S.l.mesh.userData.item.visible}))};
+  list:()=>STANDS.map(S=>({name:S.name,mixer:!!S.mixer,x:+S.root.position.x.toFixed(2),y:+S.root.position.y.toFixed(2),z:+S.root.position.z.toFixed(2),spin:+S.spin.rotation.y.toFixed(3),motes:S.m.length,inScene:!!S.root.parent,height:+(heightFor(S.name)).toFixed(2),card:!!S.l.mesh.userData.artSprite,placeholder:S.l.mesh.userData.item.visible}))};
 })();

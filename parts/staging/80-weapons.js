@@ -6,6 +6,7 @@
 const SWORDS={rusty:'sword-rusty.glb',venom:'sword-venom.glb',frost:'sword-frost.glb',flame:'sword-flame.glb',holy:'sword-holy.glb'};
 const GRIP_F=0.17;                        // the fist closes this far up the sword from the pommel (fraction of its full length)
 const tpl={}, loading={}; const PROC_WEAPONS={};   // name -> template root (bounds in userData.box) / pending callbacks; name -> builder for weapons made in code
+const CLIPS={};   // build 485: name -> the animation clips its .glb came with
 const REAL_OVERRIDE={};   // build 185: name -> {file,gripF,lenScale} -- Matt's own .glb for a model that's normally code-built (a set's bow so far),
 // checked before PROC_WEAPONS so his art wins over the procedural stand-in once it lands, loaded through this same async GLB path as the base swords
 // which model an item shows: its name decides (cleavers are the goblin blade, embers burn, storms and the deep are ice,
@@ -25,7 +26,7 @@ function loadSword(name,cb){ if(tpl[name]) return cb(tpl[name]); const ov=REAL_O
   const file=ov?ov.file:SWORDS[name]; if(!file){ console.warn('no weapon model named '+name); delete loading[name]; return; }
   fetchBytes(ASSET(file),'first').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ const root=gltf.scene||gltf.scenes[0]; root.traverse(m=>{ if(m.isMesh) m.frustumCulled=false; }); root.updateMatrixWorld(true); if(!root.userData.box) root.userData.box=new THREE.Box3().setFromObject(root);   // the model's own frame: pommel at box.min.y, tip at box.max.y
     if(ov){ if(ov.gripF!=null) root.userData.gripF=ov.gripF; if(ov.lenScale!=null) root.userData.lenScale=ov.lenScale; }
-    tpl[name]=root; const cbs=loading[name]; delete loading[name]; cbs.forEach(f=>f(root)); },e=>{ console.warn('weapon '+name,e); delete loading[name]; })).catch(e=>{ console.warn('weapon '+name,e); delete loading[name]; }); }
+    tpl[name]=root; if(gltf.animations&&gltf.animations.length) CLIPS[name]=gltf.animations;   /* build 485: a model's own moves (Bob's Sword_Flourish_Loop) -- the floor stand plays them, the hand holds it still */ const cbs=loading[name]; delete loading[name]; cbs.forEach(f=>f(root)); },e=>{ console.warn('weapon '+name,e); delete loading[name]; })).catch(e=>{ console.warn('weapon '+name,e); delete loading[name]; }); }
 const W={key:'',obj:null,hand:null,tier:1}; let FORCE_WEAPON=null;   // a name to mount regardless of gear (previews and tests)
 function outlineScaled(obj,scale){ const o=OL.clone(); o.uniforms.t.value=.02/(scale||1); o.polygonOffset=true; o.polygonOffsetFactor=1.5; o.polygonOffsetUnits=1.5; obj.traverse(m=>{ if(m.isMesh&&!m.userData.isOL&&!m.userData.noOL&&!m.isSprite){ const k=new THREE.Mesh(m.geometry,o); k.userData.isOL=true; m.add(k); } }); }
 function setTint(obj,pk){ obj.traverse(m=>{ if(m.isMesh&&!m.userData.isOL&&m.material&&m.material.emissive){ m.material=m.material.clone(); m.material.color.multiplyScalar(.45); m.material.emissive.set(pk.emissive); m.material.emissiveIntensity=.8; } }); obj.userData.void=true; obj.userData.set=pk.name; }   // a great set's piece: the stand-in model darkens and burns with the set's colour from within
@@ -64,6 +65,7 @@ loadSword('rusty',()=>{});
 function bladeWorld(){ if(!(W.obj&&W.obj.parent)) return null; const sd=W.obj.userData.sword, box=tpl[sd.name].userData.box; W.obj.updateWorldMatrix(true,false); const p=v=>W.obj.localToWorld(v.clone()).toArray().map(x=>+x.toFixed(3));
   const cx=(box.min.x+box.max.x)/2, cz=(box.min.z+box.max.z)/2; return {pommel:p(new THREE.Vector3(cx,box.min.y,cz)),grip:p(new THREE.Vector3(cx,sd.gripY,cz)),tip:p(new THREE.Vector3(cx,sd.tipY,cz)),mount:W.obj.parent.getWorldPosition(new THREE.Vector3()).toArray().map(x=>+x.toFixed(3)),hand:W.hand.getWorldPosition(new THREE.Vector3()).toArray().map(x=>+x.toFixed(3))}; }
 window.__weapons={force:n=>{ FORCE_WEAPON=n||null; },attach:attachWeapon,look:()=>({w:W.key.split('|')[0]||null,t:W.tier||1,s:(/\|set:(.+)$/.exec(W.key)||[])[1]||null}),register:(n,fn)=>{ PROC_WEAPONS[n]=fn; },
+  clips:n=>CLIPS[n]||null,
   registerReal:(n,file,opts)=>{ REAL_OVERRIDE[n]={file,gripF:opts&&opts.gripF,lenScale:opts&&opts.lenScale}; delete tpl[n]; },   // build 185: Matt's own .glb takes over a name that a procedural factory already registered
   mounted:()=>W.obj,mount:heroMount,tick:dt=>weaponsUpdate(dt),model:(name,cb)=>loadSword(name,root=>cb(root.clone())),
   state:()=>({key:W.key,void:!!(W.obj&&W.obj.userData.void),mounted:!!(W.obj&&W.obj.parent),whip:false,staff:!!(W.obj&&/^staff-/.test(W.obj.name)),bow:!!(W.obj&&/^bow-/.test(W.obj.name)),hand:W.hand?W.hand.name:null,tier:W.tier,loaded:Object.keys(tpl),mount:GLBH&&GLBH.mountNode?{bone:GLBH.mountNode.parent.name,len:+GLBH.mountNode.name.split('_')[1],staff:/^staff/.test(GLBH.mountNode.name),bow:/^bow/.test(GLBH.mountNode.name)}:null,label:GLBH&&GLBH.label}),swordFor,swordTier,blade:bladeWorld};
