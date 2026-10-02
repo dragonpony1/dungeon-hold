@@ -22,7 +22,7 @@ check("the bridge between the castle walls and the inn is 4 wide now",A.bridge.l
 const B=await page.evaluate(()=>{ const d=window.__dd; d.S.phase='wave'; d.S.crystal=d.S.crystal2=1e9; d.spawn('goblin','E'); const g=d.enemies[d.enemies.length-1]; g.hp=g.max=1e6; let topY=0, t=0;
   for(;t<120;t+=1/30){ d.step(1/30,1); d.S.crystal=Math.max(d.S.crystal,1e9); if((g.y||0)>topY) topY=g.y; if(d.S.crystal2<1e9) break; } return { goal2:!!g.goal2, topY:+topY.toFixed(1), hitInn:d.S.crystal2<1e9, castle:d.S.crystal>=1e9, t:+t.toFixed(1) }; });
 check("a goblin from the east gate climbs the ramp onto the inn and strikes the inn Heartroot",B.goal2&&B.topY>=15&&B.hitInn&&B.castle,JSON.stringify(B));
-const C=await page.evaluate(()=>{ const d=window.__dd, W=window.__moatwalk, h=d.hero; const a=W.at(47,25); d.setHero(a.x,a.z,0); h.y=0; d.step(1/60,2); const t=W.at(30,24); const ok=W.walkTo(t.x,t.z); return { ok, y:+h.y.toFixed(2) }; });
-check("the hero can climb the ramp to the inn's porch too",C.ok&&C.y>=15.9,JSON.stringify(C));
+const C=await page.evaluate(()=>{ const d=window.__dd, W=window.__moatwalk, h=d.hero; const a=W.at(41,37); d.setHero(a.x,a.z,0); h.y=0; d.step(1/60,2); let ok=true; const ys=[]; for(const [cx,cz] of [[41,27],[38,27],[38,37]]){ const t=W.at(cx,cz); ok=W.walkTo(t.x,t.z)&&ok; ys.push(+h.y.toFixed(2)); } return { ok, y:+h.y.toFixed(2), ys }; });   /* build 452: the switchback */
+check("the hero can climb the switchback onto the inn's roof too (build 452)",C.ok&&C.y>=15.9,JSON.stringify(C));
 const realErrors=errors.filter(x=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(x)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
