@@ -35,14 +35,20 @@ function unequip2(){ const f=gear.familiar2; if(!f) return false; if(Meta.bagFul
 // ---- the bag screen: the 2nd card under your familiar; "Equip as 2nd" on a spare familiar's card
 if(typeof tvRenderBag==='function'){ const prev=tvRenderBag; tvRenderBag=function(){ prev.apply(this,arguments); const eq=document.querySelector('#tv-bag .tv-eq'); if(!eq) return; const on=ringOn(), f=gear.familiar2;
     const d=document.createElement('div'); d.id='tv-fam2';
-    d.innerHTML=f?'<div class="tv-sub" style="margin-top:4px">2ND FAMILIAR'+(on?'':' · 💤 put a ring back on')+'</div>'+tvCard(f,'eq').replace('data-act="sel"','data-act="unequip2" title="Click to take it off"')
+    d.innerHTML=f?'<div class="tv-sub" style="margin-top:4px">2ND FAMILIAR'+(on?'':' · 💤 put a ring back on')+'</div>'+tvCard(f,'fam2')
       :'<div class="tv-card" style="opacity:'+(on?'.9':'.45')+'"><span class="ic">🦉</span><span class="nm">'+(on?'2nd familiar — pick a pet in your bag':'🔒 2nd familiar — wear Beast Mode or Malamute')+'</span></div>';
     eq.appendChild(d); }; }
-if(typeof tvRenderDetail==='function'){ const prev=tvRenderDetail; tvRenderDetail=function(){ prev.apply(this,arguments); const s=TV.sel; if(!s||s.from!=='bag'||!ringOn()) return; const it=Meta.bag().find(b=>b.id===s.id); if(!it||it.slot!=='familiar') return;
+// build 505 (Matt: "how to upgrade 2nd pet" / "yes fix that"): a click on the 2nd card opens its panel -- the forge (🔨 +1 / +5, 96f) and a Take off button -- the same as your first pet's.
+// The panel is the worn-piece panel with gear.familiar2 standing in for the slot, so every wrap (the forge, the pictures) draws it; its Unequip/Lock buttons become one Take off.
+if(typeof tvRenderDetail==='function'){ const prev=tvRenderDetail; tvRenderDetail=function(){ const s0=TV.sel; if(s0&&s0.from==='fam2'){ const f=gear.familiar2; if(!f||f.id!==s0.id){ TV.sel=null; return prev.apply(this,arguments); }
+      TV.sel={ id:f.id, from:'eq', slot:'familiar2' }; try{ prev.apply(this,arguments); } finally { if(TV.sel) TV.sel=s0; }
+      const db=document.querySelector('#tv-detail .db'); if(db) db.innerHTML='<button class="tv-btn" data-act="unequip2"'+(Meta.bagFull&&Meta.bagFull()?' disabled':'')+'>🦉 Take off 2nd</button>';
+      const dm=document.querySelector('#tv-detail .dh .dm'); if(dm) dm.innerHTML=dm.innerHTML.replace('· WORN','· 2ND FAMILIAR'); return; }
+    prev.apply(this,arguments); const s=TV.sel; if(!s||s.from!=='bag'||!ringOn()) return; const it=Meta.bag().find(b=>b.id===s.id); if(!it||it.slot!=='familiar') return;
     const row=document.querySelector('#tv-detail [data-act="equip"]'); if(row&&!document.querySelector('#tv-detail [data-act="equip2"]')) row.insertAdjacentHTML('afterend','<button class="tv-btn hot" data-act="equip2" data-id="'+it.id+'">🦉 Equip as 2nd</button>'); }; }
 document.addEventListener('click',e=>{ const t=e.target.closest&&e.target.closest('[data-act="equip2"],[data-act="unequip2"]'); if(!t||!t.closest('#tavern')) return; e.stopPropagation();
   if(t.dataset.act==='equip2'){ const it=Meta.bag().find(b=>b.id===t.dataset.id); if(equip2(t.dataset.id)){ tvSay('2nd familiar: '+(it?it.name:'')); TV.sel=null; } }
-  else if(unequip2()){ tvSay('2nd familiar taken off'); }
+  else if(unequip2()){ tvSay('2nd familiar taken off'); TV.sel=null; }
   if(typeof tvRenderTab==='function') tvRenderTab(true); },true);
 // ---- the drops: 10% each per wave held, from the first; Matt's sound
 let snd=null; function ringSound(){ if(typeof soundOff!=='undefined'&&soundOff) return; try{ if(!snd) snd=new Audio(ASSET('named-ring-two.mp3')); snd.currentTime=0; snd.volume=.9; const p=snd.play(); if(p&&p.catch) p.catch(()=>{}); }catch(e){} }
