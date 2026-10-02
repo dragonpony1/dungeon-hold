@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="85">
+<meta name="hideout-build" content="86">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -173,7 +173,7 @@ canvas{display:block}
 </style>
 </head><body>
 <div id="clickPlay">&#128433; <b>CLICK</b> TO PLAY</div>
-<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: inventory &middot; B: bag &middot; Tab: sheet &middot; H: hero &middot; T: trade &middot; Esc: close a menu<br>The portal takes you back to the hall<div id="loadWrap"><div id="loadBar" class="indeterminate"><div id="loadFill"></div></div><div id="loadLine">Loading…</div></div></div>
+<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; B or I: bag &middot; Tab: sheet &middot; H: hero &middot; T: trade &middot; Esc: close a menu<br>The portal takes you back to the hall<div id="loadWrap"><div id="loadBar" class="indeterminate"><div id="loadFill"></div></div><div id="loadLine">Loading…</div></div></div>
 <div id="crosshair"></div>
 <div id="hud">Rare Sludge: <b id="sludge">0</b></div>
 <div id="prompt"></div>
@@ -283,7 +283,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 85;   // build 85: a big gold close button on every window, and it always hands the mouse back.   // build 84: Esc out of any menu leaves you in the room (a small click-to-play sign), never the big entry card.   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 86;   // build 86: no I screen inside the game -- the game's bag is the inventory (I opens it), with this room's hotbar and furniture under it.   // build 85: a big gold close button on every window, and it always hands the mouse back.   // build 84: Esc out of any menu leaves you in the room (a small click-to-play sign), never the big entry card.   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -755,6 +755,20 @@ function oneBagMigrate() { if (!GAME) return 0; let n = 0;
   return n; }
 let ONEBAG_MOVED = 0;
 window.__onebag = { weaponModel: p => gameWeaponName(p),  on: () => !!GAME, moved: () => ONEBAG_MOVED, gear: () => gameGear().length, give: v => giveItem(v, 'bag'), toHotbar: gameToHotbar, wornToHotbar, holding: () => ({ slot: selectedSlot, dropId: selectedDropGearId }), worn: () => wornGear().filter(Boolean).length, hotbarGear: () => SAVE.hotbar.filter(isGearItem).length, bagGear: () => SAVE.bag.filter(isGearItem).length, tradeArr: n => tradeArr(n).length }; setTimeout(() => { ONEBAG_MOVED = oneBagMigrate(); try { refreshSlotViews(); } catch (e) {} }, 0);   // once the whole page has run (the Forge's constants live further down)
+// build 86: the game's bag shows this room's HOTBAR (your hands) and FURNITURE under it (96g-hideoutbag.js, game build 446) and moves things through these -- shift-click or drag a piece from the bag onto the hotbar and
+// it is in your hands when the bag closes (aim at a table, shelf or pedestal and click), shift-click it on the hotbar and it goes back to the bag; furniture moves between its own bag and the hotbar the same way.
+function absIcon(u) { try { return new URL(u, location.href).href; } catch (e) { return u; } }
+function invViewOf(v) { if (!v) return null; const g = isGearItem(v); return { gear: g, id: g ? v.rec.id : null, gid: g ? null : v, icon: absIcon(slotIcon(v)), tip: slotTip(v), color: slotColor(v) || null }; }
+function invChanged() { writeSave(); syncSelection(); renderInv(); try { refreshSlotViews(); } catch (e) {} }
+function freeHot(slot) { return (slot != null && slot >= 0 && slot < SAVE.hotbar.length && SAVE.hotbar[slot] == null) ? slot : SAVE.hotbar.indexOf(null); }
+const INV_BRIDGE = {
+  hotbar: () => SAVE.hotbar.map(invViewOf), furniture: () => SAVE.bag.map(invViewOf), selected: () => selectedSlot,
+  holdById(id, slot) { if (!GAME) return false; const to = freeHot(slot); if (to < 0) { flashMsg('Your hotbar is full — put something down first'); return false; } const it = gameTake(id); if (!it) return false; SAVE.hotbar[to] = { kind: 'carried', rec: it }; selectedSlot = to; invChanged(); return true; },
+  hotbarToBag(slot) { const v = SAVE.hotbar[slot]; if (!v) return false; if (isGearItem(v)) { if (!gameGive(v)) { flashMsg('Your bag is full'); return false; } } else { const b = SAVE.bag.indexOf(null); if (b < 0) { flashMsg('Your furniture bag is full'); return false; } SAVE.bag[b] = v; } SAVE.hotbar[slot] = null; invChanged(); return true; },
+  furnToHotbar(i, slot) { const v = SAVE.bag[i]; if (!v) return false; const to = freeHot(slot); if (to < 0) { flashMsg('Your hotbar is full'); return false; } SAVE.hotbar[to] = v; SAVE.bag[i] = null; selectedSlot = to; invChanged(); return true; },
+  hotbarMove(a, b) { if (a === b || a < 0 || b < 0 || a >= SAVE.hotbar.length || b >= SAVE.hotbar.length) return false; const t = SAVE.hotbar[a]; SAVE.hotbar[a] = SAVE.hotbar[b]; SAVE.hotbar[b] = t; selectedSlot = b; invChanged(); return true; },
+  select(i) { selectedSlot = i; invChanged(); return true; } };
+window.__onebag.inv = INV_BRIDGE;
 function slotIcon(v) { return isGearItem(v) ? cutoutIcon(gearPiece(v).icon) : GEAR[v].icon; }
 function slotTip(v) { if (!isGearItem(v)) return GEAR[v].name; const p = gearPiece(v); return p.tip || p.desc; }
 function slotColor(v) { return isGearItem(v) ? gearPiece(v).color : null; }
@@ -2994,7 +3008,7 @@ document.addEventListener('keydown', e => {
   if (k === 'space') { e.preventDefault(); if (grounded) { velY = JUMP_SPEED; grounded = false; } }
   if (k === 'r' && ghost) { ghostRy += Math.PI/6; }
   if (k === 'r' && dropGhost) { dropGhostRy += Math.PI/6; }
-  if (k === 'i' && active) openGearPanel();
+  if (k === 'i' && active) { if (GAME) openHallBag(); else openGearPanel(); }   // build 86 (Matt: "i want to get rid of the I screen all together" / "we shouldn't need a whole inventory screen to mimic what the bag does already"): in the game, I is the bag
   if (k === 't' && active) HD.tradeKey();
   if (k === 'b' && active) openHallBag();
   else if (k === 'b' && document.getElementById('forgeWrap').style.display === 'flex') openHallBag();   // build 83: from the forge too
