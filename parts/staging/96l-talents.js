@@ -120,7 +120,7 @@ function talentMult(k){ const T=tree(); let v=0; for(const b of T.branches) for(
 let castN=0;
 function boltMods(){ if(!tree()) return null; const c=rank('charged'), o=rank('overload'), q=rank('quick'); return { size:1+.2*c, pierce:c>=3?1:0, splash:[0,.9,1.3,1.7][o], twin:q>=3&&(++castN)%5===0 }; }
 // ---- the procs, on her own bolts (82-staff.js: window.__mineHit around the hit, then onBolt) and her own kills
-const BOSSES=new Set(['cyclops','pigflail','pigdagger','pigsling','trollboss','archhag']);
+const BOSSES=new Set(['cyclops','pigflail','pigdagger','pigsling','trollboss','archhag','avery']);
 let boltN=0, killN=0;
 { const prev=hurt; hurt=function(e,dmg,kx,kz){ if(e&&!e.dead&&tree()){ const hm=rank('mark'); if(hm&&e.hexT>0) dmg*=1+.05*hm; } return prev.call(this,e,dmg,kx,kz); }; }
 function zap(a,b){ for(let i=1;i<6;i++){ const t=i/6; const g=glow(0x9fe8ff,.55,.9); g.position.set(a.x+(b.x-a.x)*t,(a.y+a.h*.6)+((b.y+b.h*.6)-(a.y+a.h*.6))*t+Math.sin(i*2.1)*.25,a.z+(b.z-a.z)*t); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); } }
