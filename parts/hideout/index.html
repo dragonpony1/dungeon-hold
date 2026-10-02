@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="82">
+<meta name="hideout-build" content="83">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -44,6 +44,7 @@ canvas{display:block}
 
 #forgeWrap{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:20}
 #forgePanel{position:relative;width:min(520px,92vw);max-height:90vh;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px #000a;font-family:Georgia,'Times New Roman',serif;background:linear-gradient(#241811,#160d08);border:3px solid #6b3a1a}
+#forgeBagBtn{position:absolute;left:14px;top:14px;z-index:2;background:#2a160a;color:#ffdca0;border:1px solid #a5501a;border-radius:8px;padding:6px 12px;font:700 14px Georgia,serif;cursor:pointer;box-shadow:0 2px 6px #000}#forgeBagBtn:hover{background:#4a2410}#forgeBagBtn b{display:inline-block;margin-left:6px;padding:0 5px;border:1px solid #ffdca088;border-radius:4px;font-size:11px}
 #forgeHeader{background:linear-gradient(#5a2a10,#3a1808);padding:16px 20px 12px;text-align:center;border-bottom:3px solid #a5501a}
 #forgeHeader h1{margin:0;color:#ffcf8a;font-size:1.7em;letter-spacing:0.04em;text-shadow:0 2px 4px #000}
 #forgeHeader p{margin:4px 0 0;color:#d8a878;font-size:0.85em;font-style:italic}
@@ -190,6 +191,7 @@ canvas{display:block}
 
 <div id="forgeWrap"><div id="forgePanel">
   <button id="forgeClose">&times;</button>
+  <button id="forgeBagBtn" title="Look in your bag (B) -- the forge stays open behind it">&#127890; Bag <b>B</b></button>
   <div id="forgeHeader">
     <h1>THE FORGE</h1>
     <p>Feed it Legendary Sludge. It might feed you back.</p>
@@ -276,7 +278,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 82;   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 83;   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -2715,6 +2717,8 @@ function closeForge() {
   if (forgeWasActive) canvas.requestPointerLock();
 }
 document.getElementById('forgeClose').onclick = closeForge;
+// build 83 (Matt: "i need to be able to look in my bag from the forge gui"): the Bag button (and B) opens the game's bag over the forge; closing it comes straight back here, the forge's set dots re-read
+document.getElementById('forgeBagBtn').onclick = e => { e.stopPropagation(); openHallBag(); };
 document.getElementById('forgeWrap').addEventListener('click', e => { if (e.target.id === 'forgeWrap') closeForge(); });
 document.getElementById('forgeCraftBtn').onclick = () => {
   const cost = forgeCost();
@@ -2982,6 +2986,7 @@ document.addEventListener('keydown', e => {
   if (k === 'i' && active) openGearPanel();
   if (k === 't' && active) HD.tradeKey();
   if (k === 'b' && active) openHallBag();
+  else if (k === 'b' && document.getElementById('forgeWrap').style.display === 'flex') openHallBag();   // build 83: from the forge too
   if (k === 'h' && active) openHeroPick();
   if (k === 'tab') { e.preventDefault(); if (active) openHallSheet(); }   // build 82 (Matt: 'that tab menu ... needs to work in the hide out'): the game's character sheet, over this page
   if (k === 'f9' && window.parent !== window) {   // build 70 (Matt: "is the dev hud not working anymore?" -- in here this page has the keyboard): F9 asks the game for its dev panel; the mouse is let go so it can be clicked
@@ -3062,7 +3067,8 @@ window.addEventListener('message', (e) => {
     if (document.getElementById('cauldronWrap').style.display === 'flex') buildCauldronRows();
   } else if (e.data === 'hideout:bagClosed') {   // build 69: the game's bag (B) closed: a click steps back in
     lastT = performance.now();
-    if (!document.pointerLockElement) document.getElementById('start').style.display = 'flex';
+    if (document.getElementById('forgeWrap').style.display === 'flex') { buildForgeGrid(); return; }   // build 83: back to the forge, not the 'click to enter' card over it
+    if (!document.pointerLockElement && !isAnyPanelOpen()) document.getElementById('start').style.display = 'flex';
   }
 });
 function animate(now) {
