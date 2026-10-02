@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="84">
+<meta name="hideout-build" content="85">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -12,6 +12,9 @@ canvas{display:block}
 #inv{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;background:#000a;padding:8px;border-radius:8px}
 .slot{width:52px;height:52px;border:2px solid #666;border-radius:6px;display:flex;align-items:center;justify-content:center;font:10px monospace;color:#fff;cursor:pointer;text-align:center;background:#222}
 .slot.sel{border-color:#ff8}
+/* build 85 (Matt: "x-ing out of a gui gives me back the mouse, so if we just have an obvious x everywhere maybe we wont use esc so much"): every window's close button big, gold and in the same top-right spot */
+#vendClose,#forgeClose,#cauldronClose,#gearClose,#chestClose,#tradeClose,#lockerClose{top:10px!important;right:10px!important;width:46px!important;height:46px!important;border-radius:50%!important;background:radial-gradient(#3a2410,#1a0e06)!important;color:#ffd27a!important;border:3px solid #e8b94a!important;font:900 26px/1 Georgia,serif!important;box-shadow:0 0 0 2px #000,0 0 14px #e8b94a88!important;display:flex!important;align-items:center;justify-content:center;padding:0!important;transition:transform .12s,box-shadow .12s}
+#vendClose:hover,#forgeClose:hover,#cauldronClose:hover,#gearClose:hover,#chestClose:hover,#tradeClose:hover,#lockerClose:hover{transform:scale(1.12);box-shadow:0 0 0 2px #000,0 0 22px #ffd27a!important;color:#fff!important}
 #clickPlay{position:fixed;left:50%;top:46%;transform:translate(-50%,-50%);z-index:9;display:none;padding:10px 18px;border-radius:12px;background:#140e1ae0;border:2px solid #ffd27a;color:#ffd27a;font:800 16px Georgia,serif;letter-spacing:2px;pointer-events:none;box-shadow:0 0 18px #000}
 #start{position:fixed;inset:0;background:#000d;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font:16px monospace;text-align:center;cursor:pointer;z-index:10}
 #start b{font-size:22px;color:#8cf}
@@ -280,7 +283,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 84;   // build 84: Esc out of any menu leaves you in the room (a small click-to-play sign), never the big entry card.   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 85;   // build 85: a big gold close button on every window, and it always hands the mouse back.   // build 84: Esc out of any menu leaves you in the room (a small click-to-play sign), never the big entry card.   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -3059,6 +3062,8 @@ let lastT = performance.now();
 // it every visit: post 'hideout:hide' / 'hideout:show' to this frame. Hidden, it draws nothing; shown again, it
 // re-reads what the game may have changed meanwhile (gear bag, locker) and waits for a click to enter.
 let hiddenByHost = false;
+// build 85: any close button pressed: once nothing else is open, the mouse goes back to the room on that same click (a click hands it back; an Esc never can)
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('button'); if (!b || !/Close$/.test(b.id || '')) return; setTimeout(() => { if (entered && !active && !hiddenByHost && !isAnyPanelOpen() && document.pointerLockElement !== canvas) canvas.requestPointerLock(); }, 0); });
 // build 84: the small CLICK TO PLAY sign -- up whenever you are in the room without the mouse and nothing else is open over it
 setInterval(() => { const cp = document.getElementById('clickPlay'); if (!cp) return; const want = entered && !active && !hiddenByHost && !parentMenu && !isAnyPanelOpen() && document.getElementById('start').style.display !== 'flex'; const sh = cp.style.display === 'block'; if (want !== sh) cp.style.display = want ? 'block' : 'none'; }, 120);
 window.addEventListener('message', (e) => {
