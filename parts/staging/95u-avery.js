@@ -16,7 +16,7 @@ if(TUTORIAL||!MAP||MAP.id!=='moat') return;
 const K='avery', P=MAP.padN|0;
 MOBS[K]={ hp:5200, spd:0, dmg:0, cd:99, mana:120, detour:0, fly:8 };
 MOBDIM[K]={ fit:6.6, h:5, r:2.6, nat:{walk:1,run:1} };
-const ROOF=16, CRUISE=ROOF+8, SPD={ cruise:7.5, swoop:15, perch:9 }, ATK_CD=[4.6,3.0], PERCH_EVERY=4, PERCH_T=6, HEAD=0;
+const ROOF=16, CRUISE=ROOF+8, SPD={ cruise:7.5, swoop:15, perch:9 }, ATK_CD=[4.6,3.0], PERCH_EVERY=4, PERCH_T=6, HEAD=-.71, DROP_T=1.2;   // HEAD: Bob's flyer faces 41 deg off its own +z (head bone vs pelvis, bone map): turned back so she flies nose first
 const TOWER_K=.3, TOWER_MIN=50, HEART_DMG=12, REACH=30;
 const WAY=[[8,6],[16,-3],[34,-3],[44,5],[40,13],[32,22],[34,38],[40,30],[24,14],[10,13]].map(([x,z])=>({ x:cw(x), z:cwz(z+P) }));   // round the castle roofs, out over the inn and back
 const PERCH={ x:cw(24), z:cwz(-2+P) };   // the middle of the hall roof
@@ -24,13 +24,21 @@ const cnt={ intro:0, spawned:0, swoops:0, towerHits:0, heartHits:0, perches:0, d
 const isMoat=()=>!SURVIVAL&&MAP&&MAP.id==='moat';
 // ---------------------------------------------------------------- her two models, fetched once from the map's fifth wave
 let loadP=null, bust=null;
+// build 476 (Matt: "does she have any more rigging that could make her wings move" -- "let's see what you can do with the flying"): Bob's twelve clips each move all 42 bones; cut by bone into four
+// layers that play at once and change on their own -- BODY (root, spine, legs), WINGS, TAIL, HEAD (neck, head, ears, jaw)
+const GROUPS={ body:/^(CTRL_root|pelvis|spine|chest|hind_|fore_)/, wings:/^wing_/, tail:/^tail_/, head:/^(neck|head|ear|jaw)/ }, SUB={};
+function layer(e,gname,clip,o){ o=o||{}; const L=e.lay||(e.lay={ cur:{}, act:{} }); if(L.cur[gname]===clip&&!o.restart) return; const sub=SUB[gname]&&SUB[gname][clip]; if(!sub) return;
+  const a=e.mdl.mixer.clipAction(sub); a.reset(); a.timeScale=o.speed||1; a.setEffectiveWeight(1); if(o.once){ a.setLoop(THREE.LoopOnce,1); a.clampWhenFinished=true; } else a.setLoop(THREE.LoopRepeat,Infinity);
+  const prev=L.act[gname]; a.play(); if(prev&&prev!==a) a.crossFadeFrom(prev,o.fade!==undefined?o.fade:.35,false); L.cur[gname]=clip; L.act[gname]=a; }
+function pose(e,body,wings,tail,head,o){ o=o||{}; layer(e,'body',body,o); layer(e,'wings',wings,o.wingsOnce?Object.assign({},o,{ once:true }):o); layer(e,'tail',tail||'Tail_Swish'); layer(e,'head',head||'Look_Around',{ speed:.8 }); }
 function parse(file){ return fetchBytes(ASSET(file)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))); }
 function load(){ if(loadP) return loadP;
   loadP=Promise.all([parse('avery-flyer.glb'),parse('avery-bust.glb')]).then(([f,b])=>{
     const root=f.scene||f.scenes[0]; const fit=fitModel(root,MOBDIM[K].fit); toonify(root,fit.scale); const by=n=>(f.animations||[]).find(a=>a.name===n);
     const map={ idle:by('Hover'), walk:by('Glide'), run:by('Wingbeat'), attack:by('Jaw_Open'), death:by('Wing_Fold'), hover:by('Hover'), glide:by('Glide'), wingbeat:by('Wingbeat'), bankL:by('Bank_Left'), bankR:by('Bank_Right'),
       tail:by('Tail_Swish'), look:by('Look_Around'), reach:by('Foreleg_Reach'), jaw:by('Jaw_Open'), breathe:by('Breathe'), fold:by('Wing_Fold') }; for(const k in map) if(!map[k]) delete map[k];
-    MOBGLB[K]={ wrap:fit.wrap, map, scale:fit.scale };
+    MOBGLB[K]={ wrap:fit.wrap, map:{}, scale:fit.scale };   // build 476: no whole-body clips for the core to play -- she is driven in layers (below)
+    for(const c of (f.animations||[])) for(const gname in GROUPS){ const tr=c.tracks.filter(t=>GROUPS[gname].test(t.name.split('.')[0])); (SUB[gname]=SUB[gname]||{})[c.name]=new THREE.AnimationClip(c.name+'_'+gname,c.duration,tr); }
     const br=b.scene||b.scenes[0]; const bfit=fitModel(br,3.2); toonify(br,bfit.scale); const clip=(b.animations||[]).find(a=>a.name==='Intro_Stamp')||(b.animations||[])[0];
     bust={ g:bfit.wrap, clip, mixer:null };
   }).catch(e=>{ console.warn('avery model',e); loadP=null; });
@@ -91,7 +99,7 @@ const SHOT_A=4.2, SHOT_B=3.6, HOLD=2.4, END=SHOT_A+SHOT_B+HOLD;
 const START={ x:cw(47), z:cwz(-7+P), y:ROOF+16 };
 let inSpawn=false;
 function spawnAvery(){ const lk=Object.keys(LANES); inSpawn=true; let e=null; try{ e=spawnEnemy(K,lk[0]); } finally { inSpawn=false; } if(!e) return null; e.noSnare=true; e.atk=1e9; e.ast='cruise'; e.aw=1; e.acd=3; e.aswoops=0; e.at=0; e.phase=1;
-  e.x=START.x; e.z=START.z; e.y=START.y; e.fly=START.y-baseFloor(e.x,e.z); e.mdl.g.position.set(e.x,e.y,e.z); cnt.spawned++; return e; }
+  e.x=START.x; e.z=START.z; e.y=START.y; e.fly=START.y-baseFloor(e.x,e.z); e.mdl.g.position.set(e.x,e.y,e.z); e.mdl.actions={}; pose(e,'Glide','Glide'); cnt.spawned++; return e; }
 function startCut(){ done=true; cnt.intro++; avery=spawnAvery(); if(!avery) return; beamsOn(); setMusic('none'); try{ SFX.horn&&SFX.horn(); }catch(e){}
   bust.g.position.set(0,-1.2,0); bust.g.rotation.y=0; if(!bust.g.parent) STAGE.add(bust.g); bust.mixer=new THREE.AnimationMixer(bust.g); const a=bust.mixer.clipAction(bust.clip); a.setLoop(THREE.LoopOnce,1); a.clampWhenFinished=true; a.play(); bust.act=a; a.paused=true;
   cut={ t:0, cam:camera.position.clone(), q:camera.quaternion.clone() }; cutEl.style.display='block'; cutEl.querySelector('.stamp').style.cssText=''; document.body.classList.add('avery-cut'); }
@@ -106,8 +114,8 @@ function stepCut(dt){ const c=cut; c.t+=dt; const t=c.t, e=avery;
   for(const o of BEAMS){ o.b.rotation.z=Math.sin(S.t*.0+t*.9+o.ph)*.45; o.b.rotation.x=Math.cos(t*.7+o.ph)*.25; }
   if(t<SHOT_A){ // SHOT A: the castle from the green, the spotlights up, and her glide in over the hall roof
     STAGE.visible=false; const k=t/SHOT_A, s=k*k*(3-2*k); const to={ x:PERCH.x, z:PERCH.z+2, y:CRUISE };
-    if(e&&!e.dead){ e.x=START.x+(to.x-START.x)*s; e.z=START.z+(to.z-START.z)*s; e.y=START.y+(to.y-START.y)*s; const g=e.mdl.g; g.position.set(e.x,e.y,e.z); g.rotation.y=Math.atan2(to.x-START.x,to.z-START.z)+HEAD; g.rotation.z=Math.sin(k*PI)*.35;
-      if(e.mdl.actions.glide&&e.mdl.cur!==e.mdl.actions.glide) mobPlay(e.mdl,'glide',{fade:.2}); e.mdl.mixer.update(dt); }
+    if(e&&!e.dead){ e.x=START.x+(to.x-START.x)*s; e.z=START.z+(to.z-START.z)*s; e.y=START.y+(to.y-START.y)*s; const g=e.mdl.g; g.position.set(e.x,e.y,e.z); g.rotation.y=Math.atan2(to.x-START.x,to.z-START.z)+HEAD;
+      pose(e,k>.72?'Hover':'Glide',k>.72?'Wingbeat':'Glide'); e.mdl.mixer.update(dt); }
     camera.position.set(cw(38),21,cwz(15+P)); if(e) camera.lookAt(e.x,e.y+1,e.z); }   /* from over the south wall-walk, under her line in */
   else if(t<SHOT_A+SHOT_B+HOLD){ // SHOT B: her bust on the stage -- the turn, the wink, the grin; then the FREEZE and the stamp
     STAGE.visible=true; const tb=t-SHOT_A; if(bust.act){ bust.act.paused=false; if(tb<SHOT_B) bust.mixer.update(dt); }
@@ -120,24 +128,30 @@ function stepCut(dt){ const c=cut; c.t+=dt; const t=c.t, e=avery;
 // the hall holds still for the cut scene (as it does for a Heartroot's fall): only the cut runs
 { const prev=update; update=function(dt){ if(cut){ stepCut(dt); updFeathers(dt); updateHUD(); return; } return prev(dt); }; }
 // ---------------------------------------------------------------- her mind, every frame (spd 0: the core never moves her; it keeps her at e.fly over the floor, so her height is set from the roof she is over)
-function headTo(e,x,z,spd,dt){ const dx=x-e.x, dz=z-e.z, d=Math.hypot(dx,dz); if(d<.05) return 0; const s=Math.min(d,spd*dt); e.x+=dx/d*s; e.z+=dz/d*s;
-  const want=Math.atan2(dx,dz)+HEAD, g=e.mdl.g; let df=want-g.rotation.y; df=Math.atan2(Math.sin(df),Math.cos(df)); g.rotation.y+=df*Math.min(1,dt*3); e.bank=lerp(e.bank||0,-df*.9,Math.min(1,dt*3)); g.rotation.z=e.bank; return d-s; }
-const clipFor=(e,k)=>{ if(e.mdl.actions[k]) e.mdl.actions.idle=e.mdl.actions[k]; };   // the core plays 'idle' for a mob that isn't walking: point it at the clip she is in
-function setY(e,y){ e.fly=Math.max(.6,y-baseFloor(e.x,e.z)); }
+function headTo(e,x,z,spd,dt){ const dx=x-e.x, dz=z-e.z, d=Math.hypot(dx,dz); if(d<.05) return 0; const s_=Math.min(d,spd*dt); e.x+=dx/d*s_; e.z+=dz/d*s_;
+  const want=Math.atan2(dx,dz)+HEAD, g=e.mdl.g; let df=want-g.rotation.y; df=Math.atan2(Math.sin(df),Math.cos(df)); g.rotation.y+=df*Math.min(1,dt*3); e.bank=lerp(e.bank||0,df,Math.min(1,dt*4)); g.rotation.z=0; return d-s_; }
+function setY(e,y){ e.climb=y-(e.y||0); e.fly=Math.max(.6,y-baseFloor(e.x,e.z)); }
 { const prev=updateEnemies; updateEnemies=function(dt){ prev(dt);
-    for(const e of enemies){ if(e.kind!==K||e.dead||!e.ast) continue; e.atk=1e9; e.holdT=0; e.slowT=0; e.chillT=0; e.at+=dt;
-      if(e.phase===1&&e.hp<=e.max*.5){ e.phase=2; banner('💅 AVERY IS FURIOUS','faster swoops, double the feathers'); camShake=Math.max(camShake,.6); burst(e.x,e.y+2,e.z,e.x,baseFloor(e.x,e.z),e.z,16); }
+    for(const e of enemies){ if(e.kind!==K||e.dead||!e.ast) continue; e.atk=1e9; e.holdT=0; e.slowT=0; e.chillT=0; e.at+=dt; e.beatT=Math.max(0,(e.beatT||0)-dt);
+      if(e.phase===1&&e.hp<=e.max*.5){ e.phase=2; banner('💅 AVERY IS FURIOUS','faster swoops, double the feathers'); camShake=Math.max(camShake,.6); burst(e.x,e.y+2,e.z,e.x,baseFloor(e.x,e.z),e.z,16); e.beatT=1.5; }
       const fast=e.phase===2?1.25:1;
-      if(e.ast==='cruise'){ setY(e,CRUISE+Math.sin(S.t*.7)*1.2); const w=WAY[e.aw%WAY.length]; if(headTo(e,w.x,w.z,SPD.cruise*fast,dt)<2.5) e.aw++; clipFor(e,Math.abs(e.bank||0)>.25?(e.bank>0?'bankL':'bankR'):((S.t|0)%7<2?'wingbeat':'glide'));
+      if(e.ast==='cruise'){ setY(e,CRUISE+Math.sin(S.t*.7)*1.2); const w=WAY[e.aw%WAY.length]; if(headTo(e,w.x,w.z,SPD.cruise*fast,dt)<2.5){ e.aw++; if(e.aw%2===0) e.beatT=Math.max(e.beatT,1.4); }   // a few strong beats every other turn of her round
+        const turn=e.bank||0, climbing=e.climb>1.2||e.beatT>0; pose(e,Math.abs(turn)>.3?(turn>0?'Bank_Left':'Bank_Right'):(climbing?'Hover':'Glide'),climbing?'Wingbeat':'Glide');
         e.acd-=dt; if(e.acd<=0){ if(e.aswoops>0&&e.aswoops%PERCH_EVERY===0&&!e.perched){ e.ast='perch'; e.perched=true; e.at=0; cnt.perches++; }
-          else { const tg=pickTarget(e); if(tg){ e.atg=tg; e.ast='swoop'; e.at=0; } e.acd=ATK_CD[e.phase-1]; } } }
-      else if(e.ast==='swoop'){ const tg=e.atg; if(tg.def&&!defs.includes(tg.def)){ e.ast='cruise'; continue; } setY(e,tg.y+6); clipFor(e,'reach');
-        if(headTo(e,tg.x,tg.z,SPD.swoop*fast,dt)<2||e.at>6){ burst(e.x,e.y+1.5,e.z,tg.x,tg.y-1.5,tg.z,e.phase===2?16:10); e.strikeQ=(e.strikeQ||[]).concat([{ at:S.t+1.1, tg }]);
+          else { const tg=pickTarget(e); if(tg){ e.atg=tg; e.ast='swoop'; e.at=0; e.beatT=.8; } e.acd=ATK_CD[e.phase-1]; } } }
+      else if(e.ast==='swoop'){ const tg=e.atg; if(tg.def&&!defs.includes(tg.def)){ e.ast='cruise'; continue; } setY(e,tg.y+6);
+        pose(e,e.beatT>0?'Hover':'Glide',e.beatT>0?'Wingbeat':'Wing_Fold',null,'Look_Around',{ fade:.25, wingsOnce:!(e.beatT>0) });   // a couple of beats, then wings tucked for the dive
+        if(headTo(e,tg.x,tg.z,SPD.swoop*fast,dt)<2||e.at>6){ e.ast='drop'; e.at=0; burst(e.x,e.y+1.5,e.z,tg.x,tg.y-1.5,tg.z,e.phase===2?16:10); e.strikeQ=(e.strikeQ||[]).concat([{ at:S.t+1.1, tg }]);
           if(e.phase===2){ const t2=pickTarget(e,tg.def); if(t2&&(t2.def!==tg.def||t2.heart!==tg.heart)){ burst(e.x,e.y+1.5,e.z,t2.x,t2.y-1.5,t2.z,10); e.strikeQ.push({ at:S.t+1.2, tg:t2 }); } }
-          e.aswoops++; cnt.swoops++; e.perched=false; e.ast='cruise'; e.at=0; } }
-      else if(e.ast==='perch'){ const left=headTo(e,PERCH.x,PERCH.z,SPD.perch,dt); setY(e,left>1?ROOF+3:ROOF+.6); clipFor(e,left>1?'glide':(e.at%3<1.5?'look':'tail'));
-        if(left<=1&&!e.perchLanded){ e.perchLanded=true; e.at=0; floatText(e.x,e.y+4,e.z,'💋','#ff4fd8'); }
-        if(e.perchLanded&&e.at>PERCH_T){ e.perchLanded=false; e.ast='cruise'; e.acd=1; e.at=0; floatText(e.x,e.y+4,e.z,'💅','#ff9ae8'); } }
+          e.aswoops++; cnt.swoops++; e.perched=false; } }
+      else if(e.ast==='drop'){ const tg=e.atg; setY(e,tg.y+6); pose(e,'Hover','Hover',null,'Jaw_Open',{ fade:.2 });   // hovering over it, grinning, while the boa sheds
+        if(e.at>DROP_T){ e.ast='cruise'; e.at=0; e.beatT=1.6; } }
+      else if(e.ast==='perch'){ const left=headTo(e,PERCH.x,PERCH.z,SPD.perch,dt); setY(e,left>1?ROOF+3:ROOF+.6);
+        if(left>1) pose(e,'Hover','Hover');
+        else { if(!e.perchLanded){ e.perchLanded=true; e.at=0; floatText(e.x,e.y+4,e.z,'💋','#ff4fd8'); }
+          if(e.at<PERCH_T-1.2) pose(e,'Breathe','Wing_Fold',null,e.at%4<2?'Look_Around':'Jaw_Open',{ wingsOnce:true, fade:.4 });   // landed: wings folded and kept folded, tail swishing, looking round, a grin now and then
+          else pose(e,'Hover','Wingbeat',null,null,{ fade:.25 }); }   // the last second: wings open, a big beat to lift off
+        if(e.perchLanded&&e.at>PERCH_T){ e.perchLanded=false; e.ast='cruise'; e.acd=1; e.at=0; e.beatT=1.8; floatText(e.x,e.y+4,e.z,'💅','#ff9ae8'); } }
       if(e.strikeQ&&e.strikeQ.length){ e.strikeQ=e.strikeQ.filter(q=>{ if(S.t<q.at) return true; strike(e,q.tg); return false; }); } }
     for(const o of BEAMS){ o.b.rotation.z=Math.sin(S.t*.6+o.ph)*.45; o.b.rotation.x=Math.cos(S.t*.45+o.ph)*.25; }
     updFeathers(dt);
@@ -148,7 +162,7 @@ function windSet(){ const look=(()=>{ try{ const m=window.__weapons&&window.__we
   return [{ slot:'weapon', name:'Mythic '+look[0].toUpperCase()+look.slice(1)+' of the Wind', setId:'wind', look, rarity:5, lvl:20, stats:ST.weapon },
     { slot:'armor', name:'Armor of the Wind', setId:'wind', rarity:5, lvl:20, stats:ST.armor }, { slot:'amulet', name:'Amulet of the Wind', setId:'wind', rarity:5, lvl:20, stats:ST.amulet },
     { slot:'familiar', name:'Storm Drake of the Wind', setId:'wind', rarity:5, lvl:20, stats:ST.familiar }, { slot:'charm', name:'Charm of the Wind', setId:'wind', rarity:5, lvl:20, stats:ST.charm }]; }
-{ const prev=kill; kill=function(e){ const was=e&&!e.dead&&e.kind===K; const r=prev.apply(this,arguments); if(was){ cnt.deaths++;
+{ const prev=kill; kill=function(e){ const was=e&&!e.dead&&e.kind===K; const r=prev.apply(this,arguments); if(was){ cnt.deaths++; try{ pose(e,'Hindleg_Tuck','Wing_Fold',null,'Jaw_Open',{ wingsOnce:true, fade:.15 }); }catch(er){}
     burst(e.x,e.y+2,e.z,e.x,baseFloor(e.x,e.z),e.z,40); for(let k=0;k<5;k++){ const g=glow([0xff4fd8,0xffd27a,0xb05aff,0xffffff,0xff8ae0][k],5+k,.9); g.position.set(e.x+(Math.random()-.5)*4,e.y+1+Math.random()*3,e.z+(Math.random()-.5)*4); scene.add(g); projs.push({ kind:'splat', t:0, mesh:g }); }
     camShake=Math.max(camShake,.9); banner('💋 AVERY FALLS','the Wind set is yours');
     const N=window.__mythic&&window.__mythic.normalize; windSet().forEach((rec,i)=>{ const it=N?N(rec):null; if(!it) return; const a=i/5*TAU; dropLoot(it,hero.x+Math.cos(a)*3.5,hero.z+Math.sin(a)*3.5,true); });
