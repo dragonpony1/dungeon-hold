@@ -32,5 +32,7 @@ await page.evaluate(()=>{ const d=window.__dd; d.S.phase='build'; window.__twori
 check("dropped, Beast Mode and Malamute stand on the floor as Matt's own 3D rings (builds 427, 429)",reqs.some(u=>/named-beast_mode/.test(u))&&reqs.some(u=>/named-malamute/.test(u)),JSON.stringify(reqs.filter(u=>/named-/.test(u)).map(u=>u.split('/').pop())));
 const ART=await page.evaluate(async()=>{ const it=window.__tworings.dropRing('malamute'), it2=window.__tworings.dropRing('beast_mode'); const st=async u=>u?(await fetch(u)).status:0; return { m:it&&it.art, b:it2&&it2.art, ms:await st(it&&it.art), bs:await st(it2&&it2.art) }; });
 check("each ring carries Matt's own picture for its card (build 430)",/malamute.jpg$/.test(ART.m||'')&&/beast_mode.jpg$/.test(ART.b||'')&&ART.ms===200&&ART.bs===200,JSON.stringify(ART));
+const TP=await page.evaluate(async()=>{ const P=window.__tavpics, it=window.__mythic.normalize({tier:'named',named:'malamute',lvl:5}), other=window.__mythic.normalize({tier:'named',named:'gabriels_charm',lvl:5}); return { ring:/2 PETS/.test(P.chips(it)), other:/2 PETS/.test(P.chips(other)) }; });
+check("the rings' cards say 2 PETS (and other named pieces don't)",TP.ring&&!TP.other,JSON.stringify(TP));
 check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);

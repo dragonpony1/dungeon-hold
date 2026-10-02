@@ -16,7 +16,7 @@ const val=(k,v)=>{ const f=F(); return f&&f.inc[k]!==undefined?f.fmt(k,Math.roun
 const words=k=>{ const f=F(); return f?String(f.label(k)).replace(/^\S+\s/,''):k; };
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 { const st=document.createElement('style'); st.textContent=
- '.tvp-chips{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}'+
+ '.tvp-chips{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}'+'.tvp-c.two{border-color:#5ff0ff!important;color:#bff8ff!important;background:#0e2a33!important;font-weight:800}'+
  '.tvp-c{background:#120c1a;border:1px solid #4a3a54;border-radius:10px;padding:0 6px;font:bold 12px/18px system-ui,sans-serif;color:#f0e0c8;white-space:nowrap}'+
  '.tvp-c.proc{border-color:#ffd24a;color:#ffd24a;box-shadow:0 0 5px #ffb02e88}.tvp-c.wild{border-color:#e060d0;color:#ffa0f0}'+
  '.tvp-set{display:flex;gap:3px;align-items:center;margin-top:4px;font-size:12px;line-height:14px}.tvp-set b{width:9px;height:9px;border-radius:50%;border:2px solid var(--c);box-sizing:content-box}'+
@@ -47,10 +47,12 @@ function setDots(it){ const S=Meta.sets; const n=S&&S.setOf(it); if(!n) return '
   for(let i=0;i<5;i++) d+='<b class="'+(i<real?'on':i<real+wild?'wild':'')+'"></b>';
   return '<div class="tvp-set" style="--c:'+(SET.col||'#58c050')+'" title="'+esc(n.replace('of the ','')+' set: '+k+' of 5 worn'+(wild&&k?' (a pink dot is your named mythic filling a slot)':''))+'">'+(SET.ic||'')+' '+d+'</div>'; }
 function upBar(it){ const f=F(); if(!f||!it.stats) return ''; const u=f.used(it), m=f.max(it), full=u>=m; return '<div class="tvp-up'+(full?' max':'')+'" title="Upgraded '+u+' of '+m+' (tap it to upgrade with gold)"><span>🔨</span><span class="bar"><i style="width:'+Math.round(100*u/Math.max(1,m))+'%"></i></span><span>'+(full?'★':u+'/'+m)+'</span></div>'; }
+const TWO_PETS='<span class="tvp-c two" title="Wear it and a SECOND familiar slot opens: two pets, one at each shoulder">🦉🦉 2 PETS</span>';
 function chips(it){ if(!it||!it.stats) return ''; const prim=it.procd?(it.primary||Object.keys(it.stats)[0]):null; let h='';
   if(it.procd) h+='<span class="tvp-c proc" title="Proc\'d gear: its main stat rolled high">✦ PROC\'D</span>';
   for(const k of Object.keys(it.stats)) h+='<span class="tvp-c'+(k===prim?' proc':'')+'" title="'+esc(words(k))+'">'+ic(k)+' '+esc(val(k,it.stats[k]))+'</span>';
   if(it.named) h+='<span class="tvp-c wild" title="A named mythic counts as a piece of every set you wear">✦ any set</span>';
+  if(it.named==='beast_mode'||it.named==='malamute') h+=TWO_PETS;   // build 431 (Matt: "somewhere on the card it needs to say 2 pets"): the two familiar rings say so
   return '<div class="tvp-chips">'+h+'</div>'; }
 // whatever else the stat line says that the pictures above do not (a pet's power, anything added later) stays as small text
 function leftovers(it){ if(!it||!it.stats) return ''; const known=new Set(); for(const k of Object.keys(it.stats)){ const l=STATL[k]?STATL[k](it.stats[k]):''; if(l){ known.add(l); known.add('✦'+l+'✦'); } }
@@ -63,7 +65,7 @@ function picLine(it){ return chips(it)+setDots(it)+leftovers(it)+upBar(it); }
 // ---- the detail panel: the compare line in pictures, and the FORGE for a piece you own ----
 tvDeltas=function(it){ const eq=gear[it.slot]; const keys=Object.keys(it.stats); const vs=eq&&eq.id!==it.id; if(vs) for(const k in eq.stats) if(!keys.includes(k)) keys.push(k); const prim=it.procd?(it.primary||Object.keys(it.stats)[0]):null;
   return keys.map(k=>{ const v=it.stats[k]||0, e=vs?(eq.stats[k]||0):0, d=Math.round((v-e)*10)/10; const dl=!vs?'':d>0?'<span class="up">▲'+d+'</span>':d<0?'<span class="dn">▼'+(-d)+'</span>':'<span style="color:#8f8470">=</span>';
-    return '<span class="tvp-c'+(k===prim?' proc':'')+'" title="'+esc(words(k))+'">'+ic(k)+' '+esc(val(k,v))+dl+'</span>'; }).join('')+(it.named?'<span class="tvp-c wild">✦ any set</span>':'')+setDots(it); };
+    return '<span class="tvp-c'+(k===prim?' proc':'')+'" title="'+esc(words(k))+'">'+ic(k)+' '+esc(val(k,v))+dl+'</span>'; }).join('')+(it.named?'<span class="tvp-c wild">✦ any set</span>':'')+(it.named==='beast_mode'||it.named==='malamute'?TWO_PETS:'')+setDots(it); };
 function forgeHtml(it){ const f=F(); if(!f||!it||!it.stats) return ''; const u=f.used(it), m=f.max(it), left=f.left(it), cost=f.cost(it), gold=Meta.gold();
   let h='<div class="tvf" id="tv-forge"><div class="tvf-top'+(left?'':' max')+'" title="Upgrades bought for this piece, out of what its rarity allows"><span class="ham">🔨</span><span class="bar"><i style="width:'+Math.round(100*u/Math.max(1,m))+'%"></i></span><span>'+(left?u+'/'+m:'★ MAXED')+'</span></div><div class="tvf-grid">';
   for(const k of f.keys(it)){ const c=f.can(it,k), v=it.stats[k]||0, pts=(it.ups&&it.ups[k])|0; const btn=(n,lab)=>'<button class="tv-btn'+(n===1?' hot':'')+'" data-act="tvup" data-id="'+it.id+'" data-key="'+k+'" data-n="'+n+'"'+(c.ok?'':' disabled')+' title="'+esc(c.ok?words(k)+': +'+n+' upgrade'+(n>1?'s':''):c.why)+'">'+lab+'</button>';
