@@ -957,7 +957,9 @@ onMessage('world',data=>{ hostWorld=data; if(role==='guest'&&data){ SURVIVAL=!!d
 const GSFX={horn:0,held:0,crystal:0,place:0,upgrade:0,die:0,phase:null,crystalHp:null,defsSeen:false,dieT:0};
 window.__gsfx=()=>Object.assign({},GSFX);
 function guestWorldSfx(w){ if(GSFX.phase&&GSFX.phase!==w.phase){ if(w.phase==='wave'){ SFX.horn(); GSFX.horn++; } else if(w.phase==='build'&&GSFX.phase==='wave'){ SFX.held(); GSFX.held++; } } GSFX.phase=w.phase;
-  if(GSFX.crystalHp!==null&&w.crystal<GSFX.crystalHp-.01){ SFX.crystal(); if(SFX.alarm) SFX.alarm(); GSFX.crystal++; } GSFX.crystalHp=w.crystal; }
+  if(GSFX.crystalHp!==null&&w.crystal<GSFX.crystalHp-.01){ SFX.crystal(); if(SFX.alarm) SFX.alarm(); GSFX.crystal++; } GSFX.crystalHp=w.crystal;
+  // build 500 (Matt, with Jacob: "he can't hear when the thing is getting hit"): the Drawbridge's other two Heartroots, the inn's and the keep's, ring the same hit and alarm on a guest
+  for(const k of ['crystal2','crystal3']){ const v=w[k]; if(v==null) continue; const was=GSFX[k+'Hp']; if(was!=null&&v<was-.01){ SFX.crystal(); if(SFX.alarm) SFX.alarm(); GSFX.crystal++; } GSFX[k+'Hp']=v; } }
 function guestMapCleared(){ try{ const cur=parseInt(localStorage.getItem('ddMapsCleared'))||0; localStorage.setItem('ddMapsCleared',String(Math.max(cur,MAPI+1))); }catch(e){} }   /* build 150: a hall held with the host counts for the guest too (winMap records it on the host only) -- the next room and the other heroes open for them as well */
 onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded&&data){ if(data.phase==='won'&&!data.survival) guestMapCleared(); guestShowRunEnd(data); } });   // build 176: a Survival run held clears nothing (the host's map may be past this guest's own campaign)
 // build 160: the host's hall is held -- the victory lap begins, on this page too: the banner, the map counted as cleared, and the map's

@@ -58,5 +58,9 @@ check('E on the guest upgrades that same ballista on the host (not the cannon)',
 await hostPage.evaluate(()=>{ window.__dd.S.crystal3=77; }); await tickBoth(6,5);
 const k=await guestPage.evaluate(()=>{ const w=window.__net.world(); const bar=document.getElementById('cbar3'); return { hostKeep:w&&w.crystal3, bar:bar?bar.style.width:null }; });
 check("the guest's keep Heartroot bar follows the host's keep",k.hostKeep===77&&k.bar&&Math.abs(parseFloat(k.bar)-77/150*100)<2,JSON.stringify(k));
+const H0=await guestPage.evaluate(()=>window.__gsfx().crystal);
+await hostPage.evaluate(()=>{ window.__dd.S.crystal2=60; }); await tickBoth(6,5); const H1=await guestPage.evaluate(()=>window.__gsfx().crystal);
+await hostPage.evaluate(()=>{ window.__dd.S.crystal3=40; }); await tickBoth(6,5); const H2=await guestPage.evaluate(()=>window.__gsfx().crystal);
+check('build 500: the guest hears the hit and alarm when the inn or the keep Heartroot is struck',H1>H0&&H2>H1,JSON.stringify({H0,H1,H2}));
 check('no page errors',errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); sig.close&&sig.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
