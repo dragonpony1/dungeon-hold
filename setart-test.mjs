@@ -32,5 +32,8 @@ check("Bob's animated pieces play their moves on the floor (the Chaos amulet and
 check("the Earth sword is Matt's model, the Earth amulet and charm stand in 3D",R.everts>3000&&R.names.includes('named-set_earth_amulet')&&R.names.includes('named-set_earth_charm'),JSON.stringify({ v:R.everts }));
 check('a set without its own 3D amulet yet keeps its card (Ice)',R.models.ic===null,JSON.stringify(R.models));
 await page.evaluate(()=>{ const d=window.__dd, h=d.hero; d.setCam(Math.PI,.35,7); d.step(1/60,30); }); await page.screenshot({path:'tools/test-logs/setart-floor.png'});
+const HG=await page.evaluate(async()=>{ const d=window.__dd, N=window.__mythic.normalize, M=window.__meta; const sw=N({ slot:'weapon', name:'Mythic Sword of the Void', setId:'void', look:'sword', forceLook:'sword', rarity:5, lvl:20, stats:{ dmg:24, spd:45, tow:41 } }); sw.id='held'; M.giveItem(sw); M.equip(sw.id);
+  for(let t=0;t<80;t++){ d.step(1/60,2); await new Promise(r=>setTimeout(r,30)); } return window.__heldglow.info(); });
+check('a real set weapon in the hand glows in its set colour and sheds motes (when the hero holds it as a blade or staff)',!HG.held||(HG.glowing>0&&HG.motes>0),JSON.stringify(HG));
 check('no page errors',errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
