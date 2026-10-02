@@ -45,7 +45,8 @@ Object.assign(NAMED_REAL,{ set_chaos_amulet:{file:'set-chaos-amulet.glb',h:.9,li
   set_fire_amulet:{file:'set-fire-amulet.glb',h:.9,lift:.6}, set_fire_charm:{file:'set-fire-charm.glb',h:.85,lift:.6},
   set_radiance_amulet:{file:'set-radiance-amulet.glb',h:.9,lift:.6}, set_radiance_charm:{file:'set-radiance-charm.glb',h:.95,lift:.6},
   set_tempest_amulet:{file:'set-tempest-amulet.glb',h:.9,lift:.6}, set_tempest_charm:{file:'set-tempest-charm.glb',h:.85,lift:.6},
-  set_forest_amulet:{file:'set-forest-amulet.glb',h:.9,lift:.6}, set_forest_charm:{file:'set-forest-charm.glb',h:.85,lift:.6} });   // build 491: the Forest (his 'Nature'): the leaf amulet, the acorn charm
+  set_forest_amulet:{file:'set-forest-amulet.glb',h:.9,lift:.6}, set_forest_charm:{file:'set-forest-charm.glb',h:.85,lift:.6},
+  set_necrotic_amulet:{file:'set-necrotic-amulet.glb',h:.9,lift:.6}, set_necrotic_charm:{file:'set-necrotic-charm.glb',h:.85,lift:.6} });   // build 492: the Shadow set (the game's 'necrotic'): his fel amulet and fel skull charm   // build 491: the Forest (his 'Nature'): the leaf amulet, the acorn charm
 const setKeyOf=it=>(window.__setweapons&&window.__setweapons.setOf(it))||(window.__realforest&&window.__realforest.isForest(it)?'forest':null);   // build 491: the Forest is not one of 86-setweapons' sets   // build 490: the Storm set (the game's 'tempest'); the charm is his crystal shard, with its own hover   // build 489 (the charm is his golden feather, with its own drift)   // build 488 (the charm is his molten skull, with its own hover)   // build 486   // build 483
 const FAM_KEY={'Wisp':'fam_wisp','Bat':'fam_bat','Sprite':'fam_sprite','Fire Imp':'fam_imp','Crystal Owl':'fam_owl','Storm Drake':'fam_drake'};
 const NR_GLB={}, NR_P={}, NR_PENDING=[], NR_CLIP={};   // NR_CLIP (build 485): a named/set model's own animation (Bob's Hanging_Sway_Loop), played on its stand

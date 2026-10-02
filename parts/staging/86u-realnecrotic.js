@@ -4,6 +4,7 @@
 // 30% up and body-length (the Knight). The staff's magic (its bolt colour, the charge glow) stays the set's (82-staff.js). A Shadow WEAPON dropping warms both files for the floor stand (never at start).
 (function(){
 window.__weapons.registerReal('staff-necrotic','staff-necrotic.glb',{gripF:.36,lenScale:1.64});
+window.__weapons.registerReal('sword-necrotic','sword-necrotic.glb');   // build 492: Matt's Shadow ('fel') sword (GEAR SETS / Necrotic / animated), turned blade-up (tools/glb-flip.mjs)
 window.__weapons.registerReal('polearm-necrotic','polearm-necrotic.glb',{gripF:.3,lenScale:1.64});
 let warmed=false; function warm(){ if(warmed) return; warmed=true; window.__weapons.model('staff-necrotic',()=>{}); window.__weapons.model('polearm-necrotic',()=>{}); }
 { const prev=dropLoot; dropLoot=function(it){ try{ if(it&&it.slot==='weapon'&&window.__weapons.setModel&&window.__weapons.setModel(it,'staff')==='staff-necrotic') warm(); }catch(e){} return prev.apply(this,arguments); }; }
