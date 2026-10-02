@@ -1,0 +1,26 @@
+// ===== THE SETS' OWN 3D ART (build 482 onward). Chaos first: Matt's sword in the hero's hand and on the floor stand in place of the code-built one; the set's amulet and charm stand on the floor in 3D
+// (a set without its own files yet keeps its card). Pictures in tools/test-logs.
+import { chromium } from "playwright"; import { serve } from "./serve.mjs";
+const server=await serve(9038,{dist:"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
+const page=await (await browser.newContext({viewport:{width:1100,height:680}})).newPage(); const errors=[]; page.on("pageerror",e=>errors.push(String(e)));
+await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
+await page.goto("http://127.0.0.1:9038/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__dd.heroModel()&&window.__weaponStand&&window.__mythic,null,{timeout:120000});
+const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?'PASS ':'FAIL ')+n+(d?'  -> '+d:'')); };
+const R=await page.evaluate(async()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} d.start(); d.step(1/60,20); window.__mythicDrops&&window.__mythicDrops.set&&window.__mythicDrops.set(0,0);
+  const N=window.__mythic.normalize; const mk=r=>N(r);
+  const sw=mk({ slot:'weapon', name:'Mythic Sword of Chaos', setId:'crimson', look:'sword', rarity:5, lvl:20, stats:{ dmg:24, spd:45, tow:41 } });
+  const am=mk({ slot:'amulet', name:'Amulet of Chaos', setId:'crimson', rarity:5, lvl:20, stats:{ mana:65, tow:41, hp:156 } });
+  const ch=mk({ slot:'charm', name:'Charm of Chaos', setId:'crimson', rarity:5, lvl:20, stats:{ move:20, trate:20, tarea:18 } });
+  const ic=mk({ slot:'amulet', name:'Amulet of Ice', setId:'ice', rarity:5, lvl:20, stats:{ mana:65, tow:41, hp:156 } });
+  const h=d.hero; [[sw,-2.5],[am,0],[ch,2.5],[ic,5]].forEach(([it,o],i)=>{ it.id='t'+i; d.dropLoot(it,h.x+o,h.z-5,true); });
+  let names=[]; for(let t=0;t<200;t++){ d.step(1/60,3); await new Promise(r=>setTimeout(r,50)); names=window.__weaponStand.list().map(s=>s.name); if(names.includes('named-set_chaos_amulet')&&names.includes('named-set_chaos_charm')&&names.includes('sword-chaos')) break; }
+  const mf=window.__weaponStand.modelFor;
+  // the real sword's template: Matt's mesh, thousands of points (the code-built one is a few hundred)
+  const verts=await new Promise(res=>window.__weapons.model('sword-chaos',m=>{ let n=0; (m&&m.traverse)&&m.traverse(o=>{ if(o.isMesh&&o.geometry&&o.geometry.attributes.position) n+=o.geometry.attributes.position.count; }); res(n); }));
+  return { names, models:{ sw:mf(sw), am:mf(am), ch:mf(ch), ic:mf(ic) }, verts }; });
+check("the Chaos sword is Matt's model (thousands of points), not the code-built one",R.verts>3000,JSON.stringify(R.verts));
+check('the Chaos weapon (as this hero holds it), amulet and charm stand on the floor in 3D',R.names.some(n=>/^(sword|staff|polearm|bow)-chaos$/.test(n))&&R.names.includes('named-set_chaos_amulet')&&R.names.includes('named-set_chaos_charm'),JSON.stringify(R));
+check('a set without its own 3D amulet yet keeps its card (Ice)',R.models.ic===null,JSON.stringify(R.models));
+await page.evaluate(()=>{ const d=window.__dd, h=d.hero; d.setCam(Math.PI,.35,7); d.step(1/60,30); }); await page.screenshot({path:'tools/test-logs/setart-floor.png'});
+check('no page errors',errors.length===0,JSON.stringify(errors.slice(0,3)));
+await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);

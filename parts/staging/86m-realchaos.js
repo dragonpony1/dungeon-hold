@@ -5,7 +5,8 @@
 (function(){
 window.__weapons.registerReal('staff-chaos','staff-chaos.glb',{gripF:.36,lenScale:1.64});
 window.__weapons.registerReal('polearm-chaos','polearm-chaos.glb',{gripF:.3,lenScale:1.64});
-let warmed=false; function warm(){ if(warmed) return; warmed=true; window.__weapons.model('staff-chaos',()=>{}); window.__weapons.model('polearm-chaos',()=>{}); }
+window.__weapons.registerReal('sword-chaos','sword-chaos.glb');   // build 482: Matt's Chaos sword (GEAR SETS / chaos, made 3D from his sword concept) takes over the code-built one; turned blade-up when it was cut down
+let warmed=false; function warm(){ if(warmed) return; warmed=true; window.__weapons.model('staff-chaos',()=>{}); window.__weapons.model('polearm-chaos',()=>{}); window.__weapons.model('sword-chaos',()=>{}); }
 { const prev=dropLoot; dropLoot=function(it){ try{ if(it&&it.slot==='weapon'&&window.__weapons.setModel&&window.__weapons.setModel(it,'staff')==='staff-chaos') warm(); }catch(e){} return prev.apply(this,arguments); }; }
 window.__realchaos={warm,warmed:()=>warmed};
 })();
