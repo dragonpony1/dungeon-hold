@@ -36,10 +36,11 @@ window.__weapons.register('void',makeVoidSword);
 // client reports (99-network.js), so a friend's halos carry the friend's set, never the host's.
 function fullPacks(){ return Meta.sets.active().filter(a=>a.tier>=5).map(a=>Meta.packs.get(a.name)).filter(Boolean); }
 function defKindMap(){ const m={}; for(const p of fullPacks()) if(p.defKind) for(const k in p.defKind) m[k]=(m[k]||0)+p.defKind[k]; return m; }   // the wearer's own map, kind -> fraction
-function defKindBonus(d){ if(d.ownerId&&Meta.defOwnerKind){ const v=Meta.defOwnerKind(d.ownerId,d.kind); if(v!==undefined) return v||0; } return defKindMap()[d.kind]||0; }
+function defKindBonus(d){ { const TH=window.__towerHero; const v=TH&&TH.kind?TH.kind(d):undefined; if(v!==undefined) return v||0; }   /* build 434: the full-set power of the hero who PLACED it */
+  if(d.ownerId&&Meta.defOwnerKind){ const v=Meta.defOwnerKind(d.ownerId,d.kind); if(v!==undefined) return v||0; } return defKindMap()[d.kind]||0; }
 { const prev=stat; stat=function(d,k){ const v=prev(d,k); if(k!=='dmg'||!DEFS[d.kind]||DEFS[d.kind].dmg===undefined) return v; const b=defKindBonus(d); return b?Math.max(1,Math.round(v*(1+b)*10)/10):v; }; }
 Meta.defKindMap=defKindMap;
-function ownerTow(d){ if(d.ownerId&&Meta.defOwnerStat){ const st=Meta.defOwnerStat(d.ownerId,'tow'); if(st!==undefined) return {s:st,m:Meta.defOwnerMult(d.ownerId,'tow')||1}; } return {s:heroStat('tow'),m:heroMult('tow')}; }
+function ownerTow(d){ return {s:oStat(d,'tow'),m:oMult(d,'tow')}; }   /* build 434: oStat/oMult know the guest who placed it AND the hero who placed it (97i-towerhero.js) */
 function lashDmg(d,frac){ const l=d.lvl||1, t=ownerTow(d); return Math.max(1,Math.round(DEFS.zap.dmg*frac*(1+.5*(l-1))*(1+t.s/100)*t.m*(1+(d.buffD||0))*10)/10); }   /* buffD: a Rune Totem's damage aura (build 178) */
 function lashCd(d){ const l=d.lvl||1; return DEFS.zap.cd*Math.pow(.8,l-1); }
 const PULSES=[];

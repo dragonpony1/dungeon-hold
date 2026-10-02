@@ -782,12 +782,14 @@ function hostGuestShot(data,fromId){
 }
 onMessage('shot',(data,fromId)=>hostGuestShot(data,fromId));
 onMessage('swing',(data,fromId)=>{ guestHitCone(fromId,data.yaw,data.dmg,data.reach,data); });
+const guestByHero=new Map();   // build 434: id|hero -> {stat,mult}, the last a guest reported while that hero was out
 const guestStats=new Map();   // id -> {stat:{tow,trate,tarea,move,def,hp,regen},mult:{tow,tcd,aoe,move,hp}} -- this guest's OWN gear/skill numbers, last reported
 // build 159 (5/7): myth, five and idle -- the named mythics this guest wears, its full sets and whether its hero stands still -- so the
 // host can run that guest's powers (97-mythics.js GW, 93-gearsets.js guestSwing, guestMantle above). Only names the game knows are kept
 const strList=(a,ok)=>Array.isArray(a)?a.filter(k=>typeof k==='string'&&k.length<40&&(!ok||ok(k))).slice(0,8):[];
 onMessage('input',(data,fromId)=>{ guestIn.set(fromId,data); if(data.stat&&data.mult){ const NM=window.__mythic&&window.__mythic.NAMED;
-  guestStats.set(fromId,{stat:data.stat,mult:data.mult,kind:data.kind||{},myth:strList(data.myth,k=>!!(NM&&Object.prototype.hasOwnProperty.call(NM,k))),five:strList(data.five),idle:!!data.idle}); } });
+  if(typeof data.pick==='string') guestByHero.set(fromId+'|'+data.pick,{stat:data.stat,mult:data.mult,kind:data.kind||{}});   /* build 434: each guest's numbers kept per hero, so their towers keep the placer's after a switch */
+  guestStats.set(fromId,{pick:typeof data.pick==='string'?data.pick:null,stat:data.stat,mult:data.mult,kind:data.kind||{},myth:strList(data.myth,k=>!!(NM&&Object.prototype.hasOwnProperty.call(NM,k))),five:strList(data.five),idle:!!data.idle}); } });
 Meta.coopWear=()=>{ if(role!=='host') return null; const out=[]; guestHero.forEach((g,id)=>{ const s=guestStats.get(id); if(s&&s.myth&&s.myth.length) out.push({id,myth:s.myth,idle:s.idle,g}); }); return out; };   // who wears what, for 97-mythics.js (g: the host's live copy of that guest's hero)
 // a guest's Rootsplitter: its own 4th swing drew the roots on its own screen (97-mythics.js) and says so here; the host holds its mobs
 // from where the guest stands, as the host's own swing does. Only for a guest that wears it, alive, from within a few steps of its copy
@@ -814,6 +816,10 @@ onMessage('powerFx',d=>{ if(role!=='guest'||!d) return;
   else if(d.k==='chain'&&Array.isArray(d.s)&&window.__subterfuge){ const segs=d.s.slice(0,8).filter(s=>Array.isArray(s)&&s.length===6&&s.every(v=>Number.isFinite(+v))).map(s=>s.map(Number)); if(segs.length) window.__subterfuge.draw(segs); } });   // build 170: the chain lightning this guest's Subterfuge arrow threw across the host's mobs
 Meta.defOwnerStat=(id,k)=>{ const s=guestStats.get(id); return s?s.stat[k]:undefined; };
 Meta.defOwnerMult=(id,k)=>{ const s=guestStats.get(id); return s?s.mult[k]:undefined; };
+Meta.defOwnerHero=id=>{ const s=guestStats.get(id); return s?s.pick:null; };
+Meta.defOwnerHeroStat=(id,h,k)=>{ const s=guestByHero.get(id+'|'+h); return s&&s.stat?s.stat[k]:undefined; };
+Meta.defOwnerHeroKind=(id,h,kind)=>{ const s=guestByHero.get(id+'|'+h); return s&&s.kind?(s.kind[kind]||0):undefined; };
+Meta.defOwnerHeroMult=(id,h,k)=>{ const s=guestByHero.get(id+'|'+h); return s&&s.mult?s.mult[k]:undefined; };
 Meta.defOwnerKind=(id,kind)=>{ const s=guestStats.get(id); return s?(s.kind&&s.kind[kind])||0:undefined; };   // that guest's own full-set power for this defense kind (94-voidset.js)
 
 // build 150: what this player wears, resolved here (the weapon model key its own rig mounted, the tier, the weapon's set for
@@ -1204,7 +1210,7 @@ function hostTryPlaceDef(kind,x,z,yaw,fromId){
   if(!reason&&S.mana<cfg.mana) reason='Not enough mana';
   else if(!reason&&enemies.some(e=>!e.dead&&Math.hypot(e.x-x,e.z-z)<2.2)) reason='Enemy too close';
   if(reason){ S.mana=realMana; send('toast',reason,fromId); return; }
-  const d=placeDefAt(kind,x,z,yaw); if(d){ d.ownerId=fromId; const st=seatOf.get(fromId); if(st) d.ownerSeat=st.seat; }   // stat() (game.js) reads this via Meta.defOwnerStat/Mult so the defense keeps ITS PLACER's buffs, not the host's own; the seat (build 159, 3/7) is how it finds its placer again after a rejoin (seatJoin)
+  const d=placeDefAt(kind,x,z,yaw); if(d){ d.ownerId=fromId; d.ownerHero=Meta.defOwnerHero(fromId)||null; const st=seatOf.get(fromId); if(st) d.ownerSeat=st.seat; }   // stat() (game.js) reads this via Meta.defOwnerStat/Mult so the defense keeps ITS PLACER's buffs, not the host's own; the seat (build 159, 3/7) is how it finds its placer again after a rejoin (seatJoin)
   guestMana.set(fromId,S.mana); S.mana=realMana;
 }
 onMessage('place',(data,fromId)=>hostTryPlaceDef(data.kind,data.x,data.z,data.yaw,fromId));

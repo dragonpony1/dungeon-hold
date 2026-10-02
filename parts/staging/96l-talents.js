@@ -154,9 +154,12 @@ function sweepArc(sw){ const ang=PI*(.55+.15*sw), g=new THREE.Mesh(new THREE.Rin
       KC.bash++; puff(hero.x+fx*1.4,hero.y+1.1,hero.z+fz*1.4,0xcfe0ff,2.4); floatText(hero.x+fx*1.6,hero.y+2.6,hero.z+fz*1.6,'🛡 BASH','#cfe0ff'); camShake=Math.max(camShake,.12); } }; }
 { const prev=kill; kill=function(e){ const was=e&&!e.dead; const r=prev.apply(this,arguments); if(was&&isK()&&rank('kfury')&&e.mineT>=0&&S.t-e.mineT<=.6){ if(S.t>=rushT) puff(hero.x,hero.y+1.2,hero.z,0xff6a3a,2); rushT=S.t+3; KC.rush++; } return r; }; }
 // Thornwright: the hedge's thorns bite harder; Trapsmith: the Mouse Trap resets quicker; Vigil: towers near a Knight who stands still fire faster
-{ const prev=thornsBack; thornsBack=function(d,dmg){ const v=prev.apply(this,arguments); const t=isK()?rank('kthorn'):0; return t?Math.round(v*(1+.2*t)*10)/10:v; }; }
+{ const prev=thornsBack; thornsBack=function(d,dmg){ const v=prev.apply(this,arguments); const t=towK(d)?kRank('kthorn'):0; return t?Math.round(v*(1+.2*t)*10)/10:v; }; }
+/* build 434 (Matt: "if i switch to the knight for the battle phase but my fighter puts down great towers, those towers need to maintain the stats and bonuses of the fighter"): a tower's own talent bonuses go by the hero who PLACED it (d.heroId, 97i-towerhero.js), not whoever is out now */
+const towK=d=>(d&&d.heroId&&!d.ownerId?d.heroId==='knight':heroId()==='knight')&&!!TREES.knight;
+const kRank=id=>((ALL.knight||{})[id]|0);
 const vigilOn=()=>isK()&&rank('kvigil')&&hero.dead<=0&&stillT>=1;
-{ const prev=stat; stat=function(d,k){ let v=prev.apply(this,arguments); if(k==='cd'&&d&&isK()){ if(d.kind==='trap'){ const t=rank('ktrap'); if(t) v*=1-.15*t; } if(vigilOn()&&near(d)&&d.kind!=='trap') v*=.77; } return v; }; }
+{ const prev=stat; stat=function(d,k){ let v=prev.apply(this,arguments); if(k==='cd'&&d){ if(d.kind==='trap'&&towK(d)){ const t=kRank('ktrap'); if(t) v*=1-.15*t; } if(isK()&&vigilOn()&&near(d)&&d.kind!=='trap') v*=.77; } return v; }; }
 // Long Hedge: a hedge he sets down stands five squares long (the model stretched to match)
 const LONG_K=1.6;
 { const prev=footprintCells; footprintCells=function(kind,x,z,yaw){ const cells=prev.apply(this,arguments); if(kind!=='spike'||!(isK()&&rank('klong'))) return cells; const ax=Math.cos(yaw||0), az=-Math.sin(yaw||0);
