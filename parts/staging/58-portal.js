@@ -16,18 +16,21 @@ const PORTAL_CFG=MAP.portal||null;
 const PX=PORTAL_CFG?cw(PORTAL_CFG.cx):-2.5, PZ=PORTAL_CFG?cwz(PORTAL_CFG.cz):2, PFACE=PORTAL_CFG?PORTAL_CFG.face:0;
 const baseY=floorH(PX,PZ);
 let wrap=null, state='hidden', pop=0, lastPhase=null;
+// build 460: a portal at every station (MAP.stations, 57-raven.js) -- each a way into the hideout, as the first
+const SP_P=(MAP&&MAP.padN)|0;
+const SPOTS=[{x:PX,z:PZ,y:baseY,face:PFACE}].concat(((MAP&&MAP.stations)||[]).map(s=>{ const x=cw(s.portal[0]), z=cwz(s.portal[1]+SP_P); return { x, z, y:s.y!=null?s.y:floorH(x,z), face:s.pface||0 }; }));
+let WRAPS=[];
 fetchBytes(ASSET('hideout-portal.glb'),'soon').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
     const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,3.6); toonify(root,fit.scale);
-    wrap=fit.wrap; wrap.visible=false; wrap.scale.setScalar(0); scene.add(wrap);
+    wrap=fit.wrap; wrap.visible=false; wrap.scale.setScalar(0); scene.add(wrap); WRAPS=[wrap].concat(SPOTS.slice(1).map(()=>{ const c=wrap.clone(true); c.visible=false; scene.add(c); return c; }));
   }catch(e){ console.warn('portal model',e); } },e=>console.warn('portal model',e))).catch(e=>console.warn('portal model',e));
 function portalUpdate(dt){ if(!wrap) return; const ph=hallPhase();   // the host's phase on a co-op guest (above): out with the host's horn, back in with its build phase
   if(lastPhase===null){ lastPhase=ph; if(ph==='build') state='in'; }   // first frame ever seen already in build (a resumed run): still pop in, not just silently baseline
   else if(ph!==lastPhase){ if(ph==='build') state='in'; else if(state!=='hidden') state='out'; lastPhase=ph; }
-  if(state==='in'){ pop=Math.min(1,pop+dt*4.5); wrap.visible=true; if(pop>=1) state='shown'; }
-  else if(state==='out'){ pop=Math.max(0,pop-dt*4.5); if(pop<=0){ state='hidden'; wrap.visible=false; } }
-  if(state==='hidden') return;
-  wrap.position.set(PX,baseY,PZ); wrap.rotation.y=PFACE;
-  wrap.scale.setScalar(state==='shown'?1:easeOutBack(pop)); }
+  if(state==='in'){ pop=Math.min(1,pop+dt*4.5); if(pop>=1) state='shown'; }
+  else if(state==='out'){ pop=Math.max(0,pop-dt*4.5); if(pop<=0) state='hidden'; }
+  const ws=WRAPS.length?WRAPS:[wrap]; ws.forEach((w,k)=>{ const s=SPOTS[k]||SPOTS[0]; w.visible=state!=='hidden'; if(state==='hidden') return; w.position.set(s.x,s.y,s.z); w.rotation.y=s.face;
+    w.scale.setScalar(state==='shown'?1:easeOutBack(pop)); }); }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); portalUpdate(dt); }; }
-window.__portal={state:()=>state,pos:()=>({x:PX,y:baseY,z:PZ}),loaded:()=>!!wrap};
+window.__portal={spots:()=>SPOTS.map(s=>({x:s.x,y:s.y,z:s.z})),state:()=>state,pos:()=>({x:PX,y:baseY,z:PZ}),loaded:()=>!!wrap};
 })();

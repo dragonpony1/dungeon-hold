@@ -68,7 +68,7 @@ function carryGear(){ const bag=Meta.bag(); const counts={}; RARITY_KEY.forEach(
   try{ localStorage.setItem(BAG_KEY,JSON.stringify(b)); }catch(e){}
   Meta.save(); lastCarry={n,counts,carried,kept}; return lastCarry; }
 function bagSummary(){ const c={}; Meta.bag().filter(it=>!it.locked).forEach(it=>{ const k=RARITY_KEY[clampR(it.rarity)]; c[k]=(c[k]||0)+1; }); return RARITY_KEY.filter(k=>c[k]).map(k=>c[k]+' '+k).join(', '); }
-function portalNear(){ if(!window.__portal||window.__portal.state()!=='shown') return false; const p=window.__portal.pos(); return Math.hypot(hero.x-p.x,hero.z-p.z)<NEAR; }
+function portalNear(){ if(!window.__portal||window.__portal.state()!=='shown') return false; const ps=window.__portal.spots?window.__portal.spots():[window.__portal.pos()]; return ps.some(p=>Math.hypot(hero.x-p.x,hero.z-p.z)<NEAR&&Math.abs((hero.y||0)-(p.y||0))<3); }   // build 460: any station's portal
 function canUse(){ return portalNear()&&!placing&&!Meta.isOpen()&&hallPhase()==='build'; }   // hallPhase (58-portal.js, build 159 5/7): the host's phase on a co-op guest, whose own S.phase is 'build' all run
 // the frame is made once and kept: hidden (visibility, so its page keeps running its loads) between visits, and the
 // hideout page told which it is -- 'hideout:hide' stops it drawing and releases the mouse, 'hideout:show' re-reads the

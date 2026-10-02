@@ -21,21 +21,26 @@ const perch=(()=>{ const g=new THREE.Group(); const bark=mat(0x6a4e34), barkD=ma
   return outline(g); })();
 perch.position.set(RX,baseY,RZ); perch.scale.setScalar(1.35);   // build 231 (Matt: "make the portal to hideout and the raven both bigger"): the raven is 1.5x, its stump a little more so
 world.add(perch);
+// build 460 (Matt: "because these hearts are so far from each other can you put ravens and portals on each heartroot"): MAP.stations -- a raven (and, 58-portal.js, a portal) beside each further Heartroot,
+// in the map's own numbers (cx,cz; y for one up on a roof). Each works exactly as the first.
+const SP_P=(MAP&&MAP.padN)|0;
+const SPOTS=[{x:RX,z:RZ,y:baseY,face:RFACE}].concat(((MAP&&MAP.stations)||[]).map(s=>{ const x=cw(s.raven[0]), z=cwz(s.raven[1]+SP_P); return { x, z, y:s.y!=null?s.y:floorH(x,z), face:s.face||0 }; }));
+for(const s of SPOTS.slice(1)){ const pc=perch.clone(true); pc.position.set(s.x,s.y,s.z); world.add(pc); }
+let WRAPS=[];
 let wrap=null, state='hidden', pop=0, lastPhase=null;
 fetchBytes(ASSET('raven.glb'),'soon').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{
     const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,2.4); toonify(root,fit.scale);
-    wrap=fit.wrap; wrap.visible=false; wrap.scale.setScalar(0); scene.add(wrap);
+    wrap=fit.wrap; wrap.visible=false; wrap.scale.setScalar(0); scene.add(wrap); WRAPS=[wrap].concat(SPOTS.slice(1).map(()=>{ const c=wrap.clone(true); c.visible=false; scene.add(c); return c; }));
   }catch(e){ console.warn('raven model',e); } },e=>console.warn('raven model',e))).catch(e=>console.warn('raven model',e));
 function ravenY(){ return baseY+PERCH_H*1.35+.08+Math.sin(S.t*1.6)*.05; }
-function near(){ return state==='perched'&&Math.hypot(hero.x-RX,hero.z-RZ)<NEAR; }
+function near(){ return state==='perched'&&SPOTS.some(s=>Math.hypot(hero.x-s.x,hero.z-s.z)<NEAR&&Math.abs((hero.y||0)-s.y)<3); }
 function ravenUpdate(dt){ if(!wrap) return;
   if(lastPhase===null){ lastPhase=S.phase; if(S.phase==='build') state='in'; }   // first frame ever seen already in build (a resumed run): still pop in, not just silently baseline
   else if(S.phase!==lastPhase){ if(S.phase==='build') state='in'; else if(state!=='hidden') state='out'; lastPhase=S.phase; }
-  if(state==='in'){ pop=Math.min(1,pop+dt*4.5); wrap.visible=true; if(pop>=1) state='perched'; }
-  else if(state==='out'){ pop=Math.max(0,pop-dt*4.5); if(pop<=0){ state='hidden'; wrap.visible=false; } }
-  if(state==='hidden') return;
-  wrap.position.set(RX,ravenY(),RZ); wrap.rotation.y=RFACE+Math.sin(S.t*1.1)*.1; wrap.rotation.z=Math.sin(S.t*1.7)*.04;
-  wrap.scale.setScalar(state==='perched'?1:easeOutBack(pop)); }
+  if(state==='in'){ pop=Math.min(1,pop+dt*4.5); if(pop>=1) state='perched'; }
+  else if(state==='out'){ pop=Math.max(0,pop-dt*4.5); if(pop<=0) state='hidden'; }
+  const ws=WRAPS.length?WRAPS:[wrap]; ws.forEach((w,k)=>{ const s=SPOTS[k]||SPOTS[0]; w.visible=state!=='hidden'; if(state==='hidden') return; w.position.set(s.x,ravenY()-baseY+s.y,s.z); w.rotation.y=s.face+Math.sin(S.t*1.1+k)*.1; w.rotation.z=Math.sin(S.t*1.7+k)*.04;
+    w.scale.setScalar(state==='perched'?1:easeOutBack(pop)); }); }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); ravenUpdate(dt); }; }
 { const ph=Meta.hud; Meta.hud=()=>{ ph(); if(near()&&!placing&&!Meta.isOpen()){ const el=$('prompt'); const want='E  the raven (character sheet)  ·  H  switch hero'; if(el.textContent!==want) el.textContent=want; } }; }
 { const prev=upgrade; upgrade=function(){ if(near()){ window.__doll.open(); return; } return prev(); }; }
@@ -54,5 +59,5 @@ function ensureHeroPick(){ if(heroPick) return heroPick;
     heroPick.appendChild(b); });
   document.getElementById('hud').appendChild(heroPick); syncHeroPick(); return heroPick; }
 { const prev=ravenUpdate; ravenUpdate=function(dt){ prev(dt); const show=near()&&!placing&&!Meta.isOpen(); const hp=ensureHeroPick(); if((hp.style.display==='flex')!==show){ hp.style.display=show?'flex':'none'; if(show) syncHeroPick(); } }; }
-window.__raven={state:()=>state,near,pos:()=>({x:RX,y:ravenY(),z:RZ}),loaded:()=>!!wrap,heroPickVisible:()=>heroPick&&heroPick.style.display==='flex',heroPickButtons:()=>heroPick?[...heroPick.children].map(b=>b.dataset.hero):[]};
+window.__raven={spots:()=>SPOTS.map(s=>({x:s.x,y:s.y,z:s.z})),state:()=>state,near,pos:()=>({x:RX,y:ravenY(),z:RZ}),loaded:()=>!!wrap,heroPickVisible:()=>heroPick&&heroPick.style.display==='flex',heroPickButtons:()=>heroPick?[...heroPick.children].map(b=>b.dataset.hero):[]};
 })();
