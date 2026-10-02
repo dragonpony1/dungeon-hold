@@ -59,13 +59,16 @@ const LIM=BOT-.45, V=new THREE.Vector3(), L=new THREE.Vector3();
 const NO_DECK=k=>!!NOWALK_DEF[k]||k==='spike';
 const up=()=>(hero.y||0)>=Y-.6;
 const towerAt=(cx,cz)=>defs.find(d=>d.onDeck&&d.cx===cx&&d.cz===cz)||null;
+// build 497 (Matt: "they snap to the grid instead of being able to place them" -- ballistas on the Drawbridge): a tower on the deck goes exactly where it is aimed, as on the ground -- not to the middle of its
+// square. Crowding is a distance now: too close to another deck tower is 'Already occupied'.
+const DECK_GAP=1.6, crowded=(x,z)=>defs.find(d=>d.onDeck&&Math.hypot(d.x-x,d.z-z)<DECK_GAP)||null;
 { const prev=updateGhost; updateGhost=function(){ prev.apply(this,arguments); if(!placing||!ghost||!up()) return; const [px,pz]=placeStage===1?anchorPos:aimPoint(); const cx=wc(px), cz=wcz(pz); if(!cell(cx,cz)) return;
-    const cfg=DEFS[placing], x=cw(cx), z=cwz(cz); let reason='';
-    if(NO_DECK(placing)) reason="That one goes on the ground"; else if(towerAt(cx,cz)) reason='Already occupied'; else if(Math.hypot(hero.x-x,hero.z-z)<1.05) reason="You're standing there"; else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units'; else if(S.mana<cfg.mana) reason='Not enough mana';
+    const cfg=DEFS[placing], x=px, z=pz; let reason='';
+    if(NO_DECK(placing)) reason="That one goes on the ground"; else if(crowded(x,z)) reason='Already occupied'; else if(Math.hypot(hero.x-x,hero.z-z)<1.05) reason="You're standing there"; else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units'; else if(S.mana<cfg.mana) reason='Not enough mana';
     ghostOk=!reason; ghostReason=reason; ghostPos=[x,z]; ghostCell=[cx,cz]; ghost.position.set(x,Y,z); const m=ghostOk?GHOST_OK:GHOST_BAD; ghost.traverse(o=>{ if(o.isMesh) o.material=m; });
     if(typeof ghostSector!=='undefined'&&ghostSector){ ghostSector.position.set(x,Y,z); if(typeof tintSector==='function') tintSector(ghostSector,ghostOk?0x40ff80:0xff3030); } }; }
-{ const prev=placeDefAt; placeDefAt=function(kind,x,z,rot){ const cx=wc(x), cz=wcz(z); if(!(up()&&cell(cx,cz)&&!NO_DECK(kind))) return prev.apply(this,arguments); if(towerAt(cx,cz)) return null;
-    const d=prev.call(this,kind,cw(cx),cwz(cz),rot); if(!d) return d;
+{ const prev=placeDefAt; placeDefAt=function(kind,x,z,rot){ const cx=wc(x), cz=wcz(z); if(!(up()&&cell(cx,cz)&&!NO_DECK(kind))) return prev.apply(this,arguments); if(crowded(x,z)) return null;
+    const d=prev.call(this,kind,x,z,rot); if(!d) return d;
     for(const i of d.cells||[]) if(defAt[i]===d) defAt[i]=null; d.cells=[]; d.onDeck=true; d.cx=cx; d.cz=cz; d.base=Y; d.top=DEFS[kind].top+Y; if(d.mdl) d.mdl.position.y=Y;
     const r=.7, b={ x0:d.x-r, x1:d.x+r, z0:d.z-r, z1:d.z+r, top:d.top, bot:Y, noStand:true }; RAILBOXES.push(b); d.railboxes=(d.railboxes||[]).concat(b);   /* solid to the hero up top (96b-perch.js's removeDef wrap takes d.railboxes down with it) */
     reflow(); cnt.placed++; return d; }; }

@@ -31,5 +31,9 @@ const G=await page.evaluate(()=>{ const d=window.__dd, h=d.hero, W=window.__moat
 check("standing up top, a ballista goes up ON the roof (16 up) and takes no square of the yard below",G.placed&&G.onDeck&&G.base===16&&G.cells===0,JSON.stringify(G));
 check("it is solid to the hero up top, and the hero walks right under it below",G.blockedUpTop&&G.yUp>=15.9&&G.underOk&&G.yBelow<.5,JSON.stringify(G));
 check("down in the yard, towers still go on the ground as ever",G.groundBase!==null&&G.groundBase<1&&G.groundCells>0,JSON.stringify(G));
-const realErrors=errors.filter(x=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(x)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
+const realErrors=errors.filter(x=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(x)); const FREE=await page.evaluate(()=>{ const d=window.__dd, h=d.hero, W=window.__moatwalk; const a=W.at(20,6); d.setHero(a.x,a.z,0); h.y=16; d.step(1/60,2); h.y=16; d.S.phase='build'; d.addMana(1e6);
+  const b=W.at(24,5), x=b.x+.63, z=b.z-.41; const tw=d.placeDefAt('harpoon',x,z,0); const twin=d.placeDefAt('harpoon',x+.5,z,0);
+  return { placed:!!tw, at:tw?[+tw.x.toFixed(2),+tw.z.toFixed(2)]:null, want:[+x.toFixed(2),+z.toFixed(2)], onDeck:!!(tw&&tw.onDeck), crowdedRefused:!twin }; });
+check("build 497: a tower on the deck stands exactly where it is aimed (not snapped to its square), and one crowding it is refused",FREE.placed&&FREE.onDeck&&Math.abs(FREE.at[0]-FREE.want[0])<.01&&Math.abs(FREE.at[1]-FREE.want[1])<.01&&FREE.crowdedRefused,JSON.stringify(FREE));
+check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
