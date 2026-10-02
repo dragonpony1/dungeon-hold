@@ -43,7 +43,9 @@ function amplifyWings(){ const base=SUB.wings&&SUB.wings.Glide; if(!base) return
 const HOLD_MIN=.5, SPEED={ Wingbeat:1.4, Hover:1.5 };   // a layer keeps a clip at least half a second (no flicker between two); the flaps a little quicker than Bob's 1.5 s
 function pose(e,body,wings,tail,head,o){ o=o||{}; layer(e,'body',body,o); layer(e,'wings',wings,o.wingsOnce?Object.assign({},o,{ once:true }):o); layer(e,'tail',tail||'Tail_Swish'); layer(e,'head',head||'Look_Around',{ speed:.8 }); }
 function parse(file){ return fetchBytes(ASSET(file)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))); }
-function load(){ if(loadP) return loadP;
+// build 495: her own music (Matt's pick, Picturesdungeon art,mobsAvery the dragonsoundsmusic_zapsplat_chiller.mp3 -- ZapSplat), fetched with her models, never at start
+if(typeof TRACKS!=='undefined') TRACKS.avery='assets/music-avery.mp3';
+function load(){ if(loadP) return loadP; if(typeof musFetch==='function'&&typeof TRACKS!=='undefined'&&TRACKS.avery) musFetch('avery');   /* once: load() runs every frame from wave 5, and loadP guards it (the Archhag's song once refetched every frame, build 414) */
   loadP=Promise.all([parse('avery-flyer.glb'),parse('avery-bust.glb')]).then(([f,b])=>{
     const root=f.scene||f.scenes[0]; const fit=fitModel(root,MOBDIM[K].fit); toonify(root,fit.scale); const by=n=>(f.animations||[]).find(a=>a.name===n);
     const map={ idle:by('Hover'), walk:by('Glide'), run:by('Wingbeat'), attack:by('Jaw_Open'), death:by('Wing_Fold'), hover:by('Hover'), glide:by('Glide'), wingbeat:by('Wingbeat'), bankL:by('Bank_Left'), bankR:by('Bank_Right'),
@@ -116,7 +118,7 @@ function startCut(){ done=true; cnt.intro++; avery=spawnAvery(); if(!avery) retu
   bust.g.position.set(0,-1.2,0); bust.g.rotation.y=0; if(!bust.g.parent) STAGE.add(bust.g); bust.mixer=new THREE.AnimationMixer(bust.g); const a=bust.mixer.clipAction(bust.clip); a.setLoop(THREE.LoopOnce,1); a.clampWhenFinished=true; a.play(); bust.act=a; a.paused=true;
   cut={ t:0, cam:camera.position.clone(), q:camera.quaternion.clone() }; cutEl.style.display='block'; cutEl.querySelector('.stamp').style.cssText=''; document.body.classList.add('avery-cut'); }
 function endCut(){ if(!cut) return; camera.position.copy(cut.cam); camera.quaternion.copy(cut.q); cut=null; STAGE.visible=false; cutEl.style.display='none'; document.body.classList.remove('avery-cut');
-  if(avery&&!avery.dead){ avery.x=PERCH.x+10; avery.z=PERCH.z+6; avery.y=CRUISE; avery.fly=CRUISE-baseFloor(avery.x,avery.z); } setMusic('wave'); banner('💋 AVERY','she puts the Drag in Dragon'); camShake=Math.max(camShake,.5); }
+  if(avery&&!avery.dead){ avery.x=PERCH.x+10; avery.z=PERCH.z+6; avery.y=CRUISE; avery.fly=CRUISE-baseFloor(avery.x,avery.z); } setMusic(TRACKS&&TRACKS.avery?'avery':'wave'); banner('💋 AVERY','she puts the Drag in Dragon'); camShake=Math.max(camShake,.5); }
 // build 474 (Matt: "how can I see Avery, can I call her in from the dev hud"): the dev panel's Spawn with avery picked brings her in the way the wave does -- the whole cut scene, then the fight
 { const prev=spawnEnemy; spawnEnemy=function(kind){ if(kind!==K||inSpawn) return prev.apply(this,arguments); if(cut) return avery;
     if(MOBGLB[K]&&bust){ startCut(); return avery; } toast('💋 Avery is on her way…'); load().then(()=>{ if(MOBGLB[K]&&bust&&!cut) startCut(); }); return null; }; }
@@ -177,7 +179,7 @@ function windSet(){ const look=(()=>{ try{ const m=window.__weapons&&window.__we
     { slot:'familiar', name:'Storm Drake of the Wind', setId:'wind', rarity:5, lvl:20, stats:ST.familiar }, { slot:'charm', name:'Charm of the Wind', setId:'wind', rarity:5, lvl:20, stats:ST.charm }]; }
 { const prev=kill; kill=function(e){ const was=e&&!e.dead&&e.kind===K; const r=prev.apply(this,arguments); if(was){ cnt.deaths++; try{ pose(e,'Hindleg_Tuck','Wing_Fold',null,'Jaw_Open',{ wingsOnce:true, fade:.15, force:true }); }catch(er){}
     burst(e.x,e.y+2,e.z,e.x,baseFloor(e.x,e.z),e.z,40); for(let k=0;k<5;k++){ const g=glow([0xff4fd8,0xffd27a,0xb05aff,0xffffff,0xff8ae0][k],5+k,.9); g.position.set(e.x+(Math.random()-.5)*4,e.y+1+Math.random()*3,e.z+(Math.random()-.5)*4); scene.add(g); projs.push({ kind:'splat', t:0, mesh:g }); }
-    camShake=Math.max(camShake,.9); banner('💋 AVERY FALLS','the Wind set is yours');
+    camShake=Math.max(camShake,.9); banner('💋 AVERY FALLS','the Wind set is yours'); setTimeout(()=>{ if(!enemies.some(x=>x.kind===K&&!x.dead)&&musicMode==='avery') setMusic(S.phase==='wave'?'wave':'build'); },2500);
     const N=window.__mythic&&window.__mythic.normalize; windSet().forEach((rec,i)=>{ const it=N?N(rec):null; if(!it) return; const a=i/5*TAU; dropLoot(it,hero.x+Math.cos(a)*3.5,hero.z+Math.sin(a)*3.5,true); });
     setTimeout(()=>{ if(!enemies.some(x=>x.kind===K&&!x.dead)) beamsOff(); },2500); } return r; }; }
 window.__avery={ kind:K, load, loaded:()=>!!(MOBGLB[K]&&bust), info:()=>Object.assign({ cut:!!cut, cutT:cut?+cut.t.toFixed(2):null, beams:BEAMS.length, feathers:FALL.length },cnt),
