@@ -20,7 +20,7 @@ check("down onto the bridge from the south wall, over the moat and the green, an
 const off=await page.evaluate(()=>{ const d=window.__dd, M=window.__moatwalk, h=d.hero; const a=M.at(10,1), b=M.at(10,4); h.x=a.x; h.z=a.z; h.y=16; const ok=M.walkTo(b.x,b.z); return { ok, y:+h.y.toFixed(2), z:+(h.z-a.z).toFixed(2) }; });
 check("the walk's inner edge runs straight on onto the roof over the yard: he steps off it and stays up at 16 (build 439; it was a guard; 449: 16 up)",off.ok&&off.y>15.9,JSON.stringify(off));
 const under=await page.evaluate(()=>{ const d=window.__dd, M=window.__moatwalk, h=d.hero; const go=(a,b)=>{ const p=M.at(a[0],a[1]), q=M.at(b[0],b[1]); h.x=p.x; h.z=p.z; h.y=0; const ok=M.walkTo(q.x,q.z); return { ok, y:+h.y.toFixed(2) }; };
-  return { gate:go([24,12],[24,21]), bridge:go([33,22],[41,22]) }; });
+  return { gate:go([24,12],[24,21]), bridge:go([28,26],[36,26]) }; });
 check("on the ground he still walks through the gate under its deck, and across the green under the bridge",under.gate.ok&&under.gate.y<1&&under.bridge.ok&&under.bridge.y<1,JSON.stringify(under));
 const flow=await page.evaluate(()=>{ const d=window.__dd, M=window.__moatwalk; const gw=d.map().gw, out={}; for(const [k,c] of Object.entries({S:[24,53],W:[1,25],E:[48,25],NE:[48,8]})){ const p=M.at(c[0],c[1]); const cx=Math.round((p.x+41-1)/2), cz=Math.round((p.z+(7+8)*2+1-1)/2); out[k]=d.flow().dist[cz*gw+cx]; } return out; });
 check("the horde's roads from all four gates still reach the Heartroot",Object.values(flow).every(v=>v>0),JSON.stringify(flow));
