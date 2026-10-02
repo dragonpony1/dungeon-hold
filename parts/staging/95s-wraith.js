@@ -30,10 +30,21 @@ function load(){ if(MOBGLB[K]) return Promise.resolve(); if(loadP) return loadP;
     const ts=c.q.map(x=>+x.t||0), t0=Math.min(...ts), t1=Math.max(...ts), lanes=Object.keys(LANES); const lane=c.q[(c.q.length/3)|0].lane||lanes[0];
     const add=[{ t:+(t0+(t1-t0)/3).toFixed(2), kind:K, lane }]; if(!SURVIVAL&&MAP&&MAP.id==='prison'&&(w-(MAP.wbase|0))>=5){ const l2=c.q[(c.q.length*2/3)|0].lane||lane; add.push({ t:+(t0+(t1-t0)*2/3).toFixed(2), kind:K, lane:l2 }); }   /* build 425: two in the prison's fifth and sixth waves */
     const q=c.q.concat(add).sort((a,b)=>(+a.t||0)-(+b.t||0)); return Object.assign({},c,{ q }); }; }
-// ---- the corner he hides in: the corner of the walkable ground furthest from the Heartroot
-let corner=null;
-function hideSpot(){ if(corner) return corner; let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9; for(let cz=0;cz<GH;cz++) for(let cx=0;cx<GW;cx++){ if(!walk(grid[idx(cx,cz)])) continue; const x=cw(cx), z=cwz(cz); if(x<x0) x0=x; if(x>x1) x1=x; if(z<z0) z0=z; if(z>z1) z1=z; }
-  let best=null, bd=-1; for(const [x,z] of [[x0,z0],[x0,z1],[x1,z0],[x1,z1]]){ const d=Math.hypot(x,z); if(d>bd){ bd=d; best={ x:x+(x<0?2:-2), z:z+(z<0?2:-2) }; } } corner=best; return corner; }
+// ---- the corner he hides in: the walkable floor furthest from the Heartroot -- but never in a spawn alcove (build 435, Matt: "if phase wraith is the last mob he can't hide too far in a corner in a spawn
+// alcove"; the old pick was a corner of the box round all the floor, which on some maps sat right in a mob door). Floor within SPAWN_KEEP of a lane's door is out, and so is floor the mobs never walk to the Heartroot from.
+const SPAWN_KEEP=10, LAST_R=9;
+let corner=null, cornerMap=null, lastSpot=null;
+const spawnPts=()=>Object.values(LANES||{}).filter(L=>L&&L.cx!==undefined).map(L=>({ x:cw(L.cx), z:cwz(L.cz) }));
+function openFloor(){ const sp=spawnPts(), out=[]; for(let cz=0;cz<GH;cz++) for(let cx=0;cx<GW;cx++){ const i=idx(cx,cz); if(!walk(grid[i])||(typeof MOBBLOCK!=='undefined'&&MOBBLOCK[i])) continue;
+    const x=cw(cx), z=cwz(cz); if(sp.some(p=>Math.hypot(p.x-x,p.z-z)<SPAWN_KEEP)) continue; if(flowFree&&flowFree.dist&&!(flowFree.dist[i]>=0)) continue; out.push({ x, z }); } return out; }
+function hideSpot(){ if(corner&&cornerMap===MAP) return corner; cornerMap=MAP; lastSpot=null; const fl=openFloor(); let best=null, bd=-1; for(const p of fl){ const d=Math.hypot(p.x,p.z); if(d>bd){ bd=d; best=p; } }
+  if(!best){ best={ x:0, z:-LAST_R }; } corner={ x:best.x*.92, z:best.z*.92 }; return corner; }
+// THE LAST MOB: with nothing else alive and nothing left to come, he can't hold the wave up from a far corner -- he charges close in, over open floor LAST_R from the Heartroot (on his corner's side), low enough to hit
+const isLast=e=>!(typeof spawnQ!=='undefined'&&spawnQ.length)&&!enemies.some(o=>!o.dead&&o!==e&&o.kind!==K);
+function lastStandSpot(){ hideSpot(); if(lastSpot) return lastSpot; const c=corner, d=Math.hypot(c.x,c.z)||1, want={ x:c.x/d*LAST_R, z:c.z/d*LAST_R }; let best=null, bd=1e9;
+  for(const p of openFloor()){ const dd=Math.hypot(p.x-want.x,p.z-want.z)+Math.abs(Math.hypot(p.x,p.z)-LAST_R); if(dd<bd){ bd=dd; best=p; } } lastSpot=best||want; return lastSpot; }
+const spotFor=e=>isLast(e)?lastStandSpot():hideSpot();
+const highFor=e=>isLast(e)?LOW+.8:HIGH;
 // ---- looks: a crimson beam to whom he mends, a sigil over them, his charging orb, the death fireworks
 function beam(a,b){ for(let i=1;i<7;i++){ const t=i/7; const g=glow(i%2?0xff3a4a:0xffb0b0,.5,.9); g.position.set(a.x+(b.x-a.x)*t,(a.y+1.4)+((b.y||0)+1-(a.y+1.4))*t,a.z+(b.z-a.z)*t); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); } }
 function mend(w,e){ e.hp=e.max; cnt.heals++; beam(w,e); const s=glow(0xff4a5a,1.4,.95); s.position.set(e.x,(e.y||0)+(e.h||1.4)+.4,e.z); scene.add(s); projs.push({kind:'splat',t:0,mesh:s}); floatText(e.x,(e.y||0)+(e.h||1.4)+.6,e.z,'✚','#ff6a7a'); }
@@ -54,8 +65,8 @@ function goTo(e,x,z,spd,dt){ const dx=x-e.x, dz=z-e.z, d=Math.hypot(dx,dz); if(d
         if(tg){ if(goTo(e,tg.x,tg.z,SPD.tour,dt)<2.5){ mend(e,tg); e.wheals++; e.wtg=null; } }
         else { const c=enemies.filter(o=>!o.dead&&o.kind!==K); if(c.length){ const mx=c.reduce((a,o)=>a+o.x,0)/c.length, mz=c.reduce((a,o)=>a+o.z,0)/c.length; goTo(e,mx,mz,SPD.tour*.6,dt); } }
         if(e.wheals>=TOUR_HEALS||e.wt>=TOUR_T){ e.wst='hide'; e.wt=0; } }
-      else if(e.wst==='hide'||e.wst==='back'){ e.fly=HIGH; const c=hideSpot(); if(goTo(e,c.x,c.z,e.wst==='hide'?SPD.hide:SPD.back,dt)<.3){ e.wst='charge'; e.wt=0; cnt.charges++; if(!e.orb){ e.orb=glow(0xff2a3a,1,.0); scene.add(e.orb); } } }
-      else if(e.wst==='charge'){ e.fly=HIGH; const k=Math.min(1,e.wt/CHARGE_T); if(e.orb){ e.orb.scale.setScalar(1+k*4); e.orb.material.opacity=.25+.55*k+.1*Math.sin(S.t*12); }
+      else if(e.wst==='hide'||e.wst==='back'){ e.fly=highFor(e); const c=spotFor(e); if(goTo(e,c.x,c.z,e.wst==='hide'?SPD.hide:SPD.back,dt)<.3){ e.wst='charge'; e.wt=0; cnt.charges++; if(!e.orb){ e.orb=glow(0xff2a3a,1,.0); scene.add(e.orb); } } }
+      else if(e.wst==='charge'){ e.fly=highFor(e); { const c=spotFor(e); if(Math.hypot(c.x-e.x,c.z-e.z)>.6){ e.wst='back'; continue; } }   /* left the last alive while charging far off: he comes in */ const k=Math.min(1,e.wt/CHARGE_T); if(e.orb){ e.orb.scale.setScalar(1+k*4); e.orb.material.opacity=.25+.55*k+.1*Math.sin(S.t*12); }
         if(e.wt>=CHARGE_T){ for(const m of hurtMobs(e,VOLLEY_HEALS)) mend(e,m);   // the healing half of the volley, from his corner
           const pool=defs.filter(d=>!d.dead&&(d.kind==='harpoon'||d.kind==='ball')), any=defs.filter(d=>!d.dead&&d.kind!=='perch'&&d.kind!=='trap'&&d.kind!=='pit');
           const list=pool.length?pool:any; let tg=null, bd=1e9; for(const d of list){ const dd=Math.hypot(d.x-e.x,d.z-e.z); if(dd<bd){ bd=dd; tg=d; } }
@@ -68,5 +79,5 @@ function goTo(e,x,z,spd,dt){ const dx=x-e.x, dz=z-e.z, d=Math.hypot(dx,dz); if(d
       f.s.position.x+=f.vx*dt; f.s.position.y+=f.vy*dt-k*2*dt; f.s.position.z+=f.vz*dt; f.vx*=.96; f.vz*=.96; f.s.material.opacity=.95*(1-k); if(f.core) f.s.scale.setScalar(1+k*3); } }; }
 // ---- his death: the orb goes, fireworks light up the night
 { const prev=kill; kill=function(e){ const was=e&&!e.dead&&e.kind===K; const r=prev.apply(this,arguments); if(was){ cnt.deaths++; if(e.orb){ scene.remove(e.orb); e.orb.material.dispose(); e.orb=null; } fireworks(e.x,(e.y||0)+1,e.z); } return r; }; }
-window.__wraith={ kind:K, load, loaded:()=>!!MOBGLB[K], info:()=>Object.assign({ fx:fx.length },cnt), state:()=>enemies.filter(e=>!e.dead&&e.kind===K).map(e=>({ st:e.wst, x:+e.x.toFixed(1), z:+e.z.toFixed(1), y:+(e.y||0).toFixed(1), hp:e.hp })), hideSpot, wantsWave };
+window.__wraith={ kind:K, load, loaded:()=>!!MOBGLB[K], info:()=>Object.assign({ fx:fx.length },cnt), state:()=>enemies.filter(e=>!e.dead&&e.kind===K).map(e=>({ st:e.wst, x:+e.x.toFixed(1), z:+e.z.toFixed(1), y:+(e.y||0).toFixed(1), hp:e.hp })), hideSpot, lastStandSpot, isLast, spotFor, doorDist:p=>Math.min(...spawnPts().map(q=>Math.hypot(q.x-p.x,q.z-p.z))), wantsWave };
 })();

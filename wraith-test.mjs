@@ -31,5 +31,15 @@ const order=await page.evaluate(()=>{ const d=window.__dd; const sky=d.defs.find
 check("the snare tower can't hold him; the Sky Wrecker has him in its sights",C.snareOk&&!C.held&&C.noSnare&&C.skyFirst,JSON.stringify(C));
 const D=await page.evaluate(()=>{ const d=window.__dd, w=window.__w; d.kill(w); d.step(1/60,2); return window.__wraith.info(); });
 check("he dies in fireworks",D.deaths===1&&D.fx>20,JSON.stringify(D));
+// build 435 (Matt: "if phase wraith is the last mob he can't hide too far in a corner in a spawn alcove")
+const E=await page.evaluate(()=>{ const d=window.__dd, W=window.__wraith; for(const e of d.enemies) d.kill(e); d.step(1/60,2); const lane=d.waveComp(d.map().wbase+1).q[0].lane; d.spawn('wraith',lane); const w=d.enemies[d.enemies.length-1]; w.hp=w.max=1e6; w.wst='hide'; w.wt=0;
+  let at=null; for(let i=0;i<60*40;i++){ d.step(1/60,1); d.S.crystal=d.S.crystal2=1e9; if(w.wst==='charge'){ at={ x:w.x, z:w.z, fly:w.fly }; break; } } const L=W.lastStandSpot(), C=W.hideSpot(); d.kill(w); d.step(1/60,2);
+  return { last:true, at, toHeart:at?+Math.hypot(at.x,at.z).toFixed(1):null, nearSpot:at?+Math.hypot(at.x-L.x,at.z-L.z).toFixed(1):null, cornerDist:+Math.hypot(C.x,C.z).toFixed(1) }; });
+check("the last mob alive, he charges close in (about 9 from the Heartroot, low), not from his far corner",E.at&&E.toHeart<=12&&E.nearSpot<1&&E.at.fly<=4.1&&E.cornerDist>E.toHeart,JSON.stringify(E));
+for(const m of [3,4,5]){ await page.goto("http://127.0.0.1:9005/?silent&nogate&map="+m,{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__wraith&&window.__dd.heroModel(),null,{timeout:120000});
+  const F=await page.evaluate(()=>{ const d=window.__dd, W=window.__wraith; try{ window.__trainer.skip(); }catch(e){} d.start(); d.step(1/60,3); const M=d.map(); const c=W.hideSpot(), l=W.lastStandSpot();
+    
+    return { id:M.id, corner:{x:+c.x.toFixed(1),z:+c.z.toFixed(1)}, last:{x:+l.x.toFixed(1),z:+l.z.toFixed(1)}, door:W.doorDist(c), lastDoor:W.doorDist(l) }; });
+  check("on "+F.id+" his hiding spot is well away from every mob door (10+) and so is his last-stand spot",F.door>=9.5&&F.lastDoor>=9.5,JSON.stringify(F)); }
 check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
