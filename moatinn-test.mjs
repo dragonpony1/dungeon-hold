@@ -26,5 +26,11 @@ const C=await page.evaluate(()=>{ const d=window.__dd, W=window.__moatwalk, h=d.
 check("the hero can climb the switchback onto the inn's roof too (build 452)",C.ok&&C.y>=15.9,JSON.stringify(C));
 const R=await page.evaluate(()=>{ const d=window.__dd, W=window.__moatwalk, h=d.hero; const a=W.at(38,31); d.setHero(a.x,a.z,0); h.y=12; d.step(1/60,2); const b=W.at(35,31); const off=W.walkTo(b.x,b.z); return { rails:window.__stairrails.info().rails, off, y:+h.y.toFixed(1) }; });
 check('build 453: stone railings along the switchbacks -- halfway up the inn stair, walking off its side is stopped',R.rails>20&&!R.off&&R.y>=11,JSON.stringify(R));
+// build 454: the KEEP Heartroot -- every flyer goes for it
+for(let i=0;i<80&&!(await page.evaluate(()=>window.__moatinn.keep().heart3));i++) await sleep(100);
+const K=await page.evaluate(()=>{ const d=window.__dd, I=window.__moatinn; const k=I.keep(); d.S.phase='wave'; d.S.crystal=d.S.crystal2=d.S.crystal3=1e9; for(const e of d.enemies) d.kill(e); d.step(1/30,2);
+  d.spawn('drake','S'); const g=d.enemies[d.enemies.length-1]; g.hp=g.max=1e6; let t=0; for(;t<90;t+=1/30){ d.step(1/30,1); d.S.crystal=Math.max(d.S.crystal,1e9); d.S.crystal2=Math.max(d.S.crystal2,1e9); if(d.S.crystal3<1e9) break; }
+  return { k, goal3:!!g.goal3, hitKeep:d.S.crystal3<1e9, t:+t.toFixed(1) }; });
+check('build 454: a third Heartroot on the keep (the hall roof, 16 up), its model and bar; a drake from the road gate flies to it and strikes it',K.k.heart3&&K.k.bar3&&K.k.h3===16&&K.goal3&&K.hitKeep,JSON.stringify(K));
 const realErrors=errors.filter(x=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(x)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
