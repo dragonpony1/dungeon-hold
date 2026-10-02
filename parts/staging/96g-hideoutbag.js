@@ -39,8 +39,12 @@ addEventListener('message',e=>{ const w=H.frameWin(); if(!w||e.source!==w) retur
     sub.insertAdjacentHTML('beforeend','<button class="tv-btn hot" data-act="tvsalvall" id="tv-salvall"'+(n?'':' disabled')+' title="Every unlocked piece in the bag goes into the Cauldron Cart as scrap (worn and locked pieces stay)">🧪 Salvage '+(n?'('+n+')':'')+'</button>'); }; }
 { const prev=tvRenderDetail; tvRenderDetail=function(){ prev(); if(!fromHideout) return; const s=TV.sel, el=$('tv-detail'); if(!s||s.from!=='bag'||!el||el.classList.contains('hide')) return;
     const it=Meta.bag().find(b=>b.id===s.id); const db=el.querySelector('.db'); if(!it||!db) return;
-    db.insertAdjacentHTML('afterbegin','<button class="tv-btn hot" data-act="tvsalv" data-id="'+it.id+'"'+(it.locked?' disabled title="Unlock it to salvage it"':' title="Into the Cauldron Cart as scrap"')+'>🧪 Salvage</button>'); }; }
+    db.insertAdjacentHTML('beforeend','<button class="tv-btn hot" data-act="tvsalv" data-id="'+it.id+'"'+(it.locked?' disabled title="Unlock it to salvage it"':' title="Into the Cauldron Cart as scrap"')+'>🧪 Salvage</button>'); }; }
+// build 432 (Matt: "we need to make salvage a double tap in the card -- OJ accidentally salvaged his mythic -- and keep the equip button on the left"): the Salvage button sat in FRONT of Equip, where a hand reaches for
+// Equip; it is at the far right now, and both salvages take TWO taps -- the first turns the button red ("tap again"), the second does it; three seconds untouched and it is itself again.
 $('tavern').addEventListener('click',e=>{ const t=e.target.closest('[data-act="tvsalv"],[data-act="tvsalvall"]'); if(!t||t.disabled) return;
+  if(t.dataset.armed!=='1'){ e.stopPropagation(); t.dataset.armed='1'; t.dataset.label=t.innerHTML; t.innerHTML='⚠ Tap again to salvage'; t.style.background='#8a1e1e'; t.style.borderColor='#ff6a5a'; clearTimeout(t.__armT); t.__armT=setTimeout(()=>{ if(t.dataset.armed==='1'){ t.dataset.armed=''; t.innerHTML=t.dataset.label; t.style.background=''; t.style.borderColor=''; } },3000); return; }
+  clearTimeout(t.__armT); t.dataset.armed='';
   const r=t.dataset.act==='tvsalvall'?salvage(salvageable()):salvage(Meta.bag().filter(b=>b.id===t.dataset.id));
   if(r.n){ tvSay('🧪 +'+r.n+' → Cauldron  ('+RK.filter(k=>r.got[k]).map(k=>r.got[k]+' '+k).join(' · ')+')'); TV.sel=null; } else tvSay('Nothing to salvage'); tvRenderTab(true); });
 window.__hideoutbag={open:openBag,fromHideout:()=>fromHideout,salvage,salvageable:()=>salvageable().length,owned:()=>{ try{ return JSON.parse(localStorage.getItem(OWN_KEY)); }catch(e){ return null; } },writeOwned,OWN_KEY};
