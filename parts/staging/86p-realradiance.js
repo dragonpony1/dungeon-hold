@@ -5,6 +5,7 @@
 (function(){
 window.__weapons.registerReal('staff-radiance','staff-radiance.glb',{gripF:.36,lenScale:1.64});
 window.__weapons.registerReal('polearm-radiance','polearm-radiance.glb',{gripF:.3,lenScale:1.64});
+window.__weapons.registerReal('sword-radiance','sword-radiance.glb');   // build 489: Matt's Radiance sword (GEAR SETS / Holy / animated), turned blade-up (tools/glb-flip.mjs)
 let warmed=false; function warm(){ if(warmed) return; warmed=true; window.__weapons.model('staff-radiance',()=>{}); window.__weapons.model('polearm-radiance',()=>{}); }
 { const prev=dropLoot; dropLoot=function(it){ try{ if(it&&it.slot==='weapon'&&window.__weapons.setModel&&window.__weapons.setModel(it,'staff')==='staff-radiance') warm(); }catch(e){} return prev.apply(this,arguments); }; }
 window.__realradiance={warm,warmed:()=>warmed};
