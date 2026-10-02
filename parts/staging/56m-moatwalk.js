@@ -49,7 +49,7 @@ for(const s of Wk.slabs){ const r=R(s[0],s[1],s[2],s[3]), bot=s[4];
 // ---- the bridge: slab steps from the south wall down to the inn's wall-top, each a row long; guards both sides
 const B=Wk.bridge, nB=B[3]-B[2]+1;
 for(let i=0;i<nB;i++){ const z=B[2]+i, top=+(W-(W-IH)*(i+1)/(nB+1)).toFixed(3), r=R(B[0],B[1],z,z);
-  RAILBOXES.push({ x0:r.x0, x1:r.x1, z0:r.z0, z1:r.z1, top, bot:top-.6, step:true, noStand:true }); cnt.steps++;
+  RAILBOXES.push({ x0:r.x0, x1:r.x1, z0:r.z0, z1:r.z1, top, bot:top-.1, step:true, noStand:true }); cnt.steps++;   /* build 450: thin underneath -- the horde's ramp runs below it and the hero walks up it too */
   piece(parts.slab,(r.x0+r.x1)/2,top-SLAB/2,(r.z0+r.z1)/2,r.x1-r.x0,SLAB,r.z1-r.z0);
   guard(r.x0-DEPTH/2,r.x0+DEPTH/2,r.z0,r.z1,top+RAIL_H,top-.1,true,(z+P)&1); guard(r.x1-DEPTH/2,r.x1+DEPTH/2,r.z0,r.z1,top+RAIL_H,top-.1,true,(z+P)&1); }
 // ---- draw it: four instanced meshes

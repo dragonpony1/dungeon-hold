@@ -167,7 +167,7 @@ const MAPS=[
   lights:[[0,4.2,0,0xb494ff,1.3,15],[14,7,0,0xffb05a,.9,15],[30,7,0,0xffb05a,.9,15],[46,7,0,0xffb05a,.9,15],{cx:20,cz:3,y:2.4,c:0xff7a1a,i:1.8,d:12},{cx:34,cz:3,y:2.4,c:0xff7a1a,i:1.8,d:12},{cx:20,cz:24,y:2.4,c:0xff7a1a,i:1.8,d:12},{cx:34,cz:24,y:2.4,c:0xff7a1a,i:1.8,d:12},
    {cx:6,cz:11,y:4.4,c:0xff8a2a,i:1.4,d:13},{cx:6,cz:16,y:4.4,c:0xff8a2a,i:1.4,d:13},{cx:12,cz:4,y:4,c:0xff8a2a,i:1.4,d:13},{cx:12,cz:23,y:4,c:0xff8a2a,i:1.4,d:13},{cx:42,cz:4,y:4,c:0xff8a2a,i:1.4,d:13},{cx:42,cz:23,y:4,c:0xff8a2a,i:1.4,d:13},
    {cx:50,cz:13,y:4,c:0xc040ff,i:.9,d:10},{cx:24,cz:1,y:4,c:0xc040ff,i:.9,d:10},{cx:32,cz:27,y:4,c:0xc040ff,i:.9,d:10},{cx:46,cz:26,y:4.2,c:0xffb05a,i:1.3,d:13},{cx:44,cz:28,y:3.8,c:0xff8a2a,i:1.2,d:12},{cx:48,cz:32,y:3.8,c:0xff8a2a,i:1.2,d:12},{cx:46,cz:33,y:2.2,c:0xff7a1a,i:1.6,d:9,oz:.4}]},
- {id:'moat',name:'THE DRAWBRIDGE',sub:'the castle\'s outer ward behind a moat: one drawbridge, an old ford at the west end, a wide green before the walls · gates on the road and in the woods, a sally port late · seven waves',gw:50,gh:56,crystal:[20,7],waves:7,wallH:18,fog:[48,134],du:90,mana:520,style:{outdoor:true,grass:true,road:true,windows:true},
+ {id:'moat',name:'THE DRAWBRIDGE',sub:'the castle\'s outer ward behind a moat: one drawbridge, an old ford at the west end, a wide green before the walls · gates on the road and in the woods, a sally port late · seven waves',gw:50,gh:56,crystal:[20,7],crystal2:[34,30],goal2Lanes:['E'],mobRamp:[32,47,23,25],waves:7,wallH:18,   /* build 450 (Matt: "all of the east mobs will go to the roof of the inn where a second heartroot will be"): the INN HEARTROOT, and the east gate's horde climbs to it */ fog:[48,134],du:90,mana:520,style:{outdoor:true,grass:true,road:true,windows:true},
   build(f,g,h,ramp){ f(3,46,2,13,T.FLOOR); f(23,25,2,13,T.CARPET); f(18,22,4,10,T.CARPET); f(19,21,6,8,T.DAIS); g(20,7,T.CRYSTAL);   // the outer ward: the road runs from the gate to the keep's door, the crystal on a dais beside it
     f(23,25,14,15,T.CARPET); f(4,5,14,15,T.FLOOR);                                                     // the gate through the curtain wall, and a postern at the west end
     f(1,48,16,19,T.WATER); f(23,25,16,19,T.CARPET); f(4,5,16,19,T.CARPET);                            // the moat, the drawbridge over it, the old ford (a causeway) below the postern
@@ -179,6 +179,8 @@ const MAPS=[
     // build 449 (Matt: "on drawbridge, we need to take these ceilings up 4 blocks" -- asked: everything on top, with a switchback stair): the roof, the wall-walk, the yard's roof and the inn's top are 16 up now (were 8), the walls 18 (were 10).
     // THE SWITCHBACK: a first flight from the yard floor up to a landing 8 up (x30-32, rising north), the landing along row 2, and a second flight back south up to 16 (x33-35), out onto the yard's roof (56k9-moatdeck.js leaves the well open over it).
     f(14,35,-5,1,T.CARPET); h(14,35,-5,1,16); ramp(30,32,3,10,1,0,8); h(30,35,2,2,8); ramp(33,35,3,10,2,8,16);
+    // build 450 (Matt: "a ramp from the east spawn point to the top of the inn"): the HORDE'S RAMP -- from beside the east gate west along the inn's north side (a whole step a square: RAMPOK lets the horde climb it), under the bridge, to a porch on the inn's top
+    ramp(32,47,23,25,4,0,16); f(29,31,23,25,T.CARPET); h(29,31,23,25,16);
     // build 418 (Matt: "the top needs to communicate all the way around itself" / "on the south side it needs to connect to the outbuilding" / "yes your map is what i want"): the WALL-WALK. The ward's curtain walls are a paved
     // walk at the roof's height, joined to it at both ends -- the north wall either side of the roof, the west wall, the south wall (two wide) and the east wall -- crossing the postern, the gate and the sally port
     // on slabs (56m-moatwalk.js: the mobs walk under them). The inn's walls are a walk too, at their own lowered height, and a bridge of slab steps comes down to it from the south wall over the moat.
@@ -191,7 +193,7 @@ const MAPS=[
     [[3,21],[3,33],[3,45],[3,52],[46,21],[46,33],[46,52],[9,52],[16,52],[42,52],[10,30],[42,30],[13,44],[7,38],[43,36],[19,50]].forEach(([x,z])=>g(x,z,T.PROP)); },   // trees (build 380: the one at 39,30 stood where the inn now is: it is at 42,30)   // trees
   lanes:{S:{cx:24,cz:53,face:PI,name:'Road',from:1}, W:{cx:1,cz:25,face:PI/2,name:'West wood',from:2}, E:{cx:48,cz:25,face:-PI/2,name:'East wood',from:3}, NE:{cx:48,cz:8,face:-PI/2,name:'Sally port',from:5}},
   hall:[3,46,2,13],pillars:[],barrels:[[44,3],[44,12]],crates:[[5,3]],chandeliers:[],beams:{zs:[],w:0},tavern:{dx:18,dz:2},noTavern:true,   /* build 418: the inn's walls are a walk now (no lowWalls) */
-  walk:{ h:16, innDrop:2, hole:[29,36,2,10], holeExit:[33,35], ward:[3,46,2,13], inn:[29,39,26,34], slabs:[[4,5,14,15,5.2],[23,25,14,15,6.6],[47,47,7,9,5.2]], bridge:[36,37,16,25] },   // build 418 (pre-padding rows: 56m-moatwalk.js adds padN)
+  walk:{ h:16, innDrop:2, hole:[29,36,2,10], holeExit:[33,35], ward:[3,46,2,13], inn:[29,39,26,34], slabs:[[4,5,14,15,5.2],[23,25,14,15,6.6],[47,47,7,9,5.2]], bridge:[35,38,16,25] },   /* build 450 (Matt: "the connection artery between the inn and the roof is 2 more blocks wide"): 4 wide, was 2 */   // build 418 (pre-padding rows: 56m-moatwalk.js adds padN)
   padN:8, openTop:[[0,49,-8,0]], roof:{ x0:14, x1:35, z0:-5, z1:1, y:16, stair:null },   // build 383: eight rows added to the north for the hall roof (every number of this map is as it was: padNorth below moves them), and the wall mass up there has no black top
   trees:[[3,21],[3,33],[3,45],[3,52],[46,21],[46,33],[46,52],[9,52],[16,52],[42,52],[10,30],[42,30],[13,44],[7,38],[43,36],[19,50]],
   castle:{towers:[[21.5,14.5,2,14],[26.5,14.5,2,14],[2.5,14.5,1.8,12],[47.5,14.5,1.8,12],[12.5,-6.5,2.4,26,'cone'],[37.5,-6.5,2.4,26,'cone']],keep:[[14,35,-8,-6,20]],arches:[[23,25,14,15,6.5]],bridge:[23,25,16,19],chains:[[21.6,12.6,15.6,22.4,1.2,19.6],[26.4,12.6,15.6,25.6,1.2,19.6]],
@@ -251,7 +253,7 @@ const MAPS_CLEARED=(()=>{ try{ return Math.max(0,Math.min(MAPS.length,parseInt(l
 // bar as soon as it has read them); ?coopmap without a room code, and ?map= for everyone, stay gated exactly as before.
 const MAPI=TUTORIAL?0:(()=>{ const cm=parseInt(Q.get('coopmap')); if(Q.get('coopjoin')&&cm>=0) return Math.min(cm,MAPS.length-1); let i=parseInt(Q.get('map')); if(!(i>=0)){ try{ i=parseInt(localStorage.getItem('ddMap'))||0; }catch(e){ i=0; } } return Math.max(0,Math.min(i,MAPS_CLEARED,MAPS.length-1)); })();   // a map past the last one cleared is locked
 // build 383: a map may be PADDED to the north (m.padN rows) -- the Drawbridge, to make room for its main hall's roof. Its own numbers stay as they were written: here every cell row in it is moved padN rows south and the grid grows by padN (the Heartroot moves with them, so the world itself does not move)
-function padNorth(m){ const n=m.padN|0; if(!n||m.__padded) return; m.__padded=true; m.gh+=n; m.crystal=[m.crystal[0],m.crystal[1]+n]; const b=m.build;
+function padNorth(m){ const n=m.padN|0; if(!n||m.__padded) return; m.__padded=true; m.gh+=n; m.crystal=[m.crystal[0],m.crystal[1]+n]; if(m.crystal2) m.crystal2=[m.crystal2[0],m.crystal2[1]+n];   /* build 450 */ const b=m.build;
   m.build=function(f,g,h,ramp,block){ return b.call(this,(x0,x1,z0,z1,t)=>f(x0,x1,z0+n,z1+n,t),(x,z,t)=>g(x,z+n,t),(x0,x1,z0,z1,y)=>h(x0,x1,z0+n,z1+n,y),(x0,x1,z0,z1,dir,y0,y1)=>ramp(x0,x1,z0+n,z1+n,dir,y0,y1),block&&((x0,x1,z0,z1,on)=>block(x0,x1,z0+n,z1+n,on))); };
   for(const L of Object.values(m.lanes||{})) L.cz+=n; if(m.hall) m.hall=[m.hall[0],m.hall[1],m.hall[2]+n,m.hall[3]+n]; const zz=a=>(a||[]).map(p=>[p[0],p[1]+n].concat(p.slice(2))); m.barrels=zz(m.barrels); m.crates=zz(m.crates); m.trees=zz(m.trees);
   m.lights=(m.lights||[]).map(l=>Array.isArray(l)?l:Object.assign({},l,{cz:l.cz+n})); const rect=a=>(a||[]).map(r=>[r[0],r[1],r[2]+n,r[3]+n].concat(r.slice(4))); m.lowWalls=m.lowWalls&&rect(m.lowWalls); m.openTop=m.openTop&&rect(m.openTop); if(m.tavern) m.tavern=Object.assign({},m.tavern,{dz:m.tavern.dz+n});
@@ -304,11 +306,12 @@ const NOWALK_DEF={slice:1};   // kinds mobs (and the hero's generic def-collisio
 
 // flow fields: 'free' ignores defenses, 'def' respects them
 let flowFree=null, flowDef=null, flowFly=null;
-function bfs(respect,fly){
+let RAMPOK=null;   // build 450: cells of a ramp the horde may climb (the Drawbridge's ramp up to the inn: a whole step a square), set by 56k8-moatinn.js
+function bfs(respect,fly,only){
   const nxt=new Int16Array(GW*GH).fill(-1), dist=new Int16Array(GW*GH).fill(-1);
-  dist[GOAL]=0; const q=[GOAL]; let qi=0; if(GOAL2>=0){ dist[GOAL2]=0; q.push(GOAL2); }
+  const q=[]; let qi=0; for(const g of (only!=null?[only]:[GOAL,GOAL2])){ if(g>=0&&dist[g]<0){ dist[g]=0; q.push(g); } }   /* build 450: only -- a field to one Heartroot alone */
   while(qi<q.length){ const i=q[qi++]; const x=i%GW, z=(i/GW)|0;
-    for(let k=0;k<4;k++){ const nx=x+[1,-1,0,0][k], nz=z+[0,0,1,-1][k]; if(!inb(nx,nz)) continue; const j=idx(nx,nz); if(!fly){ if(Math.abs(hgt[j]-hgt[i])>.8) continue; /* no path over a ledge: stairs only (flyers ignore it) */ const ai=rampA[i], aj=rampA[j], alongZ=k>=2; if((ai&&((ai<=2)!==alongZ))||(aj&&((aj<=2)!==alongZ))) continue; } /* a flight is entered and left at its ends, never over its side (the side of a stair is a ledge the steps can't climb) */
+    for(let k=0;k<4;k++){ const nx=x+[1,-1,0,0][k], nz=z+[0,0,1,-1][k]; if(!inb(nx,nz)) continue; const j=idx(nx,nz); if(!fly){ if(Math.abs(hgt[j]-hgt[i])>(RAMPOK&&RAMPOK[i]&&RAMPOK[j]?1.05:.8)) continue; /* no path over a ledge: stairs only (flyers ignore it) */ const ai=rampA[i], aj=rampA[j], alongZ=k>=2; if((ai&&((ai<=2)!==alongZ))||(aj&&((aj<=2)!==alongZ))) continue; } /* a flight is entered and left at its ends, never over its side (the side of a stair is a ledge the steps can't climb) */
       if(!fly&&MOBBLOCK[j]) continue; /* the hero's stairs and railings: not for the horde */ if(dist[j]>=0||!(walk(grid[j])||(fly&&grid[j]===T.WATER))) continue; if(respect&&defAt[j]&&!NOWALK_DEF[defAt[j].kind]) continue;
       dist[j]=dist[i]+1; nxt[j]=i; q.push(j); } }
   return {nxt,dist};
@@ -806,7 +809,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=449;
+const BUILD=450;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -1035,7 +1038,7 @@ function updateEnemies(dt){
     for(const h of extraHeroes){ if(h.isDead()) continue; const hd2=Math.hypot(h.x-e.x,h.z-e.z); if(hd2<hd){ hd=hd2; hx=h.x; hz=h.z; } }
     const nh=nearestHero(e,extraHeroes);
     if(nh) target={kind:'hero',x:nh.x,z:nh.z,reach:e.r+1.3,hero:nh};
-    else if(e.fly){ const ci=idx(wc(e.x),wcz(e.z)); const n=flowFly.nxt[ci]; const cr=goalCr(isGoal(ci)?ci:n,e); target=(isGoal(ci)||isGoal(n))?cr:(n>=0?{kind:'move',x:cw(n%GW),z:cwz((n/GW)|0)}:null); }   // straight over stairs, ledges and defenses
+    else if(e.fly){ const ci=idx(wc(e.x),wcz(e.z)); const n=(e.fFly||flowFly).nxt[ci];   /* build 450: a flyer may follow a field of its own too */ const cr=goalCr(isGoal(ci)?ci:n,e); target=(isGoal(ci)||isGoal(n))?cr:(n>=0?{kind:'move',x:cw(n%GW),z:cwz((n/GW)|0)}:null); }   // straight over stairs, ledges and defenses
     else { const FD=e.fD||flowDef, FF=e.fF||flowFree;   /* build 388: a mob may follow a flow field of its own (the Deep Prison splits its rim between two flights, 56k-prisonpaths.js) */ const ci=idx(wc(e.x),wcz(e.z)); let n=FD.nxt[ci]; const cr=goalCr(isGoal(ci)?ci:n,e);
       // defenses in the way get smashed, not politely walked around: if going round costs more than this mob's patience
       // (in grid squares — ogres have none, goblins a little), follow the straight path and break whatever blocks it
