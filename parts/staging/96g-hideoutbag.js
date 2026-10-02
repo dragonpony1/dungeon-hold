@@ -29,7 +29,14 @@ const salvageable=()=>Meta.bag().filter(it=>it&&!it.locked);
 // ---- the bag over the hideout
 function openBag(){ if(!H.isOpen()||T.isOpen()) return false; fromHideout=true; writeOwned(); const el=$('tavern'); if(el) el.style.zIndex='25';
   try{ const f=document.querySelector('#hideoutWrap iframe'); if(f) f.blur(); window.focus(); }catch(e){} T.open(); T.tab('bag'); return true; }
-addEventListener('message',e=>{ const w=H.frameWin(); if(!w||e.source!==w) return; if(e.data==='hideout:bag') openBag(); else if(e.data==='hideout:devpanel'&&window.__devpanel) window.__devpanel.toggle(); });   // build 301 (Matt: "is the dev hud not working anymore?"): F9 inside the hideout, hideout build 70
+addEventListener('message',e=>{ const w=H.frameWin(); if(!w||e.source!==w) return; if(e.data==='hideout:bag') openBag(); else if(e.data==='hideout:sheet') openSheet(); else if(e.data==='hideout:devpanel'&&window.__devpanel) window.__devpanel.toggle(); });   // build 301 (Matt: "is the dev hud not working anymore?"): F9 inside the hideout, hideout build 70
+// build 440 (Matt: "that tab menu, the one we were calling tavern, needs to work in the hideout"): Tab in the hideout (it posts 'hideout:sheet', hideout build 82) opens the CHARACTER SHEET (68-paperdoll.js) right over
+// the room, as B opens the bag. Tab, C, Esc or its ✕ close it; the room is handed back the same way ('hideout:bagClosed': a click steps back in).
+let sheetFromHideout=false;
+function openSheet(){ const Dl=window.__doll; if(!H.isOpen()||!Dl||Dl.isOpen()||T.isOpen()) return false; sheetFromHideout=true; writeOwned(); const el=$('doll'); if(el) el.style.zIndex='25';
+  try{ const f=document.querySelector('#hideoutWrap iframe'); if(f) f.blur(); window.focus(); }catch(e){} Dl.open(); return true; }
+setInterval(()=>{ if(!sheetFromHideout) return; const Dl=window.__doll; if(Dl&&Dl.isOpen()&&H.isOpen()) return; if(Dl&&Dl.isOpen()) Dl.close(); sheetFromHideout=false; const el=$('doll'); if(el) el.style.zIndex=''; writeOwned();
+  try{ const f=document.querySelector('#hideoutWrap iframe'); if(f&&H.isOpen()) f.focus(); }catch(e){} tell('hideout:bagClosed'); },150);
 { const prev=T.close; T.close=function(){ const r=prev.apply(this,arguments); if(r&&fromHideout){ fromHideout=false; const el=$('tavern'); if(el) el.style.zIndex=''; writeOwned();
     try{ const f=document.querySelector('#hideoutWrap iframe'); if(f&&H.isOpen()) f.focus(); }catch(e){} tell('hideout:bagClosed'); } return r; }; }
 { const prev=tvDefend; tvDefend=function(){ if(fromHideout){ T.close(); return; } return prev(); }; }   // on the title screen a visit to the hideout must not start a run from here
@@ -47,5 +54,5 @@ $('tavern').addEventListener('click',e=>{ const t=e.target.closest('[data-act="t
   clearTimeout(t.__armT); t.dataset.armed='';
   const r=t.dataset.act==='tvsalvall'?salvage(salvageable()):salvage(Meta.bag().filter(b=>b.id===t.dataset.id));
   if(r.n){ tvSay('🧪 +'+r.n+' → Cauldron  ('+RK.filter(k=>r.got[k]).map(k=>r.got[k]+' '+k).join(' · ')+')'); TV.sel=null; } else tvSay('Nothing to salvage'); tvRenderTab(true); });
-window.__hideoutbag={open:openBag,fromHideout:()=>fromHideout,salvage,salvageable:()=>salvageable().length,owned:()=>{ try{ return JSON.parse(localStorage.getItem(OWN_KEY)); }catch(e){ return null; } },writeOwned,OWN_KEY};
+window.__hideoutbag={ openSheet, sheetOpen:()=>sheetFromHideout,open:openBag,fromHideout:()=>fromHideout,salvage,salvageable:()=>salvageable().length,owned:()=>{ try{ return JSON.parse(localStorage.getItem(OWN_KEY)); }catch(e){ return null; } },writeOwned,OWN_KEY};
 })();
