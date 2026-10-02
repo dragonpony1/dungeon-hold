@@ -38,7 +38,7 @@ let last2=null, strip2T=0;
 const H3Y=MAP.crystal3Y!=null?MAP.crystal3Y:(GOAL3>=0?hgt[GOAL3]:0);   /* build 458: it stands on the yard roof (a slab, not the ground under it) */
 const H3G=new THREE.Group(); if(GOAL3>=0){ H3G.position.set(C3X,H3Y,C3Z); world.add(H3G); }
 // the flyers making for it keep up at the roof over the castle yard (game.js asks); nothing on foot treads its square below the roof (MOBBLOCK), so no walker strikes it from underneath
-const Wk=MAP.walk; window.__flyFloor=(x,z)=>{ if(!Wk||!Wk.ward) return -1e9; const cx=wc(x), cz=wcz(z); return (cx>=Wk.ward[0]-1&&cx<=Wk.ward[1]+1&&cz>=Wk.ward[2]+P-1&&cz<=Wk.ward[3]+P+1)?H3Y:-1e9; };
+const Wk=MAP.walk; window.__flyFloor=()=>H3Y+2;   /* build 459 (Matt: "they can come in from higher up"): the keep's flyers ride high the whole way in, from their gate to the roof -- not skimming the green and climbing at the wall */
 if(GOAL3>=0&&MAP.crystal3Y!=null){ MOBBLOCK[GOAL3]=1; reflow(); } let H3CG=null; const H3SH=[];
 function buildHeart3(){ if(GOAL3<0||H3CG||!crystalG.userData.model) return; for(const ch of crystalG.children){ const cl=ch.clone(true); cl.traverse(ob=>{ if(ob.material) ob.material=Array.isArray(ob.material)?ob.material.map(m=>m.clone()):ob.material.clone(); }); H3G.add(cl); if(ch===crystalG.userData.cg) H3CG=cl; }
   if(H3CG) H3CG.children.forEach(s=>{ if(s.userData&&s.userData.a!==undefined) H3SH.push(s); }); }
