@@ -22,7 +22,7 @@ const W1=await page.evaluate(()=>{ const d=window.__dd, M=window.__mortarwake; c
   const out={}; M.lose(2); out.two=read(); M.lose(1); out.three=read(); M.lose(3); out.six=read(); M.lose(4); out.ten=read(); return out; });
 check("the first two defenses lost change nothing; from the THIRD the glow swells with each one the horde takes out (an eighth more each), and at ten it is the big hot glow (scale 19+, a strong light)",W1.two.glow===0&&W1.three.glow>0&&W1.three.glow<W1.six.glow&&W1.six.glow<W1.ten.glow&&W1.ten.glow===1&&W1.three.op>W1.two.op&&W1.six.op>W1.three.op&&W1.ten.op>.5&&W1.ten.light>2.4&&W1.ten.scale>=19,JSON.stringify(W1));
 const W2=await page.evaluate(()=>{ const d=window.__dd; for(let i=0;i<60*30;i++) d.step(1/60,1); return { card:!!document.getElementById('mortarcard'), arrows:document.querySelectorAll('.mwarrow').length, pillars:0 }; });
-check("and nothing ever tells the player: thirty seconds on there is still no card and no arrow",!W2.card&&W2.arrows===0,JSON.stringify(W2));
+check("and the picture tip is up, a gold arrow on each room (build 438, Matt: \"we need the tool tip back that tells you to hit the back wall to get your mortar out\"; builds 383-437 had none)",W2.card&&W2.arrows===2,JSON.stringify(W2));
 await page.evaluate(()=>window.__heroes.select('knight')); await page.waitForFunction(()=>/Knight/.test(window.__dd.heroModel().label),null,{timeout:120000});
 const base=await page.evaluate(()=>{ const d=window.__dd; return { defs:d.defs.length, mana:d.S.mana, du:d.S.du }; });
 // a swing from far away does nothing; a swing with your back to it does nothing
