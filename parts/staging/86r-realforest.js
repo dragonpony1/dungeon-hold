@@ -8,10 +8,13 @@
 (function(){
 window.__weapons.registerReal('staff-forest','staff-forest.glb',{gripF:.36,lenScale:1.64});
 window.__weapons.registerReal('polearm-forest','polearm-forest.glb',{gripF:.3,lenScale:1.64});
+// build 491: Matt's living-wood SWORD and BOW (GEAR SETS / Nature / animated -- Meshy's image-to-3D, 300-470k triangles, simplified to ~9.5k with gltf-transform weld + simplify), the sword turned
+// blade-up. The Forest had no sword or bow of its own (a stand-in blade, the plain yew bow): both are new names, answered below.
+window.__weapons.registerReal('sword-forest','sword-forest.glb'); window.__weapons.registerReal('bow-forest','bow-forest.glb',{gripF:.5,lenScale:.72});
 const isForest=it=>{ const pk=it&&Meta.packs&&Meta.packs.of&&Meta.packs.of(it); return !!(pk&&/Forest/.test(pk.name||'')); };
 { const prev=window.__weapons.setModel; window.__weapons.setModel=function(it,mount){ const r=prev?prev.apply(this,arguments):null; if(r||!isForest(it)) return r;
-    if(mount==='staff') return 'staff-forest'; if(mount==='bow') return null; return (it.look==='polearm'||/\b(polearm|halberd|spear)\b/i.test(it.name||''))?'polearm-forest':null; }; }
-let warmed=false; function warm(){ if(warmed) return; warmed=true; window.__weapons.model('staff-forest',()=>{}); window.__weapons.model('polearm-forest',()=>{}); }
+    if(mount==='staff') return 'staff-forest'; if(mount==='bow') return 'bow-forest'; return (it.look==='polearm'||/\b(polearm|halberd|spear)\b/i.test(it.name||''))?'polearm-forest':'sword-forest'; }; }   // build 491: his bow and sword
+let warmed=false; function warm(){ if(warmed) return; warmed=true; window.__weapons.model('staff-forest',()=>{}); window.__weapons.model('polearm-forest',()=>{}); window.__weapons.model('sword-forest',()=>{}); window.__weapons.model('bow-forest',()=>{}); }
 { const prev=dropLoot; dropLoot=function(it){ try{ if(it&&it.slot==='weapon'&&isForest(it)) warm(); }catch(e){} return prev.apply(this,arguments); }; }
 window.__realforest={warm,warmed:()=>warmed,isForest};
 })();

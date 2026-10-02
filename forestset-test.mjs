@@ -37,8 +37,8 @@ const reward=await page.evaluate(()=>{ window.__voidset.check(); const list=wind
 check("the full Forest set puts the Forest Armor Stand in the hideout's wall locker: an uncommon armor-slot reward with its reason, once, and the game's ledger remembers",reward.n===1&&!!reward.r&&reward.r.reward===true&&reward.r.rarity===1&&reward.r.slot==='armor'&&reward.r.reason==='The Forest set, complete'&&reward.r.model==='armor-stand-forest.glb'&&!!reward.led&&reward.led.rewardId==='reward-stand-forest',JSON.stringify(reward));
 // the stand-ins: the green blade in the knight's hand (and the knight swings a real cone, which is what the five-piece powers ride)
 await page.evaluate(()=>window.__heroes.select('knight'));
-const sword=await page.waitForFunction(()=>{ for(let i=0;i<3;i++) window.__dd.step(1/60,1); const s=window.__weapons.state(); return s.mounted&&/^venom\|/.test(s.key)?s.key:false; },null,{timeout:90000}).then(h=>h.jsonValue()).catch(()=>null);
-check("a Forest weapon in the knight's hand is the green (venom) blade, the set's stand-in",!!sword&&/^venom\|/.test(sword),String(sword));
+const sword=await page.waitForFunction(()=>{ for(let i=0;i<3;i++) window.__dd.step(1/60,1); const s=window.__weapons.state(); return s.mounted&&/^sword-forest\|/.test(s.key)?s.key:false; },null,{timeout:90000}).then(h=>h.jsonValue()).catch(()=>null);
+check("a Forest weapon in the knight's hand is Matt's living-wood sword (build 491; it was the green venom stand-in)",!!sword&&/^sword-forest\|/.test(sword),String(sword));
 // TWIN SHOT: with the full set on and a familiar out, each shot is two bolts, the cooldown is a third shorter, and the reach is half again
 const twin=await page.evaluate(()=>{ const d=window.__dd, F=window.__forest, M=window.__meta; for(const e of d.enemies) e.dead=true; d.setHero(0,10,0); d.step(1/60,30); const boon=F.boon(); const pet=window.__familiar.state();
   const G=d.gear(); const base=1/(1.2*(1+((G.familiar&&G.familiar.stats.frate)||0)/100)); const rate=window.__familiar.rate?window.__familiar.rate():null;
