@@ -5,6 +5,7 @@
 (function(){
 window.__weapons.registerReal('staff-earth','staff-earth.glb',{gripF:.36,lenScale:1.64});
 window.__weapons.registerReal('polearm-earth','polearm-earth.glb',{gripF:.3,lenScale:1.64});
+window.__weapons.registerReal('sword-earth','sword-earth.glb');   // build 486: Matt's Earth sword (GEAR SETS / Earth set / animated -- Bob's flourish plays on the floor stand), turned blade-up (tools/glb-flip.mjs)
 let warmed=false; function warm(){ if(warmed) return; warmed=true; window.__weapons.model('staff-earth',()=>{}); window.__weapons.model('polearm-earth',()=>{}); }
 { const prev=dropLoot; dropLoot=function(it){ try{ if(it&&it.slot==='weapon'&&window.__weapons.setModel&&window.__weapons.setModel(it,'staff')==='staff-earth') warm(); }catch(e){} return prev.apply(this,arguments); }; }
 window.__realearth={warm,warmed:()=>warmed};
