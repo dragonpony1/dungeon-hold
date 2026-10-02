@@ -114,10 +114,13 @@ const START={ x:cw(47), z:cwz(-7+P), y:ROOF+16 };
 let inSpawn=false;
 function spawnAvery(){ const lk=Object.keys(LANES); inSpawn=true; let e=null; try{ e=spawnEnemy(K,lk[0]); } finally { inSpawn=false; } if(!e) return null; e.noSnare=true; e.atk=1e9; e.ast='cruise'; e.aw=1; e.acd=3; e.aswoops=0; e.at=0; e.phase=1;
   e.x=START.x; e.z=START.z; e.y=START.y; e.fly=START.y-baseFloor(e.x,e.z); e.mdl.g.position.set(e.x,e.y,e.z); e.mdl.actions={}; pose(e,'Glide','Glide'); cnt.spawned++; return e; }
-function startCut(){ done=true; cnt.intro++; avery=spawnAvery(); if(!avery) return; beamsOn(); setMusic('none'); try{ SFX.horn&&SFX.horn(); }catch(e){}
+// build 496 (Matt: "chiller might be better" -- for the cinematic too): her track starts WITH the intro, already 1:52 in, so its three-second hush (1:57-2:00) falls over the cut to her bust and the wink,
+// and its slam back in at 1:59.97 lands on the stamp; the same track runs on into the fight. If it is still downloading when the scene starts, it joins at the matching point.
+const SLAM=119.97; let stampAt=0;
+function startCut(){ done=true; cnt.intro++; avery=spawnAvery(); if(!avery) return; beamsOn(); if(TRACKS&&TRACKS.avery){ window.__musStart=window.__musStart||{}; window.__musStart.avery=()=>cut?SLAM-((SHOT_A+SHOT_B)-cut.t):SLAM+(performance.now()-stampAt)/1000; setMusic('avery'); } else setMusic('none'); try{ SFX.horn&&SFX.horn(); }catch(e){}
   bust.g.position.set(0,-1.2,0); bust.g.rotation.y=0; if(!bust.g.parent) STAGE.add(bust.g); bust.mixer=new THREE.AnimationMixer(bust.g); const a=bust.mixer.clipAction(bust.clip); a.setLoop(THREE.LoopOnce,1); a.clampWhenFinished=true; a.play(); bust.act=a; a.paused=true;
   cut={ t:0, cam:camera.position.clone(), q:camera.quaternion.clone() }; cutEl.style.display='block'; cutEl.querySelector('.stamp').style.cssText=''; document.body.classList.add('avery-cut'); }
-function endCut(){ if(!cut) return; camera.position.copy(cut.cam); camera.quaternion.copy(cut.q); cut=null; STAGE.visible=false; cutEl.style.display='none'; document.body.classList.remove('avery-cut');
+function endCut(){ cutReal=0; if(!cut) return; camera.position.copy(cut.cam); camera.quaternion.copy(cut.q); cut=null; STAGE.visible=false; cutEl.style.display='none'; document.body.classList.remove('avery-cut');
   if(avery&&!avery.dead){ avery.x=PERCH.x+10; avery.z=PERCH.z+6; avery.y=CRUISE; avery.fly=CRUISE-baseFloor(avery.x,avery.z); } setMusic(TRACKS&&TRACKS.avery?'avery':'wave'); banner('💋 AVERY','she puts the Drag in Dragon'); camShake=Math.max(camShake,.5); }
 // build 474 (Matt: "how can I see Avery, can I call her in from the dev hud"): the dev panel's Spawn with avery picked brings her in the way the wave does -- the whole cut scene, then the fight
 { const prev=spawnEnemy; spawnEnemy=function(kind){ if(kind!==K||inSpawn) return prev.apply(this,arguments); if(cut) return avery;
@@ -136,12 +139,13 @@ function stepCut(dt){ const c=cut; c.t+=dt; const t=c.t, e=avery;
     STAGE.visible=true; const tb=t-SHOT_A; if(bust.act){ bust.act.paused=false; if(tb<SHOT_B) bust.mixer.update(dt); }
     camera.position.set(0,300+.9,4.6); camera.lookAt(0,300+.6,0);
     const flash=cutEl.querySelector('.flash'), stamp=cutEl.querySelector('.stamp');
-    if(tb>=SHOT_B){ const h=tb-SHOT_B; flash.style.opacity=String(Math.max(0,.9-h*3)); const k=Math.min(1,h/.16); stamp.style.opacity='1'; stamp.style.transform='translate(-50%,-50%) rotate(-7deg) scale('+(3-2*k).toFixed(3)+')';
+    if(tb>=SHOT_B){ const h=tb-SHOT_B; if(!stampAt) stampAt=performance.now(); flash.style.opacity=String(Math.max(0,.9-h*3)); const k=Math.min(1,h/.16); stamp.style.opacity='1'; stamp.style.transform='translate(-50%,-50%) rotate(-7deg) scale('+(3-2*k).toFixed(3)+')';
       if(h<.25&&!c.slam){ c.slam=true; camShake=Math.max(camShake,.6); try{ SFX.thud&&SFX.thud(); }catch(er){} } const jig=h>.16&&h<.5?(Math.random()-.5)*8:0; if(jig) stamp.style.transform+=' translate('+jig+'px,'+(-jig)+'px)'; }
     else { flash.style.opacity='0'; stamp.style.opacity='0'; } }
   if(t>=END) endCut(); }
 // the hall holds still for the cut scene (as it does for a Heartroot's fall): only the cut runs
-{ const prev=update; update=function(dt){ if(cut){ stepCut(dt); updFeathers(dt); updateHUD(); return; } return prev(dt); }; }
+let cutReal=0;   /* build 496: the scene runs on the wall clock, not the frame clock (a frame step is capped at 1/20 s): on a slow frame rate it used to fall behind the music, and the stamp missed the slam */
+{ const prev=update; update=function(dt){ if(cut){ let rdt=dt; if(!window.__freeze){ const now=performance.now(); if(!cutReal||(now-cutReal)/1000<cut.t) cutReal=now-cut.t*1000; rdt=Math.max(0,(now-cutReal)/1000-cut.t); } stepCut(rdt);   /* the scene time IS the time since it began (cutReal: its start on the wall clock; a skip moves it) */ updFeathers(dt); updateHUD(); return; } return prev(dt); }; }
 // ---------------------------------------------------------------- her mind, every frame (spd 0: the core never moves her; it keeps her at e.fly over the floor, so her height is set from the roof she is over)
 function headTo(e,x,z,spd,dt){ const dx=x-e.x, dz=z-e.z, d=Math.hypot(dx,dz); if(d<.05) return 0; const s_=Math.min(d,spd*dt); e.x+=dx/d*s_; e.z+=dz/d*s_;
   const want=Math.atan2(dx,dz)+HEAD, g=e.mdl.g; let df=want-g.rotation.y; df=Math.atan2(Math.sin(df),Math.cos(df)); g.rotation.y+=df*Math.min(1,dt*3); e.bank=lerp(e.bank||0,df,Math.min(1,dt*4)); g.rotation.z=0; return d-s_; }
@@ -182,7 +186,7 @@ function windSet(){ const look=(()=>{ try{ const m=window.__weapons&&window.__we
     camShake=Math.max(camShake,.9); banner('💋 AVERY FALLS','the Wind set is yours'); setTimeout(()=>{ if(!enemies.some(x=>x.kind===K&&!x.dead)&&musicMode==='avery') setMusic(S.phase==='wave'?'wave':'build'); },2500);
     const N=window.__mythic&&window.__mythic.normalize; windSet().forEach((rec,i)=>{ const it=N?N(rec):null; if(!it) return; const a=i/5*TAU; dropLoot(it,hero.x+Math.cos(a)*3.5,hero.z+Math.sin(a)*3.5,true); });
     setTimeout(()=>{ if(!enemies.some(x=>x.kind===K&&!x.dead)) beamsOff(); },2500); } return r; }; }
-window.__avery={ kind:K, load, loaded:()=>!!(MOBGLB[K]&&bust), info:()=>Object.assign({ cut:!!cut, cutT:cut?+cut.t.toFixed(2):null, beams:BEAMS.length, feathers:FALL.length },cnt),
+window.__avery={ stampAt:()=>stampAt, kind:K, load, loaded:()=>!!(MOBGLB[K]&&bust), info:()=>Object.assign({ cut:!!cut, cutT:cut?+cut.t.toFixed(2):null, beams:BEAMS.length, feathers:FALL.length },cnt),
   state:()=>enemies.filter(e=>!e.dead&&e.kind===K).map(e=>({ st:e.ast, phase:e.phase, x:+e.x.toFixed(1), z:+e.z.toFixed(1), y:+(e.y||0).toFixed(1), hp:Math.round(e.hp), max:e.max, swoops:e.aswoops })),
   peek:(wclip,frac)=>{ const e=enemies.find(x=>x.kind===K&&!x.dead); if(!e) return false; e.ast='peek'; const mx=e.mdl.mixer; mx.stopAllAction(); e.lay={ cur:{}, act:{}, at:{} }; for(const [g,c] of [['body','Hover'],['wings',wclip],['tail','Tail_Swish'],['head','Look_Around']]){ const sub=SUB[g]&&SUB[g][c]; if(!sub) continue; const act=mx.clipAction(sub); act.reset(); act.play(); act.time=sub.duration*frac; act.paused=true; } mx.update(0); return true; },   /* test hook: hold her in one pose (avery-test pictures) */ startCut, endCut, skip:()=>{ if(cut) cut.t=END-.01; }, windSet, way:WAY, perch:PERCH };
 })();
