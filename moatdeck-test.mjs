@@ -1,0 +1,35 @@
+// ===== THE DRAWBRIDGE'S YARD ROOFED OVER, THE INN FILLED (build 439; parts/staging/56k9-moatdeck.js, game.js). Matt: "on the draw bridge level just cover both buildings except the place where the stairs come up".
+import { chromium } from "playwright"; import { serve } from "./serve.mjs";
+const server=await serve(9017,{dist:process.env.DIST||"./dist"});
+const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
+const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
+const page=await (await browser.newContext({viewport:{width:1100,height:700}})).newPage(); page.on("pageerror",e=>errors.push(String(e)));
+await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
+await page.goto("http://127.0.0.1:9017/?silent&nogate&map=4",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__moatdeck&&window.__moatwalk&&window.__dd.map().id==='moat'&&window.__dd.heroModel(),null,{timeout:120000});
+await page.evaluate(()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} d.start(); d.step(1/60,3); window.__freeze=true; d.addMana(1e5); });
+const A=await page.evaluate(()=>{ const D=window.__moatdeck, W=window.__moatwalk; const h=D.hole(); return { info:D.info(), hole:h, rampHole:h&&h.x0<=33&&h.x1>=35, innTop:W.walkCell(34,38)&&W.walkCell(31,36)&&W.walkCell(37,40), heart:D.cell(20,15) }; });
+check("the yard is roofed over (hundreds of squares, the Heartroot's among them), open only over the stair",A.info.cells>300&&A.heart&&A.rampHole,JSON.stringify(A));
+check("the inn's middle is filled to its wall-top: one platform",A.innTop,JSON.stringify(A.innTop));
+const B=await page.evaluate(()=>{ const d=window.__dd, W=window.__moatwalk, h=d.hero; const a=W.at(5,4), b=W.at(26,4); d.setHero(a.x,a.z,0); h.y=0; d.step(1/60,2); const ok=W.walkTo(b.x,b.z); const P=d.map().padN||8; return { ok, y:+h.y.toFixed(2), at:[Math.floor((h.x+0)),+h.z.toFixed(1)], cell:[window.__moatwalk.at(0,0).x, P], probe:window.__moatwalk.probe(h.x+.5,h.z,0) }; });
+check("down in the yard the hero walks freely under the roof",B.ok&&B.y<.5,JSON.stringify(B));
+const C=await page.evaluate(()=>{ const d=window.__dd, h=d.hero, W=window.__moatwalk; const a=W.at(20,8); d.setHero(a.x,a.z,0); h.y=0; d.setCam(0,1.0,12); for(let i=0;i<40;i++) d.step(1/60,1); return { camY:+d.camera.position.y.toFixed(2), under:window.__moatdeck.under(), clamps:window.__moatdeck.info().camClamp }; });
+check("down in the yard the camera stays under the roof",C.under&&C.camY<=7.2&&C.clamps>0,JSON.stringify(C));
+const E=await page.evaluate(()=>{ const d=window.__dd, h=d.hero, W=window.__moatwalk, H=window.__moatdeck.hole(); const foot=W.at(34,H.z1-P()+1), top=W.at(34,H.z0-P()-1); function P(){ return d.map().padN||8; }
+  d.setHero(foot.x,foot.z,Math.PI); h.y=0; d.step(1/60,2); const up=W.walkTo(top.x,top.z); const yTop=+h.y.toFixed(2);
+  const west=W.at(29,0); W.walkTo(west.x,west.z); const onto=W.at(28,4); const across=W.walkTo(onto.x,onto.z); const yDeck=+h.y.toFixed(2); const far=W.at(10,8); const across2=W.walkTo(far.x,far.z);
+  return { up, yTop, across, yDeck, across2, y2:+h.y.toFixed(2), hx:+h.x.toFixed(1), hz:+h.z.toFixed(1), onto:[+onto.x.toFixed(1),+onto.z.toFixed(1)], far:[+far.x.toFixed(1),+far.z.toFixed(1)] }; });
+check("up the stair to the hall roof, then out across the roof of the yard at the walk's height",E.up&&E.yTop>=7.9&&E.across&&E.yDeck>=7.9&&E.across2&&E.y2>=7.9,JSON.stringify(E));
+const F=await page.evaluate(()=>{ const d=window.__dd, h=d.hero, W=window.__moatwalk, D=window.__moatdeck, H=D.hole(), P=d.map().padN||8; const a=W.at(H.x0-2,H.z0-P+3); d.setHero(a.x,a.z,0); h.y=8; d.step(1/60,2); h.y=8;
+  const b=W.at(H.x0+2,H.z0-P+3); const into=W.walkTo(b.x,b.z); return { into, y:+h.y.toFixed(2), x:+h.x.toFixed(1), railX:+(a.x).toFixed(1) }; });
+check("a railing round the stairwell: walking off the roof into it is stopped",!F.into&&F.y>=7.9,JSON.stringify(F));
+const G=await page.evaluate(()=>{ const d=window.__dd, h=d.hero, W=window.__moatwalk, D=window.__moatdeck; const a=W.at(14,6); d.setHero(a.x,a.z,0); h.y=8; d.step(1/60,2); h.y=8; d.S.phase='build';
+  const c=W.at(14,9); const cx=Math.round(c.x), cz=c.z; const tw=d.placeDefAt('harpoon',c.x,c.z,0); const n=d.defs.filter(x=>x.onDeck).length;
+  const res={ placed:!!tw, onDeck:!!(tw&&tw.onDeck), base:tw&&tw.base, cells:tw?tw.cells.length:-1, n };
+  const thru=W.at(14,12); h.y=8; const walkedThrough=W.walkTo(thru.x,thru.z); res.blockedUpTop=!walkedThrough; res.yUp=+h.y.toFixed(2);
+  const below=W.at(14,6); d.setHero(below.x,below.z,0); h.y=0; d.step(1/60,2); h.y=0; res.underOk=W.walkTo(thru.x,thru.z); res.yBelow=+h.y.toFixed(2);
+  const ground=d.placeDefAt('acorn',W.at(30,10).x,W.at(30,10).z,0); res.groundBase=ground?ground.base:null; res.groundCells=ground?ground.cells.length:-1; return res; });
+check("standing up top, a ballista goes up ON the roof (8 up) and takes no square of the yard below",G.placed&&G.onDeck&&G.base===8&&G.cells===0,JSON.stringify(G));
+check("it is solid to the hero up top, and the hero walks right under it below",G.blockedUpTop&&G.yUp>=7.9&&G.underOk&&G.yBelow<.5,JSON.stringify(G));
+check("down in the yard, towers still go on the ground as ever",G.groundBase!==null&&G.groundBase<1&&G.groundCells>0,JSON.stringify(G));
+const realErrors=errors.filter(x=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(x)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
+await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);

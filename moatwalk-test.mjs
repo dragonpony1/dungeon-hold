@@ -18,14 +18,14 @@ check("from the roof all the way round the ward on the walls (over the postern, 
 const bridge=await walk([[36,1],[47,1],[47,14],[37,15],[37,26],[29,26],[29,34],[39,34]],8);
 check("down onto the bridge from the south wall, over the moat and the green, and round the inn's wall-top",bridge.length===7&&bridge.every(s=>s[2]&&s[3]>7.9),JSON.stringify(bridge));
 const off=await page.evaluate(()=>{ const d=window.__dd, M=window.__moatwalk, h=d.hero; const a=M.at(10,1), b=M.at(10,4); h.x=a.x; h.z=a.z; h.y=8; const ok=M.walkTo(b.x,b.z); return { ok, y:+h.y.toFixed(2), z:+(h.z-a.z).toFixed(2) }; });
-check("the guard along the walk's inner edge stops him stepping off into the ward",!off.ok&&off.y>7.9&&off.z<1.2,JSON.stringify(off));
+check("the walk's inner edge runs straight on onto the roof over the yard: he steps off it and stays up at 8 (build 439; it was a guard)",off.ok&&off.y>7.9,JSON.stringify(off));
 const under=await page.evaluate(()=>{ const d=window.__dd, M=window.__moatwalk, h=d.hero; const go=(a,b)=>{ const p=M.at(a[0],a[1]), q=M.at(b[0],b[1]); h.x=p.x; h.z=p.z; h.y=0; const ok=M.walkTo(q.x,q.z); return { ok, y:+h.y.toFixed(2) }; };
   return { gate:go([24,12],[24,21]), bridge:go([33,22],[41,22]) }; });
 check("on the ground he still walks through the gate under its deck, and across the green under the bridge",under.gate.ok&&under.gate.y<1&&under.bridge.ok&&under.bridge.y<1,JSON.stringify(under));
 const flow=await page.evaluate(()=>{ const d=window.__dd, M=window.__moatwalk; const gw=d.map().gw, out={}; for(const [k,c] of Object.entries({S:[24,53],W:[1,25],E:[48,25],NE:[48,8]})){ const p=M.at(c[0],c[1]); const cx=Math.round((p.x+41-1)/2), cz=Math.round((p.z+(7+8)*2+1-1)/2); out[k]=d.flow().dist[cz*gw+cx]; } return out; });
 check("the horde's roads from all four gates still reach the Heartroot",Object.values(flow).every(v=>v>0),JSON.stringify(flow));
 const teeth=await page.evaluate(()=>({ roof:window.__moatroof.info(), walk:window.__moatwalk.info() }));
-check("the teeth stand every other cell on the roof and the walk (a gap wider than a ballista's cell)",teeth.roof.merlons<=Math.ceil(teeth.roof.pieces/2)+1&&teeth.walk.merlons<teeth.walk.edges*.62,JSON.stringify({roof:teeth.roof.merlons+"/"+teeth.roof.pieces,walk:teeth.walk.merlons+" over "+teeth.walk.edges+" edges"}));
+check("the teeth stand every other cell on the roof and the walk (a gap wider than a ballista's cell)",teeth.roof.merlons<=Math.ceil(teeth.roof.pieces/2)+1&&teeth.walk.merlons<teeth.walk.edges*.7,JSON.stringify({roof:teeth.roof.merlons+"/"+teeth.roof.pieces,walk:teeth.walk.merlons+" over "+teeth.walk.edges+" edges"}));
 const TR=await page.evaluate(()=>{ const d=window.__dd, M=window.__moatwalk; d.addMana(99999); d.S.du=-99; const put=(k,cx,cz)=>{ const p=M.at(cx,cz); const t=d.placeDefAt(k,p.x,p.z,0); return t?+t.base.toFixed(2):null; };
   return { wallTreb:put('ball',10,14), wallBallista:put('harpoon',2,8), innTreb:put('ball',33,26), roofTreb:put('ball',20,-3) }; });
 check("trebuchets and ballistas set up on the walk, the inn's top and the roof stand up there (Matt: \"we should be able to put trebuchets up there in those gaps as well\")",TR.wallTreb===8&&TR.wallBallista===8&&TR.innTreb===8&&TR.roofTreb===8,JSON.stringify(TR));

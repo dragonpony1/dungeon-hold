@@ -8,7 +8,7 @@ window.__moatroof={ info:()=>null };
 if(!MAP||MAP.id!=='moat'||!MAP.roof) return;
 const RF=MAP.roof, Y=RF.y, WALL_H=.75, MER_H=.65, DEPTH=.55, RAIL_H=1.15;
 const zEdge=cwz(RF.z1)+CELL/2-DEPTH/2;   // the parapet stands on the roof's front edge
-const cells=[]; for(let x=RF.x0;x<=RF.x1;x++){ if(RF.stair&&x>=RF.stair[0]&&x<=RF.stair[1]) continue; cells.push(x); }
+const DK=window.__moatdeck; const cells=[]; for(let x=RF.x0;x<=RF.x1;x++){ if(RF.stair&&x>=RF.stair[0]&&x<=RF.stair[1]) continue; if(DK&&DK.cell(x,RF.z1+1)) continue; /* build 439: the yard roofed over (56k9-moatdeck.js) -- no parapet where the deck runs on */ cells.push(x); }
 const cnt={ pieces:0, merlons:0, boxes:0 };
 // the guard: one box a cell, along the edge
 for(const x of cells){ RAILBOXES.push({ x0:cw(x)-CELL/2, x1:cw(x)+CELL/2, z0:zEdge-DEPTH/2, z1:zEdge+DEPTH/2, top:Y+RAIL_H, noStand:true }); cnt.boxes++; }

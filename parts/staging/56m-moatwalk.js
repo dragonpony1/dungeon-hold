@@ -18,6 +18,7 @@ const inR=(r,cx,cz)=>cx>=r[0]&&cx<=r[1]&&cz>=r[2]+P&&cz<=r[3]+P;
 const roof=MAP.roof, inRoof=(cx,cz)=>roof&&cx>=roof.x0&&cx<=roof.x1&&cz>=roof.z0&&cz<=roof.z1;
 const H=(cx,cz)=>inb(cx,cz)?(rampA[idx(cx,cz)]?rampH[idx(cx,cz)]:hgt[idx(cx,cz)]):-99;
 const walkCell=(cx,cz)=>inb(cx,cz)&&gat(cx,cz)===T.CARPET&&!inRoof(cx,cz)&&(Math.abs(H(cx,cz)-W)<.01||(inR(Wk.inn,cx,cz)&&Math.abs(H(cx,cz)-IH)<.01));
+const DK=window.__moatdeck, deckCell=(cx,cz)=>!!(DK&&DK.cell(cx,cz));   /* build 439: the yard roofed over (56k9-moatdeck.js): no guard where the walk runs on onto the deck */
 const slabCell=(cx,cz)=>Wk.slabs.some(s=>inR(s,cx,cz))||inR(Wk.bridge,cx,cz);
 // ---- the look: one stone, a darker cap; every piece instanced
 const stone=mat(0x5a5276), cap=mat(0x2b2540), deck=mat(0x6a6080);
@@ -34,7 +35,7 @@ function guard(x0,x1,z0,z1,top,bot,outer,mer){ const cx=(x0+x1)/2, cz=(z0+z1)/2,
 const DIRS=[[1,0],[-1,0],[0,1],[0,-1]];
 for(let cz=0;cz<GH;cz++) for(let cx=0;cx<GW;cx++){ if(!walkCell(cx,cz)) continue; const y=H(cx,cz);
   for(const [dx,dz] of DIRS){ const nx=cx+dx, nz=cz+dz; if(!inb(nx,nz)) continue; const t=gat(nx,nz);
-    if(walkCell(nx,nz)||inRoof(nx,nz)||slabCell(nx,nz)||t===T.WALL||t===T.PILLAR) continue; if(H(nx,nz)>=y-.6) continue;
+    if(walkCell(nx,nz)||inRoof(nx,nz)||slabCell(nx,nz)||deckCell(nx,nz)||t===T.WALL||t===T.PILLAR) continue; if(H(nx,nz)>=y-.6) continue;
     const ex=cw(cx)+dx*(CELL/2-DEPTH/2), ez=cwz(cz)+dz*(CELL/2-DEPTH/2), hx=dx?DEPTH/2:CELL/2, hz=dz?DEPTH/2:CELL/2;
     const inner=inR(Wk.ward,nx,nz)||(inR(Wk.inn,nx,nz)&&nx>Wk.inn[0]&&nx<Wk.inn[1]&&nz>Wk.inn[2]+P&&nz<Wk.inn[3]+P);
     guard(ex-hx,ex+hx,ez-hz,ez+hz,y+RAIL_H,undefined,!inner,(dx?cz:cx)&1); cnt.edges++; } }
@@ -43,8 +44,8 @@ for(const s of Wk.slabs){ const r=R(s[0],s[1],s[2],s[3]), bot=s[4];
   RAILBOXES.push({ x0:r.x0, x1:r.x1, z0:r.z0, z1:r.z1, top:W, bot, noStand:true }); cnt.slabs++;
   piece(parts.slab,(r.x0+r.x1)/2,W-SLAB/2,(r.z0+r.z1)/2,r.x1-r.x0,SLAB,r.z1-r.z0);
   const alongX=(s[1]-s[0])>=(s[3]-s[2]);   // the walk runs across the opening's long side: guard the other two
-  if(s[0]===s[1]){ /* a one-wide crossing in an east/west wall (the sally port): guard its west and east faces */ guard(r.x0-DEPTH/2,r.x0+DEPTH/2,r.z0,r.z1,W+RAIL_H,W-.1,false); guard(r.x1-DEPTH/2,r.x1+DEPTH/2,r.z0,r.z1,W+RAIL_H,W-.1,true,(s[2]+P)&1); }
-  else { guard(r.x0,r.x1,r.z0-DEPTH/2,r.z0+DEPTH/2,W+RAIL_H,W-.1,false); guard(r.x0,r.x1,r.z1-DEPTH/2,r.z1+DEPTH/2,W+RAIL_H,W-.1,true,s[0]&1); } }
+  if(s[0]===s[1]){ /* a one-wide crossing in an east/west wall (the sally port): guard its west and east faces */ if(!deckCell(s[0]-1,s[2]+P)) guard(r.x0-DEPTH/2,r.x0+DEPTH/2,r.z0,r.z1,W+RAIL_H,W-.1,false); guard(r.x1-DEPTH/2,r.x1+DEPTH/2,r.z0,r.z1,W+RAIL_H,W-.1,true,(s[2]+P)&1); }
+  else { if(!deckCell(s[0],s[2]+P-1)) guard(r.x0,r.x1,r.z0-DEPTH/2,r.z0+DEPTH/2,W+RAIL_H,W-.1,false); guard(r.x0,r.x1,r.z1-DEPTH/2,r.z1+DEPTH/2,W+RAIL_H,W-.1,true,s[0]&1); } }
 // ---- the bridge: slab steps from the south wall down to the inn's wall-top, each a row long; guards both sides
 const B=Wk.bridge, nB=B[3]-B[2]+1;
 for(let i=0;i<nB;i++){ const z=B[2]+i, top=+(W-(W-IH)*(i+1)/(nB+1)).toFixed(3), r=R(B[0],B[1],z,z);
