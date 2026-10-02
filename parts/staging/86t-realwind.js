@@ -4,6 +4,7 @@
 // 30% up and body-length (the Knight). The staff's magic (its bolt colour, the charge glow) stays the set's (82-staff.js). A Wind WEAPON dropping warms both files for the floor stand (never at start).
 (function(){
 window.__weapons.registerReal('staff-wind','staff-wind.glb',{gripF:.36,lenScale:1.64});
+window.__weapons.registerReal('sword-wind','sword-wind.glb');   // build 494: Matt's Wind sword (GEAR SETS / Windair / animated), turned blade-up (tools/glb-flip.mjs) -- the last set sword
 window.__weapons.registerReal('polearm-wind','polearm-wind.glb',{gripF:.3,lenScale:1.64});
 let warmed=false; function warm(){ if(warmed) return; warmed=true; window.__weapons.model('staff-wind',()=>{}); window.__weapons.model('polearm-wind',()=>{}); }
 { const prev=dropLoot; dropLoot=function(it){ try{ if(it&&it.slot==='weapon'&&window.__weapons.setModel&&window.__weapons.setModel(it,'staff')==='staff-wind') warm(); }catch(e){} return prev.apply(this,arguments); }; }
