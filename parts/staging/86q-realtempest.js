@@ -5,6 +5,7 @@
 (function(){
 window.__weapons.registerReal('staff-tempest','staff-tempest.glb',{gripF:.36,lenScale:1.64});
 window.__weapons.registerReal('polearm-tempest','polearm-tempest.glb',{gripF:.3,lenScale:1.64});
+window.__weapons.registerReal('sword-tempest','sword-tempest.glb');   // build 490: Matt's Storm sword (GEAR SETS / Lightningstorm / animated), turned blade-up (tools/glb-flip.mjs)
 let warmed=false; function warm(){ if(warmed) return; warmed=true; window.__weapons.model('staff-tempest',()=>{}); window.__weapons.model('polearm-tempest',()=>{}); }
 { const prev=dropLoot; dropLoot=function(it){ try{ if(it&&it.slot==='weapon'&&window.__weapons.setModel&&window.__weapons.setModel(it,'staff')==='staff-tempest') warm(); }catch(e){} return prev.apply(this,arguments); }; }
 window.__realtempest={warm,warmed:()=>warmed};

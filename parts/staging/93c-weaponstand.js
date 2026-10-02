@@ -43,7 +43,8 @@ Object.assign(NAMED_REAL,{ set_chaos_amulet:{file:'set-chaos-amulet.glb',h:.9,li
   set_void_amulet:{file:'set-void-amulet.glb',h:.9,lift:.6}, set_void_charm:{file:'set-void-charm.glb',h:.9,lift:.6},
   set_earth_amulet:{file:'set-earth-amulet.glb',h:.9,lift:.6}, set_earth_charm:{file:'set-earth-charm.glb',h:.9,lift:.6},
   set_fire_amulet:{file:'set-fire-amulet.glb',h:.9,lift:.6}, set_fire_charm:{file:'set-fire-charm.glb',h:.85,lift:.6},
-  set_radiance_amulet:{file:'set-radiance-amulet.glb',h:.9,lift:.6}, set_radiance_charm:{file:'set-radiance-charm.glb',h:.95,lift:.6} });   // build 489 (the charm is his golden feather, with its own drift)   // build 488 (the charm is his molten skull, with its own hover)   // build 486   // build 483
+  set_radiance_amulet:{file:'set-radiance-amulet.glb',h:.9,lift:.6}, set_radiance_charm:{file:'set-radiance-charm.glb',h:.95,lift:.6},
+  set_tempest_amulet:{file:'set-tempest-amulet.glb',h:.9,lift:.6}, set_tempest_charm:{file:'set-tempest-charm.glb',h:.85,lift:.6} });   // build 490: the Storm set (the game's 'tempest'); the charm is his crystal shard, with its own hover   // build 489 (the charm is his golden feather, with its own drift)   // build 488 (the charm is his molten skull, with its own hover)   // build 486   // build 483
 const FAM_KEY={'Wisp':'fam_wisp','Bat':'fam_bat','Sprite':'fam_sprite','Fire Imp':'fam_imp','Crystal Owl':'fam_owl','Storm Drake':'fam_drake'};
 const NR_GLB={}, NR_P={}, NR_PENDING=[], NR_CLIP={};   // NR_CLIP (build 485): a named/set model's own animation (Bob's Hanging_Sway_Loop), played on its stand
 function loadNamedReal(k){ const cfg=NAMED_REAL[k]; if(!cfg||NR_GLB[k]||NR_P[k]) return; NR_P[k]=fetchBytes(ASSET(cfg.file)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ try{
