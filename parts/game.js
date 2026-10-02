@@ -192,12 +192,12 @@ const MAPS=[
     /* build 464 (Matt: "lamp posts and trees west of the lamp posts need to go"): the road's lamp posts gone */
     [[21,25],[27,25]].forEach(([x,z])=>g(x,z,T.PROP));   /* build 454 (Matt: "you can take all the little knight statues out of the map" / "its the knights inside i want to be gone"): the four kings inside the ward are gone; the two at the bridge foot stay */   /* build 449: the third king moved off the new stair (31 -> 28) */                    // statues: two at the bridge foot, four kings along the keep
     [[21,12],[27,12],[17,5],[17,9]].forEach(([x,z])=>g(x,z,T.PROP));                                 // braziers at the gate and the dais
-    [[46,28],[46,33],[46,52],[42,52],[45,30],[43,36]].forEach(([x,z])=>g(x,z,T.PROP)); [[9,44],[10,44],[9,45],[10,45]].forEach(([x,z])=>g(x,z,T.PROP)); }   /* build 465: the white tree's trunk (56k5-moatstone.js) */   /* build 464: the trees west of the road gone */,   // trees (build 380: the one at 39,30 stood where the inn now is: it is at 42,30)   // trees
+    [[46,52],[42,52]].forEach(([x,z])=>g(x,z,T.PROP));   /* build 467 (Matt: "these trees here need to go"): the four round the horde's stairs gone */ [[9,44],[10,44],[9,45],[10,45]].forEach(([x,z])=>g(x,z,T.PROP)); }   /* build 465: the white tree's trunk (56k5-moatstone.js) */   /* build 464: the trees west of the road gone */,   // trees (build 380: the one at 39,30 stood where the inn now is: it is at 42,30)   // trees
   lanes:{S:{cx:24,cz:53,face:PI,name:'Road',from:1}, W:{cx:1,cz:25,face:PI/2,name:'West wood',from:2}, E:{cx:48,cz:25,face:-PI/2,name:'East wood',from:3}, NE:{cx:48,cz:8,face:-PI/2,name:'Sally port',from:5}},
   hall:[3,46,2,13],pillars:[],barrels:[[44,3],[44,12]],crates:[[5,3]],chandeliers:[],beams:{zs:[],w:0},tavern:{dx:18,dz:2},noTavern:true,   /* build 418: the inn's walls are a walk now (no lowWalls) */
   walk:{ h:16, innDrop:2, hole:[29,36,2,10], holeExit:[33,35], ward:[3,46,2,13], inn:[29,39,36,44], slabs:[[4,5,14,15,5.2],[21,27,14,15,6.6],[47,47,7,9,5.2]], bridge:[30,33,16,35] },   /* build 452: over to the inn's west half (clear of the switchback) and on to its new spot */   /* build 450 (Matt: "the connection artery between the inn and the roof is 2 more blocks wide"): 4 wide, was 2 */   // build 418 (pre-padding rows: 56m-moatwalk.js adds padN)
   padN:8, openTop:[[0,49,-8,0]], roof:{ x0:14, x1:35, z0:-5, z1:1, y:16, stair:null },   // build 383: eight rows added to the north for the hall roof (every number of this map is as it was: padNorth below moves them), and the wall mass up there has no black top
-  trees:[[46,28],[46,33],[46,52],[42,52],[45,30],[43,36]],
+  trees:[[46,52],[42,52]],
   castle:{towers:[[19.5,14.5,2,20],[28.5,14.5,2,20],[2.5,14.5,1.8,19],[47.5,14.5,1.8,19],[12.5,-6.5,2.4,26,'cone'],[37.5,-6.5,2.4,26,'cone']],keep:[[14,35,-8,-6,20]],arches:[[21,27,14,15,6.5]],bridge:[21,27,16,23],chains:[[19.6,18.6,15.6,21.4,1.2,23.6],[28.4,18.6,15.6,27.6,1.2,23.6]],   /* build 455: the gate towers flank the 7-wide gate and stand over the 16-up walk; the deck and its chains reach over the 8-wide moat */ 
     lamps:[],statues:[[21,25,0],[27,25,0]],braziers:[[21,12],[27,12],[17,5],[17,9],[34,-4],[15,0],[24,-4]]}   /* build 454: no statues; the roof brazier at 15,-4 gave its corner to the keep Heartroot */,
   lights:[{cx:20,cz:7,up:4.2,c:0xb494ff,i:1.3,d:15},{cx:23,cz:13,up:3.4,c:0xff8a2a,i:1.4,d:14},{cx:25,cz:13,up:3.4,c:0xff8a2a,i:1.4,d:14},
@@ -812,7 +812,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=466;
+const BUILD=467;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
