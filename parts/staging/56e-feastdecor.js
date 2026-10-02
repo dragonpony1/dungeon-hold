@@ -45,14 +45,16 @@ for(const [z0,z1] of [[8,9],[13,14],[18,19]]) for(const [x0,x1] of [[14,21],[24,
 SPOTS.push([midX(4,6),midZ(12,14)]); SPOTS.push([midX(43,45),midZ(13,14)]);
 const CH_H=3.2, CH_Y=WALLH-CH_H-.6;
 (world.userData.chandelierProcs||[]).forEach(ch=>{ ch.visible=false; });
-use('chandelier.glb',CH_H,p=>{ warmGlow(p); for(const [x,z] of SPOTS){ const t=put(p,x,CH_Y,z,0); const l=new THREE.PointLight(C(0xffc890),2.2,16,2); l.position.set(0,.8,0); t.add(l); bump('chandelier'); } });
+use('chandelier.glb',CH_H,p=>{ warmGlow(p); for(const [x,z] of SPOTS){ const t=put(p,x,CH_Y,z,0); const l=new THREE.PointLight(C(0xffd8b0),1.5,14,2); l.position.set(0,.8,0); t.add(l); bump('chandelier'); } });   // build 471: softer and whiter (the hall was one even orange)
 const TORCH=(world.userData.torchProcs||[]).map(t=>({x:t.position.x,y:t.position.y,z:t.position.z,ry:t.rotation.y,t}));
-use('throne-sconce.glb',1.5,p=>{ warmGlow(p); for(const s of TORCH){ s.t.visible=false; const nx=Math.sin(s.ry), nz=Math.cos(s.ry);
-    const t=put(p,s.x+nx*.34,s.y,s.z+nz*.34,s.ry); const l=new THREE.PointLight(C(0xffb060),3,11,2); l.position.set(nx*.15,.3,nz*.15); t.add(l); bump('sconce'); } });
+use('throne-sconce.glb',1.5,p=>{ warmGlow(p); let sk=0; for(const s of TORCH){ s.t.visible=false; const nx=Math.sin(s.ry), nz=Math.cos(s.ry);
+    const t=put(p,s.x+nx*.34,s.y,s.z+nz*.34,s.ry); if((sk++)%2===0){ const l=new THREE.PointLight(C(0xffa850),2.4,9,2); l.position.set(nx*.15,.3,nz*.15); t.add(l); } bump('sconce'); } });   // build 471: every other sconce casts its light, and a shorter one -- pools of warm light with shadow between, not one even glow
 // ---------------- FLOOR: 2x2 tiles where four level cells meet, one-cell tiles elsewhere; the carpet tile over the runner
-{ const FLOORT=new Set([T.FLOOR,T.DAIS]), ok=(x,z)=>inHall(x,z)&&FLOORT.has(grid[idx(x,z)])&&!rampA[idx(x,z)], lvl=(x,z)=>hgt[idx(x,z)]||0; const done=new Set(), big=[], small=[];
+// build 471 (Matt: "the floor has lots of gaps and mismatched pieces"): EVERY square of the hall is tiled -- under the tables, the pit and the props too (their footprints are bigger than the models, and the
+// old painted grid showed round them) -- and all at ONE size, one way round: the 2x2 tiles drew the planks twice as big and turned, next to the single ones
+{ const FLOORT=new Set([T.FLOOR,T.DAIS,T.PROP,T.CRYSTAL]), ok=(x,z)=>inHall(x,z)&&FLOORT.has(grid[idx(x,z)])&&!rampA[idx(x,z)], lvl=(x,z)=>hgt[idx(x,z)]||0; const done=new Set(), big=[], small=[];
   for(let z=HZ0;z<=HZ1;z++) for(let x=HX0;x<=HX1;x++){ if(!ok(x,z)||done.has(x+','+z)) continue; const y=lvl(x,z);
-    if(ok(x+1,z)&&ok(x,z+1)&&ok(x+1,z+1)&&!done.has((x+1)+','+z)&&!done.has(x+','+(z+1))&&!done.has((x+1)+','+(z+1))&&lvl(x+1,z)===y&&lvl(x,z+1)===y&&lvl(x+1,z+1)===y){
+    if(false){
       big.push([(cw(x)+cw(x+1))/2,y,(cwz(z)+cwz(z+1))/2]); ['0,0','1,0','0,1','1,1'].forEach(k=>{ const [a,b]=k.split(',').map(Number); done.add((x+a)+','+(z+b)); }); }
     else { small.push([cw(x),y,cwz(z)]); done.add(x+','+z); } }
   const flat=Q(-PI/2,0);

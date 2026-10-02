@@ -54,5 +54,24 @@ if(MAP.pit){ const [pcx,pcz,pr]=MAP.pit, X=cx2w(pcx), Z=cz2w(pcz), R=(pr-.45)*CE
       O.position.set(ex,y1+.06,ez); O.scale.set(sx+.12,.12,sz+.12); O.updateMatrix(); caps.push(O.matrix.clone()); } }
   const mk=(m,list)=>{ if(!list.length) return; const im=new THREE.InstancedMesh(G.box(1,1,1),m,list.length); list.forEach((M_,k)=>im.setMatrixAt(k,M_)); im.instanceMatrix.needsUpdate=true; im.userData.noOL=true; im.frustumCulled=false; world.add(im); };
   mk(stoneM,parts); mk(capM,caps); }
+// ---- build 471: the hall's own sky light cooler and lower, so the lamps make pools and the dark between them reads as stone, not orange
+scene.traverse(o=>{ if(o.isHemisphereLight){ o.color.set(C(0x4a4c8a)); o.groundColor.set(C(0x100a18)); o.intensity=.5; } });
+// ---- build 471: the gallery's face in the throne room's stone -- the same panel the hall's walls wear (throne-panel2.glb), laid in runs along every side of it 3 or more high
+{ const runs=[], groups=new Map(); for(let z=0;z<GH;z++) for(let x=0;x<GW;x++){ const i=idx(x,z); if(grid[i]===T.WALL||rampA[i]) continue; const hc=hgt[i]||0;
+    for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){ const j=idx(x+dx,z+dz); if(x+dx<0||z+dz<0||x+dx>=GW||z+dz>=GH||grid[j]===T.WALL||rampA[j]) continue; const hn=hgt[j]||0; if(hn-hc<3) continue;
+      const fx=cw(x)+dx*CELL/2, fz=cwz(z)+dz*CELL/2, nx=-dx, nz=-dz, along=nx?fz:fx, plane=nx?fx:fz, key=nx+','+nz+','+plane.toFixed(2)+','+hc+','+hn; (groups.get(key)||groups.set(key,[]).get(key)).push({ fx, fz, nx, nz, along, y0:hc, top:hn }); } }
+  for(const list of groups.values()){ list.sort((a,b)=>a.along-b.along); let cur=null; for(const r of list){ if(cur&&Math.abs(r.along-cur.b)<CELL*1.01){ cur.b=r.along; cur.n++; } else { cur=Object.assign({ a:r.along, b:r.along, n:1 },r); runs.push(cur); } } }
+  fetchBytes(ASSET('throne-panel2.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{
+    const root=gltf.scene||gltf.scenes[0]; root.updateMatrixWorld(true); toonify(root,1); let mesh=null; root.traverse(o=>{ if(o.isMesh&&!o.userData.isOL&&!mesh) mesh=o; }); if(!mesh) return;
+    const g=mesh.geometry.clone(); g.applyMatrix4(mesh.matrixWorld); g.computeBoundingBox(); const b=g.boundingBox, sz=new THREE.Vector3(); b.getSize(sz); g.translate(-(b.min.x+b.max.x)/2,-b.min.y,-(b.min.z+b.max.z)/2); g.scale(1/sz.x,1/sz.y,1/sz.z); g.computeVertexNormals();
+    const mats=[], q=new THREE.Quaternion(), up=new THREE.Vector3(0,1,0), D=.14;
+    for(const r of runs){ const len=r.n*CELL, span=r.top-r.y0, W=span*sz.x/sz.y, k=Math.max(1,Math.round(len/W)), w=len/k, mid=(r.a+r.b)/2; q.setFromAxisAngle(up,Math.atan2(r.nx,r.nz));
+      for(let i=0;i<k;i++){ const s_=-len/2+w*(i+.5), x=r.nx?r.fx:mid+s_, z=r.nx?mid+s_:r.fz; mats.push(new THREE.Matrix4().compose(new THREE.Vector3(x+r.nx*(.03+D/2),r.y0,z+r.nz*(.03+D/2)),q,new THREE.Vector3(w*1.02,span,D))); } }
+    // the stairs' sides: each step's own square of wall, panels the width of a square laid bottom-up at the panel's own shape, the top one cut to the step
+    const RH=CELL*sz.y/sz.x; for(let z=0;z<GH;z++) for(let x=0;x<GW;x++){ const i=idx(x,z); if(!rampA[i]) continue; const top=rampH[i];
+      for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){ const j=idx(x+dx,z+dz); if(x+dx<0||z+dz<0||x+dx>=GW||z+dz>=GH||grid[j]===T.WALL||rampA[j]) continue; const y0=hgt[j]||0; if(top-y0<.8) continue;
+        const nx=dx, nz=dz, fx=cw(x)+dx*CELL/2, fz=cwz(z)+dz*CELL/2; q.setFromAxisAngle(up,Math.atan2(nx,nz));
+        for(let y=y0;y<top-.05;y+=RH){ const h=Math.min(RH,top-y); mats.push(new THREE.Matrix4().compose(new THREE.Vector3(fx+nx*(.03+D/2),y,fz+nz*(.03+D/2)),q,new THREE.Vector3(CELL*1.02,h,D))); } } }
+    const im=new THREE.InstancedMesh(g,mesh.material,mats.length); mats.forEach((m,i)=>im.setMatrixAt(i,m)); im.instanceMatrix.needsUpdate=true; im.frustumCulled=false; im.userData.noOL=true; world.add(im); cnt.galleryPanels=mats.length; }).catch(e=>console.warn('feast gallery stone',e)); }
 window.__feastwreck={ info:()=>Object.assign({ on:true },cnt) };
 })();
