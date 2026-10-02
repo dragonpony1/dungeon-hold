@@ -50,7 +50,7 @@ const spot=await hostPage.evaluate(()=>window.__T);
 await guestPage.evaluate(s=>{ window.__dd.setHero(s.a.x,s.a.z+2.4,Math.PI); },spot);
 await tickBoth(10,5);
 const g=await guestPage.evaluate(()=>{ const el=document.getElementById('defcard'); const p=window.__defsync.pick(); return { pick:p&&{ kind:p.kind, x:p.x, z:p.z }, card:el&&el.classList.contains('show')?el.textContent:null }; });
-check('the guest standing at its ballista sees the ballista picked and its card (name, mark, health, the upgrade E would buy)',g.pick&&g.pick.kind==='harpoon'&&g.card&&/Ballista/.test(g.card)&&/Upgrade · E/.test(g.card),JSON.stringify(g));
+check('the guest standing at its ballista sees the ballista picked and its FULL card -- the host card (damage, rate, range, the upgrade E would buy)',g.pick&&g.pick.kind==='harpoon'&&g.card&&/Ballista/.test(g.card)&&/Upgrade · E/.test(g.card)&&/Damage/.test(g.card)&&/Rate/.test(g.card)&&/Range/.test(g.card),JSON.stringify(g));
 const before=await hostPage.evaluate(()=>window.__dd.defs.map(d=>d.kind+':'+(d.lvl||1)).join(' '));
 await guestPage.evaluate(()=>window.__dd.upgrade()); await tickBoth(8,5);
 const after=await hostPage.evaluate(()=>window.__dd.defs.map(d=>d.kind+':'+(d.lvl||1)).join(' '));

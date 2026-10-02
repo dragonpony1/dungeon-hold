@@ -79,9 +79,12 @@ function guestCard(p){ const cfg=DEFS[p.kind]; const rows=[]; const R=(l,v)=>row
   const key='g'+p.id+p.lvl+'|'+rows.join(''); if(key===dcKey) return; dcKey=key; dcEl.innerHTML='<div class="dc-n">'+cfg.ic+' '+cfg.name+' · Mark '+MARK[p.lvl]+chevHtml(p.lvl)+'</div>'+rows.join(''); dcEl.classList.add('show'); }
 function defCard(){ if(!dcEl){ const anchor=$('herostats')||$('xpline')||$('gear'); if(!anchor) return; dcEl=document.createElement('div'); dcEl.id='defcard'; anchor.insertAdjacentElement('afterend',dcEl); }
   const d=(S.phase==='build'||S.phase==='wave')&&!placing?pickDef():null;   /* build 165: the same tower E will act on (game.js pickDef) */
-  if(!d&&(S.phase==='build'||S.phase==='wave')&&!placing&&window.__defsync&&window.__defsync.pick){ const p=window.__defsync.pick(); if(p&&DEFS[p.kind]){ guestCard(p); return; } }   // build 499: a co-op guest's card, from the host's towers it sees
+  if(!d&&(S.phase==='build'||S.phase==='wave')&&!placing&&window.__defsync&&window.__defsync.card){ const c=window.__defsync.card(); if(c&&c.html){ if(c.key!==dcKey){ dcKey=c.key; dcEl.innerHTML=c.html; } dcEl.classList.add('show'); return; } }   // build 501 (Matt: "he should get all the tower info when he looks at a tower"): a co-op guest's card is the HOST's own, built there for the tower the guest's E will act on (99-network.js) -- every number exactly as the host sees it
+  if(!d&&(S.phase==='build'||S.phase==='wave')&&!placing&&window.__defsync&&window.__defsync.pick){ const p=window.__defsync.pick(); if(p&&DEFS[p.kind]){ guestCard(p); return; } }   // build 499: until the host's card arrives, a short one from the towers the guest sees
   if(!d){ if(dcKey){ dcKey=''; dcEl.classList.remove('show'); } return; }
-  const cfg=DEFS[d.kind]; const rows=[]; const R=(l,v)=>rows.push('<div class="dc-r"><i>'+l+'</i><b>'+v+'</b></div>');
+  const c=cardHtml(d,S.mana); if(c.key===dcKey) return; dcKey=c.key; dcEl.innerHTML=c.html; dcEl.classList.add('show'); }
+// build 501: the card itself, for any tower and any player's mana -- the host builds a guest's with it (99-network.js)
+function cardHtml(d,mana){ const cfg=DEFS[d.kind]; const rows=[]; const R=(l,v)=>rows.push('<div class="dc-r"><i>'+l+'</i><b>'+v+'</b></div>');
   R('❤ Health','<span class="dc-hp">'+Math.ceil(d.hp)+'</span> / '+d.max); R('💀 Kills',(d.kills|0).toLocaleString());   /* build 463 (Matt: "one of the little numbers should show how many mobs it's killed") */
   if(cfg.dmg!==undefined) R('⚔ Damage',stat(d,'dmg')); if(cfg.cd!==undefined) R('⚡ Rate',(1/stat(d,'cd')).toFixed(2)+'/s'); if(cfg.range) R('📏 Range',Math.round(stat(d,'range')*10)/10); if(cfg.arcs||(cfg.arc&&cfg.arc<360)) R('◔ Cone',arcOf(d)+'°'); if(cfg.thorns){ const k=(1+.25*((d.lvl||1)-1))*(1+oStat(d,'tow')/100); R('🌵 Thorns',Math.round(50*k)+'% of each hit +'+Math.round(cfg.thorns*k)); }   // build 163: what game.js's thornsBack returns to a melee attacker R('🌱 Roots',cfg.du);
   // build 178: the Rune Totem's two auras, what feeds them, and who is getting them; and on a tower standing in a ring, what it gets
@@ -97,9 +100,9 @@ function defCard(){ if(!dcEl){ const anchor=$('herostats')||$('xpline')||$('gear
     R((d.hp<d.max?'⬆ Upgrade (after repair)':'⬆ Upgrade · E'),upCost(d)+' ◆ mana → Mk '+MARK[l0+1]+chevHtml(l0+1)+(gains.length?' ('+gains.join(', ')+')':'')); }
   else R('⬆ Upgrade','Mark '+MARK[MAXLVL]+' — the top mark');
   R('✖ Sell · X','+'+Math.round(d.spent*.7)+' ◆ mana');
-  R('','<span class="dc-note">you have '+Math.floor(S.mana)+' ◆</span>');
-  const key=d.kind+d.lvl+'|'+Math.ceil(d.hp)+'|'+rows.join(''); if(key===dcKey) return; dcKey=key;
-  dcEl.innerHTML='<div class="dc-n">'+cfg.ic+' '+cfg.name+' · Mark '+MARK[d.lvl]+chevHtml(d.lvl)+'</div>'+rows.join(''); dcEl.classList.add('show'); }
+  R('','<span class="dc-note">you have '+Math.floor(mana)+' ◆</span>');
+  return { key:d.kind+d.lvl+'|'+Math.ceil(d.hp)+'|'+rows.join(''), html:'<div class="dc-n">'+cfg.ic+' '+cfg.name+' · Mark '+MARK[d.lvl]+chevHtml(d.lvl)+'</div>'+rows.join('') }; }
+window.__cardHtml=cardHtml;
 { const prevU=Meta.update; Meta.update=dt=>{ prevU(dt); visualsUpdate(dt); }; const prevH=Meta.hud; Meta.hud=()=>{ prevH(); statsUpdate(); defCard(); }; }
 window.__feel={defcard:()=>dcEl&&dcEl.classList.contains('show')?dcEl.textContent:null,card:()=>CS.it?{name:CS.it.name,id:CS.it.id,outcome:CS.outcome,canEquip:CS.canEquip,keep:CS.keep||null,shown:card.classList.contains('show'),html:card.innerHTML}:null,stats:heroStats,visuals:()=>({weapon:!!V.weapon,weaponColor:V.weapon?'#'+V.weapon.material.color.getHexString():null,hostIsBone:!!(V.host&&V.host.isBone),charm:!!V.charm,amulet:!!V.amulet}),equipFromCard};
 })();
