@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="80">
+<meta name="hideout-build" content="81">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -276,7 +276,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 80;   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 81;   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -942,7 +942,7 @@ const NAMED_ART_DIR = ITEMS_DIR + 'named/'; // Matt's pictures (named myth thumb
 // then tools/slim-all.js) -- turning slowly on a shelf or table, and in a column of light on the floor like in the hall. The rest keep
 // their picture. NAMED_ALIAS: ids the game spells differently from ours.
 const NAMED_3D_DIR = ITEMS_DIR.slice(0, -'items/'.length) + 'named3d/'; // next to items/, wherever the page is served from
-const NAMED_3D = new Set(['bramblewhisk','gloomcap_censer','mossheart_aegis','old_lamplight','tear_of_the_rootgate','voidwoven_mantle','wardens_oath','hourglass_hollow_sand','gladehart','trimaw','sixseven','gabriels_charm']);
+const NAMED_3D = new Set(['bramblewhisk','gloomcap_censer','mossheart_aegis','old_lamplight','tear_of_the_rootgate','voidwoven_mantle','wardens_oath','hourglass_hollow_sand','gladehart','trimaw','sixseven','gabriels_charm','beast_mode','malamute']);
 const NAMED_ALIAS = { hourglass_of_hollow_sand:'hourglass_hollow_sand' };
 // build 41 (Matt, Gladehart on a table: "looks so good, needs to be 25% bigger"): a model shown bigger than the fitting rule gives it
 const NAMED_3D_SCALE = { gladehart:1.25 };
@@ -998,6 +998,13 @@ const NAMED_MYTHICS = {
   gabriels_charm:     { type:'trinket',  name:"Gabriel's Charm",          art:NAMED_ART_DIR+'gabriels_charm.jpg', stats:{ trate:22, tarea:16, move:12 },
     power:'Twice a wave, at the horn and when the last mob has been sent, your defenses BLITZ: they fire 50% faster for 6 seconds.',
     lore:'Silver, stitched like a game ball. It counts to two, and every wave gets both.' },
+  // build 81 (Matt: "the rings can come out of the forge right? since they are named?"): the two familiar rings (the game's build 426) -- forgeable like the other named trinkets
+  beast_mode:         { type:'trinket',  name:'Beast Mode',               art:NAMED_ART_DIR+'beast_mode.jpg', stats:{ fdmg:20, frate:30, tow:10 },
+    power:'A SECOND FAMILIAR: wear it and a second familiar slot opens -- two pets, one at each shoulder.',
+    lore:'Amber paws in a clawed band. Whatever runs with you, runs twice.' },
+  malamute:           { type:'trinket',  name:'Malamute',                 art:NAMED_ART_DIR+'malamute.jpg', stats:{ fdmg:14, frate:20, move:14 },
+    power:'A SECOND FAMILIAR: wear it and a second familiar slot opens -- two pets, one at each shoulder.',
+    lore:'Frost in the fur and blue in the paws. A pack of two.' },
 };
 // the game's own stat wording (parts/game.js STATL) so a tooltip here reads like the item card over there
 const STAT_LABEL = { dmg:v=>'+'+v+' dmg', spd:v=>'+'+v+'% swing', hp:v=>'+'+v+' hp', def:v=>'+'+v+'% armor', regen:v=>'+'+v+' hp/s',
