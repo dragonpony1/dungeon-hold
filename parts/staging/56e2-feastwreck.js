@@ -23,7 +23,8 @@ fetchBytes(ASSET('feast-table.glb'),'soon').then(buf=>new Promise((res,rej)=>new
 }).catch(e=>console.warn('feast wreck tables',e));
 // ---- the overturned ones: on their side, the top a barricade, legs out, plates spilled at its foot
 for(const [cx,cz,len,ang,over] of (MAP.wreck||[])){ if(!over) continue; const w=len*CELL-.3, g=new THREE.Group(); g.position.set(cx2w(cx),0,cz2w(cz)); g.rotation.y=-ang*PI/180;
-  g.add(M(G.box(w,1.7,.16),plank,0,.85,0)); for(let k=0;k<4;k++){ const lx=(k<2?-1:1)*(w/2-.6), ly=k%2?1.45:.3; g.add(M(G.box(.2,.2,.95),wood,lx,ly,-.55)); }   // the top on edge; its four legs sticking out behind
+  g.add(M(G.box(w,1.2,.16),plank,0,.6,0)); for(let k=0;k<4;k++){ const lx=(k<2?-1:1)*(w/2-.6), ly=k%2?1.0:.25; g.add(M(G.box(.2,.2,.95),wood,lx,ly,-.55)); }   // the top on edge (build 475: a low barricade, 1.2 -- you can jump it); its four legs sticking out behind
+  { const a=ang*PI/180, ux=Math.cos(a), uz=Math.sin(a), X=cx2w(cx), Z=cz2w(cz), n=Math.ceil(w/.6); for(let k=0;k<n;k++){ const s=-w/2+(k+.5)*w/n, px=X+ux*s, pz=Z+uz*s; RAILBOXES.push({ x0:px-.32, x1:px+.32, z0:pz-.32, z1:pz+.32, top:1.15, noStand:true }); } }   // build 475: the hero's collision, a chain of slim boxes along the table's own line, low enough to jump
   g.add(M(G.box(w-.8,.1,.5),plank,.3,.06,.75)); g.children[g.children.length-1].rotation.y=.08;   // a bench thrown down beside it
   for(let k=0;k<5;k++){ const u=-w/2+1+k*(w-2)/4, p=M(G.cyl(.28,.28,.05,10),cream,u,.04,.9+(k%2)*.5); p.rotation.z=(k%3-1)*.25; g.add(p); }   // the plates, spilled
   world.add(outline(g)); cnt.over++; }

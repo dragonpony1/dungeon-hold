@@ -162,7 +162,7 @@ const MAPS=[
        in the middle of the hall (MAP.pit). Their squares are solid here; 56e2-feastwreck.js draws them, and the gallery's railings. */
     h(3,21,3,5,5); h(27,46,3,5,5); ramp(10,12,6,10,1,0,5); ramp(41,43,6,10,1,0,5);
     for(const [cx,cz,len,ang,over] of (this.wreck||[])){ const a=ang*PI/180, ux=Math.cos(a), uz=Math.sin(a), hl=len/2+.15, hw=(over?.45:.95);
-      for(let z=Math.floor(cz-hl-1);z<=Math.ceil(cz+hl+1);z++) for(let x=Math.floor(cx-hl-1);x<=Math.ceil(cx+hl+1);x++){ const dx=x-cx, dz=z-cz, u=dx*ux+dz*uz, v=-dx*uz+dz*ux; if(Math.abs(u)<=hl&&Math.abs(v)<=hw) g(x,z,T.PROP); } }
+      for(let z=Math.floor(cz-hl-1);z<=Math.ceil(cz+hl+1);z++) for(let x=Math.floor(cx-hl-1);x<=Math.ceil(cx+hl+1);x++){ const dx=x-cx, dz=z-cz, u=dx*ux+dz*uz, v=-dx*uz+dz*ux; if(Math.abs(u)<=hl&&Math.abs(v)<=hw){ if(over) MOBBLOCK[idx(x,z)]=1; else g(x,z,T.PROP); } } }   /* build 475 (Matt: "the hit boxes on the overturned table are so big I can't jump over them"): a knocked-over table's squares stop only the horde (MOBBLOCK); the hero meets a slim, low box along the table itself (56e2-feastwreck.js) and can jump it */
     if(this.pit){ const [px,pz,pr]=this.pit; for(let z=Math.floor(pz-pr);z<=Math.ceil(pz+pr);z++) for(let x=Math.floor(px-pr);x<=Math.ceil(px+pr);x++) if(Math.hypot(x-px,z-pz)<=pr-.3) g(x,z,T.PROP); }
     f(47,50,12,14,T.FLOOR); g(50,13,T.SPAWN); f(23,25,1,2,T.FLOOR); g(24,1,T.SPAWN); f(31,33,25,27,T.FLOOR); g(32,27,T.SPAWN);   // gates: the east doors at the far end, a door in each long wall
     f(42,50,27,33,T.FLOOR); f(46,46,25,26,T.FLOOR); f(46,46,27,29,T.CARPET); [[42,28],[43,32],[49,29],[49,30],[49,31],[46,33]].forEach(([x,z])=>g(x,z,T.PROP));   // the tavern off the south-east corner
@@ -819,7 +819,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=474;
+const BUILD=475;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
