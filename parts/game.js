@@ -812,7 +812,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=462;
+const BUILD=463;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
@@ -996,14 +996,15 @@ function spawnEnemy(kind,lane){ const L=LANES[lane]||LANES.N; const m=makeMob(ki
   const e={kind,x:cw(L.cx)+inX*step+inZ*jit,y:0,z:cwz(L.cz)+inZ*step-inX*jit,hp:Math.round(cfg.hp*hpm),max:Math.round(cfg.hp*hpm),spd:cfg.spd*R(.9,1.1),dmg:Math.round(cfg.dmg*dmm),cd:cfg.cd,atk:R(0,.5),r:m.r,h:m.h,mdl:m,sc:m.g.scale.x,ph:rnd()*6,yaw:L.face,dead:0,mana:cfg.mana,ranged:cfg.ranged||0,pop:0,squash:0,swing:-1,walking:false,sx:0,sz:0,shoutT:0,fly:cfg.fly||0}; if(e.fly) e.y=e.fly;
   e.roar=(m.glb&&m.actions.shout)?0:-1;   // a mini-boss roars when it first comes into view (and again, enraged, at half health) — see ogreRoar
   m.g.position.set(e.x,0,e.z); m.g.rotation.y=e.yaw; scene.add(m.g); enemies.push(e); const p=portals.find(p=>p.k===lane); if(p) p.pulse=1; return e; }
-function hurt(e,dmg,kx,kz){ if(e.dead) return; e.hp-=dmg; e.squash=1; floatText(e.x,e.y+e.h+.4,e.z,String(dmg),'#ffd060'); if(kx||kz) moveCircle(e,kx*.5,kz*.5,e.r*.8,false); if(e.hp<=0) kill(e); }
+let DMGSRC=null;   // build 463: the tower dealing the blow now (00-killcount.js counts its kills)
+function hurt(e,dmg,kx,kz){ if(e.dead) return; if(DMGSRC){ e.lastDef=DMGSRC; e.lastDefT=S.t; } e.hp-=dmg; e.squash=1; floatText(e.x,e.y+e.h+.4,e.z,String(dmg),'#ffd060'); if(kx||kz) moveCircle(e,kx*.5,kz*.5,e.r*.8,false); if(e.hp<=0) kill(e); }
 function kill(e){ e.dead=.001; S.kills++; spawnOrbs(e.x,e.z,e.mana); rollDrop(e); Meta.onKill(e); if(e.kind==='ogre'||e.kind==='orc'||e.kind==='drake'||e.kind==='troll'||e.kind==='trollboss') SFX.bigDie(); else SFX.die(); }
 function attack(e,tg){ e.swing=0; e.pending=tg; }
 function landHit(e,tg){
   if(tg.kind==='mob'){ if(window.__madHit) window.__madHit(e,tg); return; }   /* build 358: a blow one mob lands on another, maddened by the mist */
   if(tg.kind==='hero'){ if(tg.ranged){ const H=tg.hero.hurt===hurtHero?hero:tg.hero; fireArrow(e,H.x,(H.y||0)+1,H.z,{kind:'hero'}); } else if(!tg.hero.isDead()){ const H=tg.hero.hurt===hurtHero?hero:tg.hero; if(Math.hypot(H.x-e.x,H.z-e.z)<=(tg.reach||e.r+1.3)+.8) tg.hero.hurt(e.dmg); } }   /* build 289: a blow lands only on a hero still within reach when it lands -- a real wind-up can be dodged */
   else if(tg.kind==='crystal'){ if(tg.ranged) fireArrow(e,tg.x||0,2.6,tg.z||0,{kind:'crystal',which:tg.which}); else hurtCrystal(e.dmg,e,tg.which); }
-  else if(tg.kind==='def'){ const d=tg.obj; if(!defs.includes(d)) return; if(tg.ranged) fireArrow(e,d.x,1.0,d.z,{kind:'def',obj:d}); else { hurtDef(d,e.dmg); if(d.kind==='spike'&&!e.dead){ hurt(e,thornsBack(d,e.dmg),0,0); thornSpark(e); } } } }
+  else if(tg.kind==='def'){ const d=tg.obj; if(!defs.includes(d)) return; if(tg.ranged) fireArrow(e,d.x,1.0,d.z,{kind:'def',obj:d}); else { hurtDef(d,e.dmg); if(d.kind==='spike'&&!e.dead){ DMGSRC=d; hurt(e,thornsBack(d,e.dmg),0,0); DMGSRC=null; thornSpark(e); } } } }
 // the hedge's thorns (build 163, Matt: "I want the bramble barrier tower to return damage, like thorn damage"): each melee hit it takes
 // comes back as half the blow plus DEFS.spike.thorns, +25% a mark, scaled by the owner's defense-damage gear -- it used to be a flat 2
 // whoever swung, so an ogre's 20 cost the ogre 2. Now a goblin's 3 costs it 4, an orc's 8 costs it 6-7, an ogre's 20 costs it 12
@@ -1241,7 +1242,7 @@ function updateDefs(dt){ const trampled=[];
   for(const d of defs){ d.buffD=0; d.buffS=0; } RUNE.n=0;
   for(const t of defs){ if(t.kind!=='totem'||t.pop<1) continue; const r=stat(t,'range'), bd=stat(t,'buffD'), bs=stat(t,'buffS'); for(const d of defs){ if(d===t||d.kind==='totem'||!runeTakes(d)) continue; if(Math.hypot(d.x-t.x,d.z-t.z)<=r){ d.buffD=Math.max(d.buffD,bd); d.buffS=Math.max(d.buffS,bs); if(RUNE.n<RUNE.max){ const L=RUNE.links[RUNE.n]||(RUNE.links[RUNE.n]={}); L.t=t; L.d=d; RUNE.n++; } } } }
   runeDraw(dt);
-  for(const d of defs){ const cfg=DEFS[d.kind]; d.pop=Math.min(1,d.pop+dt*4); const s=(d.pop<1?easeOutBack(d.pop):1)*(d.kind==='slice'?stat(d,'range')/cfg.range:markGrow(d.lvl)); d.mdl.scale.set(s,s,s); d.cd-=dt; d.shake=Math.max(0,d.shake-dt); d.recoil=Math.max(0,d.recoil-dt*4);
+  for(const d of defs){ DMGSRC=d; const cfg=DEFS[d.kind]; d.pop=Math.min(1,d.pop+dt*4); const s=(d.pop<1?easeOutBack(d.pop):1)*(d.kind==='slice'?stat(d,'range')/cfg.range:markGrow(d.lvl)); d.mdl.scale.set(s,s,s); d.cd-=dt; d.shake=Math.max(0,d.shake-dt); d.recoil=Math.max(0,d.recoil-dt*4);
     d.mdl.position.set(d.x+(d.shake>0?(rnd()-.5)*.12:0),d.base,d.z+(d.shake>0?(rnd()-.5)*.12:0));
     if(d.kind==='harpoon'||d.kind==='ball'||d.kind==='acorn'){ const half=arcOf(d)*PI/360, range=stat(d,'range'); let best=null, bestProg=1e18;   // among everything in range/arc/sight, engage whoever is furthest along toward the crystal (path distance, not raw distance to this tower) — a tower otherwise happily plinks the mob that wandered nearest to IT while one about to breach sits in range ignored
       for(const e of enemies){ if(e.dead) continue; const dd=Math.hypot(e.x-d.x,e.z-d.z); if(dd>range||Math.abs(angDiff(d.rot,Math.atan2(e.x-d.x,e.z-d.z)))>half||!los(d.x,d.z,e.x,e.z)) continue;
@@ -1270,7 +1271,7 @@ function updateDefs(dt){ const trampled=[];
 function snareCapture(d,e){ const from=new THREE.Vector3(d.x,d.top*.6,d.z), to=new THREE.Vector3(e.x,e.y+e.h*.5,e.z); const streak=glow(0xc9a8ff,1.4,.8); streak.position.copy(from).lerp(to,.5); streak.scale.set(.5,.5,from.distanceTo(to)*1.6); streak.lookAt(to); scene.add(streak); projs.push({kind:'splat',t:0,mesh:streak}); const burst=glow(0x8a3cff,e.r*2.6,.85); burst.position.copy(to); scene.add(burst); projs.push({kind:'splat',t:0,mesh:burst}); floatText(e.x,e.y+e.h+.5,e.z,'SNARED!','#c9a8ff'); SFX.destroy(); kill(e); }
 function updateProj(dt){}
 function updateProj(dt){
-  for(let i=projs.length-1;i>=0;i--){ const p=projs[i]; let dead=false;
+  for(let i=projs.length-1;i>=0;i--){ const p=projs[i]; let dead=false; DMGSRC=p.src||null;
     if(p.kind==='harpoon'){ p.life-=dt; dead=p.life<=0; const nx=p.x+p.fx*p.spd*dt, nz=p.z+p.fz*p.spd*dt, ny=p.y+(p.vy||0)*dt; const g=gat(wc(nx),wcz(nz)); if(g===T.WALL||g===T.PILLAR||ny<baseFloor(nx,nz)+.05||ny>WALLH) dead=true; /* into a wall, the floor, a landing's face or the ceiling */ p.x=nx; p.z=nz; p.y=ny;
       for(const e of enemies){ if(e.dead||p.hit.has(e)) continue; if(Math.hypot(e.x-p.x,e.z-p.z)<e.r+.5&&p.y>e.y-.4&&p.y<e.y+e.h+.5){ p.hit.add(e); hurt(e,p.dmg,p.fx*.9,p.fz*.9); SFX.hit(); } } p.mesh.position.set(p.x,p.y,p.z); }   // a bolt hits what it flies through, at its own height
     else if(p.kind==='acorn'){ p.life-=dt; dead=p.life<=0; const nx=p.x+p.vx*dt; if(wallAt(nx+Math.sign(p.vx)*.3,p.z)){ p.vx=-p.vx*.8; p.bounces++; } else p.x=nx; const nz=p.z+p.vz*dt; if(wallAt(p.x,nz+Math.sign(p.vz)*.3)){ p.vz=-p.vz*.8; p.bounces++; } else p.z=nz;
@@ -1529,7 +1530,7 @@ $('playbtn').addEventListener('click',play); $('tavbtn').addEventListener('click
 function update(dt){ if(S.phase==='start'){ updateFx(dt); updateCamera(dt); return; }
   if(S.phase==='deathcut'){ updateFx(dt); updateDeathCut(dt); updateHUD(); return; }
   if(S.phase!=='dead'&&S.phase!=='won'&&(!Meta.isOpen()||Meta.sharedHall())){ /* the tavern pauses the hall: nothing walks, swings or fires behind the overlay -- except a co-op host's with guests in it (build 159): their hall runs on, and the host's gnome just stands (99-network.js clears its keys) */ if(!Meta.isOpen()){ if(!TOUCH&&!locked&&S.phase!=='start'){ if(edgeX<.1) cam.yaw+=1.6*dt; else if(edgeX>.9) cam.yaw-=1.6*dt; } if(K.tl) cam.yaw+=2.2*dt; if(K.tr) cam.yaw-=2.2*dt; }   /* no camera pan from under a menu: the mouse's last spot (edgeX) is stale there */
-    heroUpdate(dt); updateDefs(dt); updateEnemies(dt); updateProj(dt); updateOrbs(dt); updateLoot(dt); updateWave(dt); updateGhost(); updateHoverSector(); Meta.update(dt); }
+    DMGSRC=null; heroUpdate(dt); updateDefs(dt); DMGSRC=null; updateEnemies(dt); updateProj(dt); DMGSRC=null; updateOrbs(dt); updateLoot(dt); updateWave(dt); updateGhost(); updateHoverSector(); Meta.update(dt); }
   updateFx(dt); updateCamera(dt); for(const d of defs) towerChevrons(d,d.mdl,d.kind,d.lvl); /* build 177: after the camera moves, so they face this frame's view */ updateHUD(); Meta.hud(); if(S.phase!=='build'&&S.phase!=='wave') pickRing(null); }
 let lastT=performance.now();
 function frame(now){ requestAnimationFrame(frame); const dt=Math.min(.05,(now-lastT)/1000); lastT=now; if(!window.__freeze) update(dt); if(!Meta.isOpen()&&!HIDEOUT_SHOWN){ renderer.render(scene,camera); drawOverlay(); RENDERS++; } }   /* __freeze: tests step the hall themselves and still see it drawn */   // the tavern is opaque: no GPU work behind it

@@ -32,7 +32,7 @@ const rockets=[], bursts=[];
 const COLS=[0xff5a3a,0xffd24a,0x6af0ff,0xc77aff,0x8ef05a];
 function launch(d,e,dmg,i,n){ const top=(d.base||0)+DEF_H[K]*.8*(d.mdl&&d.mdl.scale?d.mdl.scale.y:1); const side=(i-(n-1)/2)*.45;
   const head=glow(0xfff2c0,.9,.95); scene.add(head); const col=COLS[(cnt.rockets+i)%COLS.length];
-  rockets.push({ e, dmg, col, head, trail:[], t:-i*.12, dur:.75+Math.hypot(e.x-d.x,e.z-d.z)/30, x0:d.x+side, y0:top, z0:d.z, lift:4+Math.random()*2 }); cnt.rockets++; }
+  rockets.push({ src:d, e, dmg, col, head, trail:[], t:-i*.12, dur:.75+Math.hypot(e.x-d.x,e.z-d.z)/30, x0:d.x+side, y0:top, z0:d.z, lift:4+Math.random()*2 }); cnt.rockets++; }
 function burst(x,y,z,col){ cnt.bursts++; const g=new THREE.Group(); g.position.set(x,y,z); const sparks=[]; for(let i=0;i<14;i++){ const s=glow(i%3?col:0xffffff,.55,.95); const a=i/14*TAU, b=(Math.random()-.5)*1.6; sparks.push({ s, vx:Math.cos(a)*Math.cos(b), vy:Math.sin(b), vz:Math.sin(a)*Math.cos(b) }); g.add(s); }
   const core=glow(col,3.4,.9); g.add(core); scene.add(g); bursts.push({ g, sparks, core, t:0, life:.7 }); try{ SFX.hit&&SFX.hit(); }catch(er){} }
 function volley(d){ const list=candidates(d); if(!list.length) return false; const n=tier(d)+(window.__talents&&window.__talents.skyBonus?window.__talents.skyBonus(d):0), dmg=stat(d,'dmg');   /* build 448: the Ranger's Skyfall */ cnt.volleys++; d.recoil=1;
@@ -46,7 +46,7 @@ WORLDANIM.push(dt=>{
     const x=r.x0+(tx-r.x0)*k, z=r.z0+(tz-r.z0)*k, y=r.y0+(ty-r.y0)*k+Math.sin(k*PI)*r.lift; r.head.position.set(x,y,z);
     if(Math.random()<.8){ const s=glow(r.col,.35,.8); s.position.set(x,y,z); scene.add(s); r.trail.push({ s, t:0 }); }
     for(let j=r.trail.length-1;j>=0;j--){ const p=r.trail[j]; p.t+=dt; p.s.material.opacity=.8*(1-p.t/.45); p.s.position.y-=dt*.6; if(p.t>=.45){ scene.remove(p.s); p.s.material.dispose(); r.trail.splice(j,1); } }
-    if(k>=1){ burst(x,y,z,r.col); for(const o of enemies){ if(o.dead||!o.fly) continue; const dd=Math.hypot(o.x-x,o.z-z); if(dd>BURST_R+(o.r||.5)*.5) continue; { const k=o.kind==='wraith'?WRAITH_K:1; hurt(o,Math.round((o===e?r.dmg:r.dmg*SPLASH_K)*k*10)/10,0,0); } cnt.hits++; }
+    if(k>=1){ burst(x,y,z,r.col); for(const o of enemies){ if(o.dead||!o.fly) continue; const dd=Math.hypot(o.x-x,o.z-z); if(dd>BURST_R+(o.r||.5)*.5) continue; { const k=o.kind==='wraith'?WRAITH_K:1; DMGSRC=r.src||null; hurt(o,Math.round((o===e?r.dmg:r.dmg*SPLASH_K)*k*10)/10,0,0); DMGSRC=null; }   /* build 463: kills counted */ cnt.hits++; }
       scene.remove(r.head); r.head.material.dispose(); for(const p of r.trail){ scene.remove(p.s); p.s.material.dispose(); } rockets.splice(i,1); } }
   for(let i=bursts.length-1;i>=0;i--){ const b=bursts[i]; b.t+=dt; const k=b.t/b.life; if(k>=1){ scene.remove(b.g); b.g.traverse(o=>{ if(o.material) o.material.dispose(); }); bursts.splice(i,1); continue; }
     for(const s of b.sparks){ s.s.position.set(s.vx*BURST_R*Math.min(1,k*1.6),s.vy*BURST_R*Math.min(1,k*1.6)-k*k*1.2,s.vz*BURST_R*Math.min(1,k*1.6)); s.s.material.opacity=.95*(1-k); } b.core.material.opacity=.9*(1-k*1.6); } });

@@ -38,7 +38,7 @@ function pitAnim(d,dt){ const u=d.mdl.userData.pit; if(!u) return; const P=d.pit
   const showDust=P.phase==='crush'&&P.t<.9; u.dust.visible=showDust; if(showDust) for(const p of u.dust.children){ const q=P.t/.9; p.position.set(Math.cos(p.userData.a)*(p.userData.r+q*.7),.1+q*1.3+p.userData.ph,Math.sin(p.userData.a)*(p.userData.r+q*.7)); p.material.opacity=.55*(1-q); p.scale.setScalar(.6+q*1.4); } }
 // ---------------------------------------------------------------- the trap
 function inPit(d,e,rr){ return !e.dead&&!e.fly&&Math.hypot(e.x-d.x,e.z-d.z)<rr+(e.r||.4)*.3; }
-function pitTick(d,dt){ const cfg=DEFS.pit; const P=d.pit||(d.pit={phase:'rest',t:0,cool:1.5,held:[],tick:0}); const rr=stat(d,'range'), H=cfg.hold;
+function pitTick(d,dt){ DMGSRC=d;   /* build 463 */ const cfg=DEFS.pit; const P=d.pit||(d.pit={phase:'rest',t:0,cool:1.5,held:[],tick:0}); const rr=stat(d,'range'), H=cfg.hold;
   if(P.phase==='rest'){ P.cool-=dt; if(P.cool<=0&&!isGuest()){ const held=enemies.filter(e=>!BOSS.has(e.kind)&&inPit(d,e,rr)); if(held.length){ P.phase='open'; P.t=0; P.tick=0; P.held=held; beep(90,.45,'sawtooth',.06,-30); noise(.3,.06,320); floatText(d.x,d.base+1.4,d.z,'THE FLOOR OPENS','#c9b29a'); } } }
   else if(P.phase==='open'){ P.t+=dt; if(P.t<H*.5) for(const e of enemies) if(!BOSS.has(e.kind)&&inPit(d,e,rr)&&!P.held.includes(e)) P.held.push(e);   // a late arrival still falls in
     P.held=P.held.filter(e=>!e.dead);

@@ -74,7 +74,7 @@ function chevHtml(l){ const n=chevCount(l); return n?'<span class="dc-chevs" tit
 function defCard(){ if(!dcEl){ const anchor=$('herostats')||$('xpline')||$('gear'); if(!anchor) return; dcEl=document.createElement('div'); dcEl.id='defcard'; anchor.insertAdjacentElement('afterend',dcEl); }
   const d=(S.phase==='build'||S.phase==='wave')&&!placing?pickDef():null;   /* build 165: the same tower E will act on (game.js pickDef) */ if(!d){ if(dcKey){ dcKey=''; dcEl.classList.remove('show'); } return; }
   const cfg=DEFS[d.kind]; const rows=[]; const R=(l,v)=>rows.push('<div class="dc-r"><i>'+l+'</i><b>'+v+'</b></div>');
-  R('❤ Health','<span class="dc-hp">'+Math.ceil(d.hp)+'</span> / '+d.max);
+  R('❤ Health','<span class="dc-hp">'+Math.ceil(d.hp)+'</span> / '+d.max); R('💀 Kills',(d.kills|0).toLocaleString());   /* build 463 (Matt: "one of the little numbers should show how many mobs it's killed") */
   if(cfg.dmg!==undefined) R('⚔ Damage',stat(d,'dmg')); if(cfg.cd!==undefined) R('⚡ Rate',(1/stat(d,'cd')).toFixed(2)+'/s'); if(cfg.range) R('📏 Range',Math.round(stat(d,'range')*10)/10); if(cfg.arcs||(cfg.arc&&cfg.arc<360)) R('◔ Cone',arcOf(d)+'°'); if(cfg.thorns){ const k=(1+.25*((d.lvl||1)-1))*(1+oStat(d,'tow')/100); R('🌵 Thorns',Math.round(50*k)+'% of each hit +'+Math.round(cfg.thorns*k)); }   // build 163: what game.js's thornsBack returns to a melee attacker R('🌱 Roots',cfg.du);
   // build 178: the Rune Totem's two auras, what feeds them, and who is getting them; and on a tower standing in a ring, what it gets
   const P=v=>Math.round(v*100);

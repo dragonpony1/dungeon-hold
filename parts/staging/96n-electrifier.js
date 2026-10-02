@@ -35,7 +35,7 @@ const chest=e=>new THREE.Vector3(e.x,(e.y||0)+(e.h||1.4)*.6,e.z);
 // ---- whom it strikes: what it can see in its reach, the mob furthest along toward the Heartroot first (as the other towers choose)
 function candidates(d){ const rr=stat(d,'range'), out=[]; for(const e of enemies){ if(e.dead) continue; const dd=Math.hypot(e.x-d.x,e.z-d.z); if(dd>rr+(e.r||.5)*.5) continue; if(!los(d.x,d.z,e.x,e.z)) continue; const prog=(e.fly?flowFly:flowFree).dist[idx(wc(e.x),wcz(e.z))]; out.push({ e, key:(e.marked?-1e5:e.tgtDef===d?-5e4:0)+(prog>=0?prog:1e6+dd) }); }
   out.sort((a,b)=>a.key-b.key); return out.map(o=>o.e); }
-function strike(d,e,dmg,from){ bolt(from||topOf(d).clone(),chest(e)); hurt(e,dmg,0,0); }
+function strike(d,e,dmg,from){ bolt(from||topOf(d).clone(),chest(e)); const p0=DMGSRC; DMGSRC=d; hurt(e,dmg,0,0); DMGSRC=p0; }   /* build 463: kills counted */
 function shoot(d){ const list=candidates(d); if(!list.length) return false; const T=tier(d), dmg=stat(d,'dmg'); cnt.shots++; d.recoil=1; try{ SFX.zap?SFX.zap():SFX.hit(); }catch(er){}
   if(T===1) strike(d,list[0],dmg);
   else if(T===2){ cnt.doubles++; for(const e of list.slice(0,2)) strike(d,e,dmg); }

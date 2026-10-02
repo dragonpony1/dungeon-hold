@@ -41,7 +41,7 @@ const OPEN=PI*.92;
 { const prevPlace=placeDefAt; placeDefAt=function(kind,x,z,rot){ if(kind!==K) return prevPlace.apply(this,arguments); const d=prevPlace.call(this,kind,x,z,snapRot(rot)); if(d){ d.rot=d.yaw=snapRot(d.rot); d.mdl.rotation.y=d.rot; d.cd=0; d.snapT=-1; } return d; }; }
 const cnt={ springs:0, kills:0, bossHits:0 };
 const onBoard=(d,e)=>{ const [ax,az]=axis(d.rot), dx=e.x-d.x, dz=e.z-d.z, u=dx*ax+dz*az, v=-dx*az+dz*ax, r=(e.r||.5)*.6; return Math.abs(u)<=HALF_L+r&&Math.abs(v)<=HALF_W+r; };
-function spring(d){ cnt.springs++; d.snapT=0; d.cd=stat(d,'cd'); d.armT=ARM_WAIT; d.armed=false; let n=0;
+function spring(d){ DMGSRC=d;   /* build 463: kills counted (00-killcount.js) */ cnt.springs++; d.snapT=0; d.cd=stat(d,'cd'); d.armT=ARM_WAIT; d.armed=false; let n=0;
   for(const e of enemies){ if(e.dead||e.fly||!onBoard(d,e)) continue; if(BOSSES.has(e.kind)){ hurt(e,Math.max(1,Math.round(e.max*BOSS_K)),0,0); cnt.bossHits++; } else { e.hp=0; kill(e); cnt.kills++; n++; } }
   camShake=Math.max(camShake,.35); try{ SFX.thud&&SFX.thud(); SFX.hit&&SFX.hit(); }catch(er){} const fl=baseFloor(d.x,d.z); const g=glow(0xf2e0b0,4,.8); g.position.set(d.x,fl+.6,d.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); if(typeof shockRing==='function') shockRing(d.x,fl,d.z,3.2);
   if(n>1) floatText(d.x,fl+2,d.z,'×'+n,'#ffe08a'); return n; }
