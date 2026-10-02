@@ -7,6 +7,9 @@
 (function(){
 window.__weapons.registerReal('staff-void','staff-void.glb',{gripF:.36,lenScale:1.64});
 window.__weapons.registerReal('polearm-void','polearm-void.glb',{gripF:.3,lenScale:1.64});
+// build 483: Matt's Void longsword (GEAR SETS / Arcane / animated -- Bob gave it a Sword_Flourish_Loop; the hand holds it still) takes over both of the set's code-built swords, 86b's 'sword-void' and 94-voidset's
+// older 'void' (93-gearsets' model name for it); turned blade-up when it was cut down. A real file wins over a code-built one whatever order they register in (80-weapons.js loadSword).
+window.__weapons.registerReal('sword-void','sword-void.glb'); window.__weapons.registerReal('void','sword-void.glb');
 let warmed=false; function warm(){ if(warmed) return; warmed=true; window.__weapons.model('staff-void',()=>{}); window.__weapons.model('polearm-void',()=>{}); }
 { const prev=dropLoot; dropLoot=function(it){ try{ if(it&&it.slot==='weapon'&&window.__void&&window.__void.isVoid&&window.__void.isVoid(it)) warm(); }catch(e){} return prev.apply(this,arguments); }; }
 window.__realvoid={warm,warmed:()=>warmed};

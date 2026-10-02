@@ -39,7 +39,8 @@ const NAMED_REAL={
 Object.assign(NAMED_REAL,{fam_wisp:{file:'fam-wisp.glb',h:.95,lift:.55},fam_bat:{file:'fam-bat.glb',h:.85,lift:.6},fam_sprite:{file:'fam-sprite.glb',h:.95,lift:.55},fam_imp:{file:'fam-imp.glb',h:1,lift:.55},fam_owl:{file:'fam-owl.glb',h:.95,lift:.55},fam_drake:{file:'fam-drake.glb',h:1.35,lift:.55}});
 // build 482 (Matt sent the Chaos set's sword, amulet and charm as real 3D -- "ask for 3d art on all of it"): a SET's amulet and charm stand in 3D too, set_<set>_amulet / set_<set>_charm -> its file.
 // A set without its own files yet keeps its card. The rest of the sets join by adding their two lines here.
-Object.assign(NAMED_REAL,{ set_chaos_amulet:{file:'set-chaos-amulet.glb',h:.9,lift:.6}, set_chaos_charm:{file:'set-chaos-charm.glb',h:.9,lift:.6} });
+Object.assign(NAMED_REAL,{ set_chaos_amulet:{file:'set-chaos-amulet.glb',h:.9,lift:.6}, set_chaos_charm:{file:'set-chaos-charm.glb',h:.9,lift:.6},
+  set_void_amulet:{file:'set-void-amulet.glb',h:.9,lift:.6}, set_void_charm:{file:'set-void-charm.glb',h:.9,lift:.6} });   // build 483
 const FAM_KEY={'Wisp':'fam_wisp','Bat':'fam_bat','Sprite':'fam_sprite','Fire Imp':'fam_imp','Crystal Owl':'fam_owl','Storm Drake':'fam_drake'};
 const NR_GLB={}, NR_P={}, NR_PENDING=[];
 function loadNamedReal(k){ const cfg=NAMED_REAL[k]; if(!cfg||NR_GLB[k]||NR_P[k]) return; NR_P[k]=fetchBytes(ASSET(cfg.file)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ try{

@@ -11,15 +11,20 @@ const R=await page.evaluate(async()=>{ const d=window.__dd; try{ window.__traine
   const sw=mk({ slot:'weapon', name:'Mythic Sword of Chaos', setId:'crimson', look:'sword', rarity:5, lvl:20, stats:{ dmg:24, spd:45, tow:41 } });
   const am=mk({ slot:'amulet', name:'Amulet of Chaos', setId:'crimson', rarity:5, lvl:20, stats:{ mana:65, tow:41, hp:156 } });
   const ch=mk({ slot:'charm', name:'Charm of Chaos', setId:'crimson', rarity:5, lvl:20, stats:{ move:20, trate:20, tarea:18 } });
+  const va=mk({ slot:'amulet', name:'Amulet of the Void', setId:'void', rarity:5, lvl:20, stats:{ mana:65, tow:41, hp:156 } }), vc=mk({ slot:'charm', name:'Charm of the Void', setId:'void', rarity:5, lvl:20, stats:{ move:20, trate:20, tarea:18 } });
   const ic=mk({ slot:'amulet', name:'Amulet of Ice', setId:'ice', rarity:5, lvl:20, stats:{ mana:65, tow:41, hp:156 } });
-  const h=d.hero; [[sw,-2.5],[am,0],[ch,2.5],[ic,5]].forEach(([it,o],i)=>{ it.id='t'+i; d.dropLoot(it,h.x+o,h.z-5,true); });
-  let names=[]; for(let t=0;t<200;t++){ d.step(1/60,3); await new Promise(r=>setTimeout(r,50)); names=window.__weaponStand.list().map(s=>s.name); if(names.includes('named-set_chaos_amulet')&&names.includes('named-set_chaos_charm')&&names.includes('sword-chaos')) break; }
+  const h=d.hero; [[sw,-2.5],[am,0],[ch,2.5],[ic,5],[va,-5],[vc,7.5]].forEach(([it,o],i)=>{ it.id='t'+i; d.dropLoot(it,h.x+o,h.z-5,true); });
+  let names=[]; for(let t=0;t<200;t++){ d.step(1/60,3); await new Promise(r=>setTimeout(r,50)); names=window.__weaponStand.list().map(s=>s.name); if(['named-set_chaos_amulet','named-set_chaos_charm','named-set_void_amulet','named-set_void_charm'].every(n=>names.includes(n))) break; }
   const mf=window.__weaponStand.modelFor;
   // the real sword's template: Matt's mesh, thousands of points (the code-built one is a few hundred)
   const verts=await new Promise(res=>window.__weapons.model('sword-chaos',m=>{ let n=0; (m&&m.traverse)&&m.traverse(o=>{ if(o.isMesh&&o.geometry&&o.geometry.attributes.position) n+=o.geometry.attributes.position.count; }); res(n); }));
-  return { names, models:{ sw:mf(sw), am:mf(am), ch:mf(ch), ic:mf(ic) }, verts }; });
+  const vverts=await new Promise(res=>window.__weapons.model('sword-void',m=>{ let n=0; (m&&m.traverse)&&m.traverse(o=>{ if(o.isMesh&&o.geometry&&o.geometry.attributes.position) n+=o.geometry.attributes.position.count; }); res(n); }));
+  const overts=await new Promise(res=>window.__weapons.model('void',m=>{ let n=0; (m&&m.traverse)&&m.traverse(o=>{ if(o.isMesh&&o.geometry&&o.geometry.attributes.position) n+=o.geometry.attributes.position.count; }); res(n); }));
+  return { names, models:{ sw:mf(sw), am:mf(am), ch:mf(ch), ic:mf(ic) }, verts, vverts, overts }; });
 check("the Chaos sword is Matt's model (thousands of points), not the code-built one",R.verts>3000,JSON.stringify(R.verts));
 check('the Chaos weapon (as this hero holds it), amulet and charm stand on the floor in 3D',R.names.some(n=>/^(sword|staff|polearm|bow)-chaos$/.test(n))&&R.names.includes('named-set_chaos_amulet')&&R.names.includes('named-set_chaos_charm'),JSON.stringify(R));
+check("the Void longsword is Matt's model under both of the set's names",R.vverts>3000&&R.overts>3000,JSON.stringify({ v:R.vverts, o:R.overts }));
+check('the Void amulet and charm stand on the floor in 3D',R.names.includes('named-set_void_amulet')&&R.names.includes('named-set_void_charm'),JSON.stringify(R.names));
 check('a set without its own 3D amulet yet keeps its card (Ice)',R.models.ic===null,JSON.stringify(R.models));
 await page.evaluate(()=>{ const d=window.__dd, h=d.hero; d.setCam(Math.PI,.35,7); d.step(1/60,30); }); await page.screenshot({path:'tools/test-logs/setart-floor.png'});
 check('no page errors',errors.length===0,JSON.stringify(errors.slice(0,3)));
