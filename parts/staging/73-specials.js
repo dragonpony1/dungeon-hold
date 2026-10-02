@@ -156,7 +156,7 @@ function playFlourish(hid,p){
 // actually simulating the shared hall (host or solo). A guest never calls these directly; see doFire()/hostApplySpecial ----
 function realCleave(p){ let n=0; for(const e of enemies){ if(e.dead) continue; const dx=e.x-p.x, dz=e.z-p.z, d=Math.hypot(dx,dz); if(d<CLEAVE_R+e.r){ const l=Math.max(d,.01); hurt(e,p.dmg,dx/l*CLEAVE_KB,dz/l*CLEAVE_KB); n++; } } if(n) SFX.hit(); }
 function realStarfall(p){ let n=0; for(const e of enemies){ if(e.dead) continue; const d=Math.hypot(e.x-p.x,e.z-p.z); if(d<STARFALL_R+e.r*.5){ hurt(e,p.dmg,0,0); e.slowT=Math.max(e.slowT||0,STARFALL_SLOW); n++; } } if(n) SFX.hit(); }
-function realHaloSurge(p){ RING_FX={x:p.x,z:p.z,r:0,R:HALO_RING_R,DUR:HALO_RING_DUR,t:0,dmg:p.dmg,hit:new Set()}; HALO_SURGE_T=HALO_SURGE_DUR; const n=NET(); if(n) n.send('toast','⚡ Halo Surge! Every halo tower pulses at double strength for a few seconds!'); }
+function realHaloSurge(p){ RING_FX={x:p.x,z:p.z,r:0,R:HALO_RING_R,DUR:HALO_RING_DUR,t:0,dmg:p.dmg,hit:new Set()}; HALO_SURGE_T=HALO_SURGE_DUR+(window.__talents&&window.__talents.surgeBonus?window.__talents.surgeBonus():0);   /* build 448: the Fighter's Surge Master */ const n=NET(); if(n) n.send('toast','⚡ Halo Surge! Every halo tower pulses at double strength for a few seconds!'); }
 function realVolley(p){ const per=Math.round(p.dmg/VOLLEY_PER*10)/10; for(let i=0;i<VOLLEY_WAVES;i++) VOLLEY_Q.push({x:p.x,z:p.z,dmg:per,at:S.t+i*(VOLLEY_DUR/VOLLEY_WAVES)}); }
 function applyReal(hid,p){ if(hid==='knight') realCleave(p); else if(hid==='witch') realStarfall(p); else if(hid==='fighter') realHaloSurge(p); else if(hid==='troll') realVolley(p); }
 

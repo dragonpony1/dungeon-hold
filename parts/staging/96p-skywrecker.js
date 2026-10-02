@@ -35,7 +35,7 @@ function launch(d,e,dmg,i,n){ const top=(d.base||0)+DEF_H[K]*.8*(d.mdl&&d.mdl.sc
   rockets.push({ e, dmg, col, head, trail:[], t:-i*.12, dur:.75+Math.hypot(e.x-d.x,e.z-d.z)/30, x0:d.x+side, y0:top, z0:d.z, lift:4+Math.random()*2 }); cnt.rockets++; }
 function burst(x,y,z,col){ cnt.bursts++; const g=new THREE.Group(); g.position.set(x,y,z); const sparks=[]; for(let i=0;i<14;i++){ const s=glow(i%3?col:0xffffff,.55,.95); const a=i/14*TAU, b=(Math.random()-.5)*1.6; sparks.push({ s, vx:Math.cos(a)*Math.cos(b), vy:Math.sin(b), vz:Math.sin(a)*Math.cos(b) }); g.add(s); }
   const core=glow(col,3.4,.9); g.add(core); scene.add(g); bursts.push({ g, sparks, core, t:0, life:.7 }); try{ SFX.hit&&SFX.hit(); }catch(er){} }
-function volley(d){ const list=candidates(d); if(!list.length) return false; const n=tier(d), dmg=stat(d,'dmg'); cnt.volleys++; d.recoil=1;
+function volley(d){ const list=candidates(d); if(!list.length) return false; const n=tier(d)+(window.__talents&&window.__talents.skyBonus?window.__talents.skyBonus(d):0), dmg=stat(d,'dmg');   /* build 448: the Ranger's Skyfall */ cnt.volleys++; d.recoil=1;
   for(let i=0;i<n;i++) launch(d,list[i%list.length],dmg,i,n); try{ SFX.shoot?SFX.shoot():SFX.place&&SFX.place(); }catch(er){} return true; }
 // ---- every frame: each Sky Wrecker fires on its reload (the core counts d.cd down); the rockets fly and burst; Bob's animation plays
 { const prev=updateDefs; updateDefs=function(dt){ prev.apply(this,arguments); for(const d of defs){ if(d.kind!==K||d.dead) continue; if(d.cd<=0&&volley(d)) d.cd=stat(d,'cd'); } }; }

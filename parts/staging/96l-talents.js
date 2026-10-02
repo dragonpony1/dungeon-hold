@@ -50,7 +50,47 @@ const TREES={ witch:{ name:'THE BATTLE WITCH', branches:[
     { id:'kthorn',  tier:1, ranks:3, ic:'🌿', name:'Thornwright',  stat:{thp:.06}, chip:r=>'hedges +'+20*r+'% thorns' },
     { id:'klong',   tier:2, ranks:1, ic:'📏', name:'Long Hedge', key:true, chip:()=>'hedges 5 squares long' },
     { id:'ktrap',   tier:3, ranks:3, ic:'🪤', name:'Trapsmith',    stat:{tcd:.03}, chip:r=>'trap resets −'+15*r+'%' },
-    { id:'kvigil',  tier:4, ranks:1, ic:'👁', name:'Vigil', cap:true, chip:()=>'✦ stand still ⤳ towers near +30% speed' } ] } ] } };
+    { id:'kvigil',  tier:4, ranks:1, ic:'👁', name:'Vigil', cap:true, chip:()=>'✦ stand still ⤳ towers near +30% speed' } ] } ] },
+  // build 448 (Matt: "yeah lets start them" -- the plan approved after the Knight's): the GNOME RANGER (id 'troll') -- MARKSMAN: the bow; TRAPPER: his towers; WILDS: pet and footwork. Ids start with r.
+  troll:{ name:'THE GNOME RANGER', branches:[
+  { id:'marksman', name:'MARKSMAN', ic:'🏹', col:'#bfe89a', nodes:[
+    { id:'rsteady', tier:0, ranks:3, ic:'🎯', name:'Steady Aim',    stat:{dmg:.07}, chip:r=>'+'+7*r+'% arrows' },
+    { id:'rdraw',   tier:1, ranks:3, ic:'💨', name:'Quick Draw',    stat:{spd:.04}, chip:r=>'+'+4*r+'% faster' },
+    { id:'rpierce', tier:2, ranks:1, ic:'➶',  name:'Piercing Arrows', key:true, chip:()=>'every arrow ⤳ through +1' },
+    { id:'rcrit',   tier:3, ranks:3, ic:'💥', name:'Headhunter',    chip:r=>8*r+'% ⤳ ×2 CRIT' },
+    { id:'rstorm',  tier:4, ranks:1, ic:'🌧', name:'Arrow Storm', cap:true, chip:()=>'✦ Volley falls twice' } ] },
+  { id:'trapper', name:'TRAPPER', ic:'🪤', col:'#ffb86a', nodes:[
+    { id:'rpowder', tier:0, ranks:3, ic:'🧨', name:'Powder Keg',    stat:{tow:.04,aoe:.05}, chip:r=>'towers +'+4*r+'% · blasts +'+5*r+'%' },
+    { id:'rtangle', tier:1, ranks:3, ic:'🕸', name:'Tangleweave',   chip:r=>'his snares reload −'+12*r+'%' },
+    { id:'rperch',  tier:2, ranks:1, ic:'🦅', name:'Eagle Eye', key:true, chip:()=>'on a perch ⤳ +25% damage' },
+    { id:'rvenom',  tier:3, ranks:3, ic:'🧪', name:'Venomcraft',    chip:r=>'his venom halos +'+20*r+'%' },
+    { id:'rsky',    tier:4, ranks:1, ic:'🎆', name:'Skyfall', cap:true, chip:()=>'✦ his Sky Wreckers +2 rockets' } ] },
+  { id:'wilds', name:'WILDS', ic:'🐺', col:'#8ef0c8', nodes:[
+    { id:'rfleet',  tier:0, ranks:3, ic:'🦶', name:'Fleetfoot',     stat:{move:.05}, chip:r=>'+'+5*r+'% speed' },
+    { id:'rpack',   tier:1, ranks:3, ic:'🐾', name:'Packmate',      stat:{fam:.10}, chip:r=>'pet +'+10*r+'%' },
+    { id:'rdodge',  tier:2, ranks:1, ic:'🍃', name:'Light Feet', key:true, chip:()=>'15% ⤳ DODGE' },
+    { id:'rforage', tier:3, ranks:3, ic:'💧', name:'Forager',       stat:{mana:.08}, chip:r=>'+'+8*r+'% ◆' },
+    { id:'rpin',    tier:4, ranks:1, ic:'📌', name:'Pinning Volley', cap:true, chip:()=>'✦ Volley slows all it hits' } ] } ] },
+  // ...and the GNOME FIGHTER, the halo hero -- HALO: his four halos; RADIANCE: the staff; ZEAL: staying alive. Ids start with f.
+  fighter:{ name:'THE GNOME FIGHTER', branches:[
+  { id:'halo', name:'HALO', ic:'💫', col:'#ffe08a', nodes:[
+    { id:'fring',   tier:0, ranks:3, ic:'⭕', name:'Wider Rings',   stat:{aoe:.06}, chip:r=>'halos +'+6*r+'% wider' },
+    { id:'fpulse',  tier:1, ranks:3, ic:'💓', name:'Quick Pulse',   stat:{tcd:.06}, chip:r=>'towers +'+6*r+'% faster' },
+    { id:'fbind',   tier:2, ranks:1, ic:'🔗', name:'Binding Halo', key:true, chip:()=>'in his halos ⤳ −20% speed' },
+    { id:'fsurge',  tier:3, ranks:3, ic:'⚡', name:'Surge Master',  chip:r=>'Halo Surge +'+2*r+' s' },
+    { id:'fcrown',  tier:4, ranks:1, ic:'👑', name:'Crown of Halos', cap:true, chip:()=>'✦ Surge heals every tower' } ] },
+  { id:'radiance', name:'RADIANCE', ic:'☀', col:'#ffb04a', nodes:[
+    { id:'fbright', tier:0, ranks:3, ic:'🔆', name:'Bright Staff',  stat:{dmg:.07}, chip:r=>'+'+7*r+'% bolts' },
+    { id:'fswift',  tier:1, ranks:3, ic:'💨', name:'Swift Casting', stat:{spd:.04}, chip:r=>'+'+4*r+'% faster' },
+    { id:'fflare',  tier:2, ranks:1, ic:'🌞', name:'Solar Flare', key:true, chip:()=>'5th bolt ⤳ bursts' },
+    { id:'fglow',   tier:3, ranks:3, ic:'✨', name:'Radiance',      stat:{hp:.06}, chip:r=>'+'+6*r+'% health' },
+    { id:'fnova',   tier:4, ranks:1, ic:'🌟', name:'Nova', cap:true, chip:()=>'✦ Surge ring strikes twice' } ] },
+  { id:'zeal', name:'ZEAL', ic:'🔥', col:'#ff7a6a', nodes:[
+    { id:'fzeal',   tier:0, ranks:3, ic:'🏃', name:'Zealot',        stat:{move:.04,mana:.06}, chip:r=>'+'+4*r+'% speed · +'+6*r+'% ◆' },
+    { id:'fward',   tier:1, ranks:3, ic:'🛡', name:'Warding Light', chip:r=>'+'+4*r+' armor' },
+    { id:'fmend',   tier:2, ranks:1, ic:'💚', name:'Mending Light', key:true, chip:()=>'in his halos ⤳ heal 2%/s' },
+    { id:'fmana',   tier:3, ranks:3, ic:'🔮', name:'Mana Font',     stat:{mana:.10}, chip:r=>'+'+10*r+'% ◆' },
+    { id:'fmartyr', tier:4, ranks:1, ic:'✝', name:'Martyr\u2019s Light', cap:true, chip:()=>'✦ near death ⤳ burst + heal' } ] } ] } };
 let ALL={}; try{ const a=JSON.parse(localStorage.getItem(KEY)); if(a&&typeof a==='object') ALL=a; }catch(e){}
 const save=()=>{ try{ localStorage.setItem(KEY,JSON.stringify(ALL)); }catch(e){} };
 // waves held, each campaign wave once (seeded from the maps already cleared, so a returning player starts with theirs)
@@ -177,6 +217,56 @@ let AURA=null;
     if(vigilOn()) for(const d of defs){ const ring=d.mdl&&d.mdl.userData.wardRing; if(ring&&ring.visible) ring.material.opacity=.6+.3*Math.sin(S.t*9); }
     while(cyclone.length&&S.t>=cyclone[0].at){ const q=cyclone.shift(); KC.cyclone++; window.__mineHit=true; try{ for(const e of enemies.slice()){ if(e.dead) continue; const dx=e.x-hero.x, dz=e.z-hero.z, d=Math.hypot(dx,dz); if(d>=4+e.r) continue; const l=Math.max(d,.01); hurt(e,q.dmg,dx/l*3,dz/l*3); e.mineT=S.t; } }finally{ window.__mineHit=false; }
       if(window.__whirl){ window.__whirl.spin(); window.__whirl.vortex(hero.x,hero.z); } if(typeof shockRing==='function') shockRing(hero.x,baseFloor(hero.x,hero.z),hero.z,4); floatText(hero.x,hero.y+3,hero.z,'🌪 CYCLONE','#dfe8ff'); } }; }
+// ===== THE GNOME RANGER'S AND THE GNOME FIGHTER'S TALENTS (build 448). Every rank shows: gold CRIT arrows, arrows running through a second mob, a second Arrow Storm, an eagle on a perch, DODGE, PINNED mobs;
+// halos that slow (a blue shimmer on what they hold), a longer Surge, the Crown healing every tower, the Nova's second ring, Solar Flare bursts, the green glow of Mending Light, Martyr's Light once a wave.
+// A tower's talent goes by the hero who PLACED it (d.heroId, 97i-towerhero.js), as the Knight's do.
+const isR=()=>heroId()==='troll'&&!!tree(), isF=()=>heroId()==='fighter'&&!!tree();
+const hRank=(h,id)=>((ALL[h]||{})[id]|0);
+const towBy=(d,h)=>(d&&d.heroId&&!d.ownerId?d.heroId===h:heroId()===h);
+const RF={ crit:0, pierce:0, storm:0, eagle:0, dodge:0, pin:0, bind:0, crown:0, nova:0, flare:0, mend:0, martyr:0 };
+function rPierce(){ if(isR()&&rank('rpierce')){ RF.pierce++; return 1; } return 0; }
+function rCrit(){ const c=isR()?rank('rcrit'):0; if(c&&Math.random()<.08*c){ RF.crit++; return true; } return false; }
+const onPerch=()=>hero.dead<=0&&(hero.y||0)>=1.3&&defs.some(d=>d.kind==='perch'&&!d.dead&&Math.hypot(d.x-hero.x,d.z-hero.z)<1.7);
+let eagleOn=false;
+{ const prev=heroDmg; heroDmg=function(){ const v=prev.apply(this,arguments); if(isR()&&rank('rperch')&&onPerch()) return Math.round(v*1.25*10)/10; return v; }; }
+{ const prev=stat; stat=function(d,k){ let v=prev.apply(this,arguments); if(!d) return v;
+    if(k==='cd'&&d.kind==='snare'&&towBy(d,'troll')&&TREES.troll){ const t=hRank('troll','rtangle'); if(t) v*=1-.12*t; }
+    if(d.kind==='venom'&&(k==='dmg'||k==='poisonDur')&&towBy(d,'troll')&&TREES.troll){ const t=hRank('troll','rvenom'); if(t) v=Math.round(v*(1+.2*t)*10)/10; }
+    return v; }; }
+function skyBonus(d){ return (towBy(d,'troll')&&hRank('troll','rsky'))?2:0; }
+let martyrWave=-1;
+{ const prev=hurtHero; hurtHero=function(dmg){ if(hero.dead>0) return prev.apply(this,arguments);
+    if(isR()&&rank('rdodge')&&Math.random()<.15){ RF.dodge++; floatText(hero.x,hero.y+3,hero.z,'🍃 DODGE','#8ef0c8'); puff(hero.x,hero.y+1.2,hero.z,0x8ef0c8,1.4); return; }
+    const r=prev.apply(this,arguments);
+    if(isF()&&rank('fmartyr')&&martyrWave!==S.wave&&hero.dead<=0&&hero.hp>0&&hero.hp<hero.max*.25){ martyrWave=S.wave; RF.martyr++; hero.hp=Math.min(hero.max,hero.hp+hero.max*.4);
+      const bd=Math.round(heroDmg()*3*10)/10; window.__mineHit=true; try{ for(const e of enemies.slice()){ if(e.dead||Math.hypot(e.x-hero.x,e.z-hero.z)>5+e.r) continue; const dx=e.x-hero.x, dz=e.z-hero.z, l=Math.max(.01,Math.hypot(dx,dz)); hurt(e,bd,dx/l*3,dz/l*3); e.mineT=S.t; } }finally{ window.__mineHit=false; }
+      puff(hero.x,hero.y+1.3,hero.z,0xfff2c0,6); if(typeof shockRing==='function') shockRing(hero.x,baseFloor(hero.x,hero.z),hero.z,5); floatText(hero.x,hero.y+3.4,hero.z,'✝ MARTYR\u2019S LIGHT','#fff2c0'); camShake=Math.max(camShake,.4); }
+    return r; }; }
+{ const prev=heroStat; heroStat=function(k){ const v=prev.apply(this,arguments); if(k==='def'&&isF()) return v+4*rank('fward'); return v; }; }
+function surgeBonus(){ return isF()?2*rank('fsurge'):0; }
+const stormQ=[], novaQ=[];
+{ const prev=onSpecial; onSpecial=function(hid,p){ prev(hid,p); if(!p) return;
+    if(hid==='troll'&&isR()){ const dmg=Math.round(heroDmg()*3/5*10)/10;
+      if(rank('rpin')){ let n=0; for(const e of enemies){ if(e.dead||Math.hypot(e.x-p.x,e.z-p.z)>3.4+e.r) continue; e.slowT=Math.max(e.slowT||0,3); n++; } if(n){ RF.pin++; floatText(p.x,baseFloor(p.x,p.z)+2,p.z,'📌 PINNED','#8ef0c8'); } }
+      if(rank('rstorm')){ RF.storm++; for(let i=0;i<15;i++){ const a=Math.random()*TAU, r=Math.sqrt(Math.random())*2.5; stormQ.push({at:S.t+.7+i/15,x:p.x+Math.cos(a)*r,z:p.z+Math.sin(a)*r,dmg}); } floatText(p.x,baseFloor(p.x,p.z)+2.8,p.z,'🌧 ARROW STORM','#bfe89a'); } }
+    if(hid==='fighter'&&isF()){
+      if(rank('fcrown')){ RF.crown++; for(const d of defs){ if(!(d.max>0)||d.dead) continue; d.hp=Math.min(d.max,d.hp+d.max*.3); puff(d.x,(d.top||1)+.4,d.z,0xffe08a,1.4); } floatText(hero.x,hero.y+3.2,hero.z,'👑 CROWN OF HALOS','#ffe08a'); }
+      if(rank('fnova')) novaQ.push({at:S.t+.45,x:p.x,z:p.z,dmg:p.dmg||Math.round(heroDmg()*2*10)/10}); } }; }
+let flareN=0;
+{ const prev=onBolt; onBolt=function(e,b){ prev(e,b); if(!e||!isF()||!rank('fflare')) return; if((++flareN)%5) return; RF.flare++; const bd=Math.round(((b&&b.dmg)||heroDmg())*.6*10)/10;
+    window.__mineHit=true; try{ for(const o of enemies.slice()){ if(o.dead||Math.hypot(o.x-e.x,o.z-e.z)>2.6+o.r) continue; hurt(o,bd,0,0); o.mineT=S.t; } }finally{ window.__mineHit=false; } puff(e.x,e.y+.8,e.z,0xffd24a,3.2); floatText(e.x,e.y+e.h+.6,e.z,'🌞 FLARE','#ffd24a'); }; }
+let HIS=[]; const AUR=new Set(['zap','venom','ember','dazzle']);
+{ const prev=mobSpd; mobSpd=function(e){ const v=prev.apply(this,arguments); if(!HIS.length||!v) return v; for(const h of HIS) if(Math.hypot(e.x-h.x,e.z-h.z)<=h.r){ e.boundT=.2; return v*.8; } return v; }; }
+const BOUND=new Map(); let mendFx=0;
+{ const prev=updateEnemies; updateEnemies=function(dt){
+    HIS=TREES.fighter&&hRank('fighter','fbind')?defs.filter(d=>!d.dead&&AUR.has(d.kind)&&towBy(d,'fighter')).map(d=>({x:d.x,z:d.z,r:stat(d,'range')})):[];
+    prev(dt);
+    for(const e of enemies){ if(e.boundT>0){ e.boundT-=dt; RF.bind++; } if(!e.dead&&e.boundT>0) tag(BOUND,e,0x9fd8ff,.9,.2); else untag(BOUND,e); } for(const [e] of BOUND) if(!enemies.includes(e)) untag(BOUND,e);
+    while(stormQ.length&&S.t>=stormQ[0].at){ const q=stormQ.shift(); window.__mineHit=true; try{ for(const e of enemies.slice()){ if(e.dead||Math.hypot(e.x-q.x,e.z-q.z)>.9+e.r) continue; hurt(e,q.dmg,0,0); e.mineT=S.t; if(rank('rpin')) e.slowT=Math.max(e.slowT||0,3); } }finally{ window.__mineHit=false; } puff(q.x,baseFloor(q.x,q.z)+.6,q.z,0xbfe89a,1.1); }
+    while(novaQ.length&&S.t>=novaQ[0].at){ const q=novaQ.shift(); RF.nova++; window.__mineHit=true; try{ for(const e of enemies.slice()){ if(e.dead||Math.hypot(e.x-q.x,e.z-q.z)>8+e.r) continue; hurt(e,q.dmg,0,0); e.mineT=S.t; } }finally{ window.__mineHit=false; } if(typeof shockRing==='function') shockRing(q.x,baseFloor(q.x,q.z),q.z,8); puff(q.x,baseFloor(q.x,q.z)+1.4,q.z,0xfff2a0,5); floatText(q.x,baseFloor(q.x,q.z)+3,q.z,'🌟 NOVA','#fff2a0'); }
+    if(isR()&&rank('rperch')){ const on=onPerch(); if(on&&!eagleOn){ RF.eagle++; floatText(hero.x,hero.y+3,hero.z,'🦅 EAGLE EYE','#ffb86a'); } eagleOn=on; } else eagleOn=false;
+    if(isF()&&rank('fmend')&&hero.dead<=0&&hero.hp<hero.max){ const inHalo=defs.some(d=>!d.dead&&AUR.has(d.kind)&&towBy(d,'fighter')&&Math.hypot(d.x-hero.x,d.z-hero.z)<=stat(d,'range'));
+      if(inHalo){ hero.hp=Math.min(hero.max,hero.hp+hero.max*.02*dt); RF.mend+=dt; mendFx-=dt; if(mendFx<=0){ mendFx=.6; puff(hero.x,hero.y+1.6,hero.z,0x6aff7a,1.1); } } } }; }
 // ---- the TALENTS tab: the tree for a hero who has one; the flat skills (under the same tab name) for one who doesn't yet. N opens it from anywhere.
 const css=document.createElement('style'); css.textContent=
  '.tal-top{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}.tal-top h3{margin:0;font:800 16px Georgia,serif;letter-spacing:2px;color:#ffd27a}.tal-pts{padding:3px 10px;border-radius:12px;background:#3a2a10;border:1px solid #ffd27a;color:#ffd27a;font:800 13px system-ui}.tal-pts.none{opacity:.55}'
@@ -202,6 +292,6 @@ document.addEventListener('click',e=>{ const t=e.target.closest&&e.target.closes
   redraw(); },true);
 function openTree(){ const TV=window.__tavern; if(!TV) return false; if(TV.isOpen()){ TV.close(); return false; } if(S.phase==='start') return false; TV.open(); TV.tab('skills'); return true; }
 addEventListener('keydown',e=>{ if(e.code!=='KeyN'||e.repeat) return; const ae=document.activeElement; if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')) return; if(window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen()) return; e.preventDefault(); openTree(); },true);
-window.__talents={knight:()=>Object.assign({ swingN, rush:S.t<rushT, aegis:S.t<aegisT, stillT:+stillT.toFixed(2), vigil:!!vigilOn(), bleeding:BLEED.size, arcs:ARCS.length, queued:cyclone.length },KC), cast:()=>hitCone(),tree:()=>tree()&&heroId(),rank,spend,respec,avail,spent,total,held:()=>HELD.size,mult:k=>tree()?talentMult(k):null,boltMods,onBolt,onSpecial,openTree,gate:GATE,sig:()=>SIG.size,ooze:()=>OOZE.size,
+window.__talents={ rPierce, rCrit, skyBonus, surgeBonus, hurtHero:n=>hurtHero(n), rf:()=>Object.assign({ his:HIS.length, eagle:eagleOn, storms:stormQ.length, novas:novaQ.length },RF), knight:()=>Object.assign({ swingN, rush:S.t<rushT, aegis:S.t<aegisT, stillT:+stillT.toFixed(2), vigil:!!vigilOn(), bleeding:BLEED.size, arcs:ARCS.length, queued:cyclone.length },KC), cast:()=>hitCone(),tree:()=>tree()&&heroId(),rank,spend,respec,avail,spent,total,held:()=>HELD.size,mult:k=>tree()?talentMult(k):null,boltMods,onBolt,onSpecial,openTree,gate:GATE,sig:()=>SIG.size,ooze:()=>OOZE.size,
   nodes:()=>{ const T=tree(); return T?T.branches.map(b=>({id:b.id,nodes:b.nodes.map(n=>({id:n.id,tier:n.tier,ranks:n.ranks,rank:rank(n.id),open:open(b,n)}))})):null; },state:()=>JSON.parse(JSON.stringify(ALL)),html:()=>tree()?treeHtml():''};
 })();
