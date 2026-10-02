@@ -71,8 +71,16 @@ function statsUpdate(){ ensureStats(); manaWatch(); if(!hsEl) return; const s=he
 // ---- the defense you are standing at: its numbers ----
 let dcEl=null, dcKey='';
 function chevHtml(l){ const n=chevCount(l); return n?'<span class="dc-chevs" title="'+n+' chevron'+(n>1?'s':'')+'">'+'<span class="dc-cv"></span>'.repeat(n)+'</span>':''; }   // build 177: the Mark V+ tower's gold chevrons (game.js towerChevrons), drawn small on the card too
+// build 499: the card on a co-op GUEST's screen -- the host's tower its E will act on (99-network.js guestPick): its name and mark, health, kills, and what E and X will do
+function guestCard(p){ const cfg=DEFS[p.kind]; const rows=[]; const R=(l,v)=>rows.push('<div class="dc-r"><i>'+l+'</i><b>'+v+'</b></div>'); const hurt=p.max&&p.hp<p.max;
+  R('❤ Health','<span class="dc-hp">'+Math.ceil(p.hp||0)+'</span> / '+(p.max||'?')); R('💀 Kills',(p.kills|0).toLocaleString());
+  if(hurt) R('🔧 Repair · E',Math.ceil((p.max-p.hp)/8)+' ◆ mana'); if(p.lvl<MAXLVL) R(hurt?'⬆ Upgrade (after repair)':'⬆ Upgrade · E',upCost(p)+' ◆ mana → Mk '+MARK[p.lvl+1]+chevHtml(p.lvl+1)); else R('⬆ Upgrade','Mark '+MARK[MAXLVL]+' — the top mark');
+  if(p.spent) R('✖ Sell · X','+'+Math.round(p.spent*.7)+' ◆ mana');
+  const key='g'+p.id+p.lvl+'|'+rows.join(''); if(key===dcKey) return; dcKey=key; dcEl.innerHTML='<div class="dc-n">'+cfg.ic+' '+cfg.name+' · Mark '+MARK[p.lvl]+chevHtml(p.lvl)+'</div>'+rows.join(''); dcEl.classList.add('show'); }
 function defCard(){ if(!dcEl){ const anchor=$('herostats')||$('xpline')||$('gear'); if(!anchor) return; dcEl=document.createElement('div'); dcEl.id='defcard'; anchor.insertAdjacentElement('afterend',dcEl); }
-  const d=(S.phase==='build'||S.phase==='wave')&&!placing?pickDef():null;   /* build 165: the same tower E will act on (game.js pickDef) */ if(!d){ if(dcKey){ dcKey=''; dcEl.classList.remove('show'); } return; }
+  const d=(S.phase==='build'||S.phase==='wave')&&!placing?pickDef():null;   /* build 165: the same tower E will act on (game.js pickDef) */
+  if(!d&&(S.phase==='build'||S.phase==='wave')&&!placing&&window.__defsync&&window.__defsync.pick){ const p=window.__defsync.pick(); if(p&&DEFS[p.kind]){ guestCard(p); return; } }   // build 499: a co-op guest's card, from the host's towers it sees
+  if(!d){ if(dcKey){ dcKey=''; dcEl.classList.remove('show'); } return; }
   const cfg=DEFS[d.kind]; const rows=[]; const R=(l,v)=>rows.push('<div class="dc-r"><i>'+l+'</i><b>'+v+'</b></div>');
   R('❤ Health','<span class="dc-hp">'+Math.ceil(d.hp)+'</span> / '+d.max); R('💀 Kills',(d.kills|0).toLocaleString());   /* build 463 (Matt: "one of the little numbers should show how many mobs it's killed") */
   if(cfg.dmg!==undefined) R('⚔ Damage',stat(d,'dmg')); if(cfg.cd!==undefined) R('⚡ Rate',(1/stat(d,'cd')).toFixed(2)+'/s'); if(cfg.range) R('📏 Range',Math.round(stat(d,'range')*10)/10); if(cfg.arcs||(cfg.arc&&cfg.arc<360)) R('◔ Cone',arcOf(d)+'°'); if(cfg.thorns){ const k=(1+.25*((d.lvl||1)-1))*(1+oStat(d,'tow')/100); R('🌵 Thorns',Math.round(50*k)+'% of each hit +'+Math.round(cfg.thorns*k)); }   // build 163: what game.js's thornsBack returns to a melee attacker R('🌱 Roots',cfg.du);

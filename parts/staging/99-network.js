@@ -887,7 +887,7 @@ function hostBroadcastWorld(dt){
   // personal resource). mana:S.mana stays too, unchanged meaning (the HOST's own pool) -- nothing else reads it
   // differently than before, so no existing caller (tests included) needed to change.
   const manas={}; manas[selfId]=S.mana; guestMana.forEach((v,id)=>{ manas[id]=v; });
-  sendSnap('world',{crystal:S.crystal,crystal2:GOAL2>=0?S.crystal2:null,crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,held:!!S.held,waveTotal:runWaves(),survival:!!SURVIVAL,diff:window.__difficulty?window.__difficulty.id():'normal',mapName:MAP.name,mana:S.mana,manas,du:S.du,duCap:DU_CAP,hk:(window.__hideout&&window.__hideout.ownKey)?window.__hideout.ownKey():'main'});   // hk (build 377): the host's hideout key -- a guest visiting the hideout is sent to the HOST's table (59-hideout.js)
+  sendSnap('world',{crystal:S.crystal,crystal2:GOAL2>=0?S.crystal2:null,crystal3:(typeof GOAL3!=='undefined'&&GOAL3>=0)?S.crystal3:null,   /* build 499 (Matt, with Jacob: "his heartroot health didn't change when one took damage"): the Drawbridge's third, the keep's */ crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,held:!!S.held,waveTotal:runWaves(),survival:!!SURVIVAL,diff:window.__difficulty?window.__difficulty.id():'normal',mapName:MAP.name,mana:S.mana,manas,du:S.du,duCap:DU_CAP,hk:(window.__hideout&&window.__hideout.ownKey)?window.__hideout.ownKey():'main'});   // hk (build 377): the host's hideout key -- a guest visiting the hideout is sent to the HOST's table (59-hideout.js)
    // held (build 160): the host's hall is on its victory lap -- phase 'build', but no horn to wait for
 }
 // a guest's own local S.phase never actually moves through 'deathcut'/'dead'/'won' -- only the HOST's real crystal
@@ -1132,7 +1132,16 @@ function defPuppetsTick(dt){ if(role!=='guest') return; DEFPUP.forEach(p=>{ towe
   if(fx.phase==='charge'){ fx.k=Math.min(1,fx.t/fx.dur); if(fx.t>fx.dur+1){ fx.phase='rest'; fx.t=0; } } else if(fx.phase==='boom'){ if(fx.t>=.45){ fx.phase='rest'; fx.t=0; fx.k=0; } } else if(fx.t>fx.next){ fx.t=0; fx.next=R(3,7); fx.flex=.5; }
   if(fx.cloud>0) fx.cloud-=dt; cageAnim(p.mdl,fx,dt,fx.phase==='rest'?0:1); }); }
 function defPuppetRemove(id){ const p=DEFPUP.get(id); if(!p) return; scene.remove(p.mdl); if(p.railboxes) for(const b of p.railboxes){ const i=RAILBOXES.indexOf(b); if(i>=0) RAILBOXES.splice(i,1); } DEFPUP.delete(id); }   // no manual dispose, same reasoning as mob puppets: the real defs array's own removeDef never disposes either
-window.__defsync={ list:()=>[...DEFPUP.keys()], get:id=>{ const p=DEFPUP.get(id); if(!p) return null; return {id,kind:p.kind,lvl:p.lvl,chev:p.chev&&p.chev.parent===p.mdl?p.chev.userData.n:0,x:+p.mdl.position.x.toFixed(2),y:+p.mdl.position.y.toFixed(2),z:+p.mdl.position.z.toFixed(2)}; } };
+// build 499 (Matt, playing with Jacob: "when he walks up to a tower it doesn't say on bottom which one he's targeting, so he has a hard time upgrading the right defense"): a guest's E is the host's pickDef
+// (game.js) run at the guest's own spot and facing -- the guest's screen now runs the SAME pick over the towers it sees, rings the one E will act on (gold: upgrade, green: repair) and shows its card (60-lootfeel.js)
+function guestPick(){ if(role!=='guest'||!hero) return null; const fx=Math.sin(hero.yaw||0), fz=Math.cos(hero.yaw||0); let best=null, bs=1e9;
+  DEFPUP.forEach((p,id)=>{ if(p.x===undefined) return; const dx=p.x-hero.x, dz=p.z-hero.z, dist=Math.hypot(dx,dz); if(dist>=3.4) return; const facing=dist>.05?(1-(dx*fx+dz*fz)/dist):1; const hurt=p.max&&p.hp<p.max;
+    const sc=(hurt?0:10)+facing*1.6+dist*.35; if(sc<bs){ bs=sc; best={ id, kind:p.kind, lvl:p.lvl, hp:p.hp, max:p.max, kills:p.kills|0, spent:p.spent|0, x:p.x, y:p.y, z:p.z }; } }); return best; }
+let gRing=null;
+function guestRing(p){ if(!p){ if(gRing) gRing.visible=false; return; } if(!gRing){ gRing=new THREE.Mesh(new THREE.RingGeometry(.82,1,40),new THREE.MeshBasicMaterial({color:0xe8b94a,transparent:true,opacity:.6,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); gRing.rotation.x=-PI/2; gRing.userData.noOL=true; scene.add(gRing); }
+  const hurt=p.max&&p.hp<p.max; gRing.visible=true; gRing.material.color.setHex(hurt?0x5ef0a0:0xe8b94a); gRing.scale.setScalar(1.25); gRing.position.set(p.x,(p.y||0)+.06,p.z); gRing.material.opacity=.45+.25*Math.sin(S.t*6); }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(role!=='guest'){ if(gRing) gRing.visible=false; return; } guestRing((S.phase==='build'||S.phase==='wave')&&!placing?guestPick():null); }; }
+window.__defsync={ pick:guestPick, list:()=>[...DEFPUP.keys()], get:id=>{ const p=DEFPUP.get(id); if(!p) return null; return {id,kind:p.kind,lvl:p.lvl,chev:p.chev&&p.chev.parent===p.mdl?p.chev.userData.n:0,x:+p.mdl.position.x.toFixed(2),y:+p.mdl.position.y.toFixed(2),z:+p.mdl.position.z.toFixed(2)}; } };
 // ---- build 376 (Matt: "he cannot see projectiles from ballistas"): a tower's shot was a host-only object -- fire() (game.js) pushes it into the host's own `projs`, and a guest's screen only ever showed the read-only tower. The host now says each shot it fires (a ballista's bolt, an acorn cannon's three acorns, a trebuchet's turnip: where it starts and how it flies), and a guest flies the same projectile on its own screen, drawn and moving as the host's (updateProj), with no damage (its `enemies` are empty; the host's shot already hurt the real mobs). The hit sound/splash of a turnip ride along for free
 const SHOT_KINDS={harpoon:1,acorn:1,turnip:1,arrow:1}; let shotsSent=0, shotsSeen=0;
 function sendShots(from,d){ if(role!=='host'||!conns.size) return; for(let i=from;i<projs.length;i++){ const p=projs[i]; if(!p||!SHOT_KINDS[p.kind]) continue; const f=v=>+(+v||0).toFixed(3);
@@ -1155,14 +1164,14 @@ function hostBroadcastDefs(dt){
   if(role!=='host'||!conns.size) return;
   syncTD+=dt; if(syncTD<.5) return; syncTD=0;   // static once placed -- 2Hz is plenty to catch a new one, an upgrade, or one destroyed
   const list=defs.map(d=>{ if(!d.__coopId) d.__coopId='d'+(nextDefId++);
-    return {id:d.__coopId,kind:d.kind,lvl:d.lvl||1,x:+d.x.toFixed(2),y:+d.base.toFixed(2),z:+d.z.toFixed(2),rot:+d.rot.toFixed(2)}; });
+    return {id:d.__coopId,kind:d.kind,lvl:d.lvl||1,x:+d.x.toFixed(2),y:+d.base.toFixed(2),z:+d.z.toFixed(2),rot:+d.rot.toFixed(2),hp:Math.ceil(d.hp),max:d.max,kills:d.kills|0,spent:Math.round(d.spent||0)}; });   /* build 499: hp/max/kills/spent -- a guest's own tower card and pick (below) */
   sendSnap('defs',{list});
 }
 onMessage('defs',data=>{
   const ids=new Set();
   data.list.forEach(d=>{ ids.add(d.id);
-    let p=DEFPUP.get(d.id);
-    if(!p){ defPuppetAdd(d.id,d.kind,d.lvl,d.x,d.y,d.z,d.rot); if(GSFX.defsSeen){ SFX.place(); GSFX.place++; } return; }   // a defense set down since the last list: the placement sound (build 147), whoever placed it
+    let p=DEFPUP.get(d.id); if(p){ p.hp=d.hp; p.max=d.max; p.kills=d.kills; p.spent=d.spent; p.x=d.x; p.y=d.y; p.z=d.z; }
+    if(!p){ defPuppetAdd(d.id,d.kind,d.lvl,d.x,d.y,d.z,d.rot); const np=DEFPUP.get(d.id); if(np){ np.hp=d.hp; np.max=d.max; np.kills=d.kills; np.spent=d.spent; np.x=d.x; np.y=d.y; np.z=d.z; } if(GSFX.defsSeen){ SFX.place(); GSFX.place++; } return; }   // a defense set down since the last list: the placement sound (build 147), whoever placed it
     ensureDefMark(d.kind,d.lvl); ensureDefMark(d.kind,d.lvl+1); const T=defTemplate(d.kind,d.lvl);   // an upgrade on the host asks for that mark's model here too (and the next one up), as reskinDefs does for the host's own
     if(d.lvl>p.lvl){ SFX.place(); GSFX.upgrade++; }   // a mark up: the same sound the host hears for it (build 147)
     if(p.lvl!==d.lvl||(T&&p.mdl.userData.tpl!==T)){ scene.remove(p.mdl); p.mdl=makeDef(d.kind,false,d.lvl); p.mdl.position.set(d.x,d.y,d.z); p.mdl.rotation.y=d.rot; scene.add(p.mdl); p.lvl=d.lvl; }   // a new mark, or its model just landed (the first build wore the mark below while it downloaded): the same test reskinDefs makes, caught on the host's next list, twice a second

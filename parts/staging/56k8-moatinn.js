@@ -46,7 +46,7 @@ let bar3=null; if(GOAL3>=0&&bar1B){ const b=bar1B.cloneNode(true); const i=b.que
 let last3=null, strip3T=0;
 if(GOAL3>=0){ const prev=Meta.update; Meta.update=dt=>{ prev(dt); buildHeart3();
     if(H3CG){ H3CG.rotation.y=h2t*.7+1; H3CG.position.y=(crystalG.userData.cgY||2.7)+Math.sin(h2t*1.6+1)*.15+(crystal3Shake>0?(rnd()-.5)*.3:0); H3SH.forEach((s,k)=>{ const a=s.userData.a+h2t*1.4; s.position.set(Math.cos(a)*1.7,Math.sin(h2t*2+k)*.5,Math.sin(a)*1.7); }); }
-    crystal3Shake=Math.max(0,crystal3Shake-dt); const c3=S.crystal3; if(bar3) bar3.style.width=Math.max(0,c3/CRYSTAL_MAX*100)+'%';
+    crystal3Shake=Math.max(0,crystal3Shake-dt); const N3=window.__net, hw3=N3&&N3.role&&N3.role()==='guest'&&N3.world&&N3.world(); const c3=hw3&&hw3.crystal3!=null?hw3.crystal3:S.crystal3;   /* build 499: a guest's keep bar is the host's keep */ if(bar3) bar3.style.width=Math.max(0,c3/CRYSTAL_MAX*100)+'%';
     const strip=document.getElementById('alarm'); if(last3!==null&&c3<last3&&c3>0&&(S.phase==='wave'||S.phase==='build')&&strip){ strip.textContent='⚠ THE KEEP HEARTROOT IS UNDER ATTACK'; strip.classList.add('on'); strip3T=2.5; }
     if(strip3T>0){ strip3T-=dt; if(strip3T<=0&&strip){ strip.classList.remove('on'); strip.textContent='⚠ THE HEARTROOT IS UNDER ATTACK'; } } last3=c3; }; }
 window.__moatinn={ keep:()=>({ goal3:GOAL3>=0?[GOAL3%GW,(GOAL3/GW)|0]:null, h3:GOAL3>=0?H3Y:null, heart3:!!H3CG, bar3:!!bar3, keepSent:cnt.keep }), f3:()=>F3, info:()=>({ sent:cnt.sent, heart2:!!H2CG, bar2:!!bar2, goal2:[GOAL2%GW,(GOAL2/GW)|0], h2:hgt[GOAL2] }), f2:()=>F2, steps:(cx,cz,which)=>{ const F=which===2?F2.free:flowFree; let i=idx(cx,cz), n=0; while(i>=0&&!isGoal(i)&&n<900){ i=F.nxt[i]; n++; } return i>=0&&isGoal(i)?{ n, end:i===GOAL2?2:1 }:null; } };
