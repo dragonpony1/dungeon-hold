@@ -151,10 +151,81 @@ const v3=new THREE.Vector3();
     hud(true); }; }
 // the hero's feet never wander off the ball while putting (the game's own movement would walk him)
 { const prev=heroUpdate; heroUpdate=function(dt){ prev.apply(this,arguments); if(GF.on){ hero.moving=false; } }; }
+// ---------------------------------------------------------------- THE CINEMATIC (build 481). Matt: "we should have a nice cinematic for the mini golf ... I love the cinematics. make it like 25 seconds long".
+// The first time a hero steps onto a tee and presses E (once on this computer -- my call: 25 s every run would wear thin; SHIFT+E on a tee plays it again), the hall holds still and the camera tours the course:
+//   0-4.5  a crane up the white tree, the title     4.5-9.5  hole 1: low down the rampart, a ball rolls the length and drops -- an ace
+//   9.5-14 hole 2: round the windmill, the ball slips through the arch between the sails     14-19  hole 3: down by the moat, the bridge comes down, the ball runs across
+//   19-23.5 hole 4: into the catapult, the fling, the camera rides the ball up and over onto the island by the tree     23.5-25  up and wide over the whole course, sludge bursting from all four cups
+// SPACE or ENTER skips it (after its first second). Then the hole begins.
+const CINE_T=25, CINE_KEY='dd_golf_cine';
+let CUT=null;
+{ const st=document.createElement('style'); st.textContent='#golfcut{position:fixed;inset:0;z-index:60;pointer-events:none;display:none}#golfcut .lb{position:absolute;left:0;right:0;height:11vh;background:#000}#golfcut .lbt{top:0}#golfcut .lbb{bottom:0}'
+  +'#golfcut .title{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);text-align:center;opacity:0;transition:opacity .8s}#golfcut .title b{display:block;font:900 clamp(40px,6.4vw,92px) Georgia,serif;color:#ffe9a8;-webkit-text-stroke:2px #6a4a10;text-shadow:0 0 26px #7ad06a,0 6px 0 #2a4a14;letter-spacing:4px}'
+  +'#golfcut .title i{display:block;margin-top:8px;font:italic 700 clamp(18px,2.2vw,30px) Georgia,serif;color:#e8ffe0;text-shadow:0 3px 6px #000}'
+  +'#golfcut .card{position:absolute;left:5vw;bottom:calc(11vh + 26px);opacity:0;transform:translateX(-30px);transition:opacity .45s,transform .45s;display:flex;align-items:center;gap:14px}#golfcut .card.on{opacity:1;transform:none}'
+  +'#golfcut .card .n{width:64px;height:64px;border-radius:10px;background:#2d7a2a;border:3px solid #ffd27a;font:900 40px Georgia;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 0 #14380f}'
+  +'#golfcut .card .t{font:900 clamp(22px,2.6vw,36px) Georgia,serif;color:#ffe9a8;text-shadow:0 3px 6px #000;letter-spacing:2px}#golfcut .card .p{font:700 16px Georgia;color:#cfe9b8;text-shadow:0 2px 4px #000}'
+  +'#golfcut .stamp{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%) rotate(-6deg) scale(3);opacity:0;font:900 clamp(48px,7vw,104px) Georgia,serif;color:#b46aff;-webkit-text-stroke:3px #ffd27a;text-shadow:0 0 28px #b46aff,0 8px 0 #3a1460;white-space:nowrap}'
+  +'#golfcut .skip{position:absolute;right:18px;bottom:calc(11vh + 10px);font:13px Georgia;color:#d8e8c8;opacity:.7}';
+  document.head.appendChild(st); }
+const cutEl=document.createElement('div'); cutEl.id='golfcut';
+cutEl.innerHTML='<div class="lb lbt"></div><div class="lb lbb"></div><div class="title"><b>THE WHITE TREE LINKS</b><i>⛳ four holes · par 11 · 🫙 Legendary sludge</i></div><div class="card"><div class="n">1</div><div><div class="t"></div><div class="p"></div></div></div><div class="stamp">⛳ PLAY FOR SLUDGE</div><div class="skip">SPACE to skip ▸▸</div>';
+document.body.appendChild(cutEl);
+const sm=k=>k<=0?0:k>=1?1:k*k*(3-2*k), lp=(a,b,k)=>a+(b-a)*k, V=(x,y,z)=>new THREE.Vector3(x,y,z);
+const vl=(a,b,k)=>V(lp(a.x,b.x,k),lp(a.y,b.y,k),lp(a.z,b.z,k));
+let cineBalls=[], cineFx=[];
+function cineBall(){ const m=ballMesh(); cineBalls.push(m); return m; }
+function cineBurst(x,z,col){ for(let i=0;i<14;i++){ const s=glow(i%2?0xffd27a:col,.7,.95); s.position.set(x,TURF+.4,z); scene.add(s); const a=i/14*TAU; cineFx.push({ s, vx:Math.cos(a)*(2+Math.random()*2), vy:4+Math.random()*3, vz:Math.sin(a)*(2+Math.random()*2), t:0 }); } }
+// the ball along a run of points, eased, at time k (0..1)
+function along(pts,k){ let tot=0; const L=[]; for(let i=0;i<pts.length-1;i++){ const d=Math.hypot(pts[i+1].x-pts[i].x,pts[i+1].z-pts[i].z); L.push(d); tot+=d; } let r=Math.max(0,Math.min(1,k))*tot;
+  for(let i=0;i<L.length;i++){ if(r<=L[i]||i===L.length-1){ const u=L[i]?Math.min(1,r/L[i]):1; return { x:lp(pts[i].x,pts[i+1].x,u), z:lp(pts[i].z,pts[i+1].z,u) }; } r-=L[i]; } return pts[pts.length-1]; }
+function playCine(after){ if(CUT) return; try{ localStorage.setItem(CINE_KEY,'1'); }catch(e){}
+  const H=HOLES, tr=W(9.5,44.5), h1=H[0], h2=H[1], h3=H[2], h4=H[3];
+  const mill=W(h2.mill.at[0],h2.mill.at[1]), md=h2.segs[h2.mill.seg], brg=W(h3.bridge.at[0],h3.bridge.at[1]), bd=h3.segs[h3.bridge.seg], cat=W(h4.cat.at[0],h4.cat.at[1]);
+  CUT={ t:0, after, shown:{}, slam:false,
+    b1:cineBall(), b2:cineBall(), b3:cineBall(), b4:cineBall(),
+    p1:[h1.T,h1.C], p2:[{ x:mill.x-md.dx*3.2, z:mill.z-md.dz*3.2 }, { x:mill.x+md.dx*1.6, z:mill.z+md.dz*1.6 }, h2.wp[2]?{ x:h2.wp[1].x, z:h2.wp[1].z }:h2.C, h2.C], p3:[{ x:brg.x-bd.dx*5, z:brg.z-bd.dz*5 }, h3.C], p4:[{ x:cat.x, z:cat.z+3.4 }, { x:cat.x, z:cat.z }],
+    tr, mill, md, brg, bd, cat, h1, h2, h3, h4 };
+  for(const b of [CUT.b1,CUT.b2,CUT.b3,CUT.b4]) b.visible=false;
+  cutEl.style.display='block'; cutEl.querySelector('.title').style.opacity='0'; cutEl.querySelector('.stamp').style.cssText=''; document.body.classList.add('avery-cut'); pEl.style.display='none'; cEl.style.display='none'; lastP=''; }
+function endCine(){ if(!CUT) return; const after=CUT.after; CUT=null; for(const b of cineBalls) scene.remove(b); cineBalls=[]; for(const f of cineFx) scene.remove(f.s); cineFx=[]; cutEl.style.display='none'; document.body.classList.remove('avery-cut'); cutEl.querySelector('.card').classList.remove('on'); if(after) after(); }
+function card(n,name,sub){ const c=cutEl.querySelector('.card'); c.querySelector('.n').textContent=n; c.querySelector('.t').textContent=name; c.querySelector('.p').textContent=sub; c.classList.add('on'); }
+function stepCine(dt){ const c=CUT; c.t+=dt; const t=c.t; updateFx(dt);
+  for(let i=cineFx.length-1;i>=0;i--){ const f=cineFx[i]; f.t+=dt; f.vy-=9*dt; f.s.position.x+=f.vx*dt; f.s.position.y+=f.vy*dt; f.s.position.z+=f.vz*dt; f.s.material.opacity=Math.max(0,.95-f.t*.7); if(f.t>1.4){ scene.remove(f.s); cineFx.splice(i,1); } }
+  const ttl=cutEl.querySelector('.title'), cd=cutEl.querySelector('.card'), stp=cutEl.querySelector('.stamp');
+  let pos, look;
+  if(t<4.5){ const k=sm(t/4.5); pos=vl(V(c.tr.x-6,1.6,c.tr.z+7),V(c.tr.x-8,15,c.tr.z+13),k); look=vl(V(c.tr.x,4,c.tr.z),V(c.tr.x+2,2,c.tr.z-2),k); ttl.style.opacity=t>.8&&t<4.1?'1':'0'; }
+  else if(t<9.5){ ttl.style.opacity='0'; if(!c.shown[1]){ c.shown[1]=1; card(1,'THE RAMPART','par 2'); } const u=t-4.5, k=sm(u/5), h=c.h1, d=h.segs[0];
+    pos=V(h.T.x-d.dx*3+lp(0,d.dx*11,k),1.3+k*.6,h.T.z-d.dz*3+lp(0,d.dz*11,k)); look=V(pos.x+d.dx*7,.4,pos.z+d.dz*7);
+    const kb=sm((u-.5)/3.6); c.b1.visible=u>.4&&kb<1; const p=along(c.p1,kb); c.b1.position.set(p.x,TURF+BR,p.z); c.b1.rotation.x+=dt*8;
+    if(kb>=1&&!c.shown.ace1){ c.shown.ace1=1; cineBurst(h.C.x,h.C.z,0x7ad06a); floatText(h.C.x,2.2,h.C.z,'⛳ ACE!','#ffd27a'); try{ SFX.crystal&&SFX.crystal(); }catch(e){} } }
+  else if(t<14){ if(!c.shown[2]){ c.shown[2]=1; card(2,'THE MILL','par 3'); if(MILL.act) MILL.act.time=2.0; } const u=t-9.5, k=sm(u/4.5);
+    pos=vl(V(c.mill.x+2.5,2.4,c.mill.z+7.5),V(c.mill.x+7.5,4.2,c.mill.z+1),k);   /* the west wall is close: the camera keeps to the course side */ look=V(c.mill.x,2.2,c.mill.z);
+    const kb=Math.max(0,Math.min(1,(u-1.2)/2.4)); c.b2.visible=u>1.1&&kb<1; const p=along(c.p2,kb); c.b2.position.set(p.x,TURF+BR,p.z); c.b2.rotation.x+=dt*8; }
+  else if(t<19){ if(!c.shown[3]){ c.shown[3]=1; card(3,'THE DRAWBRIDGE','par 3'); if(BRIDGE.act) BRIDGE.act.time=0; } const u=t-14, k=sm(u/5), side={ x:-c.bd.dz, z:c.bd.dx };
+    pos=V(c.brg.x+side.x*6.5-c.bd.dx*(2-k*3),1.6+k*.8,c.brg.z+side.z*6.5-c.bd.dz*(2-k*3)); look=V(c.brg.x-c.bd.dx*1.5,.8,c.brg.z-c.bd.dz*1.5);
+    const kb=Math.max(0,Math.min(1,(u-2.2)/2.4)); c.b3.visible=u>2.1&&kb<1; const p=along(c.p3,sm(kb)); c.b3.position.set(p.x,TURF+BR,p.z); c.b3.rotation.x+=dt*8; }
+  else if(t<23.5){ if(!c.shown[4]){ c.shown[4]=1; card(4,'THE SIEGE','par 3'); } const u=t-19, h=c.h4, I=h.I;
+    let bp;
+    if(u<1.0){ const p=along(c.p4,sm(u/1.0)); bp=V(p.x,TURF+BR,p.z); }
+    else { if(!c.shown.fling){ c.shown.fling=1; if(CAT.fling){ CAT.idle.stop(); CAT.fling.reset().play(); setTimeout(()=>{ if(CAT.fling){ CAT.fling.stop(); CAT.idle.reset().play(); } },3000); } try{ SFX.thud&&SFX.thud(); }catch(e){} }
+      const kf=Math.max(0,Math.min(1,(u-1.35)/1.5)); bp=V(lp(c.cat.x,h.C.x,kf),TURF+BR+7*4*kf*(1-kf),lp(c.cat.z,h.C.z,kf)); if(kf>=1&&!c.shown.ace4){ c.shown.ace4=1; cineBurst(h.C.x,h.C.z,0xb46aff); floatText(h.C.x,2.2,h.C.z,'⛳ ACE!','#ffd27a'); try{ SFX.crystal&&SFX.crystal(); }catch(e){} } }
+    c.b4.visible=u<2.9; c.b4.position.copy(bp); c.b4.rotation.x+=dt*10;
+    if(u<1.3){ pos=V(c.cat.x+2.2,1.4,c.cat.z+6.5); look=V(c.cat.x,1,c.cat.z); }
+    else { const k=sm((u-1.3)/2.4); pos=vl(V(c.cat.x+3,4,c.cat.z+5),V(I.x+6,6.5,I.z+7.5),k); look=vl(bp,V(I.x,1,I.z),sm((u-2.6)/1.2)); } }
+  else { cd.classList.remove('on'); const u=t-23.5, k=sm(u/1.5); pos=vl(V(c.tr.x+4,11,c.tr.z+8),V(c.tr.x+5,30,c.tr.z+10),k); look=V(c.tr.x+3,0,c.tr.z-4);
+    if(!c.shown.end){ c.shown.end=1; for(const h of HOLES){ cineBurst(h.C.x,h.C.z,0xb46aff); } camShake=Math.max(camShake,.35); try{ SFX.thud&&SFX.thud(); }catch(e){} }
+    const s=Math.min(1,u/.18); stp.style.opacity='1'; stp.style.transform='translate(-50%,-50%) rotate(-6deg) scale('+(3-2*s).toFixed(3)+')'; }
+  camera.position.copy(pos); camera.lookAt(look);
+  if(t>=CINE_T) endCine(); }
+{ const prev=update; update=function(dt){ if(CUT){ stepCine(dt); updateHUD(); return; } return prev(dt); }; }
+addEventListener('keydown',ev=>{ if(!CUT) return; ev.stopImmediatePropagation(); if((ev.code==='Space'||ev.code==='Enter'||ev.code==='NumpadEnter')&&!ev.repeat&&CUT.t>1) CUT.t=CINE_T-.01; },true);
+addEventListener('mousedown',ev=>{ if(CUT){ ev.stopImmediatePropagation(); ev.preventDefault(); } },true);
+const seenCine=()=>{ try{ return !!localStorage.getItem(CINE_KEY); }catch(e){ return true; } };
 // ---------------------------------------------------------------- input: E at a tee / to walk away; hold and release the mouse to putt (the sword stays sheathed)
 const canvasEl=document.getElementById('c');
 addEventListener('keydown',ev=>{ if(Meta.isOpen()||S.phase==='start') return;
-  if(ev.code==='KeyE'&&!ev.repeat){ if(GF.on){ ev.stopImmediatePropagation(); ev.preventDefault(); stop(); return; } const h=nearTee(); if(h){ ev.stopImmediatePropagation(); ev.preventDefault(); start(h); } return; }
+  if(ev.code==='KeyE'&&!ev.repeat){ if(GF.on){ ev.stopImmediatePropagation(); ev.preventDefault(); stop(); return; } const h=nearTee(); if(h){ ev.stopImmediatePropagation(); ev.preventDefault(); if(!seenCine()||ev.shiftKey) playCine(()=>start(h)); else start(h); } return; }   /* build 481: the course's cinematic the first time (SHIFT+E again) */
   if(GF.on&&/^(KeyW|KeyA|KeyS|KeyD|ArrowUp|ArrowDown|Space|Digit\d|Minus|Equal|KeyX|KeyR|KeyQ|KeyF|ShiftLeft|ShiftRight)$/.test(ev.code)){ ev.stopImmediatePropagation(); ev.preventDefault(); } },true);
 addEventListener('mousedown',ev=>{ if(!GF.on||Meta.isOpen()) return; ev.stopImmediatePropagation(); ev.preventDefault(); if(!document.pointerLockElement&&canvasEl&&canvasEl.requestPointerLock){ try{ canvasEl.requestPointerLock(); }catch(e){} return; }
   if(ev.button===0&&!GF.b.moving&&!GF.b.flight&&GF.b.sink===undefined){ GF.charging=true; GF.ct=0; GF.power=0; } },true);
@@ -173,7 +244,7 @@ function hud(on){ if(!on){ cEl.style.display='none'; return; } const h=GF.h; con
 window.__golf={ info:()=>Object.assign({ on:GF.on, hole:GF.h&&GF.h.n, strokes:GF.st, done:Object.assign({},GF.done), result:Object.assign({},GF.result), total:GF.total, millOpen:millOpen(), bridgeDown:bridgeDown() },cnt),
   holes:HOLES.map(h=>({ n:h.n, par:h.par, tee:h.T, cup:h.C })), start:n=>start(HOLES.find(h=>h.n===n)), stop, ball:()=>GF.b&&{ x:+GF.b.x.toFixed(2), z:+GF.b.z.toFixed(2), moving:GF.b.moving, flight:!!GF.b.flight, region:GF.b.region },
   putt:(ax,az,power)=>{ if(!GF.on) return false; const l=Math.hypot(ax,az)||1; GF.aim={ x:ax/l, z:az/l }; GF.power=power; const keep=GF.aim; const v=1.2+power*12.5; GF.b.vx=keep.x*v; GF.b.vz=keep.z*v; GF.b.moving=true; GF.st++; cnt.putts++; return true; },
-  set:o=>{ if(o.mill!==undefined&&MILL.act) MILL.act.time=o.mill; if(o.bridge!==undefined&&BRIDGE.act) BRIDGE.act.time=o.bridge; }, ready:()=>cnt.models>=9,
+  cine:after=>playCine(after), cineT:()=>CUT?+CUT.t.toFixed(2):null, skipCine:()=>{ if(CUT) CUT.t=CINE_T-.01; }, set:o=>{ if(o.mill!==undefined&&MILL.act) MILL.act.time=o.mill; if(o.bridge!==undefined&&BRIDGE.act) BRIDGE.act.time=o.bridge; }, ready:()=>cnt.models>=9,
   // test helpers (golf-test.mjs): each hole's bends then its cup (hole 4: its bends then the catapult), which of them the ball has reached; a fresh round; the ball put down anywhere
   path:n=>{ const h=HOLES[n-1]; if(!h.pp){ h.pp=h.wp.slice(1,h.cat?h.wp.length:-1).map(p=>({ x:p.x, z:p.z, passed:false })); if(h.cat){ const c=W(h.cat.at[0],h.cat.at[1]); h.pp.push({ x:c.x, z:c.z, passed:false }); } } return h.pp; },
   markPassed:n=>{ const h=HOLES[n-1]; if(!h.pp||!GF.b) return; for(const p of h.pp) if(Math.hypot(p.x-GF.b.x,p.z-GF.b.z)<2.2) p.passed=true; },

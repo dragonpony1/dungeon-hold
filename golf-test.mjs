@@ -10,6 +10,9 @@ await page.evaluate(()=>{ const d=window.__dd; try{ window.__trainer.skip(); }ca
 await page.waitForFunction(()=>window.__golf.ready(),null,{timeout:120000});
 // E at the first tee
 const E=await page.evaluate(()=>{ const d=window.__dd, h=window.__golf.holes[0]; d.setHero(h.tee.x,h.tee.z+.3,0); d.step(1/60,5); return true; });
+// the first E ever plays the course's cinematic (25 s), SPACE skips it, then the hole begins
+await page.keyboard.press('KeyE'); const C0=await page.evaluate(()=>window.__golf.cineT()); await page.evaluate(()=>window.__dd.step(1/30,40)); await page.keyboard.press('Space'); const C1=await page.evaluate(()=>{ window.__dd.step(1/30,5); return { t:window.__golf.cineT(), on:window.__golf.info().on }; });
+check('the first E on a tee plays the cinematic, SPACE skips it and the hole begins',C0!==null&&C1.t===null&&C1.on===true,JSON.stringify({C0,C1})); await page.keyboard.press('KeyE');
 await page.keyboard.press('KeyE'); const E1=await page.evaluate(()=>window.__golf.info().on); await page.keyboard.press('KeyE'); const E2=await page.evaluate(()=>window.__golf.info().on);
 check('E on a tee takes up the putter, E again walks away',E1===true&&E2===false,JSON.stringify({E1,E2}));
 const play=await page.evaluate(async()=>{ const d=window.__dd, g=window.__golf, out={};
