@@ -19,7 +19,7 @@ const headers=p=>p.evaluate(()=>[...document.querySelectorAll('#tv-bag .tv-grp')
 const nonIncreasing=a=>a.every((v,i)=>i===0||a[i-1]>=v);
 
 const page=await newPage();
-check("a fresh browser sorts by type out of the box",await page.evaluate(()=>window.__meta.bagSort())==='type');
+check("a fresh browser opens the bag on the set columns (build 441: Matt's pick)",await page.evaluate(()=>window.__meta.bagSort())==='setcols');
 // eight pieces, bagged in a deliberately scrambled order
 const pickupOrder=await page.evaluate(()=>{ const spec=[['familiar',0],['weapon',2],['armor',1],['weapon',4],['charm',0],['amulet',3],['weapon',0],['armor',3]]; const ids=[];
   for(const [slot,r] of spec){ const it=window.__dd.rollItem(r,slot); it.rarity=r; if(!window.__meta.onPickup(it)) throw new Error('pickup refused'); ids.push(it.id); } return ids; });
@@ -27,6 +27,13 @@ check("eight pieces bagged, in pickup order",await page.evaluate(()=>window.__me
 check("the bag array itself is untouched by the sort (still pickup order)",JSON.stringify(await page.evaluate(()=>window.__meta.bag().map(b=>b.id)))===JSON.stringify(pickupOrder));
 
 await page.evaluate(()=>{ window.__tavern.open(); window.__tavern.tab('bag'); });
+await page.waitForSelector('#tv-bag .tv-tile',{timeout:10000});
+const setv=await page.evaluate(()=>({ mat:!!document.querySelector('#tv-bag .tv-smat'), heads:document.querySelectorAll('#tv-bag .tv-sh').length, ghosts:document.querySelectorAll('#tv-bag .tv-ghost').length, lbl:document.getElementById('tv-sort').textContent }));
+check('build 441: the bag opens by set -- a column per set, every missing piece a dashed square',setv.mat&&setv.heads===10&&setv.ghosts===50&&/by set/.test(setv.lbl),JSON.stringify(setv));
+await page.click('#tv-sort'); await page.waitForTimeout(100);
+const colv=await page.evaluate(()=>({ cols:[...document.querySelectorAll('#tv-bag .tv-col')].map(c=>c.dataset.col+':'+c.querySelectorAll('.tv-tile').length).join(' '), lbl:document.getElementById('tv-sort').textContent }));
+check('one click: by piece -- five piece columns, each with its own pieces (weapons 3, armor 2, charm 1, amulet 1, familiar 1)',colv.cols==='weapon:3 armor:2 charm:1 amulet:1 familiar:1'&&/by piece/.test(colv.lbl),JSON.stringify(colv));
+await page.click('#tv-sort'); await page.waitForTimeout(100);
 await page.waitForSelector('#tv-bag .tv-card[data-from="bag"]',{timeout:10000});
 let order=await cardOrder(page);
 check("by type: cards run weapon → armor → charm → amulet → familiar",order.every((c,i)=>i===0||SLOTS.indexOf(order[i-1].slot)<=SLOTS.indexOf(c.slot)),order.map(c=>c.slot+c.r).join(' '));
@@ -52,7 +59,8 @@ await page.click('#tv-sort'); await page.waitForTimeout(100);
 order=await cardOrder(page); hs=await headers(page);
 check("three clicks: newest first is the exact reverse of pickup order, no headings",JSON.stringify(order.map(c=>c.id))===JSON.stringify(pickupOrder.slice().reverse())&&hs.length===0,order.map(c=>c.slot+c.r).join(' '));
 await page.click('#tv-sort'); await page.waitForTimeout(100);
-check("four clicks: back to type",await page.evaluate(()=>window.__meta.bagSort())==='type'&&(await headers(page)).length===5);
+check("one more click: round to the set columns again",await page.evaluate(()=>window.__meta.bagSort())==='setcols'&&!!(await page.$('#tv-bag .tv-smat')));
+await page.click('#tv-sort'); await page.waitForTimeout(100); await page.click('#tv-sort'); await page.waitForTimeout(100);   /* by piece, then by type */
 
 // remembered across a reload
 await page.click('#tv-sort'); await page.waitForTimeout(100);

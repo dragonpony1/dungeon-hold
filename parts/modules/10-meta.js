@@ -1,6 +1,6 @@
 // ===== 10-meta.js — Meta core: persistent state (ddMeta), bag, gold, xp/levels/points, skills, shop, run accounting =====
 // Same scope as game.js (inside its IIFE). The tavern UI (20-tavern.js) and the familiar (30-familiar.js) build on this.
-const BAG_CAP=50, XP={goblin:2,archer:4,orc:8,ogre:40,drake:12};
+const BAG_CAP=100,   /* build 441 (Matt: "first i want to see the bag have 100 slots like the chest"): was 50 */ XP={goblin:2,archer:4,orc:8,ogre:40,drake:12};
 const SKILLS=[
   {id:'blade',   name:'Blade',    per:.08, keys:['dmg'],        what:'Hero damage',              fmt:v=>'+'+Math.round(v*100)+'% hero damage'},
   {id:'vigor',   name:'Vigor',    per:.08, keys:['hp'],         what:'Hero max health',          fmt:v=>'+'+Math.round(v*100)+'% max health'},
@@ -51,7 +51,7 @@ function holdsOnFloor(it){ return bagFull()&&precious(it)&&bagIdx(it.id)<0&&!st.
 // each; 'rarity' is best-first across the lot; 'newest' is the latest pickup first. The bag itself stays in pickup order
 // (equip() and the armory splice by id, and saves stay stable) -- the views ask sortedBag() for their order. Remembered
 // in localStorage (ddBagSort) so the choice survives a reload, like the sound and music toggles.
-const BAG_SORTS=['type','rarity','sets','newest'];   /* build 404 (Matt: "when sorting bag gear, make one of the sorting methods to bring all set pieces to the top"): sets */ let bagSort='type'; try{ const v=localStorage.getItem('ddBagSort'); if(BAG_SORTS.includes(v)) bagSort=v; }catch(e){}
+const BAG_SORTS=['setcols','columns','type','rarity','sets','newest'];   /* build 441: 'columns' -- a column for each piece, set by set (20-tavern.js) */   /* build 404 (Matt: "when sorting bag gear, make one of the sorting methods to bring all set pieces to the top"): sets */ let bagSort='setcols'; try{ const v=localStorage.getItem('ddBagSort'); if(BAG_SORTS.includes(v)) bagSort=v; if(localStorage.getItem('dd_bagcols_v1')!=='1'){ localStorage.setItem('dd_bagcols_v1','1'); bagSort='setcols'; localStorage.setItem('ddBagSort','setcols'); }   /* Matt: the set columns "just fit my brain better" */ }catch(e){}   /* everyone opens on the columns once; the sort button still cycles */
 function setBagSort(v){ if(!BAG_SORTS.includes(v)) return false; bagSort=v; try{ localStorage.setItem('ddBagSort',v); }catch(e){} metaVer++; return true; }   // metaVer: every open view re-renders on the next frame
 function sortedBag(){ const b=st.bag.slice(); const six=it=>{ const i=SLOTS.indexOf(it.slot); return i<0?99:i; }, sc=it=>+it.score||0, lk=it=>it.locked?1:0;   // locked pieces lead their group, so what's being kept is easy to spot
   if(bagSort==='type') b.sort((a,c)=>six(a)-six(c)||lk(c)-lk(a)||c.rarity-a.rarity||sc(c)-sc(a)); else if(bagSort==='rarity') b.sort((a,c)=>c.rarity-a.rarity||lk(c)-lk(a)||sc(c)-sc(a)||six(a)-six(c));

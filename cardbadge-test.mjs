@@ -4,7 +4,7 @@ import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 const server=await serve(8891);
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
-const ctx=await browser.newContext({viewport:{width:1280,height:800}}); await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddSound","off"); localStorage.setItem("ddMapsCleared","1"); }catch(e){} });
+const ctx=await browser.newContext({viewport:{width:1280,height:800}}); await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddSound","off"); localStorage.setItem("dd_bagcols_v1","1"); localStorage.setItem("ddBagSort","type");   /* build 441: these check the card grid (now the "by type" sort; the bag opens on columns) */ localStorage.setItem("ddMapsCleared","1"); }catch(e){} });
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
 await page.goto("http://127.0.0.1:8891/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__tavern&&window.__meta&&window.__mythic,null,{timeout:120000}); await page.waitForTimeout(1500);
 await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; d.start(); d.step(1/60,20); const P="hideout/assets/hideout/items/";

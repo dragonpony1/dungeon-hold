@@ -6,7 +6,7 @@ import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 const server=await serve(8971,{dist:process.env.DIST||"./dist"});
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
-const ctx=await browser.newContext({viewport:{width:1280,height:800}}); await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); }catch(e){} });
+const ctx=await browser.newContext({viewport:{width:1280,height:800}}); await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_bagcols_v1","1"); localStorage.setItem("ddBagSort","type");   /* build 441: these check the card grid (now the "by type" sort; the bag opens on columns) */ }catch(e){} });
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
 await page.goto("http://127.0.0.1:8971/?silent&map=1",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__meta.setLevel&&window.__tavern&&window.__best&&window.__doll,null,{timeout:120000});
 const a=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; try{ window.__trainer.skip(); }catch(e){} M.reset(); d.resetGear(); M.setLevel(5);
