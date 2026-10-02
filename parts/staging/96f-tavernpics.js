@@ -17,6 +17,7 @@ const words=k=>{ const f=F(); return f?String(f.label(k)).replace(/^\S+\s/,''):k
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 { const st=document.createElement('style'); st.textContent=
  '.tvp-chips{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}'+'.tvp-c.two{border-color:#5ff0ff!important;color:#bff8ff!important;background:#0e2a33!important;font-weight:800}'+
+ '.tvp-c .tvp-l{font-weight:600;font-size:10.5px;color:#cbb9dc;margin-left:4px;letter-spacing:.2px}.tv-detail .dl .tvp-c .tvp-l{font-size:11px}'+
  '.tvp-c{background:#120c1a;border:1px solid #4a3a54;border-radius:10px;padding:0 6px;font:bold 12px/18px system-ui,sans-serif;color:#f0e0c8;white-space:nowrap}'+
  '.tvp-c.proc{border-color:#ffd24a;color:#ffd24a;box-shadow:0 0 5px #ffb02e88}.tvp-c.wild{border-color:#e060d0;color:#ffa0f0}'+
  '.tvp-set{display:flex;gap:3px;align-items:center;margin-top:4px;font-size:12px;line-height:14px}.tvp-set b{width:9px;height:9px;border-radius:50%;border:2px solid var(--c);box-sizing:content-box}'+
@@ -50,7 +51,7 @@ function upBar(it){ const f=F(); if(!f||!it.stats) return ''; const u=f.used(it)
 const TWO_PETS='<span class="tvp-c two" title="Wear it and a SECOND familiar slot opens: two pets, one at each shoulder">🦉🦉 2 PETS</span>';
 function chips(it){ if(!it||!it.stats) return ''; const prim=it.procd?(it.primary||Object.keys(it.stats)[0]):null; let h='';
   if(it.procd) h+='<span class="tvp-c proc" title="Proc\'d gear: its main stat rolled high">✦ PROC\'D</span>';
-  for(const k of Object.keys(it.stats)) h+='<span class="tvp-c'+(k===prim?' proc':'')+'" title="'+esc(words(k))+'">'+ic(k)+' '+esc(val(k,it.stats[k]))+'</span>';
+  for(const k of Object.keys(it.stats)) h+='<span class="tvp-c'+(k===prim?' proc':'')+'" title="'+esc(words(k))+'">'+ic(k)+' '+esc(val(k,it.stats[k]))+'<span class="tvp-l">'+esc(String(words(k)).toLowerCase())+'</span></span>';   /* build 502 (Jacob, via Matt: the tooltip comes up slow -- 'it would be nice if it just said what it is in the box, hero damage or swing speed'): the stat's name rides in the chip */
   if(it.named) h+='<span class="tvp-c wild" title="A named mythic counts as a piece of every set you wear">✦ any set</span>';
   if(it.named==='beast_mode'||it.named==='malamute') h+=TWO_PETS;   // build 431 (Matt: "somewhere on the card it needs to say 2 pets"): the two familiar rings say so
   return '<div class="tvp-chips">'+h+'</div>'; }
