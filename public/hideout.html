@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="86">
+<meta name="hideout-build" content="87">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -283,7 +283,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 86;   // build 86: no I screen inside the game -- the game's bag is the inventory (I opens it), with this room's hotbar and furniture under it.   // build 85: a big gold close button on every window, and it always hands the mouse back.   // build 84: Esc out of any menu leaves you in the room (a small click-to-play sign), never the big entry card.   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 87;   // build 87: the wardrobe stores gear (100) and opens beside the game's bag.   // build 86: no I screen inside the game -- the game's bag is the inventory (I opens it), with this room's hotbar and furniture under it.   // build 85: a big gold close button on every window, and it always hands the mouse back.   // build 84: Esc out of any menu leaves you in the room (a small click-to-play sign), never the big entry card.   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -769,6 +769,19 @@ const INV_BRIDGE = {
   hotbarMove(a, b) { if (a === b || a < 0 || b < 0 || a >= SAVE.hotbar.length || b >= SAVE.hotbar.length) return false; const t = SAVE.hotbar[a]; SAVE.hotbar[a] = SAVE.hotbar[b]; SAVE.hotbar[b] = t; selectedSlot = b; invChanged(); return true; },
   select(i) { selectedSlot = i; invChanged(); return true; } };
 window.__onebag.inv = INV_BRIDGE;
+// build 87 (Matt: "when i open the wardrobe i see the gear it has in it and i also see my bag, i can shift click or drag" / "fix the wardrobe"): THE WARDROBE STORES GEAR -- 100 slots (SAVE.wardrobe), kept here in the hideout
+// (the portal never takes it), shown over the game's bag with the rewards it holds (armor stands, the training's last piece, pieces carried in).
+const WARDROBE_SIZE = 100;
+function wardArr() { SAVE.wardrobe = padSlots(Array.isArray(SAVE.wardrobe) ? SAVE.wardrobe : [], WARDROBE_SIZE); return SAVE.wardrobe; }
+function openHallWardrobe() { if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); } parentMenu = true; try { window.parent.postMessage('hideout:wardrobe', '*'); } catch (e) {} }
+Object.assign(INV_BRIDGE, {
+  wardrobe() { const w = wardArr(); return { size: WARDROBE_SIZE, gear: w.filter(isGearItem).map(v => v.kind === 'carried' ? v.rec : toGameItem(v)),
+    rewards: loadCarried().map(pieceFromCarried).map(p => ({ id: p.id, label: p.label, icon: absIcon(p.icon), tip: p.tip || p.desc || '', color: p.color || null, reward: !!(p.payload && p.payload.reward), back: !!(p.payload && p.payload.takeBack), taken: !!(p.payload && p.payload.rewardTaken), kind: p.kind })) }; },
+  wardToBag(id) { const w = wardArr(), i = w.findIndex(v => isGearItem(v) && v.rec && v.rec.id === id); if (i < 0) return false; if (!gameGive(w[i])) { flashMsg('Your bag is full'); return false; } w[i] = null; invChanged(); return true; },
+  bagToWard(id) { const w = wardArr(), j = w.indexOf(null); if (j < 0) { flashMsg('The wardrobe is full'); return false; } const it = gameTake(id); if (!it) return false; w[j] = { kind: 'carried', rec: it }; invChanged(); return true; },
+  wardToHotbar(id, slot) { const w = wardArr(), i = w.findIndex(v => isGearItem(v) && v.rec && v.rec.id === id); if (i < 0) return false; const to = freeHot(slot); if (to < 0) { flashMsg('Your hotbar is full'); return false; } SAVE.hotbar[to] = w[i]; w[i] = null; selectedSlot = to; invChanged(); return true; },
+  lockerTake(id) { const p = loadCarried().map(pieceFromCarried).find(x => x.id === id); if (!p) return false; const back = p.kind === 'carried' && p.payload && p.payload.takeBack;
+    if (p.kind === 'furniture') takeFurnitureReward(p); else if (back) takeBackReward(p); else takeGearFromLocker(p); invChanged(); return true; } });
 function slotIcon(v) { return isGearItem(v) ? cutoutIcon(gearPiece(v).icon) : GEAR[v].icon; }
 function slotTip(v) { if (!isGearItem(v)) return GEAR[v].name; const p = gearPiece(v); return p.tip || p.desc; }
 function slotColor(v) { return isGearItem(v) ? gearPiece(v).color : null; }
@@ -2027,7 +2040,7 @@ async function pickupSharedGear(id) {
       // hands over the real thing, into the bag (a full bag sends it back to the locker below instead)
       writeSave(); renderInv(); refreshSlotViews();
       loadGltf(PROPS_DIR + MODEL_MAP[piece.gid]).catch(() => {});
-      flashMsg(piece.label + ' is in your bag — press I and drag it to your hotbar');
+      flashMsg(piece.label + ' is in your furniture — open your bag (B) and drag it to your hotbar');
       return;
     }
     if (piece.kind === 'furniture') { // a stand with no model yet (or no room in the bag): back to the locker to wait
@@ -2207,7 +2220,7 @@ function takeFurnitureReward(piece) {
   writeSave(); renderInv();
   refreshRewardsFresh(); buildLockerGrids();
   sfxSuccess();
-  flashMsg(piece.label + ' is in your bag — press I and drag it to your hotbar');
+  flashMsg(piece.label + ' is in your furniture — open your bag (B) and drag it to your hotbar');
   loadGltf(PROPS_DIR + MODEL_MAP[piece.gid]).catch(() => {}); // start the download now so it's ready to place
 }
 // A piece the game wants back in the hall (takeBack: the training's last Forest piece) is only ever TAKEN: we mark
@@ -2304,6 +2317,7 @@ function buildLockerGrids() {
 }
 let lockerWasActive = false;
 function openLocker() {
+  if (GAME) { markRewardsSeen(); openHallWardrobe(); return; }   // build 87: in the game the wardrobe opens over the bag (96g-hideoutbag.js); the old panel is the standalone page's
   lockerWasActive = active;
   if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
   document.getElementById('lockerWrap').style.display = 'flex';
