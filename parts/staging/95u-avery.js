@@ -89,13 +89,17 @@ let waveTotal=0, done=false, cut=null, avery=null;
 { const prev=updateWave; updateWave=function(dt){ if(isMoat()&&!done&&S.phase==='wave'&&S.wave===MAP.waves&&waveTotal>0&&MOBGLB[K]&&bust&&waveTotal-spawnQ.length>=Math.max(1,Math.floor(waveTotal*.25))) startCut(); prev(dt); }; }
 const SHOT_A=4.2, SHOT_B=3.6, HOLD=2.4, END=SHOT_A+SHOT_B+HOLD;
 const START={ x:cw(47), z:cwz(-7+P), y:ROOF+16 };
-function spawnAvery(){ const lk=Object.keys(LANES); const e=spawnEnemy(K,lk[0]); if(!e) return null; e.noSnare=true; e.atk=1e9; e.ast='cruise'; e.aw=1; e.acd=3; e.aswoops=0; e.at=0; e.phase=1;
+let inSpawn=false;
+function spawnAvery(){ const lk=Object.keys(LANES); inSpawn=true; let e=null; try{ e=spawnEnemy(K,lk[0]); } finally { inSpawn=false; } if(!e) return null; e.noSnare=true; e.atk=1e9; e.ast='cruise'; e.aw=1; e.acd=3; e.aswoops=0; e.at=0; e.phase=1;
   e.x=START.x; e.z=START.z; e.y=START.y; e.fly=START.y-baseFloor(e.x,e.z); e.mdl.g.position.set(e.x,e.y,e.z); cnt.spawned++; return e; }
 function startCut(){ done=true; cnt.intro++; avery=spawnAvery(); if(!avery) return; beamsOn(); setMusic('none'); try{ SFX.horn&&SFX.horn(); }catch(e){}
   bust.g.position.set(0,-1.2,0); bust.g.rotation.y=0; if(!bust.g.parent) STAGE.add(bust.g); bust.mixer=new THREE.AnimationMixer(bust.g); const a=bust.mixer.clipAction(bust.clip); a.setLoop(THREE.LoopOnce,1); a.clampWhenFinished=true; a.play(); bust.act=a; a.paused=true;
   cut={ t:0, cam:camera.position.clone(), q:camera.quaternion.clone() }; cutEl.style.display='block'; cutEl.querySelector('.stamp').style.cssText=''; document.body.classList.add('avery-cut'); }
 function endCut(){ if(!cut) return; camera.position.copy(cut.cam); camera.quaternion.copy(cut.q); cut=null; STAGE.visible=false; cutEl.style.display='none'; document.body.classList.remove('avery-cut');
   if(avery&&!avery.dead){ avery.x=PERCH.x+10; avery.z=PERCH.z+6; avery.y=CRUISE; avery.fly=CRUISE-baseFloor(avery.x,avery.z); } setMusic('wave'); banner('💋 AVERY','she puts the Drag in Dragon'); camShake=Math.max(camShake,.5); }
+// build 474 (Matt: "how can I see Avery, can I call her in from the dev hud"): the dev panel's Spawn with avery picked brings her in the way the wave does -- the whole cut scene, then the fight
+{ const prev=spawnEnemy; spawnEnemy=function(kind){ if(kind!==K||inSpawn) return prev.apply(this,arguments); if(cut) return avery;
+    if(MOBGLB[K]&&bust){ startCut(); return avery; } toast('💋 Avery is on her way…'); load().then(()=>{ if(MOBGLB[K]&&bust&&!cut) startCut(); }); return null; }; }
 addEventListener('mousedown',()=>{ if(cut&&cut.t<END-.5){ cut.t=END-.5; cnt.skipped++; } },true);
 addEventListener('keydown',ev=>{ if(cut&&cut.t<END-.5&&ev.key!=='F9'){ cut.t=END-.5; cnt.skipped++; } },true);
 function stepCut(dt){ const c=cut; c.t+=dt; const t=c.t, e=avery;

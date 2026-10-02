@@ -25,4 +25,6 @@ check('below half she is furious, and she lands on the hall roof to preen',D.pha
 const E=await page.evaluate(()=>{ const d=window.__dd; const j0=window.__jars.list().length, l0=d.loot.length; const e=d.enemies.find(x=>x.kind==='avery'&&!x.dead); d.kill(e); d.step(1/60,30);
   const wind=d.loot.slice(l0).filter(l=>l.it&&l.it.setId==='wind').map(l=>l.it.slot); return { jars:window.__jars.list().length-j0, wind, deaths:window.__avery.info().deaths }; });
 check('her fall drops all five Wind pieces and 40 Legendary jars',E.deaths===1&&E.wind.length===5&&new Set(E.wind).size===5&&E.jars>=40,JSON.stringify(E)); await shot('6-fall');
+const F=await page.evaluate(()=>{ const d=window.__dd; d.step(1/60,120); const n0=window.__avery.info().intro; d.spawn('avery','S'); const i=window.__avery.info(); d.step(1/30,320); return { started:i.intro-n0, cut:i.cut, after:window.__avery.info().cut, st:window.__avery.state()[0] }; });
+check('the dev panel spawn (avery) brings her in with her whole cut scene, then the fight',F.started===1&&F.cut&&!F.after&&F.st&&F.st.st==='cruise',JSON.stringify(F));
 check('no page errors',errors.length===0,JSON.stringify(errors.slice(0,3))); await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
