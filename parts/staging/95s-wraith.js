@@ -11,7 +11,7 @@
 (function(){
 'use strict';
 const K='wraith';
-MOBS[K]={ hp:520, spd:0, dmg:0, cd:99, mana:30, detour:0, fly:3.2 };
+MOBS[K]={ hp:400,   /* build 436 (Matt: 'it keeps being the last thing left alive'): was 520 */ spd:0, dmg:0, cd:99, mana:30, detour:0, fly:3.2 };
 MOBDIM[K]={ fit:2.9, h:2.6, r:.8, nat:{walk:1,run:1} };
 const TOUR_T=9, TOUR_HEALS=5, CHARGE_T=7, VOLLEY_HEALS=4, DIVE_K=.45, DIVE_MIN=60, LOW=3.2, HIGH=6, SPD={ tour:6, hide:7, dive:16, back:9 };
 const cnt={ spawned:0, heals:0, dives:0, towerHits:0, deaths:0, charges:0 };
