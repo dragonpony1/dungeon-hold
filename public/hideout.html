@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="81">
+<meta name="hideout-build" content="82">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -167,7 +167,7 @@ canvas{display:block}
 .islot .wornE{position:absolute;top:1px;right:2px;font:800 10px system-ui;color:#1a1208;background:#ffd27a;border-radius:4px;padding:0 3px;pointer-events:none}.islot{position:relative}
 </style>
 </head><body>
-<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: inventory &middot; B: bag &middot; H: hero &middot; T: trade &middot; Esc: close a menu<br>The portal takes you back to the hall<div id="loadWrap"><div id="loadBar" class="indeterminate"><div id="loadFill"></div></div><div id="loadLine">Loading…</div></div></div>
+<div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: inventory &middot; B: bag &middot; Tab: sheet &middot; H: hero &middot; T: trade &middot; Esc: close a menu<br>The portal takes you back to the hall<div id="loadWrap"><div id="loadBar" class="indeterminate"><div id="loadFill"></div></div><div id="loadLine">Loading…</div></div></div>
 <div id="crosshair"></div>
 <div id="hud">Rare Sludge: <b id="sludge">0</b></div>
 <div id="prompt"></div>
@@ -276,7 +276,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 81;   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 82;   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -848,7 +848,7 @@ const MODEL_MAP = {
 // 94-voidset.js); taking it out turns it into furniture on the hotbar. The game keeps its own ledger of what it granted,
 // so removing the record when it's taken is expected. A set only becomes placeable once its model is in props/.
 const STAND_SETS = ['forest', 'void', 'angelic', 'crimson', 'ice', 'lava', 'rock', 'shadow', 'storm', 'wind'];
-const STAND_MODELS = new Set(['forest']); // sets whose armor-stand-<set>.glb is in props/
+const STAND_MODELS = new Set(STAND_SETS); // sets whose armor-stand-<set>.glb is in props/ -- build 82 (Matt: the armor stands in the locker 'have a place holder but they aren't really there'): all ten, from his Weapon sets/armor set standz retextures
 STAND_SETS.forEach(s => {
   const gid = 'stand_' + s;
   GEAR[gid] = { name: s[0].toUpperCase() + s.slice(1) + ' Armor Stand', icon: ITEMS_DIR + 'armor-stand-' + s + '.png', cost: 0, notShop: true };
@@ -2983,6 +2983,7 @@ document.addEventListener('keydown', e => {
   if (k === 't' && active) HD.tradeKey();
   if (k === 'b' && active) openHallBag();
   if (k === 'h' && active) openHeroPick();
+  if (k === 'tab') { e.preventDefault(); if (active) openHallSheet(); }   // build 82 (Matt: 'that tab menu ... needs to work in the hide out'): the game's character sheet, over this page
   if (k === 'f9' && window.parent !== window) {   // build 70 (Matt: "is the dev hud not working anymore?" -- in here this page has the keyboard): F9 asks the game for its dev panel; the mouse is let go so it can be clicked
     e.preventDefault(); if (document.pointerLockElement) document.exitPointerLock();
     try { window.parent.postMessage('hideout:devpanel', '*'); } catch (err) {}
@@ -2996,6 +2997,12 @@ function openHeroPick() {
   if (window.parent === window) { flashMsg('Change heroes on the title screen, in the hall'); return; }
   if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
   try { window.parent.postMessage('hideout:hero', '*'); } catch (e) {}
+}
+// build 82: Tab asks the game for its character sheet (what you wear, your stats, loadouts -- game build 440, 96g-hideoutbag.js) over this page, handed back the way the bag is. Standalone: the I panel.
+function openHallSheet() {
+  if (window.parent === window) { openGearPanel(); return; }
+  if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
+  try { window.parent.postMessage('hideout:sheet', '*'); } catch (e) {}
 }
 function openHallBag() {
   if (window.parent === window) { openGearPanel(); return; }
