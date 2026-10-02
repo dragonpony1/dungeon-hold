@@ -189,21 +189,21 @@ const MAPS=[
     { const W=16, IH=(this.wallH||7)-2; const wk=(x0,x1,z0,z1,y)=>{ f(x0,x1,z0,z1,T.CARPET); h(x0,x1,z0,z1,y); };
       wk(2,13,1,1,W); wk(36,47,1,1,W); wk(2,2,1,15,W); wk(47,47,1,6,W); wk(47,47,10,15,W); wk(2,3,14,15,W); wk(6,20,14,15,W); wk(28,47,14,15,W);
       wk(29,39,36,36,IH); wk(29,39,44,44,IH); wk(29,29,37,43,IH); wk(39,39,37,43,IH); wk(30,38,37,43,IH); }   /* build 439 (Matt: "cover both buildings except the place where the stairs come up"): the inn's middle filled up to its wall-top -- one platform; the castle yard is roofed in 56k9-moatdeck.js */   // (the inn, earlier: build 380 moved it 12 squares north, nearer the main hall (it stood on rows 41-49; Matt: "move the entire outbuilding 12 squres closer to the main hall"). Build 379 (Matt: "get rid of the tavern but leave the building and bring the height down one square" / "i want to keep the building the tavern was in just" / "just for now just close up the tavern part"): the building stays exactly as it was, but its door is walled shut (no way in: the same as the Cloister Court's closed tavern), the tavern room is off (noTavern below) and its walls stand one square (2 units) lower than the walls round it (lowWalls below). To open the tavern again: put g(34,41,T.FLOOR) back and drop noTavern
-    [[22,26],[26,26],[22,32],[26,32],[22,40],[26,40],[22,48],[26,48]].forEach(([x,z])=>g(x,z,T.PROP));   // lamp posts along the road
+    /* build 464 (Matt: "lamp posts and trees west of the lamp posts need to go"): the road's lamp posts gone */
     [[21,25],[27,25]].forEach(([x,z])=>g(x,z,T.PROP));   /* build 454 (Matt: "you can take all the little knight statues out of the map" / "its the knights inside i want to be gone"): the four kings inside the ward are gone; the two at the bridge foot stay */   /* build 449: the third king moved off the new stair (31 -> 28) */                    // statues: two at the bridge foot, four kings along the keep
     [[21,12],[27,12],[17,5],[17,9]].forEach(([x,z])=>g(x,z,T.PROP));                                 // braziers at the gate and the dais
-    [[3,28],[3,33],[3,45],[3,52],[46,28],[46,33],[46,52],[9,52],[16,52],[42,52],[10,30],[45,30],[13,44],[7,38],[43,36],[19,50]].forEach(([x,z])=>g(x,z,T.PROP)); },   // trees (build 380: the one at 39,30 stood where the inn now is: it is at 42,30)   // trees
+    [[46,28],[46,33],[46,52],[42,52],[45,30],[43,36]].forEach(([x,z])=>g(x,z,T.PROP)); }   /* build 464: the trees west of the road gone */,   // trees (build 380: the one at 39,30 stood where the inn now is: it is at 42,30)   // trees
   lanes:{S:{cx:24,cz:53,face:PI,name:'Road',from:1}, W:{cx:1,cz:25,face:PI/2,name:'West wood',from:2}, E:{cx:48,cz:25,face:-PI/2,name:'East wood',from:3}, NE:{cx:48,cz:8,face:-PI/2,name:'Sally port',from:5}},
   hall:[3,46,2,13],pillars:[],barrels:[[44,3],[44,12]],crates:[[5,3]],chandeliers:[],beams:{zs:[],w:0},tavern:{dx:18,dz:2},noTavern:true,   /* build 418: the inn's walls are a walk now (no lowWalls) */
   walk:{ h:16, innDrop:2, hole:[29,36,2,10], holeExit:[33,35], ward:[3,46,2,13], inn:[29,39,36,44], slabs:[[4,5,14,15,5.2],[21,27,14,15,6.6],[47,47,7,9,5.2]], bridge:[30,33,16,35] },   /* build 452: over to the inn's west half (clear of the switchback) and on to its new spot */   /* build 450 (Matt: "the connection artery between the inn and the roof is 2 more blocks wide"): 4 wide, was 2 */   // build 418 (pre-padding rows: 56m-moatwalk.js adds padN)
   padN:8, openTop:[[0,49,-8,0]], roof:{ x0:14, x1:35, z0:-5, z1:1, y:16, stair:null },   // build 383: eight rows added to the north for the hall roof (every number of this map is as it was: padNorth below moves them), and the wall mass up there has no black top
-  trees:[[3,28],[3,33],[3,45],[3,52],[46,28],[46,33],[46,52],[9,52],[16,52],[42,52],[10,30],[45,30],[13,44],[7,38],[43,36],[19,50]],
+  trees:[[46,28],[46,33],[46,52],[42,52],[45,30],[43,36]],
   castle:{towers:[[19.5,14.5,2,20],[28.5,14.5,2,20],[2.5,14.5,1.8,19],[47.5,14.5,1.8,19],[12.5,-6.5,2.4,26,'cone'],[37.5,-6.5,2.4,26,'cone']],keep:[[14,35,-8,-6,20]],arches:[[21,27,14,15,6.5]],bridge:[21,27,16,23],chains:[[19.6,18.6,15.6,21.4,1.2,23.6],[28.4,18.6,15.6,27.6,1.2,23.6]],   /* build 455: the gate towers flank the 7-wide gate and stand over the 16-up walk; the deck and its chains reach over the 8-wide moat */ 
-    lamps:[[22,26],[26,26],[22,32],[26,32],[22,40],[26,40],[22,48],[26,48]],statues:[[21,25,0],[27,25,0]],braziers:[[21,12],[27,12],[17,5],[17,9],[34,-4],[15,0],[24,-4]]}   /* build 454: no statues; the roof brazier at 15,-4 gave its corner to the keep Heartroot */,
+    lamps:[],statues:[[21,25,0],[27,25,0]],braziers:[[21,12],[27,12],[17,5],[17,9],[34,-4],[15,0],[24,-4]]}   /* build 454: no statues; the roof brazier at 15,-4 gave its corner to the keep Heartroot */,
   lights:[{cx:20,cz:7,up:4.2,c:0xb494ff,i:1.3,d:15},{cx:23,cz:13,up:3.4,c:0xff8a2a,i:1.4,d:14},{cx:25,cz:13,up:3.4,c:0xff8a2a,i:1.4,d:14},
    {cx:21,cz:12,up:2.2,c:0xff7a1a,i:1.6,d:10},{cx:27,cz:12,up:2.2,c:0xff7a1a,i:1.6,d:10},{cx:17,cz:5,up:2.2,c:0xff7a1a,i:1.6,d:10},{cx:17,cz:9,up:2.2,c:0xff7a1a,i:1.6,d:10},
    {cx:8,cz:3,up:4,c:0xff8a2a,i:1.3,d:14},{cx:24,cz:3,up:4,c:0xff8a2a,i:1.3,d:14},{cx:40,cz:3,up:4,c:0xff8a2a,i:1.3,d:14},{cx:5,cz:10,up:4,c:0xff8a2a,i:1.2,d:13},{cx:44,cz:10,up:4,c:0xff8a2a,i:1.2,d:13},
-   {cx:22,cz:24,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:24,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:22,cz:32,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:32,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:22,cz:40,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:40,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:22,cz:48,up:3.6,c:0xffb05a,i:1.1,d:12},{cx:26,cz:48,up:3.6,c:0xffb05a,i:1.1,d:12},
+   
    {cx:24,cz:53,up:3.4,c:0xc040ff,i:.9,d:10},{cx:1,cz:25,up:3.4,c:0xc040ff,i:.9,d:10},{cx:48,cz:25,up:3.4,c:0xc040ff,i:.9,d:10},{cx:48,cz:8,up:3.4,c:0xc040ff,i:.9,d:10},
    {cx:34,cz:25,up:4.2,c:0xffb05a,i:1.3,d:13},{cx:32,cz:27,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:36,cz:31,up:3.8,c:0xff8a2a,i:1.2,d:12},{cx:34,cz:32,up:2.2,c:0xff7a1a,i:1.6,d:9,oz:.4},
    {cx:18,cz:-2,up:3.6,c:0xff8a2a,i:1.3,d:15},{cx:30,cz:-2,up:3.6,c:0xff8a2a,i:1.3,d:15},{cx:34,cz:6,up:3,c:0xffb05a,i:1.1,d:12}]},   // build 383: the inn three north; the hall roof's torches and the stair   // (the inn's lamps and hearth, with it: build 380)
@@ -812,7 +812,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=463;
+const BUILD=464;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
