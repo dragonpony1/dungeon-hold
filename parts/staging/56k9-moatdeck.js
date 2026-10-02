@@ -18,7 +18,9 @@ const inYard=(cx,cz)=>cx>=X0&&cx<=X1&&cz>=Z0&&cz<=Z1;
 // ---- the stairwell: the stair's own squares and one either side
 let hx0=1e9, hx1=-1e9, hz0=1e9, hz1=-1e9;
 for(let cz=Z0;cz<=Z1;cz++) for(let cx=X0;cx<=X1;cx++){ if(!rampA[idx(cx,cz)]) continue; hx0=Math.min(hx0,cx); hx1=Math.max(hx1,cx); hz0=Math.min(hz0,cz); hz1=Math.max(hz1,cz); }
-const HAS_HOLE=hx0<=hx1; if(HAS_HOLE){ hx0=Math.max(X0,hx0-1); hx1=Math.min(X1,hx1+1); }
+let HAS_HOLE=hx0<=hx1; if(HAS_HOLE){ hx0=Math.max(X0,hx0-1); hx1=Math.min(X1,hx1+1); }
+if(Array.isArray(Wk.hole)){ hx0=Wk.hole[0]; hx1=Wk.hole[1]; hz0=Wk.hole[2]+P; hz1=Wk.hole[3]+P; HAS_HOLE=true; }   /* build 449: the switchback's whole well, as the map gives it */
+const EXIT=Array.isArray(Wk.holeExit)?Wk.holeExit:null;   /* where the top flight comes out (no railing there) */
 const inHole=(cx,cz)=>HAS_HOLE&&cx>=hx0&&cx<=hx1&&cz>=hz0&&cz<=hz1;
 const cell=(cx,cz)=>inb(cx,cz)&&inYard(cx,cz)&&!inHole(cx,cz)&&hgt[idx(cx,cz)]<Y-.01;
 const cnt={ cells:0, boxes:0, rails:0, placed:0, camClamp:0 };
@@ -44,7 +46,7 @@ function rail(x0,x1,z0,z1){ RAILBOXES.push({ x0, x1, z0, z1, top:Y+RAIL_H, bot:Y
 if(HAS_HOLE){ const za=cwz(hz0)-CELL/2, zb=cwz(hz1)+CELL/2, xa=cw(hx0)-CELL/2, xb=cw(hx1)+CELL/2;
   if(cell(hx0-1,hz1)) rail(xa-DEPTH,xa,za,zb);
   if(cell(hx1+1,hz1)) rail(xb,xb+DEPTH,za,zb);
-  if(cell(hx0,hz1+1)) rail(xa-DEPTH,xb+DEPTH,zb,zb+DEPTH); }
+  if(cell(hx0,hz1+1)){ if(!EXIT) rail(xa-DEPTH,xb+DEPTH,zb,zb+DEPTH); else { const ea=cw(EXIT[0])-CELL/2, eb=cw(EXIT[1])+CELL/2; if(ea>xa) rail(xa-DEPTH,ea,zb,zb+DEPTH); if(eb<xb) rail(eb,xb+DEPTH,zb,zb+DEPTH); } } }
 { const mk=(geo,m,list)=>{ const im=new THREE.InstancedMesh(geo,m,Math.max(1,list.length)); list.forEach((M,i)=>im.setMatrixAt(i,M)); im.count=list.length; im.instanceMatrix.needsUpdate=true; im.userData.noOL=true; im.frustumCulled=false; world.add(im); return im; };
   const unit=G.box(1,1,1); mk(unit,stone,parts.slab); mk(unit,wood,parts.beam); mk(unit,wallM,parts.wall); mk(unit,capM,parts.cap); }
 // ---- the camera: down in the yard, it stays under the deck (slid in along its own line to the hero, still looking where it looked)

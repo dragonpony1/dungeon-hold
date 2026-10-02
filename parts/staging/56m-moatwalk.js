@@ -42,7 +42,7 @@ for(let cz=0;cz<GH;cz++) for(let cx=0;cx<GW;cx++){ if(!walkCell(cx,cz)) continue
 // ---- the slabs over the postern, the gate and the sally port: a deck at the walk's height, walked under; guards along their open sides
 for(const s of Wk.slabs){ const r=R(s[0],s[1],s[2],s[3]), bot=s[4];
   RAILBOXES.push({ x0:r.x0, x1:r.x1, z0:r.z0, z1:r.z1, top:W, bot, noStand:true }); cnt.slabs++;
-  piece(parts.slab,(r.x0+r.x1)/2,W-SLAB/2,(r.z0+r.z1)/2,r.x1-r.x0,SLAB,r.z1-r.z0);
+  piece(parts.slab,(r.x0+r.x1)/2,(W+bot)/2,(r.z0+r.z1)/2,r.x1-r.x0,Math.max(SLAB,W-bot),r.z1-r.z0);   /* build 449: a lintel down to the gate's top */
   const alongX=(s[1]-s[0])>=(s[3]-s[2]);   // the walk runs across the opening's long side: guard the other two
   if(s[0]===s[1]){ /* a one-wide crossing in an east/west wall (the sally port): guard its west and east faces */ if(!deckCell(s[0]-1,s[2]+P)) guard(r.x0-DEPTH/2,r.x0+DEPTH/2,r.z0,r.z1,W+RAIL_H,W-.1,false); guard(r.x1-DEPTH/2,r.x1+DEPTH/2,r.z0,r.z1,W+RAIL_H,W-.1,true,(s[2]+P)&1); }
   else { if(!deckCell(s[0],s[2]+P-1)) guard(r.x0,r.x1,r.z0-DEPTH/2,r.z0+DEPTH/2,W+RAIL_H,W-.1,false); guard(r.x0,r.x1,r.z1-DEPTH/2,r.z1+DEPTH/2,W+RAIL_H,W-.1,true,s[0]&1); } }
