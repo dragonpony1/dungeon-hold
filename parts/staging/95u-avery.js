@@ -117,10 +117,13 @@ function spawnAvery(){ const lk=Object.keys(LANES); inSpawn=true; let e=null; tr
 // build 496 (Matt: "chiller might be better" -- for the cinematic too): her track starts WITH the intro, already 1:52 in, so its three-second hush (1:57-2:00) falls over the cut to her bust and the wink,
 // and its slam back in at 1:59.97 lands on the stamp; the same track runs on into the fight. If it is still downloading when the scene starts, it joins at the matching point.
 const SLAM=119.97; let stampAt=0;
-function startCut(){ done=true; cnt.intro++; avery=spawnAvery(); if(!avery) return; beamsOn(); if(TRACKS&&TRACKS.avery){ window.__musStart=window.__musStart||{}; window.__musStart.avery=()=>cut?SLAM-((SHOT_A+SHOT_B)-cut.t):SLAM+(performance.now()-stampAt)/1000; setMusic('avery'); } else setMusic('none'); try{ SFX.horn&&SFX.horn(); }catch(e){}
+// build 504 (Matt, with Jacob: "he didn't see any of Avery -- not the cinematic -- not the model, nothing"): a co-op GUEST gets all of her -- the host says when the scene starts and the guest plays its own
+// copy of it (a stand-in of her for the glide, the bust, the stamp, the music in step); her model is fetched there (99-network.js KIND_LOAD), her puppet flies in layers, her bar reads the host's health.
+const NET=()=>window.__net, isGuest=()=>{ const n=NET(); return !!(n&&n.role&&n.role()==='guest'); };
+function startCut(){ if(isGuest()) return guestCut(); done=true; cnt.intro++; avery=spawnAvery(); if(!avery) return; try{ const n=NET(); if(n&&n.role&&n.role()==='host') n.send('averyCut',{}); }catch(er){} beamsOn(); if(TRACKS&&TRACKS.avery){ window.__musStart=window.__musStart||{}; window.__musStart.avery=()=>cut?SLAM-((SHOT_A+SHOT_B)-cut.t):SLAM+(performance.now()-stampAt)/1000; setMusic('avery'); } else setMusic('none'); try{ SFX.horn&&SFX.horn(); }catch(e){}
   bust.g.position.set(0,-1.2,0); bust.g.rotation.y=0; if(!bust.g.parent) STAGE.add(bust.g); bust.mixer=new THREE.AnimationMixer(bust.g); const a=bust.mixer.clipAction(bust.clip); a.setLoop(THREE.LoopOnce,1); a.clampWhenFinished=true; a.play(); bust.act=a; a.paused=true;
   cut={ t:0, cam:camera.position.clone(), q:camera.quaternion.clone() }; cutEl.style.display='block'; cutEl.querySelector('.stamp').style.cssText=''; document.body.classList.add('avery-cut'); }
-function endCut(){ cutReal=0; if(!cut) return; camera.position.copy(cut.cam); camera.quaternion.copy(cut.q); cut=null; STAGE.visible=false; cutEl.style.display='none'; document.body.classList.remove('avery-cut');
+function endCut(){ cutReal=0; if(!cut) return; camera.position.copy(cut.cam); camera.quaternion.copy(cut.q); cut=null; if(avery&&avery.guestFake){ scene.remove(avery.mdl.g); avery=null; } STAGE.visible=false; cutEl.style.display='none'; document.body.classList.remove('avery-cut');
   if(avery&&!avery.dead){ avery.x=PERCH.x+10; avery.z=PERCH.z+6; avery.y=CRUISE; avery.fly=CRUISE-baseFloor(avery.x,avery.z); } setMusic(TRACKS&&TRACKS.avery?'avery':'wave'); banner('💋 AVERY','she puts the Drag in Dragon'); camShake=Math.max(camShake,.5); }
 // build 474 (Matt: "how can I see Avery, can I call her in from the dev hud"): the dev panel's Spawn with avery picked brings her in the way the wave does -- the whole cut scene, then the fight
 { const prev=spawnEnemy; spawnEnemy=function(kind){ if(kind!==K||inSpawn) return prev.apply(this,arguments); if(cut) return avery;
@@ -171,6 +174,7 @@ function setY(e,y){ e.climb=y-(e.y||0); e.fly=Math.max(.6,y-baseFloor(e.x,e.z));
           if(e.at<PERCH_T-1.2) pose(e,'Breathe','Wing_Fold',null,e.at%4<2?'Look_Around':'Jaw_Open',{ wingsOnce:true, fade:.4 });   // landed: wings folded and kept folded, tail swishing, looking round, a grin now and then
           else pose(e,'Hover','Wingbeat',null,null,{ fade:.25 }); }   // the last second: wings open, a big beat to lift off
         if(e.perchLanded&&e.at>PERCH_T){ e.perchLanded=false; e.ast='cruise'; e.acd=1; e.at=0; e.beatT=1.8; floatText(e.x,e.y+4,e.z,'💅','#ff9ae8'); } }
+      e.yaw=e.mdl.g.rotation.y;   // build 504: her heading rides the mobs list to a guest (she turns her model herself)
       if(e.strikeQ&&e.strikeQ.length){ e.strikeQ=e.strikeQ.filter(q=>{ if(S.t<q.at) return true; strike(e,q.tg); return false; }); } }
     for(const o of BEAMS){ o.b.rotation.z=Math.sin(S.t*.6+o.ph)*.45; o.b.rotation.x=Math.cos(S.t*.45+o.ph)*.25; }
     updFeathers(dt);
@@ -186,7 +190,22 @@ function windSet(){ const look=(()=>{ try{ const m=window.__weapons&&window.__we
     camShake=Math.max(camShake,.9); banner('💋 AVERY FALLS','the Wind set is yours'); setTimeout(()=>{ if(!enemies.some(x=>x.kind===K&&!x.dead)&&musicMode==='avery') setMusic(S.phase==='wave'?'wave':'build'); },2500);
     const N=window.__mythic&&window.__mythic.normalize; windSet().forEach((rec,i)=>{ const it=N?N(rec):null; if(!it) return; const a=i/5*TAU; dropLoot(it,hero.x+Math.cos(a)*3.5,hero.z+Math.sin(a)*3.5,true); });
     setTimeout(()=>{ if(!enemies.some(x=>x.kind===K&&!x.dead)) beamsOff(); },2500); } return r; }; }
-window.__avery={ stampAt:()=>stampAt, kind:K, load, loaded:()=>!!(MOBGLB[K]&&bust), info:()=>Object.assign({ cut:!!cut, cutT:cut?+cut.t.toFixed(2):null, beams:BEAMS.length, feathers:FALL.length },cnt),
+// ---- build 504: the guest's side
+function guestCut(){ if(cut) return; load().then(()=>{ if(cut||!MOBGLB[K]||!bust) return; done=true; cnt.intro++;
+    const m=makeMob(K); m.g.position.set(START.x,START.y,START.z); scene.add(m.g); avery={ mdl:m, x:START.x, z:START.z, y:START.y, guestFake:true }; beamsOn();
+    if(TRACKS&&TRACKS.avery){ window.__musStart=window.__musStart||{}; window.__musStart.avery=()=>cut?SLAM-((SHOT_A+SHOT_B)-cut.t):SLAM+(performance.now()-stampAt)/1000; setMusic('avery'); } else setMusic('none');
+    bust.g.position.set(0,-1.2,0); bust.g.rotation.y=0; if(!bust.g.parent) STAGE.add(bust.g); bust.mixer=new THREE.AnimationMixer(bust.g); const a=bust.mixer.clipAction(bust.clip); a.setLoop(THREE.LoopOnce,1); a.clampWhenFinished=true; a.play(); bust.act=a; a.paused=true;
+    cut={ t:0, cam:camera.position.clone(), q:camera.quaternion.clone() }; cutEl.style.display='block'; cutEl.querySelector('.stamp').style.cssText=''; document.body.classList.add('avery-cut'); }); }
+let cutHooked=false; function hookCut(){ if(cutHooked) return; const n=NET(); if(!(n&&n.onMessage)) return; cutHooked=true; n.onMessage('averyCut',()=>{ if(isGuest()) guestCut(); }); }   // 99-network.js loads after this file: hooked on the first frame it is there
+hookCut(); { const prev=Meta.update; Meta.update=dt=>{ prev(dt); hookCut(); }; }
+// her puppet on a guest: the layered flight (wings beating as she climbs or turns, gliding otherwise), her bar from the host's health, the lights and music while she lives
+let gSeen=false, gGone=0;
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(!isGuest()||cut) return; const M=window.__mobsync; if(!M||!M.each) return; let live=null;
+    M.each(p=>{ if(p.kind!==K||!p.mdl||!p.mdl.mixer||!SUB.body) return; live=p; const vy=p.ly===undefined?0:(p.y-p.ly)/Math.max(dt,1e-3), turn=p.lyaw===undefined?0:Math.abs(Math.atan2(Math.sin(p.yaw-p.lyaw),Math.cos(p.yaw-p.lyaw)))/Math.max(dt,1e-3); p.ly=p.y; p.lyaw=p.yaw;
+      const low=p.y<ROOF+2.2, beat=vy>.8||turn>1.2||(S.t%6)<1.6; pose(p,low?'Breathe':(beat?'Hover':'Glide'),low?'Wing_Fold':(beat?'Wingbeat':'Glide'),null,null,low?{ wingsOnce:true }:null); });
+    if(live){ gSeen=true; gGone=0; bar.style.display='block'; const mx=live.max||live.maxSeen||MOBS[K].hp; bar.querySelector('.fill').style.width=Math.max(0,100*(live.hp||0)/mx)+'%'; if(!BEAMS.length) beamsOn(); for(const o of BEAMS){ o.b.rotation.z=Math.sin(S.t*.6+o.ph)*.45; o.b.rotation.x=Math.cos(S.t*.45+o.ph)*.25; } }
+    else if(gSeen){ gGone+=dt; bar.style.display='none'; if(gGone>2){ gSeen=false; beamsOff(); if(musicMode==='avery') setMusic(S.phase==='wave'?'wave':'build'); } } }; }
+window.__avery={ guestCut, stampAt:()=>stampAt, kind:K, load, loaded:()=>!!(MOBGLB[K]&&bust), info:()=>Object.assign({ cut:!!cut, cutT:cut?+cut.t.toFixed(2):null, beams:BEAMS.length, feathers:FALL.length },cnt),
   state:()=>enemies.filter(e=>!e.dead&&e.kind===K).map(e=>({ st:e.ast, phase:e.phase, x:+e.x.toFixed(1), z:+e.z.toFixed(1), y:+(e.y||0).toFixed(1), hp:Math.round(e.hp), max:e.max, swoops:e.aswoops })),
   peek:(wclip,frac)=>{ const e=enemies.find(x=>x.kind===K&&!x.dead); if(!e) return false; e.ast='peek'; const mx=e.mdl.mixer; mx.stopAllAction(); e.lay={ cur:{}, act:{}, at:{} }; for(const [g,c] of [['body','Hover'],['wings',wclip],['tail','Tail_Swish'],['head','Look_Around']]){ const sub=SUB[g]&&SUB[g][c]; if(!sub) continue; const act=mx.clipAction(sub); act.reset(); act.play(); act.time=sub.duration*frac; act.paused=true; } mx.update(0); return true; },   /* test hook: hold her in one pose (avery-test pictures) */ startCut, endCut, skip:()=>{ if(cut) cut.t=END-.01; }, windSet, way:WAY, perch:PERCH };
 })();
