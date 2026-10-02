@@ -384,7 +384,7 @@ function paintFloor(){
       if(D(gat(x,z-1))){ g.moveTo(px,pz+1.5); g.lineTo(px+S,pz+1.5);} if(D(gat(x,z+1))){ g.moveTo(px,pz+S-1.5); g.lineTo(px+S,pz+S-1.5);} if(D(gat(x-1,z))){ g.moveTo(px+1.5,pz); g.lineTo(px+1.5,pz+S);} if(D(gat(x+1,z))){ g.moveTo(px+S-1.5,pz); g.lineTo(px+S-1.5,pz+S);} g.stroke();
     } else if(t===T.SPAWN){ g.fillStyle='#1d1430'; g.fillRect(px,pz,S,S); for(let i=0;i<10;i++) splat(g,px+rnd()*S,pz+rnd()*S,R(2,5),'#6a2fb0',.18);
     } else if(t===T.WATER){ g.fillStyle='#0a1630'; g.fillRect(px,pz,S,S); for(let i=0;i<8;i++) splat(g,px+rnd()*S,pz+rnd()*S,R(2,6),rnd()<.5?'#061024':'#16305a',.25);   // the moat's bed, seen through the water
-    } else if(MAP.style&&MAP.style.grass&&t===T.FLOOR){ g.fillStyle='#1c3a1a'; g.fillRect(px,pz,S,S); for(let i=0;i<9;i++) splat(g,px+rnd()*S,pz+rnd()*S,R(2,6),hsl(R(95,130),R(28,40),R(16,30)),.5); g.strokeStyle=hsl(110,35,34); g.lineWidth=1; g.globalAlpha=.55; g.beginPath(); for(let i=0;i<5;i++){ const bx=px+rnd()*S, bz=pz+rnd()*S; g.moveTo(bx,bz); g.lineTo(bx+R(-2,2),bz-R(3,6)); } g.stroke(); g.globalAlpha=1;   // a green: turf with blades
+    } else if(MAP.style&&MAP.style.grass&&t===T.FLOOR&&!rampA[idx(x,z)]&&!((hgt[idx(x,z)]||0)>.5)){   /* build 466 (Matt: "in some places we have grass on the stairs"): a stair, or ground raised off the green (a landing, a wall-top), is paved, not lawn */ g.fillStyle='#1c3a1a'; g.fillRect(px,pz,S,S); for(let i=0;i<9;i++) splat(g,px+rnd()*S,pz+rnd()*S,R(2,6),hsl(R(95,130),R(28,40),R(16,30)),.5); g.strokeStyle=hsl(110,35,34); g.lineWidth=1; g.globalAlpha=.55; g.beginPath(); for(let i=0;i<5;i++){ const bx=px+rnd()*S, bz=pz+rnd()*S; g.moveTo(bx,bz); g.lineTo(bx+R(-2,2),bz-R(3,6)); } g.stroke(); g.globalAlpha=1;   // a green: turf with blades
     } else { const mar=!!(MAP.style&&MAP.style.marble), moss=!!(MAP.style&&MAP.style.moss); g.fillStyle=mar?'#a89c88':moss?'#1a2418':'#1c1626'; g.fillRect(px,pz,S,S);
       for(let sx=0;sx<2;sx++) for(let sz=0;sz<2;sz++){ const L=mar?R(58,70)-((x+z)%2?7:0):moss?R(30,40):R(30,41), H=mar?R(34,46):moss?R(95,140):R(246,262), SA=mar?14:moss?12:17; g.fillStyle=hsl(H,SA,L); g.fillRect(px+sx*16+1.5,pz+sz*16+1.5,13,13);
         g.fillStyle=hsl(H,SA+3,L+12); g.globalAlpha=.35; g.fillRect(px+sx*16+1.5,pz+sz*16+1.5,13,2); g.globalAlpha=1;
@@ -812,7 +812,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=465;
+const BUILD=466;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
