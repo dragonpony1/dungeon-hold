@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="83">
+<meta name="hideout-build" content="84">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -12,6 +12,7 @@ canvas{display:block}
 #inv{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;background:#000a;padding:8px;border-radius:8px}
 .slot{width:52px;height:52px;border:2px solid #666;border-radius:6px;display:flex;align-items:center;justify-content:center;font:10px monospace;color:#fff;cursor:pointer;text-align:center;background:#222}
 .slot.sel{border-color:#ff8}
+#clickPlay{position:fixed;left:50%;top:46%;transform:translate(-50%,-50%);z-index:9;display:none;padding:10px 18px;border-radius:12px;background:#140e1ae0;border:2px solid #ffd27a;color:#ffd27a;font:800 16px Georgia,serif;letter-spacing:2px;pointer-events:none;box-shadow:0 0 18px #000}
 #start{position:fixed;inset:0;background:#000d;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font:16px monospace;text-align:center;cursor:pointer;z-index:10}
 #start b{font-size:22px;color:#8cf}
 #loadWrap{margin-top:18px}
@@ -168,6 +169,7 @@ canvas{display:block}
 .islot .wornE{position:absolute;top:1px;right:2px;font:800 10px system-ui;color:#1a1208;background:#ffd27a;border-radius:4px;padding:0 3px;pointer-events:none}.islot{position:relative}
 </style>
 </head><body>
+<div id="clickPlay">&#128433; <b>CLICK</b> TO PLAY</div>
 <div id="start"><b>THE HIDEOUT</b><br><br>Click to enter<br><br>WASD move &middot; Shift sprint &middot; Space jump &middot; mouse to look<br>E interact &middot; G pick up &middot; 1-9 or scroll to select hotbar &middot; I: inventory &middot; B: bag &middot; Tab: sheet &middot; H: hero &middot; T: trade &middot; Esc: close a menu<br>The portal takes you back to the hall<div id="loadWrap"><div id="loadBar" class="indeterminate"><div id="loadFill"></div></div><div id="loadLine">Loading…</div></div></div>
 <div id="crosshair"></div>
 <div id="hud">Rare Sludge: <b id="sludge">0</b></div>
@@ -278,7 +280,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 83;   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 84;   // build 84: Esc out of any menu leaves you in the room (a small click-to-play sign), never the big entry card.   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -1055,14 +1057,20 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = false;
 document.body.appendChild(renderer.domElement);
 
-let active = false, yaw = 0, pitch = 0, suppressStart = false;
+let active = false, yaw = 0, pitch = 0, suppressStart = false, entered = false, parentMenu = false, lockedAt = 0;
 camera.rotation.order = 'YXZ';
 const canvas = renderer.domElement;
 
-document.getElementById('start').addEventListener('click', () => canvas.requestPointerLock());
+// build 84 (Matt: "right now its making me click twice to get back to mouse drive"): the mouse is taken on the button going DOWN, not on a full click (a click needs the press and the release on the same thing, and the card under it
+// can be gone by the release); and if the browser says no (Chrome refuses for a moment right after an Esc), the very next press asks again
+document.getElementById('start').addEventListener('mousedown', e => { if (e.button === 0) canvas.requestPointerLock(); });
+canvas.addEventListener('mousedown', e => { if (e.button === 0 && document.pointerLockElement !== canvas && entered && !isAnyPanelOpen() && !hiddenByHost) canvas.requestPointerLock(); });
 document.addEventListener('pointerlockchange', () => {
   active = document.pointerLockElement === canvas;
-  if (!suppressStart) document.getElementById('start').style.display = active ? 'none' : 'flex';
+  if (active) { entered = true; lockedAt = performance.now(); }
+  // build 84 (Matt: "when i hit escape from within my bag, or forge or cauldron or anything it needs to take me to just open screen, right now it goes to the loading hideout screen"): the big card is the FIRST way in only;
+  // after that, losing the mouse (an Esc, a menu) leaves the room in view with a small CLICK TO PLAY sign (a browser never hands the mouse back off an Esc -- one click does)
+  if (!suppressStart) document.getElementById('start').style.display = active || entered ? 'none' : 'flex';
   suppressStart = false;
   if (active) { maybeShowRewardBanner(); maybeShowJarsMsg(); }
 });
@@ -3001,22 +3009,23 @@ document.addEventListener('keydown', e => {
 function openHeroPick() {
   if (window.parent === window) { flashMsg('Change heroes on the title screen, in the hall'); return; }
   if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
-  try { window.parent.postMessage('hideout:hero', '*'); } catch (e) {}
+  parentMenu = true; try { window.parent.postMessage('hideout:hero', '*'); } catch (e) {}
 }
 // build 82: Tab asks the game for its character sheet (what you wear, your stats, loadouts -- game build 440, 96g-hideoutbag.js) over this page, handed back the way the bag is. Standalone: the I panel.
 function openHallSheet() {
   if (window.parent === window) { openGearPanel(); return; }
   if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
-  try { window.parent.postMessage('hideout:sheet', '*'); } catch (e) {}
+  parentMenu = true; try { window.parent.postMessage('hideout:sheet', '*'); } catch (e) {}
 }
 function openHallBag() {
   if (window.parent === window) { openGearPanel(); return; }
   if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
-  try { window.parent.postMessage('hideout:bag', '*'); } catch (e) {}
+  parentMenu = true; try { window.parent.postMessage('hideout:bag', '*'); } catch (e) {}
 }
 document.addEventListener('keyup', e => { keys[keyName(e)]=false; });
 canvas.addEventListener('click', () => {
-  if (document.pointerLockElement !== canvas) return;
+  if (document.pointerLockElement !== canvas) return;   // build 84: stepping back in is the mousedown above
+  if (performance.now() - lockedAt < 350) return;   // ...and the release of that same press is not a click that places what you hold
   if (ghost) commitPlacement();
   else if (dropGhost) commitDropPlacement();
 });
@@ -3050,6 +3059,8 @@ let lastT = performance.now();
 // it every visit: post 'hideout:hide' / 'hideout:show' to this frame. Hidden, it draws nothing; shown again, it
 // re-reads what the game may have changed meanwhile (gear bag, locker) and waits for a click to enter.
 let hiddenByHost = false;
+// build 84: the small CLICK TO PLAY sign -- up whenever you are in the room without the mouse and nothing else is open over it
+setInterval(() => { const cp = document.getElementById('clickPlay'); if (!cp) return; const want = entered && !active && !hiddenByHost && !parentMenu && !isAnyPanelOpen() && document.getElementById('start').style.display !== 'flex'; const sh = cp.style.display === 'block'; if (want !== sh) cp.style.display = want ? 'block' : 'none'; }, 120);
 window.addEventListener('message', (e) => {
   if (e.source !== window.parent || window.parent === window) return;
   if (e.data === 'hideout:hide') {
@@ -3067,8 +3078,9 @@ window.addEventListener('message', (e) => {
     if (document.getElementById('cauldronWrap').style.display === 'flex') buildCauldronRows();
   } else if (e.data === 'hideout:bagClosed') {   // build 69: the game's bag (B) closed: a click steps back in
     lastT = performance.now();
+    parentMenu = false;
     if (document.getElementById('forgeWrap').style.display === 'flex') { buildForgeGrid(); return; }   // build 83: back to the forge, not the 'click to enter' card over it
-    if (!document.pointerLockElement && !isAnyPanelOpen()) document.getElementById('start').style.display = 'flex';
+    if (!document.pointerLockElement && !isAnyPanelOpen() && !entered) document.getElementById('start').style.display = 'flex';   // build 84: after the first entry, the small sign does it
   }
 });
 function animate(now) {
