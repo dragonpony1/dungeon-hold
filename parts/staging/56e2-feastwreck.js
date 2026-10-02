@@ -73,5 +73,15 @@ scene.traverse(o=>{ if(o.isHemisphereLight){ o.color.set(C(0x4a4c8a)); o.groundC
         const nx=dx, nz=dz, fx=cw(x)+dx*CELL/2, fz=cwz(z)+dz*CELL/2; q.setFromAxisAngle(up,Math.atan2(nx,nz));
         for(let y=y0;y<top-.05;y+=RH){ const h=Math.min(RH,top-y); mats.push(new THREE.Matrix4().compose(new THREE.Vector3(fx+nx*(.03+D/2),y,fz+nz*(.03+D/2)),q,new THREE.Vector3(CELL*1.02,h,D))); } } }
     const im=new THREE.InstancedMesh(g,mesh.material,mats.length); mats.forEach((m,i)=>im.setMatrixAt(i,m)); im.instanceMatrix.needsUpdate=true; im.frustumCulled=false; im.userData.noOL=true; world.add(im); cnt.galleryPanels=mats.length; }).catch(e=>console.warn('feast gallery stone',e)); }
+// ---- build 472: a rug under every table still standing (the throne room's long rug, turned with its table, a little longer than it), laid flat on top of the floor tiles (see 56e's rug note)
+const loadFlat=(name,W,cb)=>fetchBytes(ASSET(name),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ const root=gltf.scene||gltf.scenes[0]; root.updateMatrixWorld(true);
+  const box=new THREE.Box3().setFromObject(root), sz=box.getSize(new THREE.Vector3()), sc=W/Math.max(sz.x,1e-6); const inner=new THREE.Group(); inner.add(root); inner.scale.setScalar(sc); inner.position.set(-(box.min.x+box.max.x)/2*sc,-box.min.y*sc,-(box.min.z+box.max.z)/2*sc); toonify(root,sc);
+  const w=new THREE.Group(); w.add(inner); cb(w,sz.y*sc); }).catch(e=>console.warn('feast '+name,e));
+loadFlat('throne-rug.glb',8,(w,th)=>{ for(const [cx,cz,len,ang,over] of (MAP.wreck||[])){ if(over) continue; const t=w.clone(); t.position.set(cx2w(cx),.16,cz2w(cz)); t.rotation.y=-ang*PI/180;
+  const L=len*CELL+1.6; t.scale.set(L/8,Math.min(1,.12/Math.max(th,1e-3)),1.15); world.add(t); cnt.rugs=(cnt.rugs|0)+1; } });
+// ---- build 472: banners hanging off the gallery's rail into the hall, clear of its stairs and the north door
+{ const GZ=5, spots=[6,16,20,30,35,39,45].filter(x=>grid[idx(x,GZ)]!==T.WALL&&(hgt[idx(x,GZ)]||0)>=4&&!rampA[idx(x,GZ+1)]&&(hgt[idx(x,GZ+1)]||0)<1);
+  fetchBytes(ASSET('throne-banner2.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,3.4); toonify(root,fit.scale);
+    for(const x of spots){ const top=hgt[idx(x,GZ)]||0; const t=fit.wrap.clone(); t.position.set(cw(x),top+.9-3.4,cwz(GZ)+CELL/2+.12); t.rotation.y=0; world.add(t); cnt.banners=(cnt.banners|0)+1; } }).catch(e=>console.warn('feast banner',e)); }
 window.__feastwreck={ info:()=>Object.assign({ on:true },cnt) };
 })();
