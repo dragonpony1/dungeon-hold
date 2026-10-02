@@ -16,7 +16,7 @@ check('the first E on a tee plays the cinematic, SPACE skips it and the hole beg
 await page.keyboard.press('KeyE'); const E1=await page.evaluate(()=>window.__golf.info().on); await page.keyboard.press('KeyE'); const E2=await page.evaluate(()=>window.__golf.info().on);
 check('E on a tee takes up the putter, E again walks away',E1===true&&E2===false,JSON.stringify({E1,E2}));
 const play=await page.evaluate(async()=>{ const d=window.__dd, g=window.__golf, out={};
-  const dist=v=>v/.22-(1.6/.0484)*Math.log(1+.22*v/1.6);   // how far a putt of speed v rolls (the module's own slowing)
+  const dist=v=>v/.35-(.55/.1225)*Math.log(1+.35*v/.55);   // how far a putt of speed v rolls (the module's own slowing)
   const powerFor=D=>{ let lo=0, hi=1; for(let i=0;i<30;i++){ const m=(lo+hi)/2; if(dist(1.2+m*12.5)<D) lo=m; else hi=m; } return Math.min(1,(lo+hi)/2); };
   for(const n of [1,2,3,4]){ const h=g.holes[n-1]; g.start(n); let outside=0, strokes=0;
     // the hole's points from the module itself: aim at the cup when it is in a straight line, else at the next bend

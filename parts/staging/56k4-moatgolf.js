@@ -82,7 +82,7 @@ parse('golf-catapult.glb').then(gl=>{ const h=HOLES[3], p=W(h.cat.at[0],h.cat.at
   CAT.mixer=new THREE.AnimationMixer(f.root); const by=n=>gl.animations.find(a=>a.name===n); CAT.idle=CAT.mixer.clipAction(by('Loaded_Idle')||gl.animations[0]); CAT.idle.play(); const fl=by('Fling'); if(fl){ CAT.fling=CAT.mixer.clipAction(fl); CAT.fling.setLoop(THREE.LoopOnce,1); CAT.fling.clampWhenFinished=true; }
   MIX.push(CAT.mixer); cnt.models++; }).catch(e=>console.warn('golf catapult',e));
 let ballProto=null, putterProto=null;
-parse('golf-ball.glb').then(gl=>{ ballProto=fit(gl.scene,'y',BR*2).w; cnt.models++; }).catch(e=>console.warn('golf ball',e));
+parse('golf-ball.glb').then(gl=>{ const f=fit(gl.scene,'y',BR*2); f.w.children[0].position.y-=BR; ballProto=f.w; cnt.models++; })   // build 484 (Matt: "can the ball roll any smoother"): the ball turns about its own CENTRE -- fit() roots a model at its foot, and a ball spun about its foot wobbled and bobbed as it rolled.catch(e=>console.warn('golf ball',e));
 parse('golf-putter.glb').then(gl=>{ putterProto=fit(gl.scene,'y',1.55).w; cnt.models++; }).catch(e=>console.warn('golf putter',e));
 WORLDANIM.push(dt=>{ for(const m of MIX) m.update(dt); });
 // ---------------------------------------------------------------- the round
@@ -109,10 +109,11 @@ function closest(s,x,z){ const t=Math.max(0,Math.min(s.L,(x-s.ax)*s.dx+(z-s.az)*
 function bounce(b,nx,nz,e){ const vn=b.vx*nx+b.vz*nz; if(vn<0){ b.vx-=(1+e)*vn*nx; b.vz-=(1+e)*vn*nz; } }
 function gate(b,h,o,i){ // an obstacle with a narrow lane: the ball meets its face; inside it is held to the lane
   const s=h.segs[i], p=W(o.at[0],o.at[1]); const sA=(b.x-p.x)*s.dx+(b.z-p.z)*s.dz, lat=-(b.x-p.x)*s.dz+(b.z-p.z)*s.dx; return { sA, lat, s, p }; }
+const ROLL_C=.55, ROLL_K=.35;   // build 484 (was 1.6 and .22): about the same full-power roll (29 units against 27), a much softer finish
 function step(dt){ const b=GF.b, h=GF.h; if(b.flight){ const f=b.flight; f.t+=dt; const k=Math.max(0,Math.min(1,f.t/f.T)); b.x=f.x0+(f.x1-f.x0)*k; b.z=f.z0+(f.z1-f.z0)*k; b.y=TURF+BR+f.H*4*k*(1-k)+(f.y1-TURF-BR)*k;
     if(k>=1){ b.flight=null; b.y=null; if(f.lost){ toTee('out'); return; } b.region='island'; b.vx=f.vx; b.vz=f.vz; b.moving=true; if(f.ace){ holedNow(); return; } } return; }
   if(!b.moving) return;
-  const sp=Math.hypot(b.vx,b.vz), dec=(1.6+.22*sp)*dt; if(sp<=dec||sp<.1){ b.vx=b.vz=0; b.moving=false; return; } b.vx-=b.vx/sp*dec; b.vz-=b.vz/sp*dec;
+  const sp=Math.hypot(b.vx,b.vz), dec=(ROLL_C+ROLL_K*sp)*dt; if(sp<=dec||sp<.04){ b.vx=b.vz=0; b.moving=false; return; } b.vx-=b.vx/sp*dec; b.vz-=b.vz/sp*dec;   // build 484: mostly a gliding slow-down in proportion to its speed, little flat braking -- it eases to a stop instead of braking hard and halting
   const nx0=b.x, nz0=b.z; b.x+=b.vx*dt; b.z+=b.vz*dt;
   if(b.region==='island'){ const I=h.I, dx=b.x-I.x, dz=b.z-I.z, d=Math.hypot(dx,dz), lim=I.r-BR; if(d>lim){ b.x=I.x+dx/d*lim; b.z=I.z+dz/d*lim; bounce(b,-dx/d,-dz/d,.7); } }
   else { let best=null, bd=1e9; for(const s of h.segs){ const c=closest(s,b.x,b.z), d=Math.hypot(b.x-c.x,b.z-c.z); if(d<bd){ bd=d; best=c; } } const lim=FW-BR-.02; if(bd>lim){ const nx=(b.x-best.x)/bd, nz=(b.z-best.z)/bd; b.x=best.x+nx*lim; b.z=best.z+nz*lim; bounce(b,-nx,-nz,.72); } }
@@ -134,13 +135,13 @@ function fling(sp){ const b=GF.b, h=GF.h; b.moving=false; b.vx=b.vz=0; cnt.fling
   b.flight={ t:-.35, T:1.15, H:6, x0:p.x, z0:p.z, x1:lx, z1:lz, y1:TURF+BR, lost, ace, vx:(h.C.x-lx)/back*(.6+Math.random()*1.2), vz:(h.C.z-lz)/back*(.6+Math.random()*1.2) }; try{ SFX.thud&&SFX.thud(); }catch(e){} }
 // ---------------------------------------------------------------- every frame: the hero at the ball, the aim, the swing, the ball
 const aimBar=new THREE.Mesh(new THREE.PlaneGeometry(1,.14),new THREE.MeshBasicMaterial({ color:C(0xffe08a), transparent:true, opacity:.85, depthWrite:false })); aimBar.rotation.order='YXZ'; aimBar.visible=false; aimBar.userData.noOL=true; scene.add(aimBar);
-const v3=new THREE.Vector3();
+const v3=new THREE.Vector3(), RAX=new THREE.Vector3();
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt);
     if(GF.on&&S.phase!=='build'){ stop(); }
     if(!GF.on){ prompt(nearTee()); return; } prompt(null);
     const b=GF.b; for(let k=0;k<4;k++) step(dt/4); if(!GF.on) return;
     if(b.sink){ b.sink=Math.max(0,b.sink-dt*3); }
-    if(GF.ball){ const y=b.y!=null?b.y:TURF+BR-(b.sink!==undefined?(1-b.sink)*.4:0); GF.ball.position.set(b.x,y,b.z); GF.ball.rotation.x+=b.vz*dt/BR; GF.ball.rotation.z-=b.vx*dt/BR; }
+    if(GF.ball){ const y=(b.y!=null?b.y:TURF+BR-(b.sink!==undefined?(1-b.sink)*.4:0)); const px=GF.ball.position.x, pz=GF.ball.position.z; GF.ball.position.set(b.x,y,b.z); const mx=b.x-px, mz=b.z-pz, dd=Math.hypot(mx,mz); if(dd>1e-5&&dd<3){ RAX.set(mz/dd,0,-mx/dd); GF.ball.rotateOnWorldAxis(RAX,dd/BR); } }   // build 484: it rolls the way it actually moved this frame, about the axis across its path (bounces included)
     camera.getWorldDirection(v3); const al=Math.hypot(v3.x,v3.z)||1; GF.aim={ x:v3.x/al, z:v3.z/al };
     if(GF.charging){ GF.ct+=dt; const u=(GF.ct/1.15)%2; GF.power=u<1?u:2-u; }
     const ready=!b.moving&&!b.flight&&b.sink===undefined;
