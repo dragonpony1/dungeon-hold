@@ -102,7 +102,7 @@ function strike(e,tg){ if(tg.def){ const d=tg.def; if(!defs.includes(d)) return;
   +'body.avery-cut #hud,body.avery-cut #hotbar,body.avery-cut #banner,body.avery-cut #toast,body.avery-cut #prompt,body.avery-cut #minimap,body.avery-cut #averybar,body.avery-cut #defcard,body.avery-cut #herostats,body.avery-cut #pickcard,body.avery-cut #ov,body.avery-cut #btns,body.avery-cut #wavebtn,body.avery-cut #mmWave,body.avery-cut #loadctr{visibility:hidden!important}';   /* the game already has a .bars (the Heartroot bars): the letterbox has its own name; and the HUD steps aside for her */
   document.head.appendChild(st); }
 const bar=document.createElement('div'); bar.id='averybar'; bar.innerHTML='💋 AVERY 💋<div class="track"><i class="fill"></i><span class="half"></span></div>'; document.body.appendChild(bar);
-const cutEl=document.createElement('div'); cutEl.id='averycut'; cutEl.innerHTML='<div class="avlb avlb-t"></div><div class="avlb avlb-b"></div><div class="flash"></div><div class="stamp"><b>AVERY!</b><i>she puts the Drag in Dragon</i></div><div class="skip">click to skip ▸▸</div>'; document.body.appendChild(cutEl);
+const cutEl=document.createElement('div'); cutEl.id='averycut'; cutEl.innerHTML='<div class="avlb avlb-t"></div><div class="avlb avlb-b"></div><div class="flash"></div><div class="stamp"><b>AVERY!</b><i>she puts the Drag in Dragon</i></div><div class="skip">SPACE to skip ▸▸</div>'; document.body.appendChild(cutEl);
 // ---------------------------------------------------------------- her arrival: the cut scene
 let waveTotal=0, done=false, cut=null, avery=null;
 { const prev=startWave; startWave=function(){ prev(); if(isMoat()&&S.wave===MAP.waves) waveTotal=spawnQ.length; }; }
@@ -120,8 +120,9 @@ function endCut(){ if(!cut) return; camera.position.copy(cut.cam); camera.quater
 // build 474 (Matt: "how can I see Avery, can I call her in from the dev hud"): the dev panel's Spawn with avery picked brings her in the way the wave does -- the whole cut scene, then the fight
 { const prev=spawnEnemy; spawnEnemy=function(kind){ if(kind!==K||inSpawn) return prev.apply(this,arguments); if(cut) return avery;
     if(MOBGLB[K]&&bust){ startCut(); return avery; } toast('💋 Avery is on her way…'); load().then(()=>{ if(MOBGLB[K]&&bust&&!cut) startCut(); }); return null; }; }
-addEventListener('mousedown',()=>{ if(cut&&cut.t<END-.5){ cut.t=END-.5; cnt.skipped++; } },true);
-addEventListener('keydown',ev=>{ if(cut&&cut.t<END-.5&&ev.key!=='F9'){ cut.t=END-.5; cnt.skipped++; } },true);
+// build 478 (Matt: "when I spawn Avery from the dev hud it skips the cinematic"): any key or click used to skip -- a held W (its key repeat), or the click that takes the mouse back after the dev panel,
+// threw the whole scene away at once. Only a deliberate SPACE or ENTER skips now, never a held key, and not in the first second.
+addEventListener('keydown',ev=>{ if(!cut) return; if((ev.code==='Space'||ev.code==='Enter'||ev.code==='NumpadEnter')&&!ev.repeat&&cut.t>1&&cut.t<END-.5){ cut.t=END-.5; cnt.skipped++; } },true);
 function stepCut(dt){ const c=cut; c.t+=dt; const t=c.t, e=avery;
   for(const o of BEAMS){ o.b.rotation.z=Math.sin(S.t*.0+t*.9+o.ph)*.45; o.b.rotation.x=Math.cos(t*.7+o.ph)*.25; }
   if(t<SHOT_A){ // SHOT A: the castle from the green, the spotlights up, and her glide in over the hall roof

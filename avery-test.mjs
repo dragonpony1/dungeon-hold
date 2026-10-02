@@ -27,4 +27,10 @@ const E=await page.evaluate(()=>{ const d=window.__dd; const j0=window.__jars.li
 check('her fall drops all five Wind pieces and 40 Legendary jars',E.deaths===1&&E.wind.length===5&&new Set(E.wind).size===5&&E.jars>=40,JSON.stringify(E)); await shot('6-fall');
 const F=await page.evaluate(()=>{ const d=window.__dd; d.step(1/60,120); const n0=window.__avery.info().intro; d.spawn('avery','S'); const i=window.__avery.info(); d.step(1/30,320); return { started:i.intro-n0, cut:i.cut, after:window.__avery.info().cut, st:window.__avery.state()[0] }; });
 check('the dev panel spawn (avery) brings her in with her whole cut scene, then the fight',F.started===1&&F.cut&&!F.after&&F.st&&F.st.st==='cruise',JSON.stringify(F));
+const G=await page.evaluate(()=>{ const d=window.__dd; const e=d.enemies.find(x=>x.kind==='avery'&&!x.dead); if(e) d.kill(e); d.step(1/60,90); d.spawn('avery','S'); d.step(1/30,45); return window.__avery.info().cutT; });
+await page.mouse.click(500,300); await page.keyboard.down('KeyW'); for(let i=0;i<8;i++) await page.keyboard.down('KeyW'); await page.keyboard.up('KeyW');
+const G2=await page.evaluate(()=>({ cut:window.__avery.info().cut, t:window.__avery.info().cutT }));
+check('a click and a held W do NOT skip the cut scene',G2.cut&&G2.t>=G-.01,JSON.stringify({ before:G, after:G2 }));
+await page.keyboard.press('Space'); const G3=await page.evaluate(()=>{ window.__dd.step(1/30,20); return window.__avery.info(); });
+check('SPACE skips it',!G3.cut&&G3.skipped>=1,JSON.stringify(G3));
 check('no page errors',errors.length===0,JSON.stringify(errors.slice(0,3))); await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
