@@ -23,5 +23,10 @@ for(const n of Meta.packs.list()){ const P=Meta.packs.get(n); if(!P||P.__gated) 
 { const prev=waveRewardItem; waveRewardItem=function(){ const it=prev.apply(this,arguments);
     if(!OFF&&!TUTORIAL&&MAPI===1&&!SURVIVAL&&S.wave===7&&LR()<REWARD_CHANCE){ const M=window.__mythicDrops; if(M&&M.eligible(it)){ M.mythicize(it); it.__announce=true; } }
     return it; }; }
-window.__setGate={stage,stageFor,allowed,allowedFor,mythic:id=>allowed(TAIL[id]||id),isSet:it=>!!(it&&(it.mythic||(Meta.packs&&Meta.packs.of(it)))),names:()=>Meta.packs.list(),tail:TAIL,rewardChance:REWARD_CHANCE,reward:()=>waveRewardItem()};
+// build 456 (Matt: "yeah even out the drops" -- the eight newer sets were coming out about 7 times rarer than Void and Forest, because 93-gearsets.js tried the sets one after another, Void and Forest first and at
+// higher odds): once EVERY set is open (stage 2), a drop is first asked IF it becomes a set piece -- the same overall odds as the old one-after-another rolls, so as many set pieces as before -- and then WHICH, evenly
+// among the sets that piece can be (a Rare-or-better piece any of the ten; an Uncommon one only the Forest, as before; the Forest's fifth piece still the locker's alone). The early rooms' rules are untouched.
+function spread(it,w,fourForest){ if(OFF||TUTORIAL||stage()<2||!it) return undefined; const can=[]; let miss=1; for(const n of Meta.packs.list()){ const P=Meta.packs.get(n); if(!P||(fourForest&&n===FOREST)||it.rarity<(P.minR|0)) continue; const c=P.chance(w)||0; if(c<=0) continue; can.push(P); miss*=1-c; }
+  if(!can.length||LR()>=1-miss) return null; return can[Math.floor(LR()*can.length)%can.length]; }
+window.__setGate={spread,stage,stageFor,allowed,allowedFor,mythic:id=>allowed(TAIL[id]||id),isSet:it=>!!(it&&(it.mythic||(Meta.packs&&Meta.packs.of(it)))),names:()=>Meta.packs.list(),tail:TAIL,rewardChance:REWARD_CHANCE,reward:()=>waveRewardItem()};
 })();
