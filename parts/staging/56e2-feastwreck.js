@@ -1,0 +1,58 @@
+// ===== THE FEAST GONE WRONG + THE MINSTRELS' GALLERY (build 468). Matt: "the dining hall is my least favorite map right now ... it's just ugly and has straight paths and the skin is bad" -- shown three
+// floor plans, "yeah maybe mix A and B". game.js lays it out (the gallery 5 up along the north wall in two halves either side of the north door, a stair down from each, the solid squares of every table
+// and of the fire pit); this file draws it, after 56e-feastdecor.js has furnished the rest of the hall:
+//   * MAP.wreck [cx, cz, length, angle, overturned]: Matt's feast table (feast-table.glb), stretched to its length and turned to its angle; an overturned one is a table knocked on its side -- its top
+//     standing up as a barricade, legs out, the plates spilled;
+//   * MAP.pit [cx, cz, radius]: a ring of stones, a bed of coals, a fire that never sits still, and a whole boar turning on a spit over it (a stand-in until there's art for it);
+//   * railings on every open edge of the gallery and up both sides of its stairs (RAILBOXES: the hero can't step off; a jump clears them).
+// Only MAP.id==='feast'. Test hook: window.__feastwreck.
+(function(){
+'use strict';
+window.__feastwreck={ info:()=>({ on:false }) };
+if(!MAP||MAP.id!=='feast') return;
+const cnt={ tables:0, over:0, rails:0, pit:false };
+const wood=mat(0x6b4a2a), plank=mat(0x8a5e34), cream=mat(0xf1e6d0), iron=mat(0x3a3348), stoneM=mat(0x5a5276), capM=mat(0x2b2540);
+const cx2w=cx=>cw(cx), cz2w=cz=>cwz(cz);   // map squares (fractions allowed) to the world
+// ---- the tables still standing: Matt's model, fitted by its length
+const L0=7.35;
+fetchBytes(ASSET('feast-table.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gltf=>{
+  const root=gltf.scene||gltf.scenes[0]; root.updateMatrixWorld(true); const box=new THREE.Box3().setFromObject(root), sz=box.getSize(new THREE.Vector3()); const sc=L0/Math.max(sz.x,1e-6);
+  const inner=new THREE.Group(); inner.add(root); inner.scale.setScalar(sc); inner.position.set(-(box.min.x+box.max.x)/2*sc,-box.min.y*sc,-(box.min.z+box.max.z)/2*sc); toonify(root,sc);
+  const proto=new THREE.Group(); proto.add(inner);
+  for(const [cx,cz,len,ang,over] of (MAP.wreck||[])){ if(over) continue; const t=proto.clone(); t.position.set(cx2w(cx),0,cz2w(cz)); t.rotation.y=-ang*PI/180; t.scale.set(len*CELL/L0,1,1); world.add(t); cnt.tables++; }
+}).catch(e=>console.warn('feast wreck tables',e));
+// ---- the overturned ones: on their side, the top a barricade, legs out, plates spilled at its foot
+for(const [cx,cz,len,ang,over] of (MAP.wreck||[])){ if(!over) continue; const w=len*CELL-.3, g=new THREE.Group(); g.position.set(cx2w(cx),0,cz2w(cz)); g.rotation.y=-ang*PI/180;
+  g.add(M(G.box(w,1.7,.16),plank,0,.85,0)); for(let k=0;k<4;k++){ const lx=(k<2?-1:1)*(w/2-.6), ly=k%2?1.45:.3; g.add(M(G.box(.2,.2,.95),wood,lx,ly,-.55)); }   // the top on edge; its four legs sticking out behind
+  g.add(M(G.box(w-.8,.1,.5),plank,.3,.06,.75)); g.children[g.children.length-1].rotation.y=.08;   // a bench thrown down beside it
+  for(let k=0;k<5;k++){ const u=-w/2+1+k*(w-2)/4, p=M(G.cyl(.28,.28,.05,10),cream,u,.04,.9+(k%2)*.5); p.rotation.z=(k%3-1)*.25; g.add(p); }   // the plates, spilled
+  world.add(outline(g)); cnt.over++; }
+// ---- the fire pit and the boar on its spit
+if(MAP.pit){ const [pcx,pcz,pr]=MAP.pit, X=cx2w(pcx), Z=cz2w(pcz), R=(pr-.45)*CELL, g=new THREE.Group(); g.position.set(X,0,Z);
+  const ringN=14; for(let k=0;k<ringN;k++){ const a=k/ringN*TAU, s=M(G.box(1.25,.7,.9),stoneM,Math.cos(a)*R,.35,Math.sin(a)*R); s.rotation.y=-a; g.add(s); }
+  const coal=M(G.cyl(R-.4,R-.2,.25,20),basic(0x5a1606),0,.12,0); coal.userData.noOL=true; g.add(coal);
+  const flames=[]; for(let k=0;k<9;k++){ const a=k/9*TAU, r=k?1.1+(k%3)*.5:0, f=M(G.cone(.45+(k%2)*.2,1.8+(k%3)*.6,7),basic(k%2?0xffa040:0xff6a1a),Math.cos(a)*r,1,Math.sin(a)*r); f.userData.noOL=true; f.material=f.material.clone(); f.material.transparent=true; f.material.opacity=.85; g.add(f); flames.push({ f, p:k*1.7, h:f.scale.y }); }
+  const gl=glow(0xff8a2a,9,.85); gl.position.set(0,1.6,0); g.add(gl);
+  for(const sx of [-1,1]){ const post=M(G.cyl(.12,.14,3,7),iron,sx*(R+.2),1.5,0); g.add(post); const fork=M(G.box(.1,.6,.5),iron,sx*(R+.2),3,0); g.add(fork); }
+  const spit=new THREE.Group(); spit.position.set(0,2.9,0); g.add(spit); const bar=M(G.cyl(.07,.07,2*R+.8,7),iron,0,0,0); bar.rotation.z=PI/2; spit.add(bar);
+  const hide=mat(0x7a3c1a), dark=mat(0x4a2210);
+  const body=M(G.sphere?G.sphere(1,14,10):new THREE.SphereGeometry(1,14,10),hide,0,0,0); body.scale.set(2.1,1.05,1.15); spit.add(body);
+  const head=M(new THREE.SphereGeometry(.62,12,9),hide,2.15,.2,0); head.scale.set(1.15,.9,.85); spit.add(head); const snout=M(G.cyl(.26,.3,.4,9),dark,2.75,.05,0); snout.rotation.z=PI/2; spit.add(snout);
+  for(const sz of [-1,1]){ const ear=M(G.cone(.16,.38,5),dark,2.05,.75,sz*.32); spit.add(ear); }
+  for(const [lx,lz] of [[1.2,.55],[1.2,-.55],[-1.2,.55],[-1.2,-.55]]){ const leg=M(G.cyl(.14,.1,.8,6),dark,lx,-.9,lz); spit.add(leg); }
+  world.add(outline(g)); cnt.pit=true;
+  WORLDANIM.push((dt,t)=>{ spit.rotation.x=t*.6; for(const o of flames){ const k=.8+.25*Math.sin(t*9+o.p)+.12*Math.sin(t*23+o.p*2); o.f.scale.y=o.h*k; o.f.position.y=.9*k; o.f.rotation.y=t*.7+o.p; } gl.material.opacity=.7+.15*Math.sin(t*7.3); }); }
+// ---- railings: every open edge of the gallery, and both sides of its stairs, a low stone wall the hero can't step off
+{ const parts=[], caps=[], O=new THREE.Object3D(), RH=1.0, T_=.3;
+  const topOf=i=>rampA[i]?rampH[i]:(hgt[i]||0), baseOf=i=>rampA[i]?rampL[i]:(hgt[i]||0);
+  for(let z=0;z<GH;z++) for(let x=0;x<GW;x++){ const i=idx(x,z); if(grid[i]===T.WALL) continue; const top=topOf(i); if(top<1.5) continue;
+    for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){ const nx=x+dx, nz=z+dz; if(nx<0||nz<0||nx>=GW||nz>=GH) continue; const j=idx(nx,nz); if(grid[j]===T.WALL) continue;
+      if(top-topOf(j)<1.2) continue; if(rampA[j]&&Math.abs(rampH[j]-top)<.7) continue;   // onto the next stair step or the stair's head: open
+      const ex=cw(x)+dx*(CELL/2-T_/2), ez=cwz(z)+dz*(CELL/2-T_/2), sx=dx?T_:CELL, sz=dz?T_:CELL, y0=baseOf(i)-.05, y1=top+RH;
+      RAILBOXES.push({ x0:ex-sx/2, x1:ex+sx/2, z0:ez-sz/2, z1:ez+sz/2, top:y1, noStand:true }); cnt.rails++;
+      O.position.set(ex,(y0+y1)/2,ez); O.scale.set(sx,y1-y0,sz); O.rotation.set(0,0,0); O.updateMatrix(); parts.push(O.matrix.clone());
+      O.position.set(ex,y1+.06,ez); O.scale.set(sx+.12,.12,sz+.12); O.updateMatrix(); caps.push(O.matrix.clone()); } }
+  const mk=(m,list)=>{ if(!list.length) return; const im=new THREE.InstancedMesh(G.box(1,1,1),m,list.length); list.forEach((M_,k)=>im.setMatrixAt(k,M_)); im.instanceMatrix.needsUpdate=true; im.userData.noOL=true; im.frustumCulled=false; world.add(im); };
+  mk(stoneM,parts); mk(capM,caps); }
+window.__feastwreck={ info:()=>Object.assign({ on:true },cnt) };
+})();
