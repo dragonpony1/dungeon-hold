@@ -35,17 +35,24 @@ const chest=e=>new THREE.Vector3(e.x,(e.y||0)+(e.h||1.4)*.6,e.z);
 // ---- whom it strikes: what it can see in its reach, the mob furthest along toward the Heartroot first (as the other towers choose)
 function candidates(d){ const rr=stat(d,'range'), out=[]; for(const e of enemies){ if(e.dead) continue; const dd=Math.hypot(e.x-d.x,e.z-d.z); if(dd>rr+(e.r||.5)*.5) continue; if(!los(d.x,d.z,e.x,e.z)) continue; const prog=(e.fly?flowFly:flowFree).dist[idx(wc(e.x),wcz(e.z))]; out.push({ e, key:(e.marked?-1e5:e.tgtDef===d?-5e4:0)+(prog>=0?prog:1e6+dd) }); }
   out.sort((a,b)=>a.key-b.key); return out.map(o=>o.e); }
-function strike(d,e,dmg,from){ bolt(from||topOf(d).clone(),chest(e)); const p0=DMGSRC; DMGSRC=d; hurt(e,dmg,0,0); DMGSRC=p0; }   /* build 463: kills counted */
-function shoot(d){ const list=candidates(d); if(!list.length) return false; const T=tier(d), dmg=stat(d,'dmg'); cnt.shots++; d.recoil=1; try{ SFX.zap?SFX.zap():SFX.hit(); }catch(er){}
+let ZAPS=null;   // co-op sweep 2026-10-02: [mob id, chained-from mob id] per bolt of the shot in progress, for a guest's screen
+function strike(d,e,dmg,from){ bolt(from?chest(from):topOf(d).clone(),chest(e)); if(ZAPS) ZAPS.push([e.__coopId||0,from&&from.__coopId||0]); const p0=DMGSRC; DMGSRC=d; hurt(e,dmg,0,0); DMGSRC=p0; }   /* build 463: kills counted */
+function shoot(d){ ZAPS=[]; try{ const r=shoot0(d); if(r) Meta.onDefFx(d,'zap',{s:ZAPS}); return r; } finally{ ZAPS=null; } }
+function shoot0(d){ const list=candidates(d); if(!list.length) return false; const T=tier(d), dmg=stat(d,'dmg'); cnt.shots++; d.recoil=1; try{ SFX.zap?SFX.zap():SFX.hit(); }catch(er){}
   if(T===1) strike(d,list[0],dmg);
   else if(T===2){ cnt.doubles++; for(const e of list.slice(0,2)) strike(d,e,dmg); }
-  else if(T===3){ let cur=list[0], k=dmg; strike(d,cur,k); const hit=new Set([cur]); for(let j=0;j<CHAIN_N;j++){ let nx=null, bd=CHAIN_R; for(const o of enemies){ if(o.dead||hit.has(o)) continue; const dd=Math.hypot(o.x-cur.x,o.z-cur.z); if(dd<bd){ bd=dd; nx=o; } } if(!nx) break; k=Math.max(1,Math.round(k*CHAIN_K*10)/10); strike(d,nx,k,chest(cur)); hit.add(nx); cur=nx; cnt.chains++; } }
+  else if(T===3){ let cur=list[0], k=dmg; strike(d,cur,k); const hit=new Set([cur]); for(let j=0;j<CHAIN_N;j++){ let nx=null, bd=CHAIN_R; for(const o of enemies){ if(o.dead||hit.has(o)) continue; const dd=Math.hypot(o.x-cur.x,o.z-cur.z); if(dd<bd){ bd=dd; nx=o; } } if(!nx) break; k=Math.max(1,Math.round(k*CHAIN_K*10)/10); strike(d,nx,k,cur); hit.add(nx); cur=nx; cnt.chains++; } }
   else { cnt.storms++; for(const e of list.slice(0,STORM_MAX)) strike(d,e,dmg); }
   return true; }
 // ---- every frame: each Electrifier fires on its reload (the core's own tower loop counts its reload down: d.cd), and plays its model's animation
 { const prev=updateDefs; updateDefs=function(dt){ prev.apply(this,arguments); for(const d of defs){ if(d.kind!==K||d.dead) continue; if(d.cd<=0&&shoot(d)) d.cd=stat(d,'cd'); } }; }
+function anim(d,dt){ const T=d.mdl.userData.tpl; if(T&&T.clips&&T.clips.length&&d.__mixMdl!==d.mdl){ d.__mixMdl=d.mdl; d.__mix=new THREE.AnimationMixer(d.mdl); const a=d.__mix.clipAction(T.clips[0]); a.play(); a.time=Math.random()*T.clips[0].duration; cnt.mixers++; } if(d.__mix) d.__mix.update(dt); }
+// co-op sweep 2026-10-02: on a guest the towers are the host's puppets (99-network DEFPUP) -- they play Bob's loop and draw the host's bolts, tower to mob and mob to mob down a chain. No sound added:
+// the host's own zap is SFX.hit, which the guest already plays when the mob's hp drops in the next list
+window.__defFxGuest=window.__defFxGuest||{}; window.__defFxGuest[K]={ tick:(p,dt)=>{ if(p.mdl) anim(p,dt); }, fx:(p,fx,arg,mob)=>{ if(fx!=='zap'||!arg||!Array.isArray(arg.s)) return; const pd={ x:p.x, z:p.z, base:p.y||0, mdl:p.mdl }; cnt.shots++;
+    for(const s of arg.s.slice(0,12)){ if(!Array.isArray(s)) continue; const e=s[0]&&mob(s[0]); if(!e) continue; const f=s[1]&&mob(s[1]); bolt(f?chest(f):topOf(pd).clone(),chest(e)); } } };
 WORLDANIM.push(dt=>{
-  for(const d of defs){ if(d.kind!==K||!d.mdl) continue; const T=d.mdl.userData.tpl; if(T&&T.clips&&T.clips.length&&d.__mixMdl!==d.mdl){ d.__mixMdl=d.mdl; d.__mix=new THREE.AnimationMixer(d.mdl); const a=d.__mix.clipAction(T.clips[0]); a.play(); a.time=Math.random()*T.clips[0].duration; cnt.mixers++; } if(d.__mix) d.__mix.update(dt); }
+  for(const d of defs){ if(d.kind!==K||!d.mdl) continue; anim(d,dt); }
   for(let i=bolts.length-1;i>=0;i--){ const b=bolts[i]; b.t+=dt; const k=b.t/b.life; if(k>=1){ scene.remove(b.g); b.g.traverse(o=>{ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); bolts.splice(i,1); continue; } b.g.traverse(o=>{ if(o.material&&o.material.opacity!==undefined) o.material.opacity=(1-k)*(o.isSprite?.85:1); }); } });
 window.__electrifier={ kind:K, info:()=>Object.assign({ live:bolts.length },cnt), candidates:d=>candidates(d).length, shoot };
 })();

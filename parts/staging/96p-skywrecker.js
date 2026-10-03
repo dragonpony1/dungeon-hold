@@ -36,11 +36,16 @@ function launch(d,e,dmg,i,n){ const top=(d.base||0)+DEF_H[K]*.8*(d.mdl&&d.mdl.sc
 function burst(x,y,z,col){ cnt.bursts++; const g=new THREE.Group(); g.position.set(x,y,z); const sparks=[]; for(let i=0;i<14;i++){ const s=glow(i%3?col:0xffffff,.55,.95); const a=i/14*TAU, b=(Math.random()-.5)*1.6; sparks.push({ s, vx:Math.cos(a)*Math.cos(b), vy:Math.sin(b), vz:Math.sin(a)*Math.cos(b) }); g.add(s); }
   const core=glow(col,3.4,.9); g.add(core); scene.add(g); bursts.push({ g, sparks, core, t:0, life:.7 }); try{ SFX.hit&&SFX.hit(); }catch(er){} }
 function volley(d){ const list=candidates(d); if(!list.length) return false; const n=tier(d)+(window.__talents&&window.__talents.skyBonus?window.__talents.skyBonus(d):0), dmg=stat(d,'dmg');   /* build 448: the Ranger's Skyfall */ cnt.volleys++; d.recoil=1;
-  for(let i=0;i<n;i++) launch(d,list[i%list.length],dmg,i,n); try{ SFX.shoot?SFX.shoot():SFX.place&&SFX.place(); }catch(er){} return true; }
+  for(let i=0;i<n;i++) launch(d,list[i%list.length],dmg,i,n); try{ SFX.shoot?SFX.shoot():SFX.place&&SFX.place(); }catch(er){}
+  try{ const t=[]; for(let i=0;i<n;i++){ const e=list[i%list.length]; t.push(e.__coopId||0); } Meta.onDefFx(d,'sky',{t}); }catch(er){} return true; }   // co-op sweep 2026-10-02: the volley's targets, for a guest's screen (99-network sends Meta.onDefFx as 'fx'; __defFxGuest below)
 // ---- every frame: each Sky Wrecker fires on its reload (the core counts d.cd down); the rockets fly and burst; Bob's animation plays
 { const prev=updateDefs; updateDefs=function(dt){ prev.apply(this,arguments); for(const d of defs){ if(d.kind!==K||d.dead) continue; if(d.cd<=0&&volley(d)) d.cd=stat(d,'cd'); } }; }
+function anim(d,dt){ const T=d.mdl.userData.tpl; if(T&&T.clips&&T.clips.length&&d.__mixMdl!==d.mdl){ d.__mixMdl=d.mdl; d.__mix=new THREE.AnimationMixer(d.mdl); const a=d.__mix.clipAction(T.clips[0]); a.play(); a.time=Math.random()*T.clips[0].duration; cnt.mixers++; } if(d.__mix) d.__mix.update(dt); }
+// co-op sweep 2026-10-02: on a guest the towers are the host's puppets (99-network DEFPUP) -- they play Bob's loop too, and fly the host's volley at the mob puppets (no damage here: the burst hurts only this page's `enemies`, empty on a guest)
+window.__defFxGuest=window.__defFxGuest||{}; window.__defFxGuest[K]={ tick:(p,dt)=>{ if(p.mdl) anim(p,dt); }, fx:(p,fx,arg,mob)=>{ if(fx!=='sky'||!arg||!Array.isArray(arg.t)) return; const t=arg.t.slice(0,12), n=t.length, pd={ x:p.x, z:p.z, base:p.y||0, mdl:p.mdl, lvl:p.lvl }; cnt.volleys++;
+    t.forEach((id,i)=>{ const e=id&&mob(id); if(e) launch(pd,e,0,i,n); }); try{ SFX.shoot?SFX.shoot():SFX.place&&SFX.place(); }catch(er){} } };
 WORLDANIM.push(dt=>{
-  for(const d of defs){ if(d.kind!==K||!d.mdl) continue; const T=d.mdl.userData.tpl; if(T&&T.clips&&T.clips.length&&d.__mixMdl!==d.mdl){ d.__mixMdl=d.mdl; d.__mix=new THREE.AnimationMixer(d.mdl); const a=d.__mix.clipAction(T.clips[0]); a.play(); a.time=Math.random()*T.clips[0].duration; cnt.mixers++; } if(d.__mix) d.__mix.update(dt); }
+  for(const d of defs){ if(d.kind!==K||!d.mdl) continue; anim(d,dt); }
   for(let i=rockets.length-1;i>=0;i--){ const r=rockets[i]; r.t+=dt; if(r.t<0){ r.head.visible=false; continue; } r.head.visible=true; const e=r.e, k=Math.min(1,r.t/r.dur);
     const live=e&&!e.dead, tx=live?e.x:(r.tx!==undefined?r.tx:r.x0), tz=live?e.z:(r.tz!==undefined?r.tz:r.z0), ty=live?(e.y||0)+(e.h||1.4)*.6:(r.ty!==undefined?r.ty:r.y0); r.tx=tx; r.tz=tz; r.ty=ty;
     const x=r.x0+(tx-r.x0)*k, z=r.z0+(tz-r.z0)*k, y=r.y0+(ty-r.y0)*k+Math.sin(k*PI)*r.lift; r.head.position.set(x,y,z);

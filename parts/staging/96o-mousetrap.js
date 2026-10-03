@@ -44,20 +44,26 @@ const onBoard=(d,e)=>{ const [ax,az]=axis(d.rot), dx=e.x-d.x, dz=e.z-d.z, u=dx*a
 function spring(d){ DMGSRC=d;   /* build 463: kills counted (00-killcount.js) */ cnt.springs++; d.snapT=0; d.cd=stat(d,'cd'); d.armT=ARM_WAIT; d.armed=false; let n=0;
   for(const e of enemies){ if(e.dead||e.fly||!onBoard(d,e)) continue; if(BOSSES.has(e.kind)){ hurt(e,Math.max(1,Math.round(e.max*BOSS_K)),0,0); cnt.bossHits++; } else { e.hp=0; kill(e); cnt.kills++; n++; } }
   camShake=Math.max(camShake,.35); try{ SFX.thud&&SFX.thud(); SFX.hit&&SFX.hit(); }catch(er){} const fl=baseFloor(d.x,d.z); const g=glow(0xf2e0b0,4,.8); g.position.set(d.x,fl+.6,d.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); if(typeof shockRing==='function') shockRing(d.x,fl,d.z,3.2);
-  if(n>1) floatText(d.x,fl+2,d.z,'×'+n,'#ffe08a'); return n; }
+  if(n>1) floatText(d.x,fl+2,d.z,'×'+n,'#ffe08a'); try{ Meta.onDefFx(d,'snap',{ cd:+d.cd.toFixed(2) }); }catch(er){} return n; }   // co-op sweep 2026-10-02: a guest's puppet snaps too (__defFxGuest below)
 // ---- every frame: a set trap springs on the first mob on its board; a sprung one creeps back up over its reset
-{ const prev=updateDefs; updateDefs=function(dt){ prev.apply(this,arguments); for(const d of defs){ if(d.kind!==K) continue; if(d.cd<=0&&d.armT>0){ d.armT-=dt; if(d.armT<=0){ d.armed=true; cnt.arms=(cnt.arms||0)+1; try{ SFX.hit&&SFX.hit(); }catch(er){} const g=glow(0xfff0b0,2.2,.9); g.position.set(d.x,(d.base||0)+1.2,d.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); } }   /* reset, then the wait */
+{ const prev=updateDefs; updateDefs=function(dt){ prev.apply(this,arguments); for(const d of defs){ if(d.kind!==K) continue; if(d.cd<=0&&d.armT>0){ d.armT-=dt; if(d.armT<=0){ d.armed=true; cnt.arms=(cnt.arms||0)+1; try{ SFX.hit&&SFX.hit(); }catch(er){} const g=glow(0xfff0b0,2.2,.9); g.position.set(d.x,(d.base||0)+1.2,d.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); try{ Meta.onDefFx(d,'arm'); }catch(er){} } }   /* reset, then the wait */
       if(d.cd<=0&&!(d.armT>0)&&enemies.some(e=>!e.dead&&!e.fly&&onBoard(d,e))) spring(d);
       const bar=d.mdl&&d.mdl.userData.bar; if(!bar) continue; if(d.snapT>=0&&d.snapT<.12){ d.snapT+=dt; bar.rotation.z=OPEN*(1-Math.min(1,d.snapT/.12)); } else { if(d.snapT>=0) d.snapT=-1; const full=stat(d,'cd'), k=d.cd<=0?1:Math.max(0,1-d.cd/full); bar.rotation.z=OPEN*k; } } }; }
 // ---- Matt's model's clips, in step with the trap (build 394). Its size is held at its footprint (the core grows every defense 7% a mark).
 const CLIP_RESET=4, CLIP_ARM=3;
 function trapState(d){ if(d.snapT>=0&&d.snapT<.7) return 'Snap_Shut'; if(d.cd>CLIP_RESET) return 'Closed'; if(d.cd>0) return 'Reset'; if(d.armT>CLIP_ARM) return 'Reset'; if(d.armT>0) return 'Arm'; return 'Armed'; }
-WORLDANIM.push(dt=>{ for(const d of defs){ if(d.kind!==K||!d.mdl) continue; const hold=d.mdl.userData.hold, T=d.mdl.userData.tpl; if(!hold||!T) continue;
-    hold.scale.setScalar(1/markGrow(d.lvl));
+function trapAnim(d,dt,pup){ const hold=d.mdl.userData.hold, T=d.mdl.userData.tpl; if(!hold||!T) return;
+    hold.scale.setScalar(pup?1:1/markGrow(d.lvl));   /* a guest's puppet is never mark-grown, so it needs no holding back */
     if(d.snapT>=0){ d.snapT+=dt; if(d.snapT>=.7) d.snapT=-1; }   /* the snap clock (the stand-in counts it in its own bar code) */
     if(d.__mixMdl!==d.mdl){ d.__mixMdl=d.mdl; d.__mix=new THREE.AnimationMixer(hold); d.__acts={}; d.__clip=null; cnt.mixers=(cnt.mixers||0)+1;
       for(const c of T.clips||[]){ const a=d.__mix.clipAction(c); if(c.name!=='Armed'&&c.name!=='Closed'){ a.setLoop(THREE.LoopOnce,1); a.clampWhenFinished=true; } d.__acts[c.name]=a; } }
     const want=trapState(d); if(want!==d.__clip){ const a=d.__acts[want]; if(a){ const prev=d.__clip&&d.__acts[d.__clip]; a.reset(); if(want==='Reset') a.timeScale=Math.max(.5,a.getClip().duration/CLIP_RESET); if(want==='Arm') a.timeScale=Math.max(.5,a.getClip().duration/CLIP_ARM); a.play(); if(prev&&prev!==a) prev.stop(); } d.__clip=want; cnt.clips=(cnt.clips||0)+1; }
-    d.__mix.update(dt); } });
+    d.__mix.update(dt); }
+WORLDANIM.push(dt=>{ for(const d of defs){ if(d.kind!==K||!d.mdl) continue; trapAnim(d,dt,false); } });
+// co-op sweep 2026-10-02: on a guest the trap is the host's puppet (99-network DEFPUP): the host says when it snaps (with its reload) and when it is set again; the puppet keeps the same clocks
+// (cd, then the arm wait) and plays the same clips, with the snap's thud, shake, flash and ring and the set glint, as spring() and the arming give the host. The kills are the host's.
+window.__defFxGuest=window.__defFxGuest||{}; window.__defFxGuest[K]={ tick:(p,dt)=>{ if(p.cd>0) p.cd=Math.max(0,p.cd-dt); else if(p.armT>0) p.armT=Math.max(0,p.armT-dt); if(p.mdl) trapAnim(p,dt,true); },
+  fx:(p,fx,arg)=>{ if(fx==='snap'){ cnt.springs++; p.snapT=0; p.cd=Math.max(0,Math.min(120,+(arg&&arg.cd)||0)); p.armT=ARM_WAIT; camShake=Math.max(camShake,.35); try{ SFX.thud&&SFX.thud(); SFX.hit&&SFX.hit(); }catch(er){} const fl=baseFloor(p.x,p.z); const g=glow(0xf2e0b0,4,.8); g.position.set(p.x,fl+.6,p.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); if(typeof shockRing==='function') shockRing(p.x,fl,p.z,3.2); }
+    else if(fx==='arm'){ cnt.arms=(cnt.arms||0)+1; p.cd=0; p.armT=0; try{ SFX.hit&&SFX.hit(); }catch(er){} const g=glow(0xfff0b0,2.2,.9); g.position.set(p.x,(p.y||0)+1.2,p.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); } } };
 window.__mousetrap={ kind:K, state:d=>trapState(d), info:()=>Object.assign({},cnt), onBoard, spring, BOSSES };
 })();

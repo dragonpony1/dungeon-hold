@@ -31,5 +31,5 @@
   const AL={last:null,showT:0,cool:0,rings:0,hits:0};
   SFX.alarm=()=>{ beep(196,.45,'triangle',.16,-30); setTimeout(()=>beep(147,.6,'triangle',.14,-20),220); noise(.08,.03,900); };
   const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(AL.showT>0){ AL.showT-=dt; if(AL.showT<=0) strip.classList.remove('on'); } if(AL.cool>0) AL.cool-=dt;
-    const c=S.crystal; if(AL.last!==null&&c<AL.last&&c>0&&(S.phase==='wave'||S.phase==='build')){ AL.hits++; strip.classList.add('on'); AL.showT=2.5; if(AL.cool<=0){ AL.cool=3; AL.rings++; if(!soundOff) SFX.alarm(); } } AL.last=c; };
+    const N=window.__net, hw=N&&N.role&&N.role()==='guest'&&N.world&&N.world(); const c=hw&&hw.crystal!=null?hw.crystal:S.crystal; const src=hw&&hw.crystal!=null?1:0; if(AL.src!==src){ AL.src=src; AL.last=null; }   /* co-op sweep 2026-10-02: a guest's S.crystal never moves -- read the host's castle Heartroot, so the guest gets the strip and the same 3 s-throttled bell (99-network no longer rings it on every world update) */ if(AL.last!==null&&c<AL.last&&c>0&&(S.phase==='wave'||S.phase==='build')){ AL.hits++; strip.classList.add('on'); AL.showT=2.5; if(AL.cool<=0){ AL.cool=3; AL.rings++; if(!soundOff) SFX.alarm(); } } AL.last=c; };
   window.__alarm={on:()=>strip.classList.contains('on'),rings:()=>AL.rings,hits:()=>AL.hits,max:()=>CRYSTAL_MAX}; }
