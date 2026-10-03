@@ -39,6 +39,9 @@ setInterval(()=>{ if(!sheetFromHideout) return; const Dl=window.__doll; if(Dl&&D
   try{ const f=document.querySelector('#hideoutWrap iframe'); if(f&&H.isOpen()) f.focus(); }catch(e){} tell('hideout:bagClosed'); },150);
 { const prev=T.close; T.close=function(){ const r=prev.apply(this,arguments); if(r&&fromHideout){ fromHideout=false; const hh=document.getElementById('tv-hands'); if(hh) hh.remove(); wardMode=false; window.__wardItems=null; const el=$('tavern'); if(el) el.style.zIndex=''; writeOwned();
     try{ const f=document.querySelector('#hideoutWrap iframe'); if(f&&H.isOpen()) f.focus(); }catch(e){} tell('hideout:bagClosed'); } return r; }; }
+// co-op sweep 2026-10-02: a guest is pulled out of the room by the HOST's horn (or a run end / the host leaving), which a solo player can never be -- the bag or wardrobe opened over the room
+// stayed up over the hall as the mobs came in. However the room closes, the bag over it closes with it (the T.close wrapper above does the cleanup); a run summary on the same overlay is left alone.
+if(H.hooks){ const prev=H.hooks.close; H.hooks.close=function(){ if(fromHideout&&T.isOpen()&&!(T.state&&T.state().sum)) T.close(); if(typeof prev==='function') return prev.apply(this,arguments); }; }
 { const prev=tvDefend; tvDefend=function(){ if(fromHideout){ T.close(); return; } return prev(); }; }   // on the title screen a visit to the hideout must not start a run from here
 { const prev=tvRenderHead; tvRenderHead=function(){ prev(); if(fromHideout){ const b=$('tv-defend'); const want='✕ BACK TO THE HIDEOUT'; if(b&&b.textContent!==want) b.textContent=want; } }; }
 // the salvage buttons: all unlocked, in the bag's header; one piece, in its card's panel

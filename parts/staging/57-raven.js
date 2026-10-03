@@ -34,9 +34,9 @@ fetchBytes(ASSET('raven.glb'),'soon').then(buf=>new THREE.GLTFLoader().parse(buf
   }catch(e){ console.warn('raven model',e); } },e=>console.warn('raven model',e))).catch(e=>console.warn('raven model',e));
 function ravenY(){ return baseY+PERCH_H*1.35+.08+Math.sin(S.t*1.6)*.05; }
 function near(){ return state==='perched'&&SPOTS.some(s=>Math.hypot(hero.x-s.x,hero.z-s.z)<NEAR&&Math.abs((hero.y||0)-s.y)<3); }
-function ravenUpdate(dt){ if(!wrap) return;
-  if(lastPhase===null){ lastPhase=S.phase; if(S.phase==='build') state='in'; }   // first frame ever seen already in build (a resumed run): still pop in, not just silently baseline
-  else if(S.phase!==lastPhase){ if(S.phase==='build') state='in'; else if(state!=='hidden') state='out'; lastPhase=S.phase; }
+function ravenUpdate(dt){ if(!wrap) return; const ph=hallPhase();   // co-op sweep 2026-10-02: the host's phase on a co-op guest (58-portal.js), so the raven flies off with the host's horn as the portal does (E near it upgraded nothing mid-wave, H swapped hero)
+  if(lastPhase===null){ lastPhase=ph; if(ph==='build') state='in'; }   // first frame ever seen already in build (a resumed run): still pop in, not just silently baseline
+  else if(ph!==lastPhase){ if(ph==='build') state='in'; else if(state!=='hidden') state='out'; lastPhase=ph; }
   if(state==='in'){ pop=Math.min(1,pop+dt*4.5); if(pop>=1) state='perched'; }
   else if(state==='out'){ pop=Math.max(0,pop-dt*4.5); if(pop<=0) state='hidden'; }
   const ws=WRAPS.length?WRAPS:[wrap]; ws.forEach((w,k)=>{ const s=SPOTS[k]||SPOTS[0]; w.visible=state!=='hidden'; if(state==='hidden') return; w.position.set(s.x,ravenY()-baseY+s.y,s.z); w.rotation.y=s.face+Math.sin(S.t*1.1+k)*.1; w.rotation.z=Math.sin(S.t*1.7+k)*.04;

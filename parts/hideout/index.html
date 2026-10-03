@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="87">
+<meta name="hideout-build" content="88">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -283,7 +283,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 87;   // build 87: the wardrobe stores gear (100) and opens beside the game's bag.   // build 86: no I screen inside the game -- the game's bag is the inventory (I opens it), with this room's hotbar and furniture under it.   // build 85: a big gold close button on every window, and it always hands the mouse back.   // build 84: Esc out of any menu leaves you in the room (a small click-to-play sign), never the big entry card.   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 88;   // build 88 (co-op sweep 2026-10-02): a guest shown its own room (the host's layout never came) no longer shows or drops gear on the HOST's display table.   // build 87: the wardrobe stores gear (100) and opens beside the game's bag.   // build 86: no I screen inside the game -- the game's bag is the inventory (I opens it), with this room's hotbar and furniture under it.   // build 85: a big gold close button on every window, and it always hands the mouse back.   // build 84: Esc out of any menu leaves you in the room (a small click-to-play sign), never the big entry card.   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -458,6 +458,8 @@ const HD = {
     if (!VISITOR || !this.layoutP) return own;
     const L = await this.layoutP;
     if (L && Array.isArray(L.placed) && L.placed.length) { this.visiting = true; this.hostName = String(L.host || '').slice(0, 24); this.bar(); syncSelection(); renderInv(); flashMsg("You're visiting " + (this.hostName || "the host") + "'s hideout — only they can move the furniture"); return L.placed; }
+    // co-op sweep 2026-10-02 (hideout build 88): this frame was opened with the HOST's hideout key, so its gear table is the host's -- in the guest's own room the host's displayed gear is not shown and the guest's drops are not written there
+    if (VISITOR) { this.ownFallback = true; Array.from(worldGear.keys()).forEach(removeWorldGear); syncSelection(); }
     flashMsg(L && Array.isArray(L.placed) ? "The host hasn't set up a hideout yet — showing yours" : "Couldn't reach the host's hideout — showing yours"); this.bar(); return own;
   },
   onParent(d) {
@@ -1523,6 +1525,7 @@ function syncSelection() {
   selectedGear = isGearItem(v) ? null : v;
   selectedDropGearId = isGearItem(v) ? gearKey(v) : null;
   if (HD.visiting) { selectedGear = null; selectedDropGearId = null; }   // build 45
+  if (HD.ownFallback) selectedDropGearId = null;   // hideout build 88: the gear table here is the host's (HD.enterVisit)
 }
 function renderInv() {
   const el = document.getElementById('inv'); el.innerHTML = '';
@@ -1963,7 +1966,7 @@ function updateDropGhost() {
 }
 
 async function commitDropPlacement() {
-  if (!dropGhost || !selectedDropGearId) return;
+  if (!dropGhost || !selectedDropGearId || HD.ownFallback) return;
   const key = selectedDropGearId;
   const piece = findPiece(key);
   if (!piece) return;
@@ -2064,10 +2067,12 @@ async function pickupSharedGear(id) {
   }
 }
 async function pollDroppedGear() {
+  if (HD.ownFallback) return;   // hideout build 88: the host's table, not this room's (HD.enterVisit)
   try {
     const res = await fetch('/api/hideout/gear');
     if (!res.ok) return;
     const { items } = await res.json();
+    if (HD.ownFallback) return;   // the fallback landed while this poll was out
     const seen = new Set(items.map(i => i.id));
     items.forEach(spawnWorldGear);
     Array.from(worldGear.keys()).forEach(id => { if (!seen.has(id)) removeWorldGear(id); });

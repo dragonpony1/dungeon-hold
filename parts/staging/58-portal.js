@@ -8,7 +8,7 @@
 // (only the host's startWave moves it, 99-network.js), so the portal stayed up through the host's waves and a guest could go
 // shopping in the hideout mid-wave, and never heard the horn call it back. A guest in the hall reads the host's phase from its world
 // broadcast instead; solo, the host, a guest before the first broadcast, and a guest whose own run is over (the end screen set its
-// S.phase, or the host left, which drops the broadcast) read S.phase as always. Top level: 59-hideout.js and 97-mythics.js use it too
+// S.phase, or the host left, which drops the broadcast) read S.phase as always. Top level: 59-hideout.js, 97-mythics.js and 57-raven.js use it too
 function hallPhase(){ const n=window.__net; if(S.phase==='build'&&n&&n.role&&n.role()==='guest'){ const w=n.world&&n.world(); if(w&&typeof w.phase==='string') return w.phase; } return S.phase; }
 (function(){
 if(TUTORIAL) return;   // build 166: no hideout portal in the tutorial hall (window.__portal stays unset; 59-hideout.js reads it that way)
