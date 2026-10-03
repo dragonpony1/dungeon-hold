@@ -364,9 +364,15 @@ window.__net.hallRuns=()=>(role==='guest'&&conns.size>0)||Meta.sharedHall();   /
 function hallHeld(){ return role==='host'&&!Meta.sharedHall()&&Meta.isOpen()&&(S.phase==='build'||S.phase==='wave'); }
 function aliveMsg(){ return {h:document.hidden?1:0,p:hallHeld()?1:0}; }
 let runPh=null;
+// co-op sweep 2026-10-02 (cross-area): a guest's bag, Tab sheet or pause skipped its whole hall step (game.js runs it under a menu only when sharedHall, which is host-only), so its pets and
+// their shots stopped -- no famHit reached the host's mobs -- while the host's pets fought on under his menus. Now a guest with a menu up mid-run runs its own share the way the host's page
+// does: keys cleared, its gnome stepped standing still, its cosmetic shots moved on, and the whole Meta.update chain (both pets, 85-familiars' bites/beams/darts, the mob proxies they
+// aim at, guestSendInput). The guard in game.js skips exactly this step when a menu is open, so nothing runs twice. sharedHall stays host-only (the hidden-tab keeper and golf read it)
 { const prevUpdate=update; update=function(dt){
-    if(Meta.sharedHall()&&Meta.isOpen()){ for(const k in K) K[k]=0; if(TOUCH){ joy.x=0; joy.y=0; } }
+    const guestMenu=role==='guest'&&conns.size>0&&Meta.isOpen()&&(S.phase==='build'||S.phase==='wave');
+    if((Meta.sharedHall()||guestMenu)&&Meta.isOpen()){ for(const k in K) K[k]=0; if(TOUCH){ joy.x=0; joy.y=0; } }
     prevUpdate(dt);
+    if(guestMenu&&Meta.isOpen()&&(S.phase==='build'||S.phase==='wave')){ DMGSRC=null; heroUpdate(dt); updateProj(dt); DMGSRC=null; Meta.update(dt); }
     // a co-op run can end under a menu now (the host's crystal falls while it is in the pause or on the sheet; a guest hears the
     // run ended while in its own): the pause and the sheet step aside for the death cut and the end screen, as a single player
     // never needed (their run can't end under a menu). The tavern needs nothing: it hands itself over to the run summary (20-tavern.js)
@@ -866,7 +872,7 @@ onMessage('sixseven',(d,fromId)=>{ if(role!=='host'||!d) return; const g=guestHe
 onMessage('bramble',(d,fromId)=>{ if(role!=='host'||!d) return; const g=guestHero.get(fromId), s=guestStats.get(fromId), B=window.__bramble; if(!g||g.dead>0||!(s&&s.myth.includes('bramblewhisk'))||!(B&&B.sprout)) return;
   const x=+d.x, z=+d.z; if(!Number.isFinite(x)||!Number.isFinite(z)||Math.hypot(x-g.x,z-g.z)>FAM_RANGE+6) return;
   const now=performance.now(); if(now-(g.brambleAt||-1e9)>500){ g.brambleAt=now; g.brambleN=0; } if(++g.brambleN>6) return;   /* a volley (twin shot, extra projectiles) lands together: six a half second is well over any pet's pace */
-  B.sprout(x,z,Math.max(0,Math.min(200,+d.dmg||0))); });
+  B.sprout(x,z,Math.max(0,Math.min(200,+d.dmg||0))); conns.forEach((c,id)=>{ if(id!==fromId) send('brambleFx',{x:+x.toFixed(2),z:+z.toFixed(2)},id); }); });   // co-op sweep 2026-10-02 (cross-area): the other guests see this guest's patch too (looks only, 99g2-petshots.js)
 // what the host says a guest's power just did, drawn on that guest's own screen: the Void rift's rings, the ROOTS shout
 onMessage('powerFx',d=>{ if(role!=='guest'||!d) return;
   if(d.k==='rift'&&Array.isArray(d.at)){ const P=Meta.packs; d.at.slice(0,24).forEach(p=>{ if(P&&P.ring&&p&&Number.isFinite(+p.x)&&Number.isFinite(+p.z)) P.ring(+p.x,+p.y||0,+p.z,+p.c||0x8a3dff); }); if(SFX.rift) SFX.rift(); }
@@ -889,7 +895,7 @@ Meta.defOwnerKind=(id,kind)=>{ const s=guestStats.get(id); return s?(s.kind&&s.k
 // tier actually is (3 or 5), so a puppet can show the dimmer three-piece shell too (98-party.js dress/dressTick, told
 // the tier) -- one extra small field, no new message type. Every five-piece gameplay power is untouched: those all key
 // off has()/anyWears()/Meta.sets.active() on the wearer's OWN page, never off this cosmetic broadcast field.
-function lookOf(){ const w=window.__weapons&&window.__weapons.look?window.__weapons.look():null; const acts=Meta.sets&&Meta.sets.active?Meta.sets.active():[]; const full=acts.find(a=>a.tier>=5)||acts.find(a=>a.tier>=3)||null; const fi=gear.familiar, f2=window.__tworings&&window.__tworings.ringOn()?gear.familiar2:null; return {f2:f2?{n:f2.name,r:f2.rarity|0,nm:f2.named||null}:null,w:w&&w.w||null,t:w&&w.t||1,ws:w&&w.s||null,s:full?full.name:null,st:full?full.tier:0,f:fi?{n:fi.name,r:fi.rarity|0,nm:fi.named||null}:null,pd:SLOTS.some(s=>gear[s]&&gear[s].procd)?1:0,gf:window.__golf&&window.__golf.mine?window.__golf.mine():null}; }   /* co-op sweep 2026-10-02 (hero-gear-pets): nm = a named pet's id (Gladehart, Trimaw...), so a partner's puppet wears its real model, not the Wisp stand-in. gf = this hero's mini golf ball and putt while on a hole (56k4-moatgolf.js draws it on the partners' pages) */
+function lookOf(){ const w=window.__weapons&&window.__weapons.look?window.__weapons.look():null; const acts=Meta.sets&&Meta.sets.active?Meta.sets.active():[]; const full=acts.find(a=>a.tier>=5)||acts.find(a=>a.tier>=3)||null; const fi=gear.familiar, f2=window.__tworings&&window.__tworings.ringOn()?gear.familiar2:null; return {f2:f2?{n:f2.name,r:f2.rarity|0,nm:f2.named||null}:null,w:w&&w.w||null,t:w&&w.t||1,ws:w&&w.s||null,s:full?full.name:null,st:full?full.tier:0,f:fi?{n:fi.name,r:fi.rarity|0,nm:fi.named||null}:null,pd:SLOTS.some(s=>gear[s]&&gear[s].procd)?1:0,gf:window.__golf&&window.__golf.mine?window.__golf.mine():null,a:(window.__armorlook&&window.__armorlook.styleOf)?window.__armorlook.styleOf(gear.armor):null,ah:(gear.armor&&gear.armor.named==='mossheart_aegis'&&window.__mythic&&window.__mythic.state&&window.__mythic.state().idleT>=2)?1:0}; }   /* co-op sweep 2026-10-02 (cross-area): a = the armour slot's look (72b-armorlook.js styleOf: a set's or a named mythic's) so a partner's puppet wears the shoulder guards, chest emblem and cape; ah = the Mossheart Aegis heal glow is on */   /* co-op sweep 2026-10-02 (hero-gear-pets): nm = a named pet's id (Gladehart, Trimaw...), so a partner's puppet wears its real model, not the Wisp stand-in. gf = this hero's mini golf ball and putt while on a hole (56k4-moatgolf.js draws it on the partners' pages) */
 let syncT=0;
 function hostBroadcastHeroes(dt){
   if(role!=='host'||!conns.size) return;
@@ -1316,6 +1322,7 @@ window.__myMana=()=>{ const w=hostWorld, id=window.__net.myId(); return (role===
     else if(footprintCells(placing,x,z,ghostYaw).some(i=>GDEFAT.has(i))) reason='Already occupied';
     if(!reason){ const ex=surf?aim.x:x, ez=surf?aim.z:z; if(mobProxies().some(e=>Math.hypot(e.x-ex,e.z-ez)<2.2)) reason='Enemy too close'; } }
   if(!reason&&placing==='perch'&&window.__perch&&window.__perch.cap){ let n=0; for(const p of DEFPUP.values()) if(p.kind==='perch') n++; if(n>=window.__perch.cap) reason='Only '+window.__perch.cap+' perches at a time'; }   // drawbridge-map: 96b's cap, counted over the host's perches (96b counts this page's empty defs)
+  if(!reason){ const hp=window.__party.get(window.__net.hostId()), py=deck?(hero.y||0):baseFloor(x,z); if(hp&&!hp.dead&&Math.abs(hp.y-py)<2.5&&(footprintCells(placing,x,z,ghostYaw).includes(idx(wc(hp.x),wcz(hp.z)))||defBlocksHero({x,z,rot:ghostYaw||0,kind:placing},hp.x,hp.z)||Math.hypot(x-hp.x,z-hp.z)<1.1)) reason='🧍 Teammate there'; }   // cross-area: hostTryPlaceDef's new rule, so the ghost is red over the host's hero
   if(reason){ ghostOk=false; ghostReason=reason; ghost.traverse(o=>{ if(o.isMesh) o.material=GHOST_BAD; }); if(typeof ghostSector!=='undefined'&&ghostSector&&typeof tintSector==='function') tintSector(ghostSector,0xff3030); } }; }
 function guestPick(){ if(role!=='guest'||!hero) return null; const fx=Math.sin(hero.yaw||0), fz=Math.cos(hero.yaw||0); let best=null, bs=1e9; const lvl=!!(window.__moatdeck&&Number.isFinite(window.__moatdeck.Y));   // co-op sweep 2026-10-02: on the Drawbridge only the towers at your own level, as 56k9-moatdeck.js picks
   DEFPUP.forEach((p,id)=>{ if(p.x===undefined) return; if(lvl&&Math.abs((p.y||0)-(hero.y||0))>=3) return; const dx=p.x-hero.x, dz=p.z-hero.z, dist=Math.hypot(dx,dz); if(dist>=3.4) return; const facing=dist>.05?(1-(dx*fx+dz*fz)/dist):1; const hurt=p.max&&p.hp<p.max;
@@ -1418,6 +1425,10 @@ function hostTryPlaceDef(kind,x,z,yaw,fromId,gyIn){
   else if(!surf&&cells.some(i=>defAt[i])) reason='Already occupied';
   else if(cells.includes(idx(wc(g.x),wcz(g.z)))||Math.hypot(x-g.x,z-g.z)<1.1) reason="You're standing there";   // the same self-overlap rule updateGhost (game.js) enforces locally, mirrored here against the guest's own HOST-tracked position
   else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units';
+  // co-op sweep 2026-10-02 (cross-area): nor on top of the HOST's hero -- the same rule updateGhost (game.js) keeps for a player's own hero (cells + defBlocksHero, build 196), so a guest's tower can't box
+  // the host in. Skipped when he stands well above or below the spot (the wall-walk, a roof): a tower there can't trap him. Guests need no check: their puppets of the host's towers never trap them (the copy here snaps)
+  if(!reason&&hero.dead<=0){ const px=surf&&Number.isFinite(+surf.x)?+surf.x:x, pz=surf&&Number.isFinite(+surf.z)?+surf.z:z, py=deck?gy:(surf&&Number.isFinite(+surf.y)?+surf.y:baseFloor(px,pz));
+    if(Math.abs((hero.y||0)-py)<2.5&&(cells.includes(idx(wc(hero.x),wcz(hero.z)))||defBlocksHero({x:px,z:pz,rot:yaw||0,kind},hero.x,hero.z)||Math.hypot(px-hero.x,pz-hero.z)<1.1)) reason='🧍 Teammate there'; }
   if(!reason&&kind==='perch'&&window.__perch&&window.__perch.cap&&defs.filter(d=>d.kind==='perch').length>=window.__perch.cap) reason='Only '+window.__perch.cap+' perches at a time';   // co-op sweep 2026-10-02 (drawbridge-map): 96b-perch.js's cap (2 for the whole hall) lived only in the placer's own ghost -- a guest's counts its empty defs, so a Ranger guest could put down any number of free perches
   const realMana=S.mana; S.mana=guestMana.has(fromId)?guestMana.get(fromId):MAP_MANA;
   if(!reason&&S.mana<cfg.mana) reason='Not enough mana';
@@ -1522,7 +1533,7 @@ function pickupPuppetAdd(id,kind,fakeIt){
   const mesh=kind==='loot'?lootMesh(fakeIt):orbMesh(); scene.add(mesh);
   const p={kind,mesh,x:0,y:0,z:0,tx:0,ty:0,tz:0}; (kind==='loot'?LOOTPUP:ORBPUP).set(id,p); return p;
 }
-function pickupPuppetRemove(id){ let p=LOOTPUP.get(id); if(p){ scene.remove(p.mesh); LOOTPUP.delete(id); return; } p=ORBPUP.get(id); if(p){ scene.remove(p.mesh); ORBPUP.delete(id); } }
+function pickupPuppetRemove(id){ let p=LOOTPUP.get(id); if(p){ scene.remove(p.mesh); LOOTPUP.delete(id); return; } p=ORBPUP.get(id); if(p){ scene.remove(p.mesh); ORBPUP.delete(id); orbHeld.delete(id); } }
 window.__pickupsync={ loot:()=>[...LOOTPUP.keys()], orbs:()=>[...ORBPUP.keys()],
   lootAt:id=>{ const p=LOOTPUP.get(id); return p?{x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2)}:null; },
   orbAt:id=>{ const p=ORBPUP.get(id); return p?{x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2)}:null; } };   // purely a test hook, same reasoning as window.__mobsync/__combat above
@@ -1530,7 +1541,8 @@ function pickupPuppetsTick(dt){
   const k=1-Math.exp(-10*dt);
   LOOTPUP.forEach(p=>{ p.x=lerp(p.x,p.tx,k); p.y=lerp(p.y,p.ty,k); p.z=lerp(p.z,p.tz,k); p.mesh.position.set(p.x,p.y,p.z);
     if(p.mesh.userData.item) p.mesh.userData.item.rotation.y+=dt*2; if(p.mesh.userData.ring) p.mesh.userData.ring.scale.setScalar(1+Math.sin(S.t*4)*.08); });
-  ORBPUP.forEach(p=>{ p.x=lerp(p.x,p.tx,k); p.y=lerp(p.y,p.ty,k); p.z=lerp(p.z,p.tz,k); p.mesh.position.set(p.x,p.y+Math.sin(S.t*4)*.05,p.z);
+  ORBPUP.forEach((p,id)=>{ if(role==='guest'&&requested.has(id)&&!orbHeld.has(id)&&hero.dead<=0){ p.tx=hero.x; p.ty=hero.y+1; p.tz=hero.z; }   // co-op sweep 2026-10-02 (cross-area): an orb this guest has asked for flies to it, as updateOrbs (game.js) pulls one to the host's hero; the next 'pickups' roster drops it once granted (or taken by someone else)
+    p.x=lerp(p.x,p.tx,k); p.y=lerp(p.y,p.ty,k); p.z=lerp(p.z,p.tz,k); p.mesh.position.set(p.x,p.y+Math.sin(S.t*4)*.05,p.z);
     if(p.mesh.userData.o) p.mesh.userData.o.rotation.y+=dt*3; });
 }
 // ===== YOUR LOOT IS YOUR OWN (build 151): "that would have fixed a big problem of getting the first green set". Gear was one
@@ -1575,8 +1587,11 @@ const requested=new Set();
 function guestPickupTick(dt){
   if(role!=='guest'||hero.dead>0) return;
   LOOTPUP.forEach((p,id)=>{ if(requested.has(id)) return; if(Math.hypot(hero.x-p.x,hero.z-p.z)<1.2&&Math.abs(hero.y-p.y)<1.6){ requested.add(id); send('pickupLoot',{id}); } });
-  ORBPUP.forEach((p,id)=>{ if(requested.has(id)) return; if(Math.hypot(hero.x-p.x,hero.z-p.z)<1.1&&Math.abs(hero.y-p.y)<1.6){ requested.add(id); send('pickupOrb',{id}); } });
+  ORBPUP.forEach((p,id)=>{ if(requested.has(id)) return; if(Math.hypot(hero.x-p.x,hero.z-p.z)<(window.__autoMana?1e9:3.6)){ requested.add(id); send('pickupOrb',{id}); } });
 }
+// co-op sweep 2026-10-02 (cross-area): a guest's orb reach is the single-player magnet (updateOrbs in game.js: 3.6 across, no height limit), not 1.1 -- the host's 3.6 used to vacuum
+// every orb before a guest standing beside him got near one. orbHeld = the guest's own spill the host said no to (orbNo): it stays put instead of flying to the guest and back while it waits
+const orbHeld=new Set();
 function hostGuestPickupLoot(data,fromId){
   if(role!=='host') return;
   const i=loot.findIndex(l=>l.__coopId===data.id); if(i<0) return;   // already gone -- someone else got it, or it despawned; the puppet vanishes from the next broadcast regardless, no need to tell them
@@ -1618,7 +1633,7 @@ addEventListener('keydown',e=>{ if(e.code!=='AltLeft') return; e.preventDefault(
 addEventListener('keyup',e=>{ if(e.code==='AltLeft') e.preventDefault(); },true);   // Alt on its own would otherwise move focus to the browser's menu bar
 onMessage('spillMana',(d,fromId)=>{ if(role!=='host') return; const g=guestHero.get(fromId); if(!g||g.dead>0) return; const now=performance.now(); if(now-(g.spillAt||-1e9)<900) return; g.spillAt=now;
   const pool=guestMana.has(fromId)?guestMana.get(fromId):0, A=Math.floor(pool*10)/10; if(A<1){ send('manaSpilled',{v:0},fromId); return; } guestMana.set(fromId,Math.round((pool-A)*10)/10); spillOrbs(g.x,g.z,A,fromId); spillSound(); send('manaSpilled',{v:A},fromId); });
-onMessage('orbNo',d=>{ if(role==='guest'&&d) setTimeout(()=>requested.delete(d.id),700); });
+onMessage('orbNo',d=>{ if(role==='guest'&&d){ orbHeld.add(d.id); setTimeout(()=>requested.delete(d.id),700); } });
 onMessage('manaSpilled',d=>{ if(role!=='guest'||!d) return; if(+d.v>0){ spillSound(); floatText(hero.x,hero.y+2.4,hero.z,'-'+d.v+' mana spilled','#5ee9ff'); } else toast('No mana to spill'); });
 
 // build 159: the host is gone (a guest's one connection is the host's, so any close on a guest is that). Everything of the host's
@@ -1630,7 +1645,7 @@ onMessage('manaSpilled',d=>{ if(role!=='guest'||!d) return; if(+d.v>0){ spillSou
 // (99b-lobby.js hostGone). Not for our own leave (leave() closes the connection too) and not for a hall that was full.
 let hostLeftSaid=false;
 function guestHostLeft(why){
-  window.__party.list().forEach(id=>window.__party.remove(id)); [...LOOTPUP.keys(),...ORBPUP.keys()].forEach(pickupPuppetRemove); MOBPROX.clear(); requested.clear(); hostWorld=null;
+  window.__party.list().forEach(id=>window.__party.remove(id)); [...LOOTPUP.keys(),...ORBPUP.keys()].forEach(pickupPuppetRemove); MOBPROX.clear(); requested.clear(); orbHeld.clear(); hostWorld=null;
   if(leaving||why==='left') return;
   setTimeout(()=>{ if(role==='guest'&&!conns.size) leave(); },0);   // no host, no guest: role back to none, the Peer off the broker (after this close event has finished, not inside it)
   if(hostLeftSaid||why==='full') return;

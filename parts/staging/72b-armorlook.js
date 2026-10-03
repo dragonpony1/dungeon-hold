@@ -36,6 +36,8 @@
 // reachable handle on a puppet's root bones outside its own closure, and wiring the armor-slot's set + tier + named key
 // through the network "look" and back out to a bone-attach pass on every puppet is a materially bigger protocol change
 // than the tint. Left for later; said plainly in this build's notes, not silently dropped.
+// co-op sweep 2026-10-02 (cross-area): now built. The wearer's look carries a (styleOf its armour slot) and ah (the Mossheart heal glow on); 98-party.js calls build(puppet root, a) --
+// the same buildLook, which finds the bones by name and sizes off the measured shoulders, so it fits a puppet's rig as-is -- and tickParts each frame for the same sway, stars and heal pulse.
 (function(){
 const ZERO=new THREE.Vector3(0,0,0), UPV=new THREE.Vector3(0,1,0);
 
@@ -213,5 +215,9 @@ window.__armorlook={STYLE:()=>Object.keys(STYLE),NAMED:()=>Object.keys(NAMED_STY
   current:()=>({key:CUR.styleName||null,parts:!!CUR.parts,soft:{on:SOFT.meshes.length>0,col:SOFT.col}}),
   debug:debugInfo,glow:glowState,
   raw:()=>({useGLB,hasGLBH:!!GLBH,root:(useGLB&&GLBH)?GLBH.root.uuid:null,computeKey:computeStyleKey(),curKey:CUR.key,curStyleName:CUR.styleName,armor:gear.armor&&gear.armor.name,lastErr:CUR.lastErr,bones:(useGLB&&GLBH)?(()=>{ const B=heroBones(GLBH.root); return {lsh:!!B.lsh,rsh:!!B.rsh,spineTop:!!B.spineTop,collar:!!B.collar,hips:!!B.hips,head:!!B.head,headfront:!!B.headfront}; })():null}),
+  build:(root,key)=>{ if(!root||typeof key!=='string') return null; const nm=key.slice(0,6)==='named:', k=nm?key.slice(6):key.slice(4); if(!(nm?Object.prototype.hasOwnProperty.call(NAMED_STYLE,k):(key.slice(0,4)==='set:'&&Object.prototype.hasOwnProperty.call(STYLE,k)))) return null;   // a key off the network: only the real styles
+    try{ root.updateWorldMatrix(true,true); return buildLook(root,styleFor(key)); }catch(e){ return null; } },
+  tickParts:(P,t,healing)=>{ if(!P) return; P.cape.rotation.x=Math.sin(t*1.1)*.05; P.cape.rotation.z=Math.sin(t*.8+1)*.03; for(const c of P.cape.children) if(c.name==='star') c.material.opacity=.5+.4*Math.sin(t*3+c.position.x*9);
+    const hg=P.chest.children.find(c=>c.name==='healGlow'); if(hg) hg.material.opacity=healing?(.55+.25*Math.sin(t*5)):0; },   // what tick() does for the local hero's pieces
   styleOf:it=>{ if(!it) return null; if(it.named&&NAMED_STYLE[it.named]) return 'named:'+it.named; const sn=Meta.sets&&Meta.sets.setOf?Meta.sets.setOf(it):null; return sn&&STYLE[sn]?'set:'+sn:null; }};
 })();

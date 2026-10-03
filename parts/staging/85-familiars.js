@@ -187,8 +187,8 @@ window.__thorns={on:thornsOn,speed:THORN.speed,col:THORN.col,shots:()=>famShots.
 // The painted vine mat is one canvas texture; the thorns and arched runners share one geometry and one material each; only the
 // mat's material is per patch (12 at most, disposed with it), so each can fade on its own.
 // CO-OP: a guest's page has no real mobs, so a guest wearing it draws its patch on its own screen (looks only) and sends 'bramble'
-// to the host (99-network.js), which grows the real one -- slow, pricks and all -- where the host sees it. Other guests don't see a
-// guest's patches, and a guest doesn't see the host's: the patch is short-lived floor dressing, not worth a message to every page
+// to the host (99-network.js), which grows the real one -- slow, pricks and all -- where the host sees it. co-op sweep 2026-10-02 (cross-area): the host now passes a
+// guest's patch on to the other guests, and sends its own, as 'brambleFx' -- drawn there with sprout's 4th arg (looks only, never pricks; 99g2-petshots.js)
 const BRAM={max:12,life:4,r:1.4,tick:.5,prick:.15,slow:.6,list:[],tex:null,thornGeo:null,vineGeo:null,thornMat:null,vineMat:null};
 function brambleOn(){ return !!(window.__mythic&&window.__mythic.has('bramblewhisk')); }
 function brambleTex(){ const c=document.createElement('canvas'); c.width=c.height=256; const g=c.getContext('2d'); const R=128;
@@ -218,7 +218,7 @@ function brambleUpdate(dt){ if(!BRAM.list.length) return; if(S.phase!=='build'&&
     e.chillT=Math.max(e.chillT||0,.25); e.chillK=Math.min(e.chillK||1,BRAM.slow);
     e.thornCd=(e.thornCd||0)-dt; if(e.thornCd<=0){ e.thornCd=BRAM.tick; hurt(e,Math.max(.1,Math.round(best.dmg*BRAM.prick*10)/10),0,0); } } }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); brambleUpdate(dt); }; }
-window.__bramble={on:brambleOn,sprout:(x,z,dmg)=>brambleSprout(x,z,dmg,false),list:()=>BRAM.list.map(p=>({x:+p.x.toFixed(2),z:+p.z.toFixed(2),dmg:p.dmg,t:+p.t.toFixed(2),looks:p.looks})),max:BRAM.max,life:BRAM.life,r:BRAM.r,clear:brambleClear};   // sprout: 99-network.js grows a guest's patch on the host
+window.__bramble={on:brambleOn,sprout:(x,z,dmg,looks)=>brambleSprout(x,z,dmg,!!looks),list:()=>BRAM.list.map(p=>({x:+p.x.toFixed(2),z:+p.z.toFixed(2),dmg:p.dmg,t:+p.t.toFixed(2),looks:p.looks})),max:BRAM.max,life:BRAM.life,r:BRAM.r,clear:brambleClear};   // sprout: 99-network.js grows a guest's patch on the host
 // ---------------------------------------------------------------- build 203: Matt sent a matching "Celestial Impact
 // Burst" model from Meshy for the new Wisp ("see if we can do something with these they go with the new wisp") -- a
 // static decorative mesh, no rig or animation, so it's animated in code instead: pops up to size then shrinks back
