@@ -22,7 +22,8 @@ if(typeof applyGear==='function') try{ applyGear(); }catch(e){}
 let fam2=null;
 function secondPass(dt){ const f2=ringOn()?gear.familiar2:null; if(!f2&&!fam2) return;
   const f1=fam, g1=gear.familiar, g2=gear.familiar2; fam=fam2; gear.familiar=f2; gear.familiar2=g1; FAM_SIDE=-1; FAM_PASS2=true; cnt.passes++;
-  try{ famUpdate(dt); } catch(e){ console.warn('second familiar',e); } finally { fam2=fam; fam=f1; gear.familiar=g1; gear.familiar2=g2; FAM_SIDE=1; FAM_PASS2=false; } }
+  try{ const FA=window.__familiar; if(fam&&FA&&FA.stale&&FA.stale()) famRemove();   // build 508 (Matt, solo survival: "a few things arn't loading in, like my bat"): a model that lands after the 2nd pet spawned only swapped pet 1 -- the 2nd kept its stand-in body all run; it respawns now in the real one
+    famUpdate(dt); } catch(e){ console.warn('second familiar',e); } finally { fam2=fam; fam=f1; gear.familiar=g1; gear.familiar2=g2; FAM_SIDE=1; FAM_PASS2=false; } }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); tick(); secondPass(dt); }; }
 // ---- the ring off: the 2nd familiar back to the bag
 // build 430: a ring dropped before its picture existed gets it now (Matt's thumbnails: named/beast_mode.jpg, named/malamute.jpg)
