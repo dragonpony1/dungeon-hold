@@ -65,5 +65,12 @@ check('build 500: the guest hears the hit and alarm when the inn or the keep Hea
 await hostPage.evaluate(()=>{ const d=window.__dd; d.S.phase='wave'; for(let i=0;i<5;i++) d.spawn('goblin','S'); }); await tickBoth(6,5);
 const L=await Promise.all([hostPage.evaluate(()=>document.getElementById('phaset').textContent),guestPage.evaluate(()=>document.getElementById('phaset').textContent)]);
 check('build 503: the guest sees the enemies-left count under the wave, the same as the host',/enem(y|ies) left/.test(L[1])&&L[0]===L[1],JSON.stringify(L));
+// build 507 (Matt: "dev tool not wokring for jacob"): a guest's F9 dev panel acts on the HOST's hall -- spawn, jump wave, +mana into the guest's own pool
+const dv0=await Promise.all([hostPage.evaluate(()=>window.__dd.enemies.filter(e=>!e.dead).length),guestPage.evaluate(()=>window.__myMana())]);
+await guestPage.evaluate(()=>{ window.__devpanel.spawnNow('goblin'); window.__devpanel.toggle(true); }); await tickBoth(6,5); const dvN=await hostPage.evaluate(()=>window.__dd.enemies.filter(e=>!e.dead).length);
+const dvMana=await guestPage.evaluate(()=>{ const b=document.querySelector('#devpanel [data-m]'); const amt=b?+b.dataset.m:0; if(b) b.click(); return amt; }); await tickBoth(8,5);
+await guestPage.evaluate(()=>window.__devpanel.jumpWave(9)); await tickBoth(8,5);
+const dv1=await Promise.all([hostPage.evaluate(()=>({ n:window.__dd.enemies.filter(e=>!e.dead).length, wave:window.__dd.S.wave })),guestPage.evaluate(()=>({ mana:window.__myMana(), wave:window.__dd.S.wave }))]);
+check("build 507: a guest's dev panel spawns on the host, jumps the host's wave, and +mana lands in the guest's pool",dv1[0].wave===9&&dvN===dv0[0]+1&&dvMana>0&&dv1[1].mana>=dv0[1]+dvMana-1,JSON.stringify({dv0,dvN,dvMana,dv1}));
 check('no page errors',errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); sig.close&&sig.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);

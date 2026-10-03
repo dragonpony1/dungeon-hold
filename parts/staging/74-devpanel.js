@@ -70,7 +70,7 @@ function ensure(){ if(el) return; css();
   $('dp-mob-go').onclick=()=>spawnNow($('dp-mob').value);
   $('dp-mob-5').onclick=()=>{ const k=$('dp-mob').value; for(let i=0;i<5;i++){ if(k==='direwolf') spawnNow(k); else setTimeout(()=>spawnNow(k),i*180); } };   // wolves come out together, as a pack (build 318)   // build 316: a pack at a time (Matt trying the dire wolves)
   el.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>Meta.addGold(+b.dataset.g));
-  el.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ S.mana+=+b.dataset.m; });
+  el.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ if(guest()){ window.__net.send('dev',{a:'mana',amt:+b.dataset.m}); toast('💧 +'+b.dataset.m); return; } S.mana+=+b.dataset.m; });   // build 507: a guest's mana is its own pool on the host
   // build 314 (Matt: "add to dev hud change chatcter level"): set it outright, or step it one at a time
   const setLv=n=>{ const v=Meta.setLevel(n); $('dp-lv').value=v; toast('Level '+v); };
   $('dp-lv-go').onclick=()=>setLv(+$('dp-lv').value||1); $('dp-lv-up').onclick=()=>setLv(Meta.level()+1); $('dp-lv-dn').onclick=()=>setLv(Meta.level()-1);
@@ -91,10 +91,13 @@ function ensure(){ if(el) return; css();
 // was only ever a debug placeholder), rewind S.wave one short, then call the REAL startWave() -- by name, so the
 // map-one locker gate, the co-op host broadcast and anything else layered onto it all run exactly as they would
 // for a player who actually reached that wave
-function jumpWave(n){ n=Math.max(1,n|0); for(const e of enemies) if(!e.dead){ e.through=true; e.dead=.001; } spawnQ.length=0;
+// build 507 (Matt: "dev tool not wokring for jacob"): on a co-op GUEST the hall is the host's -- jump wave, spawn and +mana go to the host and run there
+// exactly as from the host's own panel (gold, level, hero, gear and unlock stay the guest's own)
+const guest=()=>{ const n=window.__net; return !!(n&&n.role&&n.role()==='guest'); };
+function jumpWave(n){ n=Math.max(1,n|0); if(guest()){ window.__net.send('dev',{a:'wave',n}); toast('📯 → 👑 '+n); return; } for(const e of enemies) if(!e.dead){ e.through=true; e.dead=.001; } spawnQ.length=0;
   S.phase='build'; S.held=false; S.wave=Math.max(0,n-1); startWave();
   toast('Jumped to wave '+n); }
-function spawnNow(kind){ const k=Object.keys(LANES)[0]; if(!k){ toast('no lane on this map'); return; }
+function spawnNow(kind){ if(guest()){ window.__net.send('dev',{a:'spawn',kind}); toast('👾 → 👑 '+kind); return; } const k=Object.keys(LANES)[0]; if(!k){ toast('no lane on this map'); return; }
   // build 189: the Cyclops's real model only starts loading once Survival is actually chosen on the Throne Room
   // (95c-cyclops.js, build 188 -- keeps his ~31 MB off every other map/mode); spawning him here before that finishes
   // used to fall through to the generic block-body placeholder (the same one 'ogre' uses when ITS model isn't ready
@@ -116,5 +119,5 @@ function spawnNow(kind){ const k=Object.keys(LANES)[0]; if(!k){ toast('no lane o
   spawnEnemy(kind,k); toast('spawned a '+kind); }
 function toggle(v){ ensure(); open=v===undefined?!open:v; el.classList.toggle('hide',!open); if(open&&$('dp-lv')) $('dp-lv').value=Meta.level(); }
 addEventListener('keydown',e=>{ if(e.code==='F9'){ e.preventDefault(); toggle(); } });
-window.__devpanel={toggle,isOpen:()=>open};
+window.__devpanel={toggle,isOpen:()=>open,jumpWave,spawnNow};
 })();
