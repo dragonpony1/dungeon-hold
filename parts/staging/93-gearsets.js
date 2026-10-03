@@ -163,7 +163,8 @@ function auraUpdate(){ const pk=fullPack(); const root=(useGLB&&GLBH)?GLBH.root:
 // the full set is worn — on/off follows the set, so unequipping a piece (or selling the tower) clears it right away
 const DEF_RING_GEO=new THREE.RingGeometry(.7,.92,28);
 function defRingUpdate(){ const pk=fullPack(); const col=pk?pk.col:null;
-  for(const d of defs){ if(col){ if(!d.setRing||d.setRingCol!==col){ if(d.setRing){ d.mdl.remove(d.setRing); d.setRing.material.dispose(); } const rad=Math.max(1.15,(DEFS[d.kind].top||1.5)*.75); const m=new THREE.Mesh(DEF_RING_GEO,fxMat(col,.5)); m.rotation.x=-PI/2; m.position.y=.07; m.scale.set(rad,rad,1); m.userData.noOL=true; d.mdl.add(m); d.setRing=m; d.setRingCol=col; }
+  for(const d of defs){ let c=col; if(d.ownerId&&Meta.defOwnerRingCol){ const v=Meta.defOwnerRingCol(d.ownerId); if(v!==undefined) c=v; }   /* co-op sweep 2026-10-02: a guest's tower wears ITS placer's full-set ring (99-network.js), not the host's; a guest who left falls back to the host's */
+    if(c){ if(!d.setRing||d.setRingCol!==c){ if(d.setRing){ d.mdl.remove(d.setRing); d.setRing.material.dispose(); } const rad=Math.max(1.15,(DEFS[d.kind].top||1.5)*.75); const m=new THREE.Mesh(DEF_RING_GEO,fxMat(c,.5)); m.rotation.x=-PI/2; m.position.y=.07; m.scale.set(rad,rad,1); m.userData.noOL=true; d.mdl.add(m); d.setRing=m; d.setRingCol=c; }
       d.setRing.material.opacity=.35+.2*Math.sin(S.t*2.4+d.x+d.z); }
     else if(d.setRing){ d.mdl.remove(d.setRing); d.setRing.material.dispose(); d.setRing=null; d.setRingCol=null; } } }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); auraUpdate(); defRingUpdate(); }; }
@@ -171,9 +172,9 @@ function defRingUpdate(){ const pk=fullPack(); const col=pk?pk.col:null;
 // never saw it and a guest's full Void set never tore a rift. guestSwing runs that swing (swing) the way the wrap runs the host's --
 // the same before-and-after test, the same powers -- from the full sets the guest's input names, with the swing's own damage.
 // Returns where each power fired, for the guest's own screen
-function guestSwing(names,dmg,swing){ const five=[...new Set(Array.isArray(names)?names:[])].map(n=>PACKS[n]).filter(p=>p&&p.onHit), at=[]; if(!five.length){ swing(); return at; }
+function guestSwing(names,dmg,swing,who){   /* co-op sweep 2026-10-02: who = the host's copy of the swinging guest, so Radiance heals HIM and Shadow judges the backstab from HIS spot (93b-sets8.js) */ const five=[...new Set(Array.isArray(names)?names:[])].map(n=>PACKS[n]).filter(p=>p&&p.onHit), at=[]; if(!five.length){ swing(); return at; }
   const before=[]; for(const e of enemies) if(!e.dead) before.push([e,e.hp]); swing();
-  for(const [e,h] of before) if(e.hp<h) for(const p of five){ p.onHit(e,dmg); at.push({x:+e.x.toFixed(2),y:+(e.y||0).toFixed(2),z:+e.z.toFixed(2),c:p.col}); } return at; }
+  for(const [e,h] of before) if(e.hp<h) for(const p of five){ p.onHit(e,dmg,who); at.push({x:+e.x.toFixed(2),y:+(e.y||0).toFixed(2),z:+e.z.toFixed(2),c:p.col}); } return at; }
 Meta.packs={of:packOf,list:()=>Object.keys(PACKS),get:n=>PACKS[n],add:addSet,art:itemArt,artHtml,aura:()=>({on:AURA.meshes.length>0,col:AURA.col,meshes:AURA.meshes.length,attached:AURA.meshes.filter(g=>g.parent).length}),defRings:()=>defs.filter(d=>d.setRing).length,
   guestSwing,ring:(x,y,z,col)=>{ riftFx(x,y,z,col||0x8a3dff); }};   // ring: the rift's ring where the host says a guest's swing tore one (99-network.js 'powerFx')
 window.__void={NAME:'of the Void',isVoid:it=>packOf(it)===PACKS['of the Void'],chance:w=>PACKS['of the Void'].chance(w===undefined?effWave():w),lvl:()=>{ const a=Meta.sets.active().find(x=>x.name==='of the Void'); return a?a.tier:0; },make:it=>makeSet(it,PACKS['of the Void']),fx:()=>FX.length,rift};

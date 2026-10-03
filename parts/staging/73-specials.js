@@ -156,7 +156,7 @@ function playFlourish(hid,p){
 // actually simulating the shared hall (host or solo). A guest never calls these directly; see doFire()/hostApplySpecial ----
 function realCleave(p){ let n=0; for(const e of enemies){ if(e.dead) continue; const dx=e.x-p.x, dz=e.z-p.z, d=Math.hypot(dx,dz); if(d<CLEAVE_R+e.r){ const l=Math.max(d,.01); hurt(e,p.dmg,dx/l*CLEAVE_KB,dz/l*CLEAVE_KB); n++; } } if(n) SFX.hit(); }
 function realStarfall(p){ let n=0; for(const e of enemies){ if(e.dead) continue; const d=Math.hypot(e.x-p.x,e.z-p.z); if(d<STARFALL_R+e.r*.5){ hurt(e,p.dmg,0,0); e.slowT=Math.max(e.slowT||0,STARFALL_SLOW); n++; } } if(n) SFX.hit(); }
-function realHaloSurge(p){ RING_FX={x:p.x,z:p.z,r:0,R:HALO_RING_R,DUR:HALO_RING_DUR,t:0,dmg:p.dmg,hit:new Set()}; HALO_SURGE_T=HALO_SURGE_DUR+(window.__talents&&window.__talents.surgeBonus?window.__talents.surgeBonus():0);   /* build 448: the Fighter's Surge Master */ const n=NET(); if(n) n.send('toast','⚡ Halo Surge! Every halo tower pulses at double strength for a few seconds!'); }
+function realHaloSurge(p){ RING_FX={x:p.x,z:p.z,r:0,R:HALO_RING_R,DUR:HALO_RING_DUR,t:0,dmg:p.dmg,hit:new Set()}; HALO_SURGE_T=HALO_SURGE_DUR+(p.surge!==undefined?p.surge:(window.__talents&&window.__talents.surgeBonus?window.__talents.surgeBonus():0));   /* co-op sweep 2026-10-02: p.surge = a guest caster's own Surge Master */   /* build 448: the Fighter's Surge Master */ const n=NET(); if(n) n.send('toast','⚡ Halo Surge! Every halo tower pulses at double strength for a few seconds!'); }
 function realVolley(p){ const per=Math.round(p.dmg/VOLLEY_PER*10)/10; for(let i=0;i<VOLLEY_WAVES;i++) VOLLEY_Q.push({x:p.x,z:p.z,dmg:per,at:S.t+i*(VOLLEY_DUR/VOLLEY_WAVES)}); }
 function applyReal(hid,p){ if(hid==='knight') realCleave(p); else if(hid==='witch') realStarfall(p); else if(hid==='fighter') realHaloSurge(p); else if(hid==='troll') realVolley(p); }
 
@@ -170,7 +170,10 @@ let netWired=false;
 function wireNet(){ if(netWired) return; const n=NET(); if(!n||!n.onMessage) return; netWired=true;
   n.onMessage('specialCast',(data,fromId)=>{ if(n.role()!=='host'||!data||!SPEC_NAME[data.hero]) return;
     const p={x:clampNum(data.x,-1e4,1e4),z:clampNum(data.z,-1e4,1e4),dmg:clampNum(data.dmg,0,1e5)};
-    applyReal(data.hero,p); playFlourish(data.hero,p); broadcastFx(data.hero,p,fromId); });
+    // co-op sweep 2026-10-02: the caster's capstone ranks ride the cast (doFire), so the host runs THAT guest's Tempest / Cyclone / Arrow Storm / Pinning Volley / Crown / Nova
+    // and Surge Master, not its own (window.__talents.onSpecial, 96l-talents.js)
+    const t=(data.tal&&typeof data.tal==='object')?data.tal:{}, R={}; for(const k of ['tempest','kcyclone','rstorm','rpin','fcrown','fnova']) R[k]=Math.max(0,Math.min(1,t[k]|0)); R.fsurge=Math.max(0,Math.min(3,t.fsurge|0)); p.surge=2*R.fsurge;
+    applyReal(data.hero,p); playFlourish(data.hero,p); broadcastFx(data.hero,p,fromId); if(window.__talents&&window.__talents.onSpecial) window.__talents.onSpecial(data.hero,p,{ranks:R,from:fromId}); });
   n.onMessage('specialFx',(data)=>{ if(n.role()!=='guest'||!data||!SPEC_NAME[data.hero]) return; playFlourish(data.hero,{x:clampNum(data.x,-1e4,1e4),z:clampNum(data.z,-1e4,1e4)}); });
 }
 
@@ -183,7 +186,8 @@ function doFire(){
   if(hid==='knight'&&window.__whirl) window.__whirl.spin();   // build 260 (99f-whirl.js): the Knight's own body spins three turns, on the caster's screen
   playFlourish(hid,p);   // always shown at once on the caster's own screen, win or lose the round trip
   const n=NET(), role=n?n.role():null;
-  if(role==='guest') n.send('specialCast',{hero:hid,x:p.x,z:p.z,dmg:p.dmg});
+  if(role==='guest'){ const TL=window.__talents, tal=TL&&TL.rank?{tempest:TL.rank('tempest'),kcyclone:TL.rank('kcyclone'),rstorm:TL.rank('rstorm'),rpin:TL.rank('rpin'),fcrown:TL.rank('fcrown'),fnova:TL.rank('fnova'),fsurge:TL.rank('fsurge')}:null;
+    n.send('specialCast',{hero:hid,x:p.x,z:p.z,dmg:p.dmg,tal}); if(TL&&TL.onSpecial) TL.onSpecial(hid,p); }   // co-op sweep 2026-10-02: the ranks go with the cast; the local call is looks only (a guest's own enemies and defs are empty): its TEMPEST, CYCLONE, ARROW STORM, NOVA
   else { applyReal(hid,p); if(role==='host') broadcastFx(hid,p,null); if(window.__talents&&window.__talents.onSpecial) window.__talents.onSpecial(hid,p); }   // build 336: the Witch's Tempest
 }
 

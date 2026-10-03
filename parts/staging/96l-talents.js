@@ -122,14 +122,21 @@ function boltMods(){ if(!tree()) return null; const c=rank('charged'), o=rank('o
 // ---- the procs, on her own bolts (82-staff.js: window.__mineHit around the hit, then onBolt) and her own kills
 const BOSSES=new Set(['cyclops','pigflail','pigdagger','pigsling','trollboss','archhag','avery']);
 let boltN=0, killN=0;
-{ const prev=hurt; hurt=function(e,dmg,kx,kz){ if(e&&!e.dead&&tree()){ const hm=rank('mark'); if(hm&&e.hexT>0) dmg*=1+.05*hm; } return prev.call(this,e,dmg,kx,kz); }; }
+{ const prev=hurt; hurt=function(e,dmg,kx,kz){ if(e&&!e.dead&&e.hexT>0){ const hm=Math.max(tree()?rank('mark'):0,e.hexR|0); if(hm) dmg*=1+.05*hm; } return prev.call(this,e,dmg,kx,kz); }; }   // hexR (co-op sweep 2026-10-02): the Hex Mark rank of the co-op guest whose bolt marked it
 function zap(a,b){ for(let i=1;i<6;i++){ const t=i/6; const g=glow(0x9fe8ff,.55,.9); g.position.set(a.x+(b.x-a.x)*t,(a.y+a.h*.6)+((b.y+b.h*.6)-(a.y+a.h*.6))*t+Math.sin(i*2.1)*.25,a.z+(b.z-a.z)*t); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); } }
 function puff(x,y,z,col,s){ const g=glow(col,s,.85); g.position.set(x,y,z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); }
-function onBolt(e,b){ if(!tree()||!e) return; e.mineT=S.t; const hm=rank('mark'); if(hm) e.hexT=4; const w=rank('wither'); if(w){ e.slowT=Math.max(e.slowT||0,w); e.witherT=Math.max(e.witherT||0,w); }
-  if(rank('grasp')&&!e.dead&&Math.random()<.1&&!BOSSES.has(e.kind)){ e.holdT=Math.max(e.holdT||0,1.5); floatText(e.x,e.y+e.h+.3,e.z,'🌱 ROOTED','#8ef05a'); }
-  if(rank('fork')&&(++boltN)%4===0){ const near=enemies.filter(o=>!o.dead&&o!==e&&Math.hypot(o.x-e.x,o.z-e.z)<4).sort((p,q)=>Math.hypot(p.x-e.x,p.z-e.z)-Math.hypot(q.x-e.x,q.z-e.z)).slice(0,2);
-    for(const o of near){ zap(e,o); window.__mineHit=true; try{ hurt(o,Math.round(b.dmg*.5*10)/10,0,0); }finally{ window.__mineHit=false; } o.mineT=S.t; } if(near.length) floatText(e.x,e.y+e.h+.6,e.z,'⚡ FORK','#9fe8ff'); } }
-{ const prev=kill; kill=function(e){ const was=e&&!e.dead; const r=prev.apply(this,arguments); if(!was||!tree()) return r;
+// co-op sweep 2026-10-02: on the host a GUEST's bolt carries that guest's ranks (b.tal) and counters (b.ctr) from 99-network.js hostGuestShot; its hits are stamped
+// talBy/talT (not mineT, which is the host's own -- his Rot, Doom, Overgrowth and Fury), so the guest's Rot and Doom run on the kills its bolts make
+const tagGuest=(e,b)=>{ e.talBy=b.tal; e.talCtr=b.ctr; e.talT=S.t; };
+function onBolt(e,b){ const G=b&&b.tal, R=id=>G?(G[id]|0):rank(id); if(!e||!(G||tree())) return; if(G&&!b.ctr) b.ctr={bolt:0,flare:0,kill:0}; if(G) tagGuest(e,b); else e.mineT=S.t; const hm=R('mark'); if(hm){ e.hexT=4; if(G) e.hexR=Math.max(e.hexR|0,hm); } const w=R('wither'); if(w){ e.slowT=Math.max(e.slowT||0,w); e.witherT=Math.max(e.witherT||0,w); }
+  if(R('grasp')&&!e.dead&&Math.random()<.1&&!BOSSES.has(e.kind)){ e.holdT=Math.max(e.holdT||0,1.5); floatText(e.x,e.y+e.h+.3,e.z,'🌱 ROOTED','#8ef05a'); }
+  if(R('fork')&&(G?++b.ctr.bolt:++boltN)%4===0){ const near=enemies.filter(o=>!o.dead&&o!==e&&Math.hypot(o.x-e.x,o.z-e.z)<4).sort((p,q)=>Math.hypot(p.x-e.x,p.z-e.z)-Math.hypot(q.x-e.x,q.z-e.z)).slice(0,2);
+    for(const o of near){ zap(e,o); window.__mineHit=!G; try{ hurt(o,Math.round(b.dmg*.5*10)/10,0,0); }finally{ window.__mineHit=false; } if(G) tagGuest(o,b); else o.mineT=S.t; } if(near.length) floatText(e.x,e.y+e.h+.6,e.z,'⚡ FORK','#9fe8ff'); } }
+function talKill(e){ const G=e.talBy, C=e.talCtr||(e.talCtr={bolt:0,flare:0,kill:0}), hd=Math.max(0,+G.hd||0);
+  if((G.rot|0)&&e.hexT>0){ for(const o of enemies){ if(o.dead||o===e||Math.hypot(o.x-e.x,o.z-e.z)>3) continue; o.poisonT=Math.max(o.poisonT||0,3); o.poisonDmg=Math.max(o.poisonDmg||0,Math.round(hd*.2*10)/10); } puff(e.x,e.y+.6,e.z,0x8ef05a,2.2); floatText(e.x,e.y+e.h,e.z,'☠ ROT','#8ef05a'); }
+  if((G.doom|0)&&(++C.kill)%10===0){ const dmg=Math.round(hd*2*10)/10; for(const o of enemies.slice()){ if(o.dead||Math.hypot(o.x-e.x,o.z-e.z)>3) continue; hurt(o,dmg,0,0); } floatText(e.x,e.y+1.6,e.z,'💀 DOOM','#ff9a6a'); puff(e.x,e.y+.8,e.z,0xff7a3a,4.5); }
+  if(G.overgrow|0){ for(const d of defs){ if(!(d.max>0)||Math.hypot(d.x-e.x,d.z-e.z)>8||d.hp>=d.max) continue; d.hp=Math.min(d.max,d.hp+d.max*.02); puff(d.x,(d.top||1)+.3,d.z,0x8ef05a,1.2); } } }
+{ const prev=kill; kill=function(e){ const was=e&&!e.dead; const r=prev.apply(this,arguments); if(was&&e.talBy&&S.t-(e.talT||-99)<=.6) talKill(e); if(!was||!tree()) return r;
     const b=rank('bounty'); if(b&&Math.random()<.08*b&&typeof spawnOrbs==='function'){ spawnOrbs(e.x,e.z,Math.max(1,e.mana|0)); floatText(e.x,e.y+e.h+.2,e.z,'+◆','#7fd8ff'); }
     if(!(e.mineT>=0)||S.t-e.mineT>.6) return r;   // below: her own kills only
     if(rank('rot')&&e.hexT>0){ for(const o of enemies){ if(o.dead||o===e||Math.hypot(o.x-e.x,o.z-e.z)>3) continue; o.poisonT=Math.max(o.poisonT||0,3); o.poisonDmg=Math.max(o.poisonDmg||0,Math.round(heroDmg()*.2*10)/10); } puff(e.x,e.y+.6,e.z,0x8ef05a,2.2); floatText(e.x,e.y+e.h,e.z,'☠ ROT','#8ef05a'); }
@@ -144,20 +151,21 @@ const near=d=>hero&&hero.dead<=0&&Math.hypot(d.x-hero.x,d.z-hero.z)<=8;
 { const prev=hurtDef; hurtDef=function(d,dmg){ if(d) d.hitT=S.t; return prev.apply(this,arguments); }; }
 // Tempest: Starfall keeps striking -- four more falls over three seconds at the spot, each half the cast (73-specials.js calls this after the host's/solo player's own cast lands)
 let tempest=[];
-function onSpecial(hid,p){ if(hid==='knight'&&rank('kcyclone')&&p){ cyclone.push({at:S.t+1.15,dmg:p.dmg}); return; } if(hid!=='witch'||!rank('tempest')||!p) return; for(let i=1;i<=4;i++) tempest.push({at:S.t+i*.7,x:p.x,z:p.z,dmg:Math.round(p.dmg*.5*10)/10}); floatText(p.x,baseFloor(p.x,p.z)+2.8,p.z,'🌪 TEMPEST','#9fe8ff'); }
+// co-op sweep 2026-10-02: o = {ranks, from} when the host runs a GUEST's cast -- that guest's own capstones, its strikes tagged g (its id) so they never count as the host's own kills
+function onSpecial(hid,p,o){ const Rk=id=>o&&o.ranks?(o.ranks[id]|0):rank(id), g=(o&&o.from)||null; if(hid==='knight'&&Rk('kcyclone')&&p){ cyclone.push({at:S.t+1.15,dmg:p.dmg,g,x:p.x,z:p.z}); return; } if(hid!=='witch'||!Rk('tempest')||!p) return; for(let i=1;i<=4;i++) tempest.push({at:S.t+i*.7,x:p.x,z:p.z,dmg:Math.round(p.dmg*.5*10)/10,g}); floatText(p.x,baseFloor(p.x,p.z)+2.8,p.z,'🌪 TEMPEST','#9fe8ff'); }
 // the per-frame part: marks and ooze drawn, towers glowing/regrowing, the Tempest's falls
 const SIG=new Map(), OOZE=new Map();
 function tag(map,e,col,size,y){ let s=map.get(e); if(!s){ s=glow(col,size,.9); scene.add(s); map.set(e,s); } s.position.set(e.x,e.y+y,e.z); s.material.opacity=.7+.2*Math.sin(S.t*6); }
 function untag(map,e){ const s=map.get(e); if(s){ scene.remove(s); s.material.dispose(); map.delete(e); } }
 { const prev=updateEnemies; updateEnemies=function(dt){ prev(dt);
-    for(const e of enemies){ if(e.hexT>0) e.hexT-=dt; if(e.witherT>0) e.witherT-=dt; if(!e.dead&&e.hexT>0) tag(SIG,e,0xb04cff,.9,e.h+.55); else untag(SIG,e); if(!e.dead&&e.witherT>0) tag(OOZE,e,0x6aff4a,1.3,.25); else untag(OOZE,e); }
+    for(const e of enemies){ if(e.hexT>0) e.hexT-=dt; else if(e.hexR) e.hexR=0; if(e.witherT>0) e.witherT-=dt; if(!e.dead&&e.hexT>0) tag(SIG,e,0xb04cff,.9,e.h+.55); else untag(SIG,e); if(!e.dead&&e.witherT>0) tag(OOZE,e,0x6aff4a,1.3,.25); else untag(OOZE,e); }
     for(const [e] of SIG) if(!enemies.includes(e)) untag(SIG,e); for(const [e] of OOZE) if(!enemies.includes(e)) untag(OOZE,e);
     const w=rank('ward')+rank('kward'), rr=rank('roots');
     for(const d of defs){ let ring=d.mdl&&d.mdl.userData.wardRing; const on=!!(w&&near(d));
       if(on&&!ring&&d.mdl){ ring=new THREE.Mesh(new THREE.RingGeometry(.9,1.25,32),new THREE.MeshBasicMaterial({color:C(rank('kward')?0xffd27a:0x8ef05a),transparent:true,opacity:.6,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide})); ring.rotation.x=-PI/2; ring.position.y=.08; ring.userData.noOL=true; d.mdl.add(ring); d.mdl.userData.wardRing=ring; }
       if(ring){ ring.visible=on; if(on) ring.material.opacity=.45+.2*Math.sin(S.t*3); }
       if(rr&&d.max>0&&d.hp<d.max&&S.t-(d.hitT||-99)>3) d.hp=Math.min(d.max,d.hp+d.max*.01*rr*dt); }
-    while(tempest.length&&S.t>=tempest[0].at){ const q=tempest.shift(); window.__mineHit=true; try{ for(const e of enemies.slice()){ if(e.dead||Math.hypot(e.x-q.x,e.z-q.z)>5+e.r*.5) continue; hurt(e,q.dmg,0,0); e.mineT=S.t; } }finally{ window.__mineHit=false; } puff(q.x,baseFloor(q.x,q.z)+1.2,q.z,0x9fe8ff,3.4); } }; }
+    while(tempest.length&&S.t>=tempest[0].at){ const q=tempest.shift(); window.__mineHit=!q.g; try{ for(const e of enemies.slice()){ if(e.dead||Math.hypot(e.x-q.x,e.z-q.z)>5+e.r*.5) continue; hurt(e,q.dmg,0,0); if(!q.g) e.mineT=S.t; } }finally{ window.__mineHit=false; } puff(q.x,baseFloor(q.x,q.z)+1.2,q.z,0x9fe8ff,3.4); } }; }
 // ===== THE GNOME KNIGHT'S TALENTS (build 395). Every rank shows: a steel flash and BASH on the 4th swing, red drips on bleeding mobs, a moon-arc of the sweep, a red glow while Fury runs,
 // a gold shell while Aegis holds, the Whirlwind going off again, gold rings under towers near him (brighter and quicker while Vigil holds), hedges that stand five squares long.
 const isK=()=>heroId()==='knight'&&!!tree();
@@ -194,17 +202,18 @@ function sweepArc(sw){ const ang=PI*(.55+.15*sw), g=new THREE.Mesh(new THREE.Rin
       KC.bash++; puff(hero.x+fx*1.4,hero.y+1.1,hero.z+fz*1.4,0xcfe0ff,2.4); floatText(hero.x+fx*1.6,hero.y+2.6,hero.z+fz*1.6,'🛡 BASH','#cfe0ff'); camShake=Math.max(camShake,.12); } }; }
 { const prev=kill; kill=function(e){ const was=e&&!e.dead; const r=prev.apply(this,arguments); if(was&&isK()&&rank('kfury')&&e.mineT>=0&&S.t-e.mineT<=.6){ if(S.t>=rushT) puff(hero.x,hero.y+1.2,hero.z,0xff6a3a,2); rushT=S.t+3; KC.rush++; } return r; }; }
 // Thornwright: the hedge's thorns bite harder; Trapsmith: the Mouse Trap resets quicker; Vigil: towers near a Knight who stands still fire faster
-{ const prev=thornsBack; thornsBack=function(d,dmg){ const v=prev.apply(this,arguments); const t=towK(d)?kRank('kthorn'):0; return t?Math.round(v*(1+.2*t)*10)/10:v; }; }
+{ const prev=thornsBack; thornsBack=function(d,dmg){ const v=prev.apply(this,arguments); const t=towRank(d,'knight','kthorn'); return t?Math.round(v*(1+.2*t)*10)/10:v; }; }
 /* build 434 (Matt: "if i switch to the knight for the battle phase but my fighter puts down great towers, those towers need to maintain the stats and bonuses of the fighter"): a tower's own talent bonuses go by the hero who PLACED it (d.heroId, 97i-towerhero.js), not whoever is out now */
 const towK=d=>(d&&d.heroId&&!d.ownerId?d.heroId==='knight':heroId()==='knight')&&!!TREES.knight;
 const kRank=id=>((ALL.knight||{})[id]|0);
 const vigilOn=()=>isK()&&rank('kvigil')&&hero.dead<=0&&stillT>=1;
-{ const prev=stat; stat=function(d,k){ let v=prev.apply(this,arguments); if(k==='cd'&&d){ if(d.kind==='trap'&&towK(d)){ const t=kRank('ktrap'); if(t) v*=1-.15*t; } if(isK()&&vigilOn()&&near(d)&&d.kind!=='trap') v*=.77; } return v; }; }
+{ const prev=stat; stat=function(d,k){ let v=prev.apply(this,arguments); if(k==='cd'&&d){ if(d.kind==='trap'){ const t=towRank(d,'knight','ktrap'); if(t) v*=1-.15*t; } if(isK()&&vigilOn()&&near(d)&&d.kind!=='trap') v*=.77; } return v; }; }
 // Long Hedge: a hedge he sets down stands five squares long (the model stretched to match)
 const LONG_K=1.6;
-{ const prev=footprintCells; footprintCells=function(kind,x,z,yaw){ const cells=prev.apply(this,arguments); if(kind!=='spike'||!(isK()&&rank('klong'))) return cells; const ax=Math.cos(yaw||0), az=-Math.sin(yaw||0);
+const longOn=()=>window.__placeLong!==undefined?!!window.__placeLong:(isK()&&!!rank('klong'));   // co-op sweep 2026-10-02: the host placing a guest's hedge goes by THAT guest's Long Hedge
+{ const prev=footprintCells; footprintCells=function(kind,x,z,yaw){ const cells=prev.apply(this,arguments); if(kind!=='spike'||!longOn()) return cells; const ax=Math.cos(yaw||0), az=-Math.sin(yaw||0);
     for(const s of [-3.9,3.9]){ const cx=wc(x+ax*s), cz=wcz(z+az*s); if(!inb(cx,cz)) continue; const i=idx(cx,cz); if(!cells.includes(i)) cells.push(i); } return cells; }; }
-{ const prev=placeDefAt; placeDefAt=function(kind,x,z,rot){ const d=prev.apply(this,arguments); if(d&&kind==='spike'&&isK()&&rank('klong')) d.long=true; return d; }; }
+{ const prev=placeDefAt; placeDefAt=function(kind,x,z,rot){ const d=prev.apply(this,arguments); if(d&&kind==='spike'&&longOn()) d.long=true; return d; }; }
 holdHedgeLength=function(){ for(const d of defs){ const s=d.kind==='spike'&&d.mdl.userData.stretch; if(s) s.scale.x=HEDGE_STRETCH*(d.long?LONG_K:1)/markGrow(d.lvl); } };
 { const prev=updateGhost; updateGhost=function(){ prev.apply(this,arguments); if(placing==='spike'&&ghost&&ghost.userData.stretch) ghost.userData.stretch.scale.x=HEDGE_STRETCH*(isK()&&rank('klong')?LONG_K:1); }; }
 // the per-frame part: stillness for Vigil, bleeding drips, the sweep arcs, the Fury/Aegis glow on him, the Cyclone's second spin
@@ -215,25 +224,28 @@ let AURA=null;
     for(let i=ARCS.length-1;i>=0;i--){ const a=ARCS[i]; a.t+=dt; a.g.material.opacity=.45*(1-a.t/.25); if(a.t>=.25){ scene.remove(a.w); a.g.geometry.dispose(); a.g.material.dispose(); ARCS.splice(i,1); } }
     const col=S.t<aegisT?0xffe08a:(S.t<rushT&&isK()?0xff5a2a:0); if(col){ if(!AURA){ AURA=glow(col,2.6,.5); scene.add(AURA); } AURA.material.color.setHex(col); AURA.visible=hero.dead<=0; AURA.position.set(hero.x,hero.y+1.2,hero.z); AURA.material.opacity=(S.t<aegisT?.55:.35)+.15*Math.sin(S.t*8); } else if(AURA) AURA.visible=false;
     if(vigilOn()) for(const d of defs){ const ring=d.mdl&&d.mdl.userData.wardRing; if(ring&&ring.visible) ring.material.opacity=.6+.3*Math.sin(S.t*9); }
-    while(cyclone.length&&S.t>=cyclone[0].at){ const q=cyclone.shift(); KC.cyclone++; window.__mineHit=true; try{ for(const e of enemies.slice()){ if(e.dead) continue; const dx=e.x-hero.x, dz=e.z-hero.z, d=Math.hypot(dx,dz); if(d>=4+e.r) continue; const l=Math.max(d,.01); hurt(e,q.dmg,dx/l*3,dz/l*3); e.mineT=S.t; } }finally{ window.__mineHit=false; }
-      if(window.__whirl){ window.__whirl.spin(); window.__whirl.vortex(hero.x,hero.z); } if(typeof shockRing==='function') shockRing(hero.x,baseFloor(hero.x,hero.z),hero.z,4); floatText(hero.x,hero.y+3,hero.z,'🌪 CYCLONE','#dfe8ff'); } }; }
+    while(cyclone.length&&S.t>=cyclone[0].at){ const q=cyclone.shift(); KC.cyclone++; const c=q.g?((window.__party&&window.__party.get(q.g))||{x:q.x,y:baseFloor(q.x,q.z),z:q.z}):hero; window.__mineHit=!q.g; try{ for(const e of enemies.slice()){ if(e.dead) continue; const dx=e.x-c.x, dz=e.z-c.z, d=Math.hypot(dx,dz); if(d>=4+e.r) continue; const l=Math.max(d,.01); hurt(e,q.dmg,dx/l*3,dz/l*3); if(!q.g) e.mineT=S.t; } }finally{ window.__mineHit=false; }
+      if(window.__whirl){ if(!q.g) window.__whirl.spin(); window.__whirl.vortex(c.x,c.z); } if(typeof shockRing==='function') shockRing(c.x,baseFloor(c.x,c.z),c.z,4); floatText(c.x,(c.y||0)+3,c.z,'🌪 CYCLONE','#dfe8ff'); } }; }
 // ===== THE GNOME RANGER'S AND THE GNOME FIGHTER'S TALENTS (build 448). Every rank shows: gold CRIT arrows, arrows running through a second mob, a second Arrow Storm, an eagle on a perch, DODGE, PINNED mobs;
 // halos that slow (a blue shimmer on what they hold), a longer Surge, the Crown healing every tower, the Nova's second ring, Solar Flare bursts, the green glow of Mending Light, Martyr's Light once a wave.
 // A tower's talent goes by the hero who PLACED it (d.heroId, 97i-towerhero.js), as the Knight's do.
 const isR=()=>heroId()==='troll'&&!!tree(), isF=()=>heroId()==='fighter'&&!!tree();
 const hRank=(h,id)=>((ALL[h]||{})[id]|0);
 const towBy=(d,h)=>(d&&d.heroId&&!d.ownerId?d.heroId===h:heroId()===h);
+// co-op sweep 2026-10-02: a guest's tower takes ITS placer's ranks for the hero that placed it (the guest's input reports them); a guest who has left keeps the old fallback
+const towRank=(d,h,id)=>{ if(d&&d.ownerId&&d.ownerHero&&Meta.defOwnerTalent){ const v=Meta.defOwnerTalent(d.ownerId,h,id); if(v!==undefined) return d.ownerHero===h?v:0; } return (TREES[h]&&towBy(d,h))?hRank(h,id):0; };
 const RF={ crit:0, pierce:0, storm:0, eagle:0, dodge:0, pin:0, bind:0, crown:0, nova:0, flare:0, mend:0, martyr:0 };
 function rPierce(){ if(isR()&&rank('rpierce')){ RF.pierce++; return 1; } return 0; }
 function rCrit(){ const c=isR()?rank('rcrit'):0; if(c&&Math.random()<.08*c){ RF.crit++; return true; } return false; }
-const onPerch=()=>hero.dead<=0&&(hero.y||0)>=1.3&&defs.some(d=>d.kind==='perch'&&!d.dead&&Math.hypot(d.x-hero.x,d.z-hero.z)<1.7);
+const perches=()=>{ const N=window.__net, D=window.__defsync; if(N&&N.role&&N.role()==='guest'&&D) return D.list().map(D.get).filter(p=>p&&p.kind==='perch'); return defs.filter(d=>d.kind==='perch'&&!d.dead); };   // co-op sweep 2026-10-02: a guest's perches are the host's, as puppets
+const onPerch=()=>hero.dead<=0&&(hero.y||0)>=1.3&&perches().some(d=>Math.hypot(d.x-hero.x,d.z-hero.z)<1.7);
 let eagleOn=false;
 { const prev=heroDmg; heroDmg=function(){ const v=prev.apply(this,arguments); if(isR()&&rank('rperch')&&onPerch()) return Math.round(v*1.25*10)/10; return v; }; }
 { const prev=stat; stat=function(d,k){ let v=prev.apply(this,arguments); if(!d) return v;
-    if(k==='cd'&&d.kind==='snare'&&towBy(d,'troll')&&TREES.troll){ const t=hRank('troll','rtangle'); if(t) v*=1-.12*t; }
-    if(d.kind==='venom'&&(k==='dmg'||k==='poisonDur')&&towBy(d,'troll')&&TREES.troll){ const t=hRank('troll','rvenom'); if(t) v=Math.round(v*(1+.2*t)*10)/10; }
+    if(k==='cd'&&d.kind==='snare'){ const t=towRank(d,'troll','rtangle'); if(t) v*=1-.12*t; }
+    if(d.kind==='venom'&&(k==='dmg'||k==='poisonDur')){ const t=towRank(d,'troll','rvenom'); if(t) v=Math.round(v*(1+.2*t)*10)/10; }
     return v; }; }
-function skyBonus(d){ return (towBy(d,'troll')&&hRank('troll','rsky'))?2:0; }
+function skyBonus(d){ return towRank(d,'troll','rsky')?2:0; }
 let martyrWave=-1;
 { const prev=hurtHero; hurtHero=function(dmg){ if(hero.dead>0) return prev.apply(this,arguments);
     if(isR()&&rank('rdodge')&&Math.random()<.15){ RF.dodge++; floatText(hero.x,hero.y+3,hero.z,'🍃 DODGE','#8ef0c8'); puff(hero.x,hero.y+1.2,hero.z,0x8ef0c8,1.4); return; }
@@ -245,28 +257,48 @@ let martyrWave=-1;
 { const prev=heroStat; heroStat=function(k){ const v=prev.apply(this,arguments); if(k==='def'&&isF()) return v+4*rank('fward'); return v; }; }
 function surgeBonus(){ return isF()?2*rank('fsurge'):0; }
 const stormQ=[], novaQ=[];
-{ const prev=onSpecial; onSpecial=function(hid,p){ prev(hid,p); if(!p) return;
-    if(hid==='troll'&&isR()){ const dmg=Math.round(heroDmg()*3/5*10)/10;
-      if(rank('rpin')){ let n=0; for(const e of enemies){ if(e.dead||Math.hypot(e.x-p.x,e.z-p.z)>3.4+e.r) continue; e.slowT=Math.max(e.slowT||0,3); n++; } if(n){ RF.pin++; floatText(p.x,baseFloor(p.x,p.z)+2,p.z,'📌 PINNED','#8ef0c8'); } }
-      if(rank('rstorm')){ RF.storm++; for(let i=0;i<15;i++){ const a=Math.random()*TAU, r=Math.sqrt(Math.random())*2.5; stormQ.push({at:S.t+.7+i/15,x:p.x+Math.cos(a)*r,z:p.z+Math.sin(a)*r,dmg}); } floatText(p.x,baseFloor(p.x,p.z)+2.8,p.z,'🌧 ARROW STORM','#bfe89a'); } }
-    if(hid==='fighter'&&isF()){
-      if(rank('fcrown')){ RF.crown++; for(const d of defs){ if(!(d.max>0)||d.dead) continue; d.hp=Math.min(d.max,d.hp+d.max*.3); puff(d.x,(d.top||1)+.4,d.z,0xffe08a,1.4); } floatText(hero.x,hero.y+3.2,hero.z,'👑 CROWN OF HALOS','#ffe08a'); }
-      if(rank('fnova')) novaQ.push({at:S.t+.45,x:p.x,z:p.z,dmg:p.dmg||Math.round(heroDmg()*2*10)/10}); } }; }
+{ const prev=onSpecial; onSpecial=function(hid,p,o){ prev(hid,p,o); if(!p) return; const Rk=id=>o&&o.ranks?(o.ranks[id]|0):rank(id), g=(o&&o.from)||null;
+    if(hid==='troll'&&(o||isR())){ const dmg=o?Math.round(p.dmg/5*10)/10:Math.round(heroDmg()*3/5*10)/10;   /* a guest's p.dmg is its own heroDmg()*3 (73-specials.js) */
+      if(Rk('rpin')){ let n=0; for(const e of enemies){ if(e.dead||Math.hypot(e.x-p.x,e.z-p.z)>3.4+e.r) continue; e.slowT=Math.max(e.slowT||0,3); n++; } if(n){ RF.pin++; floatText(p.x,baseFloor(p.x,p.z)+2,p.z,'📌 PINNED','#8ef0c8'); } }
+      if(Rk('rstorm')){ RF.storm++; for(let i=0;i<15;i++){ const a=Math.random()*TAU, r=Math.sqrt(Math.random())*2.5; stormQ.push({at:S.t+.7+i/15,x:p.x+Math.cos(a)*r,z:p.z+Math.sin(a)*r,dmg,g,pin:Rk('rpin')}); } floatText(p.x,baseFloor(p.x,p.z)+2.8,p.z,'🌧 ARROW STORM','#bfe89a'); } }
+    if(hid==='fighter'&&(o||isF())){
+      if(Rk('fcrown')){ RF.crown++; for(const d of defs){ if(!(d.max>0)||d.dead) continue; d.hp=Math.min(d.max,d.hp+d.max*.3); puff(d.x,(d.top||1)+.4,d.z,0xffe08a,1.4); } if(o) floatText(p.x,baseFloor(p.x,p.z)+3.2,p.z,'👑 CROWN OF HALOS','#ffe08a'); else floatText(hero.x,hero.y+3.2,hero.z,'👑 CROWN OF HALOS','#ffe08a'); }
+      if(Rk('fnova')) novaQ.push({at:S.t+.45,x:p.x,z:p.z,dmg:p.dmg||Math.round(heroDmg()*2*10)/10,g}); } }; }
 let flareN=0;
-{ const prev=onBolt; onBolt=function(e,b){ prev(e,b); if(!e||!isF()||!rank('fflare')) return; if((++flareN)%5) return; RF.flare++; const bd=Math.round(((b&&b.dmg)||heroDmg())*.6*10)/10;
-    window.__mineHit=true; try{ for(const o of enemies.slice()){ if(o.dead||Math.hypot(o.x-e.x,o.z-e.z)>2.6+o.r) continue; hurt(o,bd,0,0); o.mineT=S.t; } }finally{ window.__mineHit=false; } puff(e.x,e.y+.8,e.z,0xffd24a,3.2); floatText(e.x,e.y+e.h+.6,e.z,'🌞 FLARE','#ffd24a'); }; }
+{ const prev=onBolt; onBolt=function(e,b){ prev(e,b); const G=b&&b.tal; if(!e||!(G?(G.fflare|0):(isF()&&rank('fflare')))) return; if((G?++b.ctr.flare:++flareN)%5) return; RF.flare++; const bd=Math.round(((b&&b.dmg)||heroDmg())*.6*10)/10;
+    window.__mineHit=!G; try{ for(const o of enemies.slice()){ if(o.dead||Math.hypot(o.x-e.x,o.z-e.z)>2.6+o.r) continue; hurt(o,bd,0,0); if(G) tagGuest(o,b); else o.mineT=S.t; } }finally{ window.__mineHit=false; } puff(e.x,e.y+.8,e.z,0xffd24a,3.2); floatText(e.x,e.y+e.h+.6,e.z,'🌞 FLARE','#ffd24a'); }; }
 let HIS=[]; const AUR=new Set(['zap','venom','ember','dazzle']);
 { const prev=mobSpd; mobSpd=function(e){ const v=prev.apply(this,arguments); if(!HIS.length||!v) return v; for(const h of HIS) if(Math.hypot(e.x-h.x,e.z-h.z)<=h.r){ e.boundT=.2; return v*.8; } return v; }; }
 const BOUND=new Map(); let mendFx=0;
 { const prev=updateEnemies; updateEnemies=function(dt){
-    HIS=TREES.fighter&&hRank('fighter','fbind')?defs.filter(d=>!d.dead&&AUR.has(d.kind)&&towBy(d,'fighter')).map(d=>({x:d.x,z:d.z,r:stat(d,'range')})):[];
+    HIS=TREES.fighter?defs.filter(d=>!d.dead&&AUR.has(d.kind)&&towRank(d,'fighter','fbind')).map(d=>({x:d.x,z:d.z,r:stat(d,'range')})):[];   // co-op sweep 2026-10-02: per tower, by its placer's Binding Halo
     prev(dt);
     for(const e of enemies){ if(e.boundT>0){ e.boundT-=dt; RF.bind++; } if(!e.dead&&e.boundT>0) tag(BOUND,e,0x9fd8ff,.9,.2); else untag(BOUND,e); } for(const [e] of BOUND) if(!enemies.includes(e)) untag(BOUND,e);
-    while(stormQ.length&&S.t>=stormQ[0].at){ const q=stormQ.shift(); window.__mineHit=true; try{ for(const e of enemies.slice()){ if(e.dead||Math.hypot(e.x-q.x,e.z-q.z)>.9+e.r) continue; hurt(e,q.dmg,0,0); e.mineT=S.t; if(rank('rpin')) e.slowT=Math.max(e.slowT||0,3); } }finally{ window.__mineHit=false; } puff(q.x,baseFloor(q.x,q.z)+.6,q.z,0xbfe89a,1.1); }
-    while(novaQ.length&&S.t>=novaQ[0].at){ const q=novaQ.shift(); RF.nova++; window.__mineHit=true; try{ for(const e of enemies.slice()){ if(e.dead||Math.hypot(e.x-q.x,e.z-q.z)>8+e.r) continue; hurt(e,q.dmg,0,0); e.mineT=S.t; } }finally{ window.__mineHit=false; } if(typeof shockRing==='function') shockRing(q.x,baseFloor(q.x,q.z),q.z,8); puff(q.x,baseFloor(q.x,q.z)+1.4,q.z,0xfff2a0,5); floatText(q.x,baseFloor(q.x,q.z)+3,q.z,'🌟 NOVA','#fff2a0'); }
+    while(stormQ.length&&S.t>=stormQ[0].at){ const q=stormQ.shift(); window.__mineHit=!q.g; try{ for(const e of enemies.slice()){ if(e.dead||Math.hypot(e.x-q.x,e.z-q.z)>.9+e.r) continue; hurt(e,q.dmg,0,0); if(!q.g) e.mineT=S.t; if(q.g?q.pin:rank('rpin')) e.slowT=Math.max(e.slowT||0,3); } }finally{ window.__mineHit=false; } puff(q.x,baseFloor(q.x,q.z)+.6,q.z,0xbfe89a,1.1); }
+    while(novaQ.length&&S.t>=novaQ[0].at){ const q=novaQ.shift(); RF.nova++; window.__mineHit=!q.g; try{ for(const e of enemies.slice()){ if(e.dead||Math.hypot(e.x-q.x,e.z-q.z)>8+e.r) continue; hurt(e,q.dmg,0,0); if(!q.g) e.mineT=S.t; } }finally{ window.__mineHit=false; } if(typeof shockRing==='function') shockRing(q.x,baseFloor(q.x,q.z),q.z,8); puff(q.x,baseFloor(q.x,q.z)+1.4,q.z,0xfff2a0,5); floatText(q.x,baseFloor(q.x,q.z)+3,q.z,'🌟 NOVA','#fff2a0'); }
     if(isR()&&rank('rperch')){ const on=onPerch(); if(on&&!eagleOn){ RF.eagle++; floatText(hero.x,hero.y+3,hero.z,'🦅 EAGLE EYE','#ffb86a'); } eagleOn=on; } else eagleOn=false;
     if(isF()&&rank('fmend')&&hero.dead<=0&&hero.hp<hero.max){ const inHalo=defs.some(d=>!d.dead&&AUR.has(d.kind)&&towBy(d,'fighter')&&Math.hypot(d.x-hero.x,d.z-hero.z)<=stat(d,'range'));
       if(inHalo){ hero.hp=Math.min(hero.max,hero.hp+hero.max*.02*dt); RF.mend+=dt; mendFx-=dt; if(mendFx<=0){ mendFx=.6; puff(hero.x,hero.y+1.6,hero.z,0x6aff7a,1.1); } } } }; }
+// ===== CO-OP (sweep 2026-10-02). coopSwing: the host runs a GUEST's Knight swing talents (99-network.js guestHitCone) -- the half circle at Wide Sweep III, Bleed
+// every 3rd swing, Shield Bash every 4th -- the same numbers as the hitCone wrap above, from the guest's spot and facing, with its ranks (T) and its own swing count (g.swingN).
+// coopFx: on the guest, what the host just ran for it, shown over its own hero (Fury and Aegis are started here too, so its own swing speed and gold shell follow).
+function coopSwing(o){ const g=o.g, T=o.T, gx=o.gx, gz=o.gz, fx=o.fx, fz=o.fz, d=o.d, out={ hit:[], bash:0, bleed:0, kill:0 };
+  if(T.sw>=3) for(const [e,h] of o.before){ if(e.dead||e.hp<h) continue; const dx=e.x-gx, dz=e.z-gz, dd=Math.hypot(dx,dz); if(dd<o.r0*1.36+e.r&&(dx*fx+dz*fz)/Math.max(dd,.01)>-.05) hurt(e,d,fx*1.4,fz*1.4); }
+  for(const [e,h] of o.before) if(e.dead||e.hp<h) out.hit.push(e);
+  g.swingN=(g.swingN|0)+1; if(!out.hit.length) return out;
+  if(T.bleed&&g.swingN%3===0){ const bd=Math.round(d*.4*10)/10; for(const e of out.hit){ if(e.dead) continue; e.poisonT=Math.max(e.poisonT||0,3); e.poisonDmg=Math.max(e.poisonDmg||0,bd); e.bleedT=3; } KC.bleed++; const e=out.hit[0]; floatText(e.x,e.y+e.h+.5,e.z,'🩸 BLEED','#ff5a5a'); out.bleed=1; }
+  if(T.bash&&g.swingN%4===0){ const bd=Math.round(d*.5*10)/10; for(const e of out.hit){ if(e.dead) continue; const dx=e.x-gx, dz=e.z-gz, l=Math.max(.01,Math.hypot(dx,dz)); hurt(e,bd,dx/l*4,dz/l*4); if(!KBOSS.has(e.kind)) e.holdT=Math.max(e.holdT||0,.4*T.bash); }
+    KC.bash++; const gy=g.y||0; puff(gx+fx*1.4,gy+1.1,gz+fz*1.4,0xcfe0ff,2.4); floatText(gx+fx*1.6,gy+2.6,gz+fz*1.6,'🛡 BASH','#cfe0ff'); out.bash=1; }
+  out.kill=out.hit.some(e=>e.dead)?1:0; return out; }
+const COOPFX={ n:0, last:null };
+function coopFx(k){ COOPFX.n++; COOPFX.last=k; const y=(hero.y||0), fx=Math.sin(hero.yaw), fz=Math.cos(hero.yaw);
+  if(k==='dodge'){ floatText(hero.x,y+3,hero.z,'🍃 DODGE','#8ef0c8'); puff(hero.x,y+1.2,hero.z,0x8ef0c8,1.4); }
+  else if(k==='aegis'){ aegisT=S.t+3; aegisReady=S.t+30; KC.aegis++; floatText(hero.x,y+3.2,hero.z,'✨ AEGIS','#ffe08a'); puff(hero.x,y+1.3,hero.z,0xffe08a,4.5); try{ SFX.setBong&&SFX.setBong(); }catch(e){} }
+  else if(k==='martyr'){ puff(hero.x,y+1.3,hero.z,0xfff2c0,6); if(typeof shockRing==='function') shockRing(hero.x,baseFloor(hero.x,hero.z),hero.z,5); floatText(hero.x,y+3.4,hero.z,'✝ MARTYR\u2019S LIGHT','#fff2c0'); }
+  else if(k==='fury'){ if(isK()&&rank('kfury')){ if(S.t>=rushT) puff(hero.x,y+1.2,hero.z,0xff6a3a,2); rushT=S.t+3; KC.rush++; } }
+  else if(k==='bash'){ puff(hero.x+fx*1.4,y+1.1,hero.z+fz*1.4,0xcfe0ff,2.4); floatText(hero.x+fx*1.6,y+2.6,hero.z+fz*1.6,'🛡 BASH','#cfe0ff'); }
+  else if(k==='bleed') floatText(hero.x+fx*1.6,y+2.2,hero.z+fz*1.6,'🩸 BLEED','#ff5a5a');
+  else if(k==='mend') puff(hero.x,y+1.6,hero.z,0x6aff7a,1.1); }
 // ---- the TALENTS tab: the tree for a hero who has one; the flat skills (under the same tab name) for one who doesn't yet. N opens it from anywhere.
 const css=document.createElement('style'); css.textContent=
  '.tal-top{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}.tal-top h3{margin:0;font:800 16px Georgia,serif;letter-spacing:2px;color:#ffd27a}.tal-pts{padding:3px 10px;border-radius:12px;background:#3a2a10;border:1px solid #ffd27a;color:#ffd27a;font:800 13px system-ui}.tal-pts.none{opacity:.55}'
@@ -292,6 +324,6 @@ document.addEventListener('click',e=>{ const t=e.target.closest&&e.target.closes
   redraw(); },true);
 function openTree(){ const TV=window.__tavern; if(!TV) return false; if(TV.isOpen()){ TV.close(); return false; } if(S.phase==='start') return false; TV.open(); TV.tab('skills'); return true; }
 addEventListener('keydown',e=>{ if(e.code!=='KeyN'||e.repeat) return; const ae=document.activeElement; if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')) return; if(window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen()) return; e.preventDefault(); openTree(); },true);
-window.__talents={ rPierce, rCrit, skyBonus, surgeBonus, hurtHero:n=>hurtHero(n), rf:()=>Object.assign({ his:HIS.length, eagle:eagleOn, storms:stormQ.length, novas:novaQ.length },RF), knight:()=>Object.assign({ swingN, rush:S.t<rushT, aegis:S.t<aegisT, stillT:+stillT.toFixed(2), vigil:!!vigilOn(), bleeding:BLEED.size, arcs:ARCS.length, queued:cyclone.length },KC), cast:()=>hitCone(),tree:()=>tree()&&heroId(),rank,spend,respec,avail,spent,total,held:()=>HELD.size,mult:k=>tree()?talentMult(k):null,boltMods,onBolt,onSpecial,openTree,gate:GATE,sig:()=>SIG.size,ooze:()=>OOZE.size,
+window.__talents={ rPierce, rCrit, skyBonus, surgeBonus, hurtHero:n=>hurtHero(n), rf:()=>Object.assign({ his:HIS.length, eagle:eagleOn, storms:stormQ.length, novas:novaQ.length },RF), knight:()=>Object.assign({ swingN, rush:S.t<rushT, aegis:S.t<aegisT, stillT:+stillT.toFixed(2), vigil:!!vigilOn(), bleeding:BLEED.size, arcs:ARCS.length, queued:cyclone.length },KC), cast:()=>hitCone(),tree:()=>tree()&&heroId(),rank,hr:(h,id)=>hRank(h,id),coopSwing,coopFx,coopFxSeen:()=>Object.assign({},COOPFX),spend,respec,avail,spent,total,held:()=>HELD.size,mult:k=>tree()?talentMult(k):null,boltMods,onBolt,onSpecial,openTree,gate:GATE,sig:()=>SIG.size,ooze:()=>OOZE.size,
   nodes:()=>{ const T=tree(); return T?T.branches.map(b=>({id:b.id,nodes:b.nodes.map(n=>({id:n.id,tier:n.tier,ranks:n.ranks,rank:rank(n.id),open:open(b,n)}))})):null; },state:()=>JSON.parse(JSON.stringify(ALL)),html:()=>tree()?treeHtml():''};
 })();

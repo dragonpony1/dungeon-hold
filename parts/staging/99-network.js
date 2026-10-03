@@ -580,6 +580,8 @@ onMessage('waveHeld',d=>{ if(role==='guest'&&d&&Number.isFinite(+d.w)) atHallWav
 // phase 13: party xp -- every kill's xp to every guest, as the host's own onKill fires
 { const origOnKill=Meta.onKill; Meta.onKill=e=>{ origOnKill(e); if(role==='host'&&e) send('killXp',{kind:e.kind}); }; }
 onMessage('killXp',d=>{ if(role==='guest'&&d) Meta.onKill({kind:d.kind}); });
+const MEND_AUR=new Set(['zap','venom','ember','dazzle']);
+onMessage('mend',d=>{ if(role!=='guest'||!d||hero.dead>0) return; hero.hp=Math.min(hero.max,hero.hp+Math.max(0,Math.min(1e4,+d.a||0))); if(window.__talents&&window.__talents.coopFx) window.__talents.coopFx('mend'); });
 function guestInputTick(dt){
   if(role!=='host') return;
   guestIn.forEach((inp,id)=>{
@@ -598,6 +600,9 @@ function guestInputTick(dt){
     if(g.dead>0){ g.dead-=dt; if(g.dead<=0){ g.dead=0; g.hp=g.max; g.x=g.spawnX; g.z=GUEST_SPAWN_Z; g.y=floorAt(g.x,g.z,0); g.holdT=.5; g.stuckT=0; g.farT=0; send('hp',{hp:g.hp,max:g.max,dead:g.dead,x:g.x,y:g.y,z:g.z,snap:1},id); } }
     else{
       g.hurtT-=dt; if(g.hurtT<0&&g.hp<g.max) g.hp=Math.min(g.max,g.hp+(1.5+(s?s.stat.regen:0))*dt);   // passive regen, same base rate and gear scaling as heroUpdate's (game.js)
+      // co-op sweep 2026-10-02: his Mending Light -- 2% a second inside one of HIS halos (96l-talents.js), told to his own page every .6 s ('mend'), as Mossheart keeps both bars together
+      if(s&&s.tal&&s.tal.fmend&&g.hp<g.max&&defs.some(d=>!d.dead&&MEND_AUR.has(d.kind)&&d.ownerId===id&&d.ownerHero==='fighter'&&Math.hypot(d.x-g.x,d.z-g.z)<=stat(d,'range'))){ const a=Math.min(g.max-g.hp,g.max*.02*dt); g.hp+=a; g.mendAcc=(g.mendAcc||0)+a; }
+      g.mendT=(g.mendT||0)+dt; if(g.mendT>=.6){ g.mendT=0; if(g.mendAcc>0){ send('mend',{a:+g.mendAcc.toFixed(2)},id); g.mendAcc=0; } }
       // build 147 ("having to calibrate in game to get avatars to sync"): the host used to re-simulate every guest from
       // the keys they sent, 15 times a second, while the guest's own screen moved their hero from the same keys at
       // 60 -- two copies of one hero that started apart and drifted further with every dropped packet, until walking
@@ -646,13 +651,27 @@ function guestMantle(id,g,s){ if(!(s&&s.myth&&s.myth.includes('voidwoven_mantle'
   send('mantle',{bx:+bx.toFixed(3),bz:+bz.toFixed(3)},id); return true; }
 onMessage('mantle',d=>{ if(role!=='guest'||!d||hero.dead>0) return; const bx=+d.bx||0, bz=+d.bz||0, l=Math.hypot(bx,bz); if(!(l>.01)) return;
   for(let i=0;i<6;i++) moveCircle(hero,bx/l*.6,bz/l*.6,.42,true); hero.hurtT=1; const gl=glow(0xc070ff,2.4,.9); gl.position.set(hero.x,hero.y+.9,hero.z); scene.add(gl); projs.push({kind:'splat',t:0,mesh:gl}); toast('The mantle swallows the blow'); });
+// co-op sweep 2026-10-02: the guest's own defensive talents, in the order the host's own hurtHero wraps run them (96l-talents.js; the Mantle stays first, it is outermost):
+// Light Feet's DODGE, the Aegis shell, Last Stand, the Aegis catching a near-fatal blow, then the blow, then Martyr's Light. Each shows on the guest's own screen ('powerFx' tal)
 function hurtGuestHero(id,dmg){
   const g=guestHero.get(id); if(!g||g.dead>0) return;
-  const s=guestStats.get(id), def=s?s.stat.def:0;
+  const s=guestStats.get(id), def=s?s.stat.def:0, t=(s&&s.tal)||{};
   if(guestMantle(id,g,s)) return;
+  if(t.rdodge&&Math.random()<.15){ floatText(g.x,(g.y||0)+3,g.z,'🍃 DODGE','#8ef0c8'); send('powerFx',{k:'tal',t:'dodge'},id); return; }
+  if(t.kaegis&&S.t<(g.aegisT||-1)) return;
+  if(t.kstand&&g.hp<g.max*.35) dmg*=1-.1*t.kstand;
+  if(t.kaegis&&S.t>=(g.aegisReady||0)&&g.hp-dmg*(1-Math.min(75,def)/100)<=g.max*.3){ g.aegisT=S.t+3; g.aegisReady=S.t+30; floatText(g.x,(g.y||0)+3.2,g.z,'✨ AEGIS','#ffe08a'); send('powerFx',{k:'tal',t:'aegis'},id); return; }
   dmg=Math.max(1,Math.round(dmg*(1-Math.min(75,def)/100)));   // same gear-scaled mitigation hurtHero() (game.js) applies to the real hero
-  g.hp-=dmg; g.hurtT=3; if(g.hp<=0){ g.hp=0; g.dead=4; } send('hp',{hp:g.hp,max:g.max,dead:g.dead,x:g.x,y:g.y,z:g.z},id);
+  g.hp-=dmg; g.hurtT=3; if(g.hp<=0){ g.hp=0; g.dead=4; }
+  if(t.fmartyr&&g.martyrW!==S.wave&&!(g.dead>0)&&g.hp>0&&g.hp<g.max*.25){ g.martyrW=S.wave; g.hp=Math.min(g.max,g.hp+g.max*.4); const bd=t.md||0, M=window.__mythic;
+    const blast=()=>{ for(const e of enemies.slice()){ if(e.dead||Math.hypot(e.x-g.x,e.z-g.z)>5+e.r) continue; const dx=e.x-g.x, dz=e.z-g.z, l=Math.max(.01,Math.hypot(dx,dz)); hurt(e,bd,dx/l*3,dz/l*3); } };
+    if(bd>0){ if(M&&M.asHero) M.asHero(blast); else blast(); } if(typeof shockRing==='function') shockRing(g.x,baseFloor(g.x,g.z),g.z,5); floatText(g.x,(g.y||0)+3.4,g.z,'✝ MARTYR\u2019S LIGHT','#fff2c0'); send('powerFx',{k:'tal',t:'martyr'},id); }
+  send('hp',{hp:g.hp,max:g.max,dead:g.dead,x:g.x,y:g.y,z:g.z},id);
 }
+// ...and a mob that strikes him up close takes his Briar Skin and Thorns back, as one striking the host's own hero does (96l-talents.js landHit wraps)
+{ const prev=landHit; landHit=function(e,tg){ const r=prev.apply(this,arguments); if(role==='host'&&tg&&tg.kind==='hero'&&!tg.ranged&&tg.hero&&tg.hero.gid&&e&&!e.dead){ const st=guestStats.get(tg.hero.gid), t=st&&st.tal;
+    if(t&&t.briar&&!e.dead){ hurt(e,Math.max(1,Math.round(e.dmg*.15*t.briar)),0,0); floatText(e.x,e.y+e.h+.2,e.z,'🌵','#8ef05a'); }
+    if(t&&t.kthorns&&!e.dead){ hurt(e,Math.max(1,Math.round(e.dmg*.25)),0,0); floatText(e.x,e.y+e.h+.2,e.z,'🌵','#9fc3ff'); } } return r; }; }
 // the guest's own client (see onMessage('hp') below) applies this straight to its own local `hero` -- otherwise the
 // hp/dead this module tracks is host-private, so the one player it's happening to would see none of it: their own
 // health bar, hurt flash/SFX, death toast and movement-freeze-on-death all read the LOCAL hero (game.js), and that
@@ -666,7 +685,7 @@ window.__combat={ guestHero:id=>{ const g=guestHero.get(id); return g?{x:+g.x.to
 // (game.js) is the hook updateEnemies/landHit read every tick; each entry closes over a live guestHero record, so
 // isDead()/hurt() always reflect the CURRENT state at the moment an attack actually lands, not a stale snapshot
 // taken when the enemy first picked its target
-Meta.heroes=()=>[...guestHero.entries()].map(([id,g])=>({x:g.x,y:g.y,z:g.z,isDead:()=>g.dead>0,hurt:dmg=>hurtGuestHero(id,dmg)}));
+Meta.heroes=()=>[...guestHero.entries()].map(([id,g])=>({gid:id,x:g.x,y:g.y,z:g.z,isDead:()=>g.dead>0,hurt:dmg=>hurtGuestHero(id,dmg)}));   // gid (co-op sweep 2026-10-02): whose -- his Briar Skin and Thorns (landHit, below)
 // guest only: the host's authoritative hp/dead/position for THIS client's own hero, applied straight onto the local
 // `hero` object -- reusing the exact same side effects hurtHero()/heroUpdate() already use for the real hero
 // (flashDmg/SFX.hurt/the fall toast on death, the respawn toast/model-show/position-snap on recovery) so a guest's
@@ -708,14 +727,19 @@ onMessage('hp',data=>{
 // carved out of this path entirely below (phase 9) -- swing() fires at PRESS time, before any charge/aim-adjustment
 // has happened, which is right for melee (swing lands almost immediately) but wrong for a held shot.
 { const origSwing=swing;
-  swing=function(){ const before=hero.swingT; origSwing(); if(role==='guest'&&before<0&&hero.swingT===0&&!(window.__aim&&window.__aim.kind())&&(hero.reach||GUEST_REACH)<=GUEST_MELEE_MAX) send('swing',{yaw:+hero.yaw.toFixed(3),x:+hero.x.toFixed(2),z:+hero.z.toFixed(2),dmg:Math.round(heroDmg()*10)/10,reach:+(hero.reach||GUEST_REACH).toFixed(2)}); }; }   // build 159 (4/7): a reach past any sword's is a ranged hero whose staff or bow hasn't appeared yet (just switched) -- no swing then; its shot goes as a shot once the weapon is in hand. Build 150 ("guests' defenses do damage but not the sword"): the swing carries the guest's OWN facing and spot -- hitCone() swings from hero.yaw (the way the hero faces, the walk's direction when moving), not the camera's yaw the relay used to send, and from where the guest really stands, not where the host's copy got to
+  swing=function(){ const before=hero.swingT; origSwing(); if(role==='guest'&&before<0&&hero.swingT===0&&!(window.__aim&&window.__aim.kind())&&(hero.reach||GUEST_REACH)<=GUEST_MELEE_MAX) { const TL=window.__talents, tal=TL&&TL.tree&&TL.tree()==='knight'?{sw:TL.rank('ksweep'),bash:TL.rank('kbash'),bleed:TL.rank('kbleed'),fury:TL.rank('kfury')}:undefined;   /* co-op sweep 2026-10-02: the Knight's swing talents, run on the host (guestHitCone) */
+    send('swing',{yaw:+hero.yaw.toFixed(3),x:+hero.x.toFixed(2),z:+hero.z.toFixed(2),dmg:Math.round(heroDmg()*10)/10,reach:+(hero.reach||GUEST_REACH).toFixed(2),tal}); } }; }   // build 159 (4/7): a reach past any sword's is a ranged hero whose staff or bow hasn't appeared yet (just switched) -- no swing then; its shot goes as a shot once the weapon is in hand. Build 150 ("guests' defenses do damage but not the sword"): the swing carries the guest's OWN facing and spot -- hitCone() swings from hero.yaw (the way the hero faces, the walk's direction when moving), not the camera's yaw the relay used to send, and from where the guest really stands, not where the host's copy got to
 // the melee cone: still not a faithful port of anything, just a straightforward "who's in front of me" check, same
 // as the real local hitCone() (game.js) a melee hero uses -- ranged guests no longer come through here (phase 9,
 // below, gives them a real bolt/arrow instead), so GUEST_REACH/GUEST_DMG's own fallbacks now only ever matter for
 // a 'swing' that somehow arrives with no dmg/reach at all.
+// co-op sweep 2026-10-02: what a host's own swing gets that a guest's did not -- the full Wind set's GALE (40% more reach, mobs thrown back: 93b-sets8.js), the swinger as
+// Radiance's and Shadow's "who" (93-gearsets.js guestSwing), and the Knight's swing talents (Wide Sweep, Shield Bash, Bleed, Fury) from the ranks the swing carries (at.tal)
+const guestSwingTal=t=>(t&&typeof t==='object')?{ sw:Math.max(0,Math.min(3,t.sw|0)), bash:Math.max(0,Math.min(3,t.bash|0)), bleed:Math.max(0,Math.min(1,t.bleed|0)), fury:Math.max(0,Math.min(3,t.fury|0)) }:null;
 function guestHitCone(id,yaw,dmg,reach,at){
   const g=guestHero.get(id); if(!g||g.dead>0) return;
-  const r=Math.min(reach||GUEST_REACH,GUEST_MELEE_MAX), d=dmg||GUEST_DMG; const gx=(at&&typeof at.x==='number')?at.x:g.x, gz=(at&&typeof at.z==='number')?at.z:g.z;   // the guest's reported spot when it sends one (build 150); the host's copy otherwise. Build 159 (4/7): never a sword longer than a sword (GUEST_MELEE_MAX) -- an older guest still sends the bow's 24 in the moment after a switch
+  const s0=guestStats.get(id), wind=!!(s0&&s0.five&&s0.five.includes('of the Wind')), T=guestSwingTal(at&&at.tal), r0=Math.min(reach||GUEST_REACH,GUEST_MELEE_MAX);
+  const r=r0*(1+.12*(T?T.sw:0))*(wind?1.4:1), d=dmg||GUEST_DMG; const gx=(at&&typeof at.x==='number')?at.x:g.x, gz=(at&&typeof at.z==='number')?at.z:g.z;   // the guest's reported spot when it sends one (build 150); the host's copy otherwise. Build 159 (4/7): never a sword longer than a sword (GUEST_MELEE_MAX) -- an older guest still sends the bow's 24 in the moment after a switch
   if(Math.hypot(gx-g.x,gz-g.z)<30){ g.x=gx; g.z=gz; }   // and the copy is put there too: a swing is the surest word on where the guest is
   const fx=Math.sin(yaw), fz=Math.cos(yaw); let n=0;
   const cone=()=>{ for(const e of enemies){ if(e.dead) continue; const dx=e.x-gx, dz=e.z-gz, dd=Math.hypot(dx,dz);
@@ -723,9 +747,13 @@ function guestHitCone(id,yaw,dmg,reach,at){
   // build 159 (5/7): the powers a host's own swing carries, for the guest's too. This path never went through hitCone, so a guest's full
   // Void set never tore a rift (93-gearsets.js guestSwing runs the swing and that guest's five-piece powers the way the hitCone wrap does
   // the host's), and the Last Lantern counted a guest's sword as a DEFENSE's blow, 25% more on a lit mob (asHero, 97-mythics.js)
-  const s=guestStats.get(id), P=Meta.packs, M=window.__mythic;
-  const go=()=>P&&P.guestSwing?P.guestSwing(s&&s.five,d,cone):(cone(),[]);
+  const s=s0, P=Meta.packs, M=window.__mythic, hp0=g.hp, before=new Map(); for(const e of enemies) if(!e.dead) before.set(e,e.hp);
+  const go=()=>P&&P.guestSwing?P.guestSwing(s&&s.five,d,cone,g):(cone(),[]);
   const fired=M&&M.asHero?M.asHero(go):go();
+  if(wind) for(const [e,h] of before) if(e.hp<h||e.dead){ for(let i=0;i<3;i++) moveCircle(e,fx*.9,fz*.9,e.r*.8,false); const gl=glow(0xd8f0b0,1.2,.85); gl.position.set(e.x,(e.y||0)+.4,e.z); scene.add(gl); projs.push({kind:'splat',t:0,mesh:gl}); }
+  const TL=window.__talents; if(T&&TL&&TL.coopSwing){ const run=()=>TL.coopSwing({g,gx,gz,fx,fz,r0,d,T,before}); const o=M&&M.asHero?M.asHero(run):run();
+    if(o.bash) send('powerFx',{k:'tal',t:'bash'},id); if(o.bleed) send('powerFx',{k:'tal',t:'bleed'},id); if(o.kill&&T.fury) send('powerFx',{k:'tal',t:'fury'},id); }
+  if(g.hp>hp0&&!(g.dead>0)) send('hp',{hp:g.hp,max:g.max,dead:g.dead,x:g.x,y:g.y,z:g.z},id);   // Radiance healed him: his own bar fills
   if(n) SFX.hit();
   if(fired.length) send('powerFx',{k:'rift',at:fired.slice(0,24)},id);   // the rift's ring on the swinger's own screen (its page has no real mobs to tear one on)
 }
@@ -754,19 +782,28 @@ function guestHitCone(id,yaw,dmg,reach,at){
           const isStaff=/^staff-/.test(wo.name);
           const d3=A.dir3(), sh=A.shot(), range=hero.reach||(isStaff?9:12);
           const spd=isStaff?26*(1+.35*sh.c):window.__bow.ARROW_V*(1+.45*sh.c);   // same speed formulas 82-staff.js/83-bow.js's own hitCone() overrides use
-          send('shot',{wtype:isStaff?'bolt':'arrow',kind:wo.userData.kind,
-            dmg:Math.round(heroDmg()*sh.mul*10)/10,
+          // co-op sweep 2026-10-02: the talents single player puts on the shot -- the Witch's boltMods (bigger, piercing, blasting bolts, the twin pair every 5th cast) and the
+          // Ranger's Headhunter crit and Piercing Arrows -- with the same numbers 82-staff.js/83-bow.js use; tal = the bolt's on-hit ranks (Withering, Hex Mark, Rootgrasp, Fork,
+          // Rot, Doom, Overgrowth, Solar Flare), run on the host by 96l-talents.js onBolt for this guest
+          const TL=window.__talents, TM=isStaff&&TL&&TL.boltMods?TL.boltMods():null, crit=!isStaff&&!!(TL&&TL.rCrit&&TL.rCrit()), tr=TL&&TL.tree?TL.tree():null;
+          const tal=isStaff&&TL&&TL.rank&&(tr==='witch'||tr==='fighter')?{wither:TL.rank('wither'),mark:TL.rank('mark'),grasp:TL.rank('grasp'),fork:TL.rank('fork'),rot:TL.rank('rot'),doom:TL.rank('doom'),overgrow:TL.rank('overgrow'),fflare:TL.rank('fflare'),hd:Math.round(heroDmg()*10)/10}:undefined;
+          const msg={wtype:isStaff?'bolt':'arrow',kind:wo.userData.kind,
+            dmg:Math.round(heroDmg()*sh.mul*(crit?2:1)*10)/10,
             dir:{x:+d3.fx.toFixed(3),y:+d3.fy.toFixed(3),z:+d3.fz.toFixed(3)},
             spd:+spd.toFixed(2), life:+((range+1)/spd).toFixed(3),
-            size:+(isStaff?1+.7*sh.c:1+.4*sh.c).toFixed(2),
-            splash:isStaff&&sh.full?1.9:0, pierce:!isStaff&&sh.full?2:0,
-            x:+hero.x.toFixed(2), y:+hero.y.toFixed(2), z:+hero.z.toFixed(2)});   // build 159 (4/7): where the shooter really stands, as a swing says (hostGuestShot)
+            size:+(isStaff?(1+.7*sh.c)*(TM?TM.size:1):(1+.4*sh.c)*(crit?1.4:1)).toFixed(2),
+            splash:isStaff?Math.max(sh.full?1.9:0,TM?TM.splash:0):0, pierce:isStaff?(TM?TM.pierce:0):(sh.full?2:0)+(TL&&TL.rPierce?TL.rPierce():0), crit:crit?1:undefined, tal,
+            x:+hero.x.toFixed(2), y:+hero.y.toFixed(2), z:+hero.z.toFixed(2)};   // build 159 (4/7): where the shooter really stands, as a swing says (hostGuestShot)
+          send('shot',msg);
+          if(TM&&TM.twin) for(const a of [.14,-.14]){ const v=new THREE.Vector3(d3.fx,d3.fy,d3.fz).applyAxisAngle(new THREE.Vector3(0,1,0),a); send('shot',Object.assign({},msg,{dir:{x:+v.x.toFixed(3),y:+v.y.toFixed(3),z:+v.z.toFixed(3)}})); }
+          if(TL){ const bm=TL.boltMods, rc=TL.rCrit; TL.boltMods=()=>TM; TL.rCrit=()=>crit; try{ return prevHitCone(); }finally{ TL.boltMods=bm; TL.rCrit=rc; } }
         }
       }
     }
     return prevHitCone();   // the guest's own local shot still fires too (their own screen's real visual/audio), against their own empty local `enemies` -- cosmetic only, the message above is what actually hurts anything
   };
 }
+function guestBoltTal(t){ if(!t||typeof t!=='object') return null; const o={}; for(const k of ['wither','mark','grasp','fork','rot','doom','overgrow','fflare']) o[k]=Math.max(0,Math.min(3,t[k]|0)); o.hd=Math.max(0,Math.min(1e5,+t.hd||0)); return o; }
 function hostGuestShot(data,fromId){
   const g=guestHero.get(fromId); if(!g||g.dead>0) return;
   // build 159 (4/7): the shot starts where the guest says it stands (a sprinting witch's bolts used to leave from the copy, steps
@@ -776,7 +813,8 @@ function hostGuestShot(data,fromId){
   const y0=typeof data.y==='number'&&Math.abs(data.y-g.y)<4?data.y:g.y;
   const from=new THREE.Vector3(g.x,y0+(data.wtype==='bolt'?1.3:1.1),g.z);   // an approximate hand/head height -- the host has no bone-accurate rig for a guest's puppet to read the real one from, same "good enough to read as real" tradeoff the mob/def puppets already make
   const dir=new THREE.Vector3(data.dir.x,data.dir.y,data.dir.z);
-  const opts={dmg:data.dmg,life:data.life,size:data.size,splash:data.splash,pierce:data.pierce,owner:fromId};   // owner (build 170): whose arrow -- Subterfuge sends that guest the chain lightning it throws (86i-subterfuge.js)
+  const tal=data.wtype==='bolt'?guestBoltTal(data.tal):null;   // co-op sweep 2026-10-02: crit, and the guest's bolt talents with its own counters (96l-talents.js onBolt)
+  const opts={dmg:data.dmg,life:data.life,size:data.size,splash:data.splash,pierce:data.pierce,owner:fromId,crit:!!data.crit,tal,ctr:tal?(g.talCtr||(g.talCtr={bolt:0,flare:0,kill:0})):null};   // owner (build 170): whose arrow -- Subterfuge sends that guest the chain lightning it throws (86i-subterfuge.js)
   if(data.wtype==='bolt') window.__staff.fireBolt(data.kind,from,dir,data.spd,opts);
   else window.__bow.fireArrow(data.kind,from,dir,data.spd,opts);
 }
@@ -789,7 +827,9 @@ const guestStats=new Map();   // id -> {stat:{tow,trate,tarea,move,def,hp,regen}
 const strList=(a,ok)=>Array.isArray(a)?a.filter(k=>typeof k==='string'&&k.length<40&&(!ok||ok(k))).slice(0,8):[];
 onMessage('input',(data,fromId)=>{ guestIn.set(fromId,data); if(data.stat&&data.mult){ const NM=window.__mythic&&window.__mythic.NAMED;
   if(typeof data.pick==='string') guestByHero.set(fromId+'|'+data.pick,{stat:data.stat,mult:data.mult,kind:data.kind||{}});   /* build 434: each guest's numbers kept per hero, so their towers keep the placer's after a switch */
-  guestStats.set(fromId,{pick:typeof data.pick==='string'?data.pick:null,stat:data.stat,mult:data.mult,kind:data.kind||{},myth:strList(data.myth,k=>!!(NM&&Object.prototype.hasOwnProperty.call(NM,k))),five:strList(data.five),idle:!!data.idle}); } });
+  guestStats.set(fromId,{pick:typeof data.pick==='string'?data.pick:null,stat:data.stat,mult:data.mult,kind:data.kind||{},myth:strList(data.myth,k=>!!(NM&&Object.prototype.hasOwnProperty.call(NM,k))),five:strList(data.five),idle:!!data.idle,tt:cleanTT(data.tt),tal:cleanDefTal(data.tal)}); } });
+Meta.defOwnerTalent=(id,h,t)=>{ const s=guestStats.get(id); return s&&s.tt?((s.tt[h]||{})[t]|0):undefined; };   // co-op sweep 2026-10-02: that guest's tower-talent rank (96l-talents.js towRank); undefined = not known (an older guest, or gone)
+Meta.coopFive=()=>{ if(role!=='host') return null; const out=[]; guestHero.forEach((g,id)=>{ const s=guestStats.get(id); if(s&&s.five&&s.five.length) out.push({id,five:s.five,g}); }); return out; };   // co-op sweep 2026-10-02: who wears which full sets (93b-sets8.js: the Earth's guard round each guest)
 Meta.coopWear=()=>{ if(role!=='host') return null; const out=[]; guestHero.forEach((g,id)=>{ const s=guestStats.get(id); if(s&&s.myth&&s.myth.length) out.push({id,myth:s.myth,idle:s.idle,g}); }); return out; };   // who wears what, for 97-mythics.js (g: the host's live copy of that guest's hero)
 // a guest's Rootsplitter: its own 4th swing drew the roots on its own screen (97-mythics.js) and says so here; the host holds its mobs
 // from where the guest stands, as the host's own swing does. Only for a guest that wears it, alive, from within a few steps of its copy
@@ -813,13 +853,16 @@ onMessage('bramble',(d,fromId)=>{ if(role!=='host'||!d) return; const g=guestHer
 onMessage('powerFx',d=>{ if(role!=='guest'||!d) return;
   if(d.k==='rift'&&Array.isArray(d.at)){ const P=Meta.packs; d.at.slice(0,24).forEach(p=>{ if(P&&P.ring&&p&&Number.isFinite(+p.x)&&Number.isFinite(+p.z)) P.ring(+p.x,+p.y||0,+p.z,+p.c||0x8a3dff); }); if(SFX.rift) SFX.rift(); }
   else if(d.k==='roots'&&Number.isFinite(+d.x)&&Number.isFinite(+d.z)){ const fx=Math.sin(+d.yaw||0), fz=Math.cos(+d.yaw||0); floatText(+d.x+fx*1.5,hero.y+1.4,+d.z+fz*1.5,'ROOTS','#5ad05a'); }
-  else if(d.k==='chain'&&Array.isArray(d.s)&&window.__subterfuge){ const segs=d.s.slice(0,8).filter(s=>Array.isArray(s)&&s.length===6&&s.every(v=>Number.isFinite(+v))).map(s=>s.map(Number)); if(segs.length) window.__subterfuge.draw(segs); } });   // build 170: the chain lightning this guest's Subterfuge arrow threw across the host's mobs
+  else if(d.k==='chain'&&Array.isArray(d.s)&&window.__subterfuge){ const segs=d.s.slice(0,8).filter(s=>Array.isArray(s)&&s.length===6&&s.every(v=>Number.isFinite(+v))).map(s=>s.map(Number)); if(segs.length) window.__subterfuge.draw(segs); }
+  else if(d.k==='blitz'&&window.__gabriel&&window.__gabriel.cue) window.__gabriel.cue();   /* co-op sweep 2026-10-02: this guest's Gabriel's Charm just sped up the host's defenses -- the BLITZ over our own hero */
+  else if(d.k==='tal'&&window.__talents&&window.__talents.coopFx) window.__talents.coopFx(d.t);   /* co-op sweep 2026-10-02: a talent of ours the host just ran (DODGE, AEGIS, MARTYR'S LIGHT, Fury...) shown on our own hero */ });   // build 170: the chain lightning this guest's Subterfuge arrow threw across the host's mobs
 Meta.defOwnerStat=(id,k)=>{ const s=guestStats.get(id); return s?s.stat[k]:undefined; };
 Meta.defOwnerMult=(id,k)=>{ const s=guestStats.get(id); return s?s.mult[k]:undefined; };
 Meta.defOwnerHero=id=>{ const s=guestStats.get(id); return s?s.pick:null; };
 Meta.defOwnerHeroStat=(id,h,k)=>{ const s=guestByHero.get(id+'|'+h); return s&&s.stat?s.stat[k]:undefined; };
 Meta.defOwnerHeroKind=(id,h,kind)=>{ const s=guestByHero.get(id+'|'+h); return s&&s.kind?(s.kind[kind]||0):undefined; };
 Meta.defOwnerHeroMult=(id,h,k)=>{ const s=guestByHero.get(id+'|'+h); return s&&s.mult?s.mult[k]:undefined; };
+Meta.defOwnerRingCol=id=>{ const s=guestStats.get(id); if(!s) return undefined; const P=Meta.packs, pk=(s.five||[]).map(n=>P&&P.get(n)).find(p=>p&&p.col); return pk?pk.col:null; };   // co-op sweep 2026-10-02: the rune ring colour of that guest's own full set, for its towers (93-gearsets.js defRingUpdate)
 Meta.defOwnerKind=(id,kind)=>{ const s=guestStats.get(id); return s?(s.kind&&s.kind[kind])||0:undefined; };   // that guest's own full-set power for this defense kind (94-voidset.js)
 
 // build 150: what this player wears, resolved here (the weapon model key its own rig mounted, the tier, the weapon's set for
@@ -828,7 +871,7 @@ Meta.defOwnerKind=(id,kind)=>{ const s=guestStats.get(id); return s?(s.kind&&s.k
 // tier actually is (3 or 5), so a puppet can show the dimmer three-piece shell too (98-party.js dress/dressTick, told
 // the tier) -- one extra small field, no new message type. Every five-piece gameplay power is untouched: those all key
 // off has()/anyWears()/Meta.sets.active() on the wearer's OWN page, never off this cosmetic broadcast field.
-function lookOf(){ const w=window.__weapons&&window.__weapons.look?window.__weapons.look():null; const acts=Meta.sets&&Meta.sets.active?Meta.sets.active():[]; const full=acts.find(a=>a.tier>=5)||acts.find(a=>a.tier>=3)||null; const fi=gear.familiar, f2=window.__tworings&&window.__tworings.ringOn()?gear.familiar2:null; return {f2:f2?{n:f2.name,r:f2.rarity|0}:null,w:w&&w.w||null,t:w&&w.t||1,ws:w&&w.s||null,s:full?full.name:null,st:full?full.tier:0,f:fi?{n:fi.name,r:fi.rarity|0}:null,pd:SLOTS.some(s=>gear[s]&&gear[s].procd)?1:0,gf:window.__golf&&window.__golf.mine?window.__golf.mine():null}; }   /* co-op sweep 2026-10-02: gf = this hero's mini golf ball and putt while on a hole (56k4-moatgolf.js draws it on the partners' pages) */
+function lookOf(){ const w=window.__weapons&&window.__weapons.look?window.__weapons.look():null; const acts=Meta.sets&&Meta.sets.active?Meta.sets.active():[]; const full=acts.find(a=>a.tier>=5)||acts.find(a=>a.tier>=3)||null; const fi=gear.familiar, f2=window.__tworings&&window.__tworings.ringOn()?gear.familiar2:null; return {f2:f2?{n:f2.name,r:f2.rarity|0,nm:f2.named||null}:null,w:w&&w.w||null,t:w&&w.t||1,ws:w&&w.s||null,s:full?full.name:null,st:full?full.tier:0,f:fi?{n:fi.name,r:fi.rarity|0,nm:fi.named||null}:null,pd:SLOTS.some(s=>gear[s]&&gear[s].procd)?1:0,gf:window.__golf&&window.__golf.mine?window.__golf.mine():null}; }   /* co-op sweep 2026-10-02 (hero-gear-pets): nm = a named pet's id (Gladehart, Trimaw...), so a partner's puppet wears its real model, not the Wisp stand-in. gf = this hero's mini golf ball and putt while on a hole (56k4-moatgolf.js draws it on the partners' pages) */
 let syncT=0;
 function hostBroadcastHeroes(dt){
   if(role!=='host'||!conns.size) return;
@@ -857,6 +900,13 @@ onMessage('heroes',data=>{
 // message type or having to reimplement gear-scoring on the host. Also carries the guest's own COMBAT-relevant
 // numbers (move/def/hp/regen) that guestInputTick/hurtGuestHero above now read for their own hero, not just what
 // they place -- dmg and reach travel separately, on the swing message itself (see the comment above guestHitCone).
+// co-op sweep 2026-10-02: the ranks the host can't know. tt: per hero, the tower talents (a tower keeps its placer's, 96l-talents.js towRank). tal: the current hero's
+// defensive ones (Light Feet, Last Stand, Aegis, Thorns, Briar Skin, Martyr's Light, Mending Light) and Martyr's blast damage
+const TT_IDS={knight:['ktrap','kthorn','klong'],troll:['rtangle','rvenom','rsky'],fighter:['fbind']}, DEF_TAL=['rdodge','kstand','kaegis','kthorns','briar','fmartyr','fmend'];
+function guestTowerTal(){ const T=window.__talents; if(!T||!T.hr) return undefined; const o={}; for(const h in TT_IDS) for(const k of TT_IDS[h]){ const r=T.hr(h,k); if(r>0) (o[h]||(o[h]={}))[k]=r; } return o; }
+function guestDefTal(){ const T=window.__talents; if(!T||!T.tree||!T.tree()) return undefined; const o={}; for(const k of DEF_TAL){ const r=T.rank(k); if(r) o[k]=r; } if(o.fmartyr) o.md=Math.round(heroDmg()*3*10)/10; return o; }
+const cleanTT=t=>{ if(!t||typeof t!=='object') return null; const o={}; for(const h in TT_IDS){ const x=t[h]; if(!x||typeof x!=='object') continue; for(const k of TT_IDS[h]){ const r=Math.max(0,Math.min(3,x[k]|0)); if(r) (o[h]||(o[h]={}))[k]=r; } } return o; };
+const cleanDefTal=t=>{ if(!t||typeof t!=='object') return {}; const o={}; for(const k of DEF_TAL){ const r=Math.max(0,Math.min(3,t[k]|0)); if(r) o[k]=r; } if(o.fmartyr) o.md=Math.max(0,Math.min(1e5,+t.md||0)); return o; };
 let syncTIn=0;
 function guestSendInput(dt){
   if(role!=='guest') return;
@@ -868,6 +918,7 @@ function guestSendInput(dt){
     seat:window.__lobby&&window.__lobby.seat?window.__lobby.seat():undefined,   // build 159 (3/7): this tab's lobby seat, so the host can keep this player's mana and defenses for them across a drop (seatJoin)
     myth:window.__mythic&&window.__mythic.worn?window.__mythic.worn():[], five:Meta.sets&&Meta.sets.active?Meta.sets.active().filter(a=>a.tier>=5).map(a=>a.name):[], idle:(!hero.moving&&hero.swingT<0&&hero.dead<=0)?1:0,   // build 159 (5/7): what the host needs to run this guest's named mythics and five-piece powers (the 'input' handler), and Mossheart's "stand still"
     look:lookOf(),   // build 150: what this guest wears, for its puppet on every other screen
+    tt:guestTowerTal(), tal:guestDefTal(),   // co-op sweep 2026-10-02: the talent ranks the host needs for this guest's towers (any hero's) and for this guest himself when hurt
     mz:MOBS_V});   // build 159 (6/7): "I read the packed mob list" -- the host sends 'mobs' instead of 'enemies' from then on (hostBroadcastEnemies)
 }
 
@@ -1041,7 +1092,9 @@ onMessage('famHit',(data,fromId)=>{ if(role!=='host'||!data) return; const e=ene
   // pets' own numbers (2.2 s of slow, 3 s of burn), so a doctored page can't freeze or cook a mob for good
   if(e.dead) return; const sl=+data.slow, bu=+data.burn;
   if(sl>0) e.slowT=Math.max(e.slowT||0,Math.min(5,sl));
-  if(bu>0){ e.burnT=Math.min(5,bu); e.burnDmg=Math.max(0,Math.min(50,+data.burnDmg||0)); e.burnTick=e.burnTick||0; } });
+  if(bu>0){ e.burnT=Math.min(5,bu); e.burnDmg=Math.max(0,Math.min(50,+data.burnDmg||0)); e.burnTick=e.burnTick||0; }
+  // co-op sweep 2026-10-02: the Trimaw's venom head poisons and every head marks (+25%), as its hits do for the host's own pet (85-familiars.js trimawFire)
+  const po=+data.poison, mk=+data.mark; if(po>0){ e.poisonT=Math.min(5,po); e.poisonDmg=Math.max(0,Math.min(50,+data.poisonDmg||0)); } if(mk>0) e.markT=Math.min(4,mk); });
 window.__mobsync={ each:fn=>MOBPUP.forEach((p,id)=>fn(p,id)),   /* build 504: a module can drive its own kind's puppets (95u-avery.js: Avery's layered flight) */ foes:mobProxies, list:()=>[...MOBPUP.keys()], get:id=>{ const p=MOBPUP.get(id); if(!p) return null; return {id,kind:p.kind,scale:p.mdl&&p.sc0?+(p.mdl.g.scale.x/p.sc0).toFixed(2):1,wing:(p.mdl&&p.mdl.parts&&p.mdl.parts.wingL)?+p.mdl.parts.wingL.rotation.z.toFixed(3):null,glb:!!(p.mdl&&p.mdl.glb),stand:!!p.stand,max:p.max||0,x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2),yaw:+p.yaw.toFixed(2),walking:p.walking,hp:p.hp}; }, hitFeedback:()=>mobHitFeedback,
   unpack:d=>unpackMobs(d) };   // build 159 (6/7), a test hook: a packed 'mobs' message back into the old list (coop-tests-test.mjs)
 function mobPuppetsTick(dt){
@@ -1129,7 +1182,12 @@ function defPuppetAdd(id,kind,lvl,x,y,z,rot){
 { const prev=Meta.onDefFx; Meta.onDefFx=function(d,fx,arg){ prev(d,fx,arg); if(role!=='host'||!d) return; if(!d.__coopId) d.__coopId='d'+(nextDefId++); send('fx',{id:d.__coopId,fx,arg}); }; }
 onMessage('fx',data=>{ const p=DEFPUP.get(data.id); if(!p||p.kind!=='slice') return; const fx=p.fx||(p.fx=cageState());
   if(data.fx==='charge'){ fx.phase='charge'; fx.t=0; fx.k=0; fx.dur=+data.arg||2; } else if(data.fx==='calm'){ fx.phase='rest'; fx.t=0; } else if(data.fx==='implode'){ fx.phase='boom'; fx.t=0; fx.k=1; fx.cloud=DEFS.slice.cloud; SFX.implode(); } });
-function defPuppetsTick(dt){ if(role!=='guest') return; DEFPUP.forEach(p=>{ towerChevrons(p,p.mdl,p.kind,p.lvl);   /* build 177: a guest sees the host's Mark V+ chevrons too -- the defs list already carries lvl, and they ride p.mdl, so a mark-up's rebuilt model (onMessage('defs') below) just gets them hung again */
+// co-op sweep 2026-10-02: the full-set rune ring the host draws under a tower (93-gearsets.js defRingUpdate), on its puppet here -- added, recoloured or dropped as the list says, and hung again on a rebuilt model
+const PUP_RING_GEO=new THREE.RingGeometry(.7,.92,28);
+function defPupLong(p,lg){ p.lg=lg?1:0; const s=p.mdl&&p.mdl.userData.stretch; if(s) s.scale.x=HEDGE_STRETCH*(p.lg?1.6:1); }   // co-op sweep 2026-10-02: a Long Hedge (96l-talents.js LONG_K) stands its real length here
+function defPupRing(p,rc){ rc=rc|0; if(p.ring&&(p.ringCol!==rc||p.ring.parent!==p.mdl)){ if(p.ring.parent) p.ring.parent.remove(p.ring); p.ring.material.dispose(); p.ring=null; } p.ringCol=rc;
+  if(rc&&!p.ring){ const rad=Math.max(1.15,((DEFS[p.kind]||{}).top||1.5)*.75); const m=new THREE.Mesh(PUP_RING_GEO,new THREE.MeshBasicMaterial({color:rc,transparent:true,opacity:.5,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); m.rotation.x=-PI/2; m.position.y=.07; m.scale.set(rad,rad,1); m.userData.noOL=true; p.mdl.add(m); p.ring=m; } }
+function defPuppetsTick(dt){ if(role!=='guest') return; DEFPUP.forEach(p=>{ if(p.ring) p.ring.material.opacity=.35+.2*Math.sin(S.t*2.4+(p.x||0)+(p.z||0)); towerChevrons(p,p.mdl,p.kind,p.lvl);   /* build 177: a guest sees the host's Mark V+ chevrons too -- the defs list already carries lvl, and they ride p.mdl, so a mark-up's rebuilt model (onMessage('defs') below) just gets them hung again */
   if(p.kind!=='slice') return; const fx=p.fx||(p.fx=cageState()); fx.t+=dt;
   if(fx.phase==='charge'){ fx.k=Math.min(1,fx.t/fx.dur); if(fx.t>fx.dur+1){ fx.phase='rest'; fx.t=0; } } else if(fx.phase==='boom'){ if(fx.t>=.45){ fx.phase='rest'; fx.t=0; fx.k=0; } } else if(fx.t>fx.next){ fx.t=0; fx.next=R(3,7); fx.flex=.5; }
   if(fx.cloud>0) fx.cloud-=dt; cageAnim(p.mdl,fx,dt,fx.phase==='rest'?0:1); }); }
@@ -1153,7 +1211,7 @@ onMessage('dcard',data=>{ if(role!=='guest'||!data) return; DCARD.got=data.none?
 const guestCardNow=()=>{ const c=DCARD.got; return c&&performance.now()-c.at<2500?c:null; };
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); hostSendCards(dt); if(role!=='guest'){ if(gRing) gRing.visible=false; return; }
     const live=(S.phase==='build'||S.phase==='wave')&&!placing; const c=live&&guestCardNow(); if(c){ guestRing({ x:c.x, y:c.y, z:c.z, hp:c.hurt?0:1, max:1 }); if(gRing) gRing.scale.setScalar(c.r||1.25); } else guestRing(live?guestPick():null); }; }
-window.__defsync={ card:()=>guestCardNow(), pick:guestPick, list:()=>[...DEFPUP.keys()], get:id=>{ const p=DEFPUP.get(id); if(!p) return null; return {id,kind:p.kind,lvl:p.lvl,chev:p.chev&&p.chev.parent===p.mdl?p.chev.userData.n:0,x:+p.mdl.position.x.toFixed(2),y:+p.mdl.position.y.toFixed(2),z:+p.mdl.position.z.toFixed(2)}; } };
+window.__defsync={ card:()=>guestCardNow(), pick:guestPick, list:()=>[...DEFPUP.keys()], get:id=>{ const p=DEFPUP.get(id); if(!p) return null; return {id,kind:p.kind,lvl:p.lvl,chev:p.chev&&p.chev.parent===p.mdl?p.chev.userData.n:0,ring:p.ring&&p.ring.parent===p.mdl?p.ringCol:0,lg:p.lg|0,stretch:p.mdl.userData.stretch?+p.mdl.userData.stretch.scale.x.toFixed(3):null,x:+p.mdl.position.x.toFixed(2),y:+p.mdl.position.y.toFixed(2),z:+p.mdl.position.z.toFixed(2)}; } };
 // ---- build 376 (Matt: "he cannot see projectiles from ballistas"): a tower's shot was a host-only object -- fire() (game.js) pushes it into the host's own `projs`, and a guest's screen only ever showed the read-only tower. The host now says each shot it fires (a ballista's bolt, an acorn cannon's three acorns, a trebuchet's turnip: where it starts and how it flies), and a guest flies the same projectile on its own screen, drawn and moving as the host's (updateProj), with no damage (its `enemies` are empty; the host's shot already hurt the real mobs). The hit sound/splash of a turnip ride along for free
 const SHOT_KINDS={harpoon:1,acorn:1,turnip:1,arrow:1}; let shotsSent=0, shotsSeen=0;
 function sendShots(from,d){ if(role!=='host'||!conns.size) return; for(let i=from;i<projs.length;i++){ const p=projs[i]; if(!p||!SHOT_KINDS[p.kind]) continue; const f=v=>+(+v||0).toFixed(3);
@@ -1176,17 +1234,18 @@ function hostBroadcastDefs(dt){
   if(role!=='host'||!conns.size) return;
   syncTD+=dt; if(syncTD<.5) return; syncTD=0;   // static once placed -- 2Hz is plenty to catch a new one, an upgrade, or one destroyed
   const list=defs.map(d=>{ if(!d.__coopId) d.__coopId='d'+(nextDefId++);
-    return {id:d.__coopId,kind:d.kind,lvl:d.lvl||1,x:+d.x.toFixed(2),y:+d.base.toFixed(2),z:+d.z.toFixed(2),rot:+d.rot.toFixed(2),hp:Math.ceil(d.hp),max:d.max,kills:d.kills|0,spent:Math.round(d.spent||0)}; });   /* build 499: hp/max/kills/spent -- a guest's own tower card and pick (below) */
+    return {id:d.__coopId,kind:d.kind,lvl:d.lvl||1,x:+d.x.toFixed(2),y:+d.base.toFixed(2),z:+d.z.toFixed(2),rot:+d.rot.toFixed(2),hp:Math.ceil(d.hp),max:d.max,kills:d.kills|0,spent:Math.round(d.spent||0),rc:d.setRing?(d.setRingCol|0):0,lg:d.long?1:0}; });   /* co-op sweep 2026-10-02: rc = the full-set rune ring under it (93-gearsets.js), drawn on the guest's puppet too */   /* build 499: hp/max/kills/spent -- a guest's own tower card and pick (below) */
   sendSnap('defs',{list});
 }
 onMessage('defs',data=>{
   const ids=new Set();
   data.list.forEach(d=>{ ids.add(d.id);
     let p=DEFPUP.get(d.id); if(p){ p.hp=d.hp; p.max=d.max; p.kills=d.kills; p.spent=d.spent; p.x=d.x; p.y=d.y; p.z=d.z; }
-    if(!p){ defPuppetAdd(d.id,d.kind,d.lvl,d.x,d.y,d.z,d.rot); const np=DEFPUP.get(d.id); if(np){ np.hp=d.hp; np.max=d.max; np.kills=d.kills; np.spent=d.spent; np.x=d.x; np.y=d.y; np.z=d.z; } if(GSFX.defsSeen){ SFX.place(); GSFX.place++; } return; }   // a defense set down since the last list: the placement sound (build 147), whoever placed it
+    if(!p){ defPuppetAdd(d.id,d.kind,d.lvl,d.x,d.y,d.z,d.rot); const np=DEFPUP.get(d.id); if(np){ np.hp=d.hp; np.max=d.max; np.kills=d.kills; np.spent=d.spent; np.x=d.x; np.y=d.y; np.z=d.z; defPupRing(np,d.rc); defPupLong(np,d.lg); } if(GSFX.defsSeen){ SFX.place(); GSFX.place++; } return; }   // a defense set down since the last list: the placement sound (build 147), whoever placed it
     ensureDefMark(d.kind,d.lvl); ensureDefMark(d.kind,d.lvl+1); const T=defTemplate(d.kind,d.lvl);   // an upgrade on the host asks for that mark's model here too (and the next one up), as reskinDefs does for the host's own
     if(d.lvl>p.lvl){ SFX.place(); GSFX.upgrade++; }   // a mark up: the same sound the host hears for it (build 147)
-    if(p.lvl!==d.lvl||(T&&p.mdl.userData.tpl!==T)){ scene.remove(p.mdl); p.mdl=makeDef(d.kind,false,d.lvl); p.mdl.position.set(d.x,d.y,d.z); p.mdl.rotation.y=d.rot; scene.add(p.mdl); p.lvl=d.lvl; }   // a new mark, or its model just landed (the first build wore the mark below while it downloaded): the same test reskinDefs makes, caught on the host's next list, twice a second
+    if(p.lvl!==d.lvl||(T&&p.mdl.userData.tpl!==T)){ scene.remove(p.mdl); p.mdl=makeDef(d.kind,false,d.lvl); p.mdl.position.set(d.x,d.y,d.z); p.mdl.rotation.y=d.rot; scene.add(p.mdl); p.lvl=d.lvl; }
+    defPupRing(p,d.rc); if((p.lg|0)!==(d.lg?1:0)||d.lg) defPupLong(p,d.lg);   // a new mark, or its model just landed (the first build wore the mark below while it downloaded): the same test reskinDefs makes, caught on the host's next list, twice a second
   });
   [...DEFPUP.keys()].forEach(id=>{ if(!ids.has(id)) defPuppetRemove(id); });   // sold or destroyed on the host -- same roster-diff removal as heroes and enemies
   GSFX.defsSeen=true;   // from the second list on, a new row is a placement worth a sound; the first list is the hall as found
@@ -1234,6 +1293,8 @@ function hostTryPlaceDef(kind,x,z,yaw,fromId){
   const d=placeDefAt(kind,x,z,yaw); if(d){ d.ownerId=fromId; d.ownerHero=Meta.defOwnerHero(fromId)||null; const st=seatOf.get(fromId); if(st) d.ownerSeat=st.seat; }   // stat() (game.js) reads this via Meta.defOwnerStat/Mult so the defense keeps ITS PLACER's buffs, not the host's own; the seat (build 159, 3/7) is how it finds its placer again after a rejoin (seatJoin)
   guestMana.set(fromId,S.mana); S.mana=realMana;
 }
+// co-op sweep 2026-10-02: a guest's hedge is as long as HIS Long Hedge says (96l-talents.js longOn reads this while the host places it), not the host's
+{ const inner=hostTryPlaceDef; hostTryPlaceDef=function(kind,x,z,yaw,fromId){ if(role!=='host') return inner.apply(this,arguments); window.__placeLong=kind==='spike'&&Meta.defOwnerHero(fromId)==='knight'&&Meta.defOwnerTalent(fromId,'knight','klong')>0; try{ return inner.apply(this,arguments); }finally{ window.__placeLong=undefined; } }; }
 onMessage('place',(data,fromId)=>hostTryPlaceDef(data.kind,data.x,data.z,data.yaw,fromId));
 
 { const origRepair=repair, origUpgrade=upgrade, origSell=sell;
