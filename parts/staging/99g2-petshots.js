@@ -19,9 +19,9 @@ function draw(who,d){ const P=window.__party, p=P&&P.get&&P.get(who); if(!p||p.d
   while(LIST.length>=MAX){ const o=LIST.shift(); scene.remove(o.mesh); }
   const a=(+p.yaw||0)+(d.s===2?-2.3:2.3), x=p.x+Math.sin(a)*.85, y=p.y+1.45, z=p.z+Math.cos(a)*.85, dx=tx-x, dy=ty-y, dz=tz-z, dist=Math.hypot(dx,dy,dz)||1;
   const col=Number.isFinite(+d.c)?(+d.c)&0xffffff:0xffffff, mesh=famBoltMesh(col); mesh.position.set(x,y,z); scene.add(mesh);
-  LIST.push({x,y,z,vx:dx/dist*FAM_BOLT_SPD,vy:dy/dist*FAM_BOLT_SPD,vz:dz/dist*FAM_BOLT_SPD,left:dist/FAM_BOLT_SPD,t:0,mesh}); cnt.drawn++; }
+  LIST.push({x,y,z,vx:dx/dist*FAM_BOLT_SPD,vy:dy/dist*FAM_BOLT_SPD,vz:dz/dist*FAM_BOLT_SPD,left:dist/FAM_BOLT_SPD,t:0,mesh,rg:p.look&&p.look.rg||null}); cnt.drawn++; }
 function tick(dt){ if(!LIST.length) return; if(S.phase!=='build'&&S.phase!=='wave'){ clear(); return; }
-  for(let i=LIST.length-1;i>=0;i--){ const b=LIST[i]; b.t+=dt; b.x+=b.vx*dt; b.y+=b.vy*dt; b.z+=b.vz*dt; b.mesh.position.set(b.x,b.y,b.z); if(b.t>=b.left||b.t>FAM_BOLT_LIFE){ scene.remove(b.mesh); LIST.splice(i,1); } } }
+  for(let i=LIST.length-1;i>=0;i--){ const b=LIST[i]; b.t+=dt; b.x+=b.vx*dt; b.y+=b.vy*dt; b.z+=b.vz*dt; b.mesh.position.set(b.x,b.y,b.z); if(b.t>=b.left||b.t>FAM_BOLT_LIFE){ if(b.rg&&b.t>=b.left&&window.__ringlook) window.__ringlook.hitFx(b.rg,b.x,b.y,b.z); scene.remove(b.mesh); LIST.splice(i,1); } } }   // build 512 prep: a partner wearing Beast Mode / Malamute -- his pet's shot lands as a claw slash / frost burst here too (97h2-ringlook.js, pooled)
 function clear(){ for(const b of LIST) scene.remove(b.mesh); LIST.length=0; }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); tick(dt); }; }
 const rate=new Map();   // the host's cap per guest: 8 shots a half second is well over two pets' pace with every rate bonus (the 'bramble' cap's reasoning)
