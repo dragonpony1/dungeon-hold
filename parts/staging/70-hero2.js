@@ -2,7 +2,7 @@
 // changed on the start screen; a different hero swaps in live, no reload. The witch and the fighter both fight with a
 // battle staff: the model carries a staffMount in its grip hand (meshy/witch3's recipe — geometric, no baked-in staff
 // mesh), the weapons module puts a code-built staff there, and a swing throws a bolt (82-staff.js) — same mechanic,
-// different look. The Gnome Warden and Gnome Ninja were retired (their Meshy rigs never held up through a full
+// different look (build 510 prep: the fighter's is a POLEARM now -- pole:true below -- the witch keeps her staffs). The Gnome Warden and Gnome Ninja were retired (their Meshy rigs never held up through a full
 // animation pass); the Gnome Knight and Gnome Fighter each pick a weapon back up on the clean pipeline that replaced
 // them (a trimmed attack window instead of the raw clip, no root motion fighting the jump, a de-biased idle). All
 // twelve defenses split evenly, three per hero: Knight reclaimed the Warden's old three from the Troll Archer, and
@@ -14,7 +14,7 @@ const HEROES=[
   {id:'witch', name:'GNOME BATTLE WITCH',sub:'a battle staff that shoots · bolts reach 18',glb:'witch.glb',label:'Gnome Battle Witch (Meshy)',reach:18,unlocks:['frost','ball','pit']},
   {id:'troll', name:'GNOME RANGER',sub:'a longbow · arrows reach 24',glb:'ranger.glb',label:'Gnome Ranger (Meshy)',reach:24,unlocks:['acorn','snare','venom']},   // doubled from 9/12: both targeting range and projectile flight distance derive from reach (83-bow.js, 82-staff.js), so this doubles how far a ranged hero can actually engage, not just how far the bolt visually flies
   {id:'knight',name:'GNOME KNIGHT',sub:'sword and shield-arm · the hall\'s keeper',glb:'knight.glb',label:'Gnome Knight (Meshy)',reach:2.4,unlocks:['harpoon','spike','totem']},
-  {id:'fighter',name:'GNOME FIGHTER',sub:'a battle staff that shoots · bolts reach 18',glb:'fighter.glb',label:'Gnome Fighter (Meshy)',reach:18,unlocks:['zap','venom','ember','dazzle']}];   // build 164 (Matt: "whichever hero has the aura halos needs to have all 4"): the Fighter is the halo hero -- the Venom Halo joins the other three (keys 1-4); the Troll keeps his too, rather than drop to a single ground tower
+  {id:'fighter',name:'GNOME FIGHTER',sub:'a battle polearm that shoots · bolts reach 18',glb:'fighter.glb',label:'Gnome Fighter (Meshy)',reach:18,pole:true,unlocks:['zap','venom','ember','dazzle']}];   // build 510 prep (Matt: "we have polearms so maybe we just say witch can use staffs and fighter can use polearms"): pole -- his staff mount holds a POLEARM, never a staff (80-weapons.js poleRig, 86v-fighterpole.js); his bolts are unchanged   // build 164 (Matt: "whichever hero has the aura halos needs to have all 4"): the Fighter is the halo hero -- the Venom Halo joins the other three (keys 1-4); the Troll keeps his too, rather than drop to a single ground tower
 // a fresh player is the Gnome Knight and nothing else until map one is held (the training ground is built around the
 // knight's ballista); the other three heroes unlock with the first hall held. A saved pick that is locked comes back as the knight.
 const mapOneHeld=()=>{ try{ return (parseInt(localStorage.getItem('ddMapsCleared'))||0)>=1; }catch(e){ return false; } };

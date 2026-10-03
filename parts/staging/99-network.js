@@ -794,7 +794,7 @@ function guestHitCone(id,yaw,dmg,reach,at){
       if(rk&&!A.holding()){   // the real release moment: HOLD.on is already false by the time hitCone() reaches the actual fire (84-aim.js's own hitCone wrapper only lets this through once a held shot's release() has run)
         const wo=window.__weapons.mounted();
         if(wo){
-          const isStaff=/^staff-/.test(wo.name);
+          const isStaff=window.__weapons.caster?window.__weapons.caster(wo):/^staff-/.test(wo.name);   // build 510 prep: a staff, or the Fighter's polearm (80-weapons.js) -- a bolt either way
           const d3=A.dir3(), sh=A.shot(), range=hero.reach||(isStaff?9:12);
           // co-op sweep 2026-10-02: the reticle locks for a guest now (84-aim.js pick() scans the mob proxies) -- the shot heads for the locked mob's middle, as
           // single player's does, from the height the host fires it (hostGuestShot: 1.3 a bolt, 1.1 an arrow); the bare aim ray only when nothing is locked

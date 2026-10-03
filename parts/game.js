@@ -1311,9 +1311,9 @@ const LR=()=>Math.random();   // loot uses real randomness, not the seeded world
 const RCOL=[0xcfcfcf,0x5ad05a,0x4a90ff,0xb050ff,0xffb830,0xff7ade], RCSS=['#d8d8d8','#5ad05a','#6aa8ff','#c070ff','#ffc040','#ff7ade'], RNAME=['Common','Uncommon','Rare','Epic','Legendary','Mythic'];   // Mythic (rarity 5, build 152): the hideout's forge alone makes it; the hall never drops it
 const SLOTS=['weapon','armor','charm','amulet','familiar'], SICON={weapon:'⚔',armor:'🛡',charm:'🔮',amulet:'📿',familiar:'🦉'};
 // build 314 (Matt: "on the bag, on the card, weapons are represented by crossing swords i need that to show bow, sword, staff or stave" -- "just that little emblem"): a weapon becomes whatever the hand
-// holding it uses (80-weapons.js), so its emblem is the current hero's: the Ranger's bow, the Witch's and Fighter's staff, the Knight's sword -- or, on the Knight, a polearm piece's polearm (slotIcon)
+// holding it uses (80-weapons.js), so its emblem is the current hero's: the Ranger's bow, the Witch's staff, the Fighter's polearm (build 510 prep), the Knight's sword -- or, on the Knight, a polearm piece's polearm (slotIcon)
 const WEAPON_EMBLEM={sword:'🗡️',bow:'🏹',staff:'🪄',polearm:'🔱'};
-function weaponKind(it){ const h=window.__heroes?window.__heroes.pick():'knight'; if(h==='troll') return 'bow'; if(h==='witch'||h==='fighter') return 'staff'; return it&&(it.look==='polearm'||/\bpolearm\b/i.test(it.name||''))?'polearm':'sword'; }
+function weaponKind(it){ const h=window.__heroes?window.__heroes.pick():'knight'; if(h==='troll') return 'bow'; if(h==='witch') return 'staff'; if(h==='fighter') return 'polearm';   /* build 510 prep: the Fighter holds only polearms (86v-fighterpole.js) */ return it&&(it.look==='polearm'||/\bpolearm\b/i.test(it.name||''))?'polearm':'sword'; }
 Object.defineProperty(SICON,'weapon',{get:()=>WEAPON_EMBLEM[weaponKind(null)],enumerable:true});
 function slotIcon(it,slot){ const s=(it&&it.slot)||slot; return s==='weapon'?WEAPON_EMBLEM[weaponKind(it)]:SICON[s]; }
 window.__emblem={slotIcon,kind:weaponKind,sicon:s=>SICON[s],card:(it,from)=>typeof tvCard==='function'?tvCard(it,from||'bag'):''};   // emblem-test.mjs

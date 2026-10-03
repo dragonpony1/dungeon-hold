@@ -1,6 +1,6 @@
 // ===== THE DUAL-WIELD RINGS (build 509 prep). Matt approved them 2026-10-03: "build it ill do the art later". Four named charms (97-mythics.js NAMED), ONE PER HERO, each working only for its own hero:
 //     Twotimer        the Knight   -- two swords          Toil-n-Trouble   the Witch   -- two staffs
-//     Tootsie         the Fighter  -- two battle staffs   Bifurcation      the Ranger (hero id 'troll') -- two bows
+//     Tootsie         the Fighter  -- two polearms        Bifurcation      the Ranger (hero id 'troll') -- two bows
 // Built on the two-pet rings (97h-tworings.js):
 //  * DROPS: every wave held, from the first, each has a 10% chance to drop by the hero -- unless you already have it (on you, in the bag, the armory or on another hero, 97h owned()) -- with Matt's
 //    ring sound (named-ring-two.mp3) in place of the named-mythic fanfare (the beam still rises).
@@ -34,7 +34,7 @@ const RINGS=Object.keys(RING_HERO), DROP=.10, STORE_KEY='dd_heroWeapon2';
 const LOOK={
   knight: { card:'⚔️', ic:'🗡️', word:'sword', two:'2 SWORDS', who:'🛡️ KNIGHT', col:0x8ab8ff, css:'#8ab8ff', mini:'sword' },
   witch:  { card:'🧙', ic:'🪄', word:'staff', two:'2 STAFFS', who:'🧙 WITCH',  col:0xc070ff, css:'#c070ff', mini:'staff' },
-  fighter:{ card:'🥢', ic:'🪄', word:'staff', two:'2 STAFFS', who:'🥋 FIGHTER', col:0xffa040, css:'#ffa040', mini:'staff' },
+  fighter:{ card:'🥢', ic:'🔱', word:'polearm', two:'2 POLEARMS', who:'🥋 FIGHTER', col:0xffa040, css:'#ffa040', mini:'polearm' },   // build 510 prep: the Fighter holds only polearms (86v-fighterpole.js)
   troll:  { card:'🏹', ic:'🏹', word:'bow',   two:'2 BOWS',   who:'🌲 RANGER', col:0x6ad86a, css:'#6ad86a', mini:'bow' } };
 const cnt={ drops:0, returned:0, equipped:0, swings:{ main:0, off:0 }, mirrors:0 };
 const heroId=()=>{ try{ return heroPick.id; }catch(e){ return window.__heroes?window.__heroes.pick():'knight'; } };
@@ -129,7 +129,7 @@ function unmountOff(){ if(OFF.obj&&OFF.obj.parent) OFF.obj.parent.remove(OFF.obj
 const _pq=new THREE.Quaternion(), _qa=new THREE.Quaternion(), _hp=new THREE.Vector3(), _out=new THREE.Vector3(), _d=new THREE.Vector3(), _g=new THREE.Vector3(), _Y=new THREE.Vector3(0,1,0);
 function holdStaff(o,cx,cz,dt,rate){ const sd=o&&o.userData.sword; if(!sd||!o.parent) return; o.parent.getWorldQuaternion(_pq); o.parent.getWorldPosition(_hp); _out.set(_hp.x-cx,0,_hp.z-cz); const L=_out.length(); if(L>1e-4) _out.multiplyScalar(1/L);
   _d.set(0,1,0).addScaledVector(_out,.16).normalize(); _qa.setFromUnitVectors(_Y,_d).premultiply(_pq.invert()); o.quaternion.slerp(_qa,Math.min(1,1-Math.exp(-(rate||12)*dt))); _g.set(0,sd.gripY*sd.scale,0).applyQuaternion(o.quaternion); o.position.copy(_g).negate(); }
-function offModel(it,hm){ const W=window.__weapons; return hm.staff?(window.__staff?window.__staff.staffFor(it):'staff-hazel'):hm.bow?(window.__bow?window.__bow.bowFor(it):'bow-ash'):W.swordFor(it); }
+function offModel(it,hm){ const W=window.__weapons; if(W.heldFor) return W.heldFor(it,hm);   /* build 510 prep: the hand decides -- the Fighter's 2nd is a polearm */ return hm.staff?(window.__staff?window.__staff.staffFor(it):'staff-hazel'):hm.bow?(window.__bow?window.__bow.bowFor(it):'bow-ash'):W.swordFor(it); }
 function offUpdate(dt){ const W=window.__weapons, node=offNode(), hm=W&&W.mount&&W.mount();
   if(!node||!hm){ if(OFF.obj) unmountOff(); OFF.key=''; return; } if(OFF.obj&&OFF.obj.parent!==node) unmountOff();
   const it=dual()?gear.weapon2:null; if(!it){ if(OFF.obj) unmountOff(); OFF.key=''; return; }
@@ -137,8 +137,8 @@ function offUpdate(dt){ const W=window.__weapons, node=offNode(), hm=W&&W.mount&
   if(key!==OFF.key){ OFF.key=key; W.attach(node,name,tier,set,obj=>{ if(OFF.key!==key||obj.parent!==node){ if(obj.parent) obj.parent.remove(obj); return; } if(OFF.obj&&OFF.obj!==obj&&OFF.obj.parent) OFF.obj.parent.remove(OFF.obj);
       OFF.obj=obj; obj.userData.offHand=true; OFF.fresh=true; OFF.glow=window.__heldglow&&window.__heldglow.dress?window.__heldglow.dress(obj):null; }); }
   const o=OFF.obj; if(o&&o.parent){ if(OFF.glow&&window.__heldglow) window.__heldglow.tick(OFF.glow,dt);   // a real set weapon glows in this hand too (86w)
-    if(/^staff-/.test(o.name)){ if(window.__staff&&window.__staff.animate) window.__staff.animate(o,dt); if(!offSwing()) holdStaff(o,hero.x,hero.z,OFF.fresh?1:dt);   // its crystal turns; held upright at the hero's side until it casts (84-aim levels it then). A bow's moving bits are 83-bow.js's
-      else { const m=W.mounted(); if(m&&m!==o&&/^staff-/.test(m.name)) holdStaff(m,hero.x,hero.z,dt,30); } }   // while the 2nd staff casts, the first is held upright in the other hand (the mirrored cast would swing it about)
+    if(W.caster(o)){ if(/^staff-/.test(o.name)&&window.__staff&&window.__staff.animate) window.__staff.animate(o,dt); if(!offSwing()) holdStaff(o,hero.x,hero.z,OFF.fresh?1:dt);   /* build 510 prep: a caster's 2nd -- a staff or the Fighter's polearm */   // its crystal turns; held upright at the hero's side until it casts (84-aim levels it then). A bow's moving bits are 83-bow.js's
+      else { const m=W.mounted(); if(m&&m!==o&&W.caster(m)) holdStaff(m,hero.x,hero.z,dt,30); } }   // while the 2nd staff casts, the first is held upright in the other hand (the mirrored cast would swing it about)
     OFF.fresh=false;
     if(o.userData.setw&&window.__setweapons&&window.__setweapons.pulse) window.__setweapons.pulse(o); } }
 // ---- which hand swings: decided as a swing starts (alternating while two weapons are in hand); the 2nd hand's swing plays the attack mirrored by standing it in for the attack action, so everything that
@@ -192,6 +192,7 @@ const colours=named=>{ const h=RING_HERO[named]; return h?[LOOK[h].col,0xffffff]
 // ---- the stand-in ring for the floor (until Matt's 3D art, 93c NAMED_REAL standIn): an upright gold band, a gem in the hero's colour, the hero's two weapons crossed above it
 function miniWeapon(k,col){ const w=new THREE.Group(), gold=mat(0xe0b040), dark=mat(0x3a2716), gem=()=>{ const g=new THREE.Mesh(new THREE.OctahedronGeometry(.05,0),basic(col)); g.userData.noOL=true; return g; };
   if(k==='sword'){ w.add(M(G.box(.06,.5,.016),mat(0xd8dde8),0,.36,0)); const tip=M(G.cone(.03,.08,4),mat(0xd8dde8),0,.65,0); tip.rotation.y=PI/4; w.add(tip); w.add(M(G.box(.2,.035,.05),gold,0,.1,0)); w.add(M(G.cyl(.02,.02,.13,6),dark,0,.02,0)); w.add(M(G.sph(.03,6,5),gold,0,-.06,0)); }
+  else if(k==='polearm'){ w.add(M(G.cyl(.016,.02,.72,6),mat(0x6b4a2a),0,.3,0)); w.add(M(G.cyl(.026,.026,.035,8),gold,0,.64,0)); const p=M(G.cone(.03,.14,4),mat(0xd8dde8),0,.73,0); p.rotation.y=PI/4; w.add(p); w.add(M(G.box(.08,.06,.012),mat(0xd8dde8),.05,.68,0)); }   // build 510 prep: the Fighter's -- a spear point and a little axe
   else if(k==='staff'){ w.add(M(G.cyl(.018,.024,.7,6),mat(0x6b4a2a),0,.3,0)); w.add(M(G.cyl(.03,.03,.04,8),gold,0,.62,0)); const g=gem(); g.scale.set(1,1.7,1); g.position.y=.71; w.add(g); }
   else { const arc=new THREE.Mesh(new THREE.TorusGeometry(.3,.016,6,18,PI*.95),mat(0x7a5a3a)); arc.rotation.z=-PI*.475; arc.position.set(-.18,.33,0); w.add(arc); w.add(M(G.cyl(.005,.005,.6,4),mat(0xeae0c8),-.19,.33,0)); w.add(M(G.box(.035,.09,.035),dark,.12,.33,0)); }
   return w; }

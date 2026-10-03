@@ -6,7 +6,7 @@
 //    MYTHIC_DROP to come out a MYTHIC SET PIECE: rarity 5, one of the hideout forge's nine sets (Nature/Forest skipped),
 //    named like the forge's ("Mythic Staff of Chaos"; the Void one joins your Void set bonus), carrying Matt's set picture
 //    on its card and over it on the floor (mythicArt, cardOnFloor), a weapon in the kind YOUR
-//    hero holds (the Knight a sword or now and then a polearm, the Witch and Fighter a staff, the Troll a bow — so it shows
+//    hero holds (the Knight a sword or now and then a polearm, the Witch a staff, the Fighter a polearm (build 510 prep), the Troll a bow — so it shows
 //    as that set's weapon, 86-setweapons.js), its stats re-rolled at rarity 5 on the item's own level (rollStat).
 //  • each wave held has NAMED_DROP to drop one of the named mythics (eleven since build 170; 97-mythics.js's table, favouring one you don't
 //    have) by the crystal with the wave's reward. In co-op every player rolls their own 5% (build 159, 3/7, which corrected
@@ -40,7 +40,7 @@ function mythicArt(it){ if(!it) return null; if(it.named){ const f=NAMED_PIC[it.
   const piece=it.slot==='weapon'?(it.look==='bow'?null:(it.look||'sword')):{armor:'armor',amulet:'amulet',charm:'trinket'}[it.slot];
   return piece?PICS+'sets/'+it.setId+'-'+piece+'.jpg':null; }
 function eligible(it){ return !!(it&&typeof it==='object'&&SLOTS.includes(it.slot)&&!it.mythic&&!it.named&&(it.rarity|0)<5&&it.stats&&!(Meta.packs&&Meta.packs.of(it))&&SETS.some(s=>gateOk(s[0]))); }
-function weaponKind(){ const hm=window.__weapons&&window.__weapons.mount&&window.__weapons.mount(); if(hm&&hm.staff) return 'staff'; if(hm&&hm.bow) return 'bow'; return LR()<.3?'polearm':'sword'; }
+function weaponKind(){ const hm=window.__weapons&&window.__weapons.mount&&window.__weapons.mount(); if(hm&&hm.pole) return 'polearm'; if(hm&&hm.staff) return 'staff';   /* build 510 prep: the Fighter's is a polearm (the Witch still shows it as her staff: the hand decides the model) */ if(hm&&hm.bow) return 'bow'; return LR()<.3?'polearm':'sword'; }
 function mythicize(it){ const pool=SETS.filter(s=>gateOk(s[0])); if(!pool.length) return it; const [id,tail]=pool[Math.floor(LR()*pool.length)]; const L=Math.max(1,it.lvl|0); let kind=null;
   if(it.slot==='weapon'){ kind=weaponKind(); it.look=kind; }
   it.name='Mythic '+(kind?kind[0].toUpperCase()+kind.slice(1):(BASE[it.slot]||'Relic'))+' '+tail;

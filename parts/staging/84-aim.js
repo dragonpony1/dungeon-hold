@@ -9,7 +9,7 @@
 const HOLD={on:false,t:0,src:'',kind:null,paused:null,fullRung:false}; let ATK_TOUCH=false, API_HOLD=false, LAST_C=0;
 const LAST={x:0,y:0,locked:false,shown:false,charge:0};
 const FULL_BASE=.5, TAP_MUL=.6, FULL_MUL=1.3;
-function rangedKind(){ const w=window.__weapons&&window.__weapons.mounted(); if(!w||!w.parent) return null; return /^bow-/.test(w.name)?'bow':/^staff-/.test(w.name)?'staff':null; }
+function rangedKind(){ const w=window.__weapons&&window.__weapons.mounted(); if(!w||!w.parent) return null; return /^bow-/.test(w.name)?'bow':window.__weapons.caster(w)?'staff':null; }   // 'staff' = a caster's weapon: a staff, or (build 510 prep) the Gnome Fighter's polearm
 function fullT(){ return FULL_BASE*swingDur()/swingBase(); }
 function charge(){ return HOLD.on?clamp(HOLD.t/fullT(),0,1):0; }
 function aimYaw(){ return cam.yaw; }
@@ -52,7 +52,7 @@ const touchUp=e=>{ if(!ATK_TOUCH) return; for(const t of e.changedTouches) if(is
 const PT={w:0,glow:0}, _pq=new THREE.Quaternion(), _qa=new THREE.Quaternion(), _q=new THREE.Quaternion(), _q0=new THREE.Quaternion(), _v=new THREE.Vector3(), _d=new THREE.Vector3(), _g=new THREE.Vector3(), _Y=new THREE.Vector3(0,1,0); const GLOWS=new WeakMap();
 // build 509 prep: with a 2nd staff (99k-dualwield.js) the staff casting this bolt is the one levelled; the other goes back to rest in its hand (its own frame, its glow its own size)
 function restStaff(o){ const sd=o&&o.userData.sword; if(!sd) return; const gl=o.getObjectByName('glow'); if(gl){ const b=GLOWS.get(gl); if(b!==undefined) gl.scale.setScalar(b); } if(o.userData.offHand||(window.__dualwield&&window.__dualwield.off&&window.__dualwield.off())) return; o.quaternion.identity(); o.position.set(0,-sd.gripY*sd.scale,0); }   // with two staffs in hand the one not casting eases into its upright hold (99k)
-function pointStaff(dt,k){ const main=window.__weapons&&window.__weapons.mounted(), DW=window.__dualwield, off=DW&&DW.off?DW.off():null, two=!!(off&&off.userData.sword&&/^staff-/.test(off.name)); const wo=(two&&DW.offSwing())?off:main;
+function pointStaff(dt,k){ const main=window.__weapons&&window.__weapons.mounted(), DW=window.__dualwield, off=DW&&DW.off?DW.off():null, two=!!(off&&off.userData.sword&&window.__weapons.caster(off)); const wo=(two&&DW.offSwing())?off:main;
   if(PT.obj&&PT.obj!==wo){ if(PT.obj.parent) restStaff(PT.obj); PT.w=0; PT.base=two&&wo&&wo.userData.sword?wo.quaternion.clone():null; } PT.obj=wo; if(PT.base&&wo&&!wo.userData.offHand){ PT.base.slerp(_q0,1-Math.exp(-6*dt)); if(1-Math.abs(PT.base.w)<1e-4) PT.base=null; }   // a turn starts from where the staff is; the main one then eases back into its own hand's frame
   if(k!=='staff'||!wo||!wo.parent||!wo.userData.sword){ PT.w=0; PT.glow=0; return; } const sd=wo.userData.sword;
   const on=HOLD.on||hero.swingT>=0; PT.w=lerp(PT.w,on?1:0,1-Math.exp(-(on?14:6)*dt)); PT.glow=lerp(PT.glow,charge(),1-Math.exp(-10*dt));

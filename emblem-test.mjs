@@ -1,5 +1,5 @@
 // ===== WEAPON EMBLEMS (build 314). Matt: "on the bag, on the card, weapons are represented by crossing swords i need that to show bow, sword, staff or stave" -- "just that little emblem".
-// Checked: a weapon's emblem is the hand that would hold it -- the Knight's sword (a polearm piece his polearm), the Witch's and Fighter's staff, the Ranger's bow -- on the tavern bag card, its detail,
+// Checked: a weapon's emblem is the hand that would hold it -- the Knight's sword (a polearm piece his polearm), the Witch's staff, the Fighter's polearm (build 510 prep), the Ranger's bow -- on the tavern bag card, its detail,
 // the loot card and the sheet; other slots keep theirs.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 const server=await serve(8968,{dist:process.env.DIST||"./dist"});
@@ -17,7 +17,8 @@ for(const h of ["knight","witch","fighter","troll"]){
 }
 const has=(s,e)=>s.includes('<span class="ic">'+e+'</span>');
 check("the Knight's weapon shows a sword on its bag card, a polearm piece a polearm",has(out.knight.card,"🗡️")&&has(out.knight.pole,"🔱")&&!has(out.knight.card,"⚔"),JSON.stringify({i:out.knight.icon,p:out.knight.poleIcon}));
-check("the Witch's and the Fighter's weapons show a staff (a polearm piece too: they hold it as a staff)",has(out.witch.card,"🪄")&&has(out.fighter.card,"🪄")&&has(out.witch.pole,"🪄"),JSON.stringify({w:out.witch.icon,f:out.fighter.icon}));
+check("the Witch's weapons show a staff (a polearm piece too: she holds it as a staff)",has(out.witch.card,"🪄")&&has(out.witch.pole,"🪄"),JSON.stringify({w:out.witch.icon,wp:out.witch.poleIcon}));
+check("the Fighter's weapons show a polearm, whatever the piece (build 510 prep: he holds only polearms)",has(out.fighter.card,"🔱")&&has(out.fighter.pole,"🔱")&&out.fighter.icon==="🔱"&&out.fighter.sicon==="🔱",JSON.stringify({f:out.fighter.icon,fp:out.fighter.poleIcon,s:out.fighter.sicon}));
 check("the Ranger's weapons show a bow",has(out.troll.card,"🏹")&&has(out.troll.pole,"🏹"),JSON.stringify({r:out.troll.icon}));
 check("armor keeps its shield",Object.values(out).every(o=>has(o.armor,"🛡")),"");
 const lc=await page.evaluate(()=>{ const d=window.__dd; d.start(); d.step(1/60,3); const it=d.rollItem(2,"weapon",5); it.stats.dmg=999; it.score=99999; d.dropLoot(it,d.hero.x,d.hero.z,true); d.step(1/60,30); const c=window.__feel.card(); return c?c.html.slice(0,200):null; });

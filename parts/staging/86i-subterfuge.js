@@ -13,7 +13,7 @@
 // Single target it is weaker than a plain bow (only the middle arrow finds one goblin at range: half a shot); into a pack every
 // arrow finds someone and chains -- that's the trade.
 // Who holds it (86h-named.js namedModel, the same rule as the other two in reverse): only the Troll draws Subterfuge. The Knight
-// holds the top sword (holy) and the Witch and Fighter the top staff (staff-battle) -- the stats are theirs, the wedge is a bow's.
+// holds the top sword (holy), the Witch the top staff (staff-battle) and the Fighter the top plain polearm (polearm-battle, build 510 prep) -- the stats are theirs, the wedge is a bow's.
 // On the floor it always stands as itself, the bow (93c-weaponstand.js), in a storm-blue column with gold motes.
 // Co-op: a guest's shot reaches the host as the guest's bow kind (99-network.js hostGuestShot → window.__bow.fireArrow), so the
 // wedge and the chains happen on the host's real mobs; the host sends that guest its chains to draw ('powerFx' k:'chain').

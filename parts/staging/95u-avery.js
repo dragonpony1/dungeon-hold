@@ -182,7 +182,7 @@ function setY(e,y){ e.climb=y-(e.y||0); e.fly=Math.max(.6,y-baseFloor(e.x,e.z));
     updFeathers(dt);
     const e=enemies.find(x=>x.kind===K&&!x.dead); bar.style.display=e&&!cut?'block':'none'; if(e) bar.querySelector('.fill').style.width=Math.max(0,100*e.hp/e.max)+'%'; }; }
 // ---------------------------------------------------------------- her fall: feathers and fireworks, the Wind set and her jars
-function windSet(){ const look=(()=>{ try{ const m=window.__weapons&&window.__weapons.mount&&window.__weapons.mount(); return m&&m.staff?'staff':m&&m.bow?'bow':'sword'; }catch(e){ return 'sword'; } })();
+function windSet(){ const look=(()=>{ try{ const m=window.__weapons&&window.__weapons.mount&&window.__weapons.mount(); return m&&m.pole?'polearm':m&&m.staff?'staff':m&&m.bow?'bow':'sword'; }catch(e){ return 'sword'; } })();   /* build 510 prep: the Fighter's Wind piece is a polearm */
   const ST={ weapon:{dmg:24,spd:45,tow:41}, armor:{hp:156,def:24,regen:4.5}, amulet:{mana:65,tow:41,hp:156}, familiar:{fdmg:35,frate:63,move:20}, charm:{move:20,trate:20,tarea:18} };
   return [{ slot:'weapon', name:'Mythic '+look[0].toUpperCase()+look.slice(1)+' of the Wind', setId:'wind', look, rarity:5, lvl:20, stats:ST.weapon },
     { slot:'armor', name:'Armor of the Wind', setId:'wind', rarity:5, lvl:20, stats:ST.armor }, { slot:'amulet', name:'Amulet of the Wind', setId:'wind', rarity:5, lvl:20, stats:ST.amulet },

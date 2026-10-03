@@ -4,8 +4,9 @@
 // ("lava") — each with four weapons, one per hand:
 //   sword-<set>    the Gnome Knight's sword mount (1 unit long: pommel at y=0, tip at y=1, fist at 11%)
 //   polearm-<set>  the Knight too, when the item is a polearm (a scythe for Chaos and Necrotic, a halberd for Fire) —
-//                  body-length like a staff, held a third of the way up
-//   staff-<set>    the Battle Witch's and Gnome Fighter's staff mount (the staff frame of 82-staff.js: head at y=1.27,
+//                  body-length like a staff, held a third of the way up. Build 510 prep: and the Gnome Fighter ALWAYS (mount 'pole': his
+//                  hand takes only polearms, whatever the item's look -- 86v-fighterpole.js)
+//   staff-<set>    the Battle Witch's staff mount (the staff frame of 82-staff.js: head at y=1.27,
 //                  children named gem/core/glow/mote<n> so its animator turns and pulses them; its bolts take K's colours)
 //   bow-<set>      the Troll Archer's bow mount (83-bow.js's own bow with this set's fittings hung on its limbs)
 // Which one a hero holds: the hand decides the kind, as for every weapon here (80-weapons.js) — a Chaos item shows the
@@ -188,7 +189,7 @@ addSet('chaos',{ids:['crimson','chaos'],tail:/ of chaos$/i,sword:chaosSword,pole
 addSet('necrotic',{ids:['shadow','necrotic'],tail:/ of shadow$/i,sword:necroticSword,polearm:necroticPolearm,staff:[NE_K,necroticStaff],bow:NE_BOW});
 addSet('fire',{ids:['lava','fire'],tail:/ of fire$/i,sword:fireSword,polearm:firePolearm,staff:[FI_K,fireStaff],bow:FI_BOW});
 function setOf(it){ if(!it) return null; const id=String(it.setId||'').toLowerCase(); for(const k in SETS) if(SETS[k].ids.includes(id)) return k; const n=String(it.name||''); for(const k in SETS) if(SETS[k].tail.test(n)) return k; return null; }
-function setModel(it,mount){ const k=setOf(it); if(!k) return null; if(mount==='staff') return 'staff-'+k; if(mount==='bow') return 'bow-'+k;
+function setModel(it,mount){ const k=setOf(it); if(!k) return null; if(mount==='staff') return 'staff-'+k; if(mount==='bow') return 'bow-'+k; if(mount==='pole') return 'polearm-'+k;   /* build 510 prep: the Fighter's hand */
   return (it.look==='polearm'||/\bpolearm\b/i.test(it.name||'')?'polearm-':'sword-')+k; }   // the Knight: a polearm item stays a polearm, anything else is the set's sword (it.look = the weapon's kind; it.art is the game's picture override)
 window.__weapons.setModel=setModel;
 // the swords' and polearms' glows breathe (a staff's and a bow's own animators already move theirs)

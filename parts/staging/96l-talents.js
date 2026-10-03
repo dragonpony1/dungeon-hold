@@ -71,7 +71,7 @@ const TREES={ witch:{ name:'THE BATTLE WITCH', branches:[
     { id:'rdodge',  tier:2, ranks:1, ic:'🍃', name:'Light Feet', key:true, chip:()=>'15% ⤳ DODGE' },
     { id:'rforage', tier:3, ranks:3, ic:'💧', name:'Forager',       stat:{mana:.08}, chip:r=>'+'+8*r+'% ◆' },
     { id:'rpin',    tier:4, ranks:1, ic:'📌', name:'Pinning Volley', cap:true, chip:()=>'✦ Volley slows all it hits' } ] } ] },
-  // ...and the GNOME FIGHTER, the halo hero -- HALO: his four halos; RADIANCE: the staff; ZEAL: staying alive. Ids start with f.
+  // ...and the GNOME FIGHTER, the halo hero -- HALO: his four halos; RADIANCE: the polearm (build 510 prep: he holds polearms now); ZEAL: staying alive. Ids start with f.
   fighter:{ name:'THE GNOME FIGHTER', branches:[
   { id:'halo', name:'HALO', ic:'💫', col:'#ffe08a', nodes:[
     { id:'fring',   tier:0, ranks:3, ic:'⭕', name:'Wider Rings',   stat:{aoe:.06}, chip:r=>'halos +'+6*r+'% wider' },
@@ -80,7 +80,7 @@ const TREES={ witch:{ name:'THE BATTLE WITCH', branches:[
     { id:'fsurge',  tier:3, ranks:3, ic:'⚡', name:'Surge Master',  chip:r=>'Halo Surge +'+2*r+' s' },
     { id:'fcrown',  tier:4, ranks:1, ic:'👑', name:'Crown of Halos', cap:true, chip:()=>'✦ Surge heals every tower' } ] },
   { id:'radiance', name:'RADIANCE', ic:'☀', col:'#ffb04a', nodes:[
-    { id:'fbright', tier:0, ranks:3, ic:'🔆', name:'Bright Staff',  stat:{dmg:.07}, chip:r=>'+'+7*r+'% bolts' },
+    { id:'fbright', tier:0, ranks:3, ic:'🔆', name:'Bright Polearm',  stat:{dmg:.07}, chip:r=>'+'+7*r+'% bolts' },
     { id:'fswift',  tier:1, ranks:3, ic:'💨', name:'Swift Casting', stat:{spd:.04}, chip:r=>'+'+4*r+'% faster' },
     { id:'fflare',  tier:2, ranks:1, ic:'🌞', name:'Solar Flare', key:true, chip:()=>'5th bolt ⤳ bursts' },
     { id:'fglow',   tier:3, ranks:3, ic:'✨', name:'Radiance',      stat:{hp:.06}, chip:r=>'+'+6*r+'% health' },

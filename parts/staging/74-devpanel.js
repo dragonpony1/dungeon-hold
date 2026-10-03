@@ -30,7 +30,7 @@ const SLOT_BASE={weapon:'Weapon',armor:'Armor',amulet:'Amulet',familiar:'Familia
 const SET_STAT={weapon:['dmg','spd','tow'],armor:['hp','def','regen'],amulet:['mana','tow','hp'],familiar:['fdmg','frate','move'],charm:['move','trate','tarea']};
 const MYTHIC_STAT={dmg:24,spd:45,hp:156,def:24,regen:4.5,tow:41,mana:65,move:20,fdmg:35,frate:63,trate:20,tarea:18};
 const FAM_KINDS=['Wisp','Bat','Sprite','Fire Imp','Crystal Owl','Storm Drake'];
-function weaponLook(){ const hm=window.__weapons.mount&&window.__weapons.mount(); return hm&&hm.staff?'staff':hm&&hm.bow?'bow':'sword'; }
+function weaponLook(){ const hm=window.__weapons.mount&&window.__weapons.mount(); return hm&&hm.pole?'polearm':hm&&hm.staff?'staff':hm&&hm.bow?'bow':'sword'; }   // build 510 prep: the Fighter's hand is a polearm
 function setRec(slot,setId,famKind,lookOverride){ const tail=(SETS.find(s=>s[0]===setId)||[,'of a set'])[1]; const stats={}; for(const k of SET_STAT[slot]) stats[k]=MYTHIC_STAT[k];
   if(slot==='weapon'){ const look=lookOverride||weaponLook(); const it={slot,name:'Mythic '+look[0].toUpperCase()+look.slice(1)+' '+tail,setId,look,rarity:5,lvl:20,stats};
     if(lookOverride) it.forceLook=lookOverride;   // build 208 (Matt: "theres not an option to drop a bow it just says weapon"): weaponLook() only ever follows the CURRENT hero's own mount (a Knight always gets a sword no matter what set you pick), and the floor stand itself (93c-weaponstand.js) re-derives the same way, ignoring it.look entirely -- forceLook is a dev-panel-only field real drops never carry, so this never changes how a normal weapon's stand tracks whichever hero you're currently playing
@@ -59,7 +59,7 @@ function ensure(){ if(el) return; css();
     <div class="sect"><label>hero</label><div class="row"><select id="dp-hero">${heroOpts}</select><button id="dp-hero-go">Switch</button></div></div>
     <div class="sect"><label>set piece</label><div class="row"><select id="dp-slot">${slotOpts}</select></div><div class="row"><select id="dp-set">${setOpts}</select></div>
       <div class="row" id="dp-famrow"><select id="dp-fam">${famOpts}</select></div>
-      <div class="row" id="dp-lookrow"><select id="dp-look"><option value="sword">Sword</option><option value="staff">Staff</option><option value="bow">Bow</option></select></div>
+      <div class="row" id="dp-lookrow"><select id="dp-look"><option value="sword">Sword</option><option value="staff">Staff</option><option value="polearm">Polearm</option><option value="bow">Bow</option></select></div>
       <div class="row"><button id="dp-set-give">Give</button><button id="dp-set-drop">Drop here</button></div></div>
     <div class="sect"><label>named mythic</label><div class="row"><select id="dp-named">${namedOpts}</select></div><div class="row"><button id="dp-named-give">Give</button><button id="dp-named-drop">Drop here</button></div></div>
     <div class="sect"><label>unlock</label><div class="row"><button id="dp-unlock">All maps + heroes (reloads)</button></div></div>

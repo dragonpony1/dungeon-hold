@@ -12,6 +12,7 @@
 // Who holds them (a judgment call, kept): only the Knight holds the axe or the halberd. A staff hero (Witch, Fighter) casts
 // through a staff and the Troll draws a bow, so on them a named weapon shows as the top staff (staff-battle) and the top bow
 // (bow-war). The choice is namedModel below, asked before the sets' setModel by swordFor / staffFor / bowFor (80, 82, 83).
+// Build 510 prep: the Gnome Fighter's hand is a POLEARM hand now (mount 'pole', 86v-fighterpole.js poleFor): The Last Lantern and 6/7 are his as themselves, any other named weapon the top plain polearm.
 (function(){
 const {V,lit,slab,tube,helix,spike,toward,noOL,pulseGlow,finish}=window.__setweapons.kit;
 const NAMED_WEAPONS=['rootsplitter','last_lantern','subterfuge','sixseven'];   // build 258: + 6/7, Matt's Storm Halberd (a real GLB: 86k-sixseven.js)   // build 170: + Subterfuge, a bow (its model and power are 86i-subterfuge.js's)
@@ -95,7 +96,8 @@ window.__weapons.register('named-rootsplitter',rootsplitter); window.__weapons.r
 // Build 170, the same rule in reverse for the bow: the Troll draws Subterfuge (bow-subterfuge), the Knight holds the top sword and the
 // Witch and Fighter the top staff -- they get its stats, not its wedge (86i-subterfuge.js)
 function namedId(it){ if(!it||it.slot!=='weapon'||!it.named) return null; const M=window.__mythic; const k=M&&M.id?M.id(it):String(it.named); return NAMED_WEAPONS.includes(k)?k:null; }
-function namedModel(it,mount){ const k=namedId(it); if(!k) return null; const m=mount==='staff'||mount==='bow'?mount:'sword'; return m!==OWN[k]?TOP[m]:m==='bow'?'bow-'+k:'named-'+k; }
+const POLE_OWN={last_lantern:'named-last_lantern',sixseven:'named-sixseven'};   // build 510 prep: the Fighter's pole hand holds a named POLEARM as itself, anything else as the top plain polearm (86v-fighterpole.js)
+function namedModel(it,mount){ const k=namedId(it); if(!k) return null; if(mount==='pole') return POLE_OWN[k]||'polearm-battle'; const m=mount==='staff'||mount==='bow'?mount:'sword'; return m!==OWN[k]?TOP[m]:m==='bow'?'bow-'+k:'named-'+k; }
 { const setModel=window.__weapons.setModel; window.__weapons.setModel=(it,mount)=>namedModel(it,mount)||(setModel?setModel(it,mount):null); }
 window.__named={ids:()=>NAMED_WEAPONS.slice(),id:namedId,model:namedModel,own:k=>OWN[k]||null};
 })();
