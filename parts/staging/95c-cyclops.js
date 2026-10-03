@@ -125,8 +125,9 @@ const foes=()=>(window.__net&&window.__net.role&&window.__net.role()==='guest'&&
 // ---------------------------------------------------------------- the reward: no Gladehart yet (a separate pet-companion
 // entity that isn't built), so a solid one-time payout instead -- a real payoff for the fight today, upgraded to the
 // stag once that system exists
+const CYC_BONUS=800;   // co-op sweep 2026-10-02: on window.__cyclops.bonus too -- 99-network pays each guest's own mana pool the same
 { const prev=kill; kill=function(e){ const wasCyclops=e.kind==='cyclops'&&!e.dead; prev(e);
-    if(wasCyclops){ const bonus=800; S.mana+=bonus; dropLoot(rollItem(4),R(-1.6,1.6),4.6,true); dropLoot(rollItem(4),R(-1.6,1.6),4.6,true);   // 4 is Legendary, rollRarity's own natural ceiling -- 5 is the separate mythic tier 87-mythicdrops.js hands out on its own roll, not something to force here
+    if(wasCyclops){ const bonus=CYC_BONUS; S.mana+=bonus; dropLoot(rollItem(4),R(-1.6,1.6),4.6,true); dropLoot(rollItem(4),R(-1.6,1.6),4.6,true);   // 4 is Legendary, rollRarity's own natural ceiling -- 5 is the separate mythic tier 87-mythicdrops.js hands out on its own roll, not something to force here
       toast('☠ THE CYCLOPS FALLS — +'+bonus+' mana, and the hall remembers'); SFX.setBong&&SFX.setBong(); if(window.__gladehart) window.__gladehart.reward(); } }; }   // build 221: and Gladehart, once
-window.__cyclops={loaded:()=>!!MOBGLB.cyclops,spawn:spawnCyclops,ensure:loadCyclopsModel,alive:()=>{ const e=enemies.find(x=>x.kind==='cyclops'&&!x.dead); return e?{hp:e.hp,max:e.max,stompCd:+e.stompCd.toFixed(2),eyeCd:+e.eyeCd.toFixed(2),eyeCharging:e.eyeCharging,eyeOpenT:+e.eyeOpenT.toFixed(2)}:null; }};
+window.__cyclops={bonus:CYC_BONUS,loaded:()=>!!MOBGLB.cyclops,spawn:spawnCyclops,ensure:loadCyclopsModel,alive:()=>{ const e=enemies.find(x=>x.kind==='cyclops'&&!x.dead); return e?{hp:e.hp,max:e.max,stompCd:+e.stompCd.toFixed(2),eyeCd:+e.eyeCd.toFixed(2),eyeCharging:e.eyeCharging,eyeOpenT:+e.eyeOpenT.toFixed(2)}:null; }};
 })();

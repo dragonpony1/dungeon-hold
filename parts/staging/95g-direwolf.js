@@ -29,6 +29,10 @@ const SPOTS=[-.8,.4,-.4,.8,0]; let wolfN=0;   // each new wolf takes the next pl
 // dies drops a piece of the Ice set (Rare or better) 6% of the time
 if(MAP&&MAP.id==='court') setTimeout(load,1500);
 const ICE_CHANCE=.06; let iceDrops=0;
-{ const prev=kill; kill=function(e){ const was=e&&!e.dead; const r=prev.apply(this,arguments); if(was&&e.kind===K&&e.dead&&Math.random()<ICE_CHANCE){ try{ const it=rollItem(2); it.name=String(it.name).replace(/ of (the )?[A-Z]\w*( [A-Z]\w*)?$/,'')+' of Ice'; it.value=Math.round((it.value||0)*2); if(Meta.packs&&Meta.packs.of) Meta.packs.of(it); dropLoot(it,e.x,e.z); iceDrops++; }catch(err){ console.warn('wolf ice drop',err); } } return r; }; }
-window.__direwolf={iceDrops:()=>iceDrops,iceChance:ICE_CHANCE,load,loaded:()=>!!MOBGLB[K],kind:K,glow:()=>{ let v=null; if(MOBGLB[K]) MOBGLB[K].wrap.traverse(o=>{ if(v===null&&o.isMesh&&!o.userData.isOL&&o.material&&o.material.emissiveMap) v=o.material.emissive.r; }); return v; }};
+// co-op sweep 2026-10-02: the Ice roll is personal -- the host's own piece is no longer relayed as a plain Rare (__noRelay, 99-network), and the host rolls the same 6% once for each guest, who makes
+// its own Ice piece on its own floor ('wolfIce', handled in 99-network.js where atHallWave lives)
+function makeIce(){ const it=rollItem(2); it.name=String(it.name).replace(/ of (the )?[A-Z]\w*( [A-Z]\w*)?$/,'')+' of Ice'; it.value=Math.round((it.value||0)*2); if(Meta.packs&&Meta.packs.of) Meta.packs.of(it); return it; }
+{ const prev=kill; kill=function(e){ const was=e&&!e.dead; const r=prev.apply(this,arguments); if(was&&e.kind===K&&e.dead){ if(Math.random()<ICE_CHANCE){ try{ const it=makeIce(); it.__noRelay=1; try{ dropLoot(it,e.x,e.z); } finally { delete it.__noRelay; } iceDrops++; }catch(err){ console.warn('wolf ice drop',err); } }
+    try{ const N=window.__net; if(N&&N.role&&N.role()==='host'&&N.peers) N.peers().forEach(id=>{ if(Math.random()<ICE_CHANCE) N.send('wolfIce',{x:+(+e.x).toFixed(2),z:+(+e.z).toFixed(2),ew:effWave()},id); }); }catch(err){} } return r; }; }
+window.__direwolf={makeIce,iceDrops:()=>iceDrops,iceChance:ICE_CHANCE,load,loaded:()=>!!MOBGLB[K],kind:K,glow:()=>{ let v=null; if(MOBGLB[K]) MOBGLB[K].wrap.traverse(o=>{ if(v===null&&o.isMesh&&!o.userData.isOL&&o.material&&o.material.emissiveMap) v=o.material.emissive.r; }); return v; }};
 })();

@@ -967,6 +967,7 @@ let guestRunEnded=false;
 let guestHeld=null;
 function guestShowRunEnd(w){
   guestRunEnded=true; S.phase=w.phase; cancelPlace(); droneOff(); setMusic('none');
+  if(w.phase==='won'){ try{ if(window.__jars&&window.__jars.sweep) window.__jars.sweep(); }catch(e){} }   // co-op sweep 2026-10-02: a held hall's jars still on this guest's floor are banked, as single player's MOVE ON does (99g sweep)
   if(document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play');
   const sv=!!w.survival, held=w.phase==='won'?w.wave|0:Math.max(0,(w.wave|0)-1), rec=sv&&window.__survival?window.__survival.record(held):null;   // build 176: a Survival run -- the waves held go on this player's own best for the map too (they held them)
   if(w.phase==='won'){ SFX.held(); $('deadh1').textContent=sv?'SURVIVAL COMPLETE':'HALL HELD'; $('deadh2').textContent=sv?'ALL '+held+' WAVES HELD ON '+MAP.name:w.mapName+' is cleared'; }
@@ -1019,6 +1020,7 @@ onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded&&data){ if(data.pha
 onMessage('mapHeld',data=>{ if(role!=='guest'||guestRunEnded||guestHeld||!data) return;
   const pay=typeof data.pay==='number'&&Number.isFinite(data.pay)?Math.max(0,Math.round(data.pay)):0;
   guestHeld={pay,wave:data.wave|0,mapName:typeof data.mapName==='string'?data.mapName.slice(0,60):MAP.name}; if(!data.survival) guestMapCleared(); else if(window.__survival) window.__survival.record(data.wave|0);   // build 176: Survival complete clears nothing, but the fifty waves go on this guest's own best
+  if(data.survival&&MAPI===1&&window.__trimaw) atHallWave((data.wave|0)+MAP.wbase,()=>window.__trimaw.reward(true));   // co-op sweep 2026-10-02: Throne Room survival held -- the guest earns its own Trimaw, as 85-familiars' winMap wrap gives solo/host
   if(pay){ Meta.addGold(pay,'run'); Meta.save(); floatText(hero.x,hero.y+3.2,hero.z,'+'+Meta.fmtG(pay)+' ● gold — the hall is held','#ffd060'); }
   banner(data.survival?'SURVIVAL COMPLETE':'HALL HELD',MAP.name+(data.survival?' stands':' is yours')+(pay?'  ·  +'+pay+' ● gold':'')+'  ·  the host moves the party on when ready'); });   // the fanfare itself already played: guestWorldSfx hears the host's phase leave 'wave'   // MAP.name, never the host's text: banner() writes innerHTML (a guest is on the host's map, so it is the same name)
 // build 159 (3/7): what the host's own Meta.onRunEnd pays (10-meta.js: 25 a wave, +150 for a map held), worked out from the very wave
@@ -1111,7 +1113,8 @@ function mobPuppetsTick(dt){
 }
 let nextEnemyId=1, syncTE=0;
 const diedQ=[];   // build 147: mobs killed on the host since its last enemies list -- filled the moment kill() runs, not by scanning `enemies` at broadcast time (a mob killed and removed between two slow frames was never reported, and the guest never heard it die)
-{ const prevKill=kill; kill=function(e){ const was=e&&e.dead; const r=prevKill.apply(this,arguments); if(role==='host'&&e&&!was&&e.dead){ if(!e.__coopId) e.__coopId='e'+(nextEnemyId++); diedQ.push({id:e.__coopId,kind:e.kind}); } return r; }; }
+{ const prevKill=kill; kill=function(e){ const was=e&&e.dead; const r=prevKill.apply(this,arguments); if(role==='host'&&e&&!was&&e.dead){ if(!e.__coopId) e.__coopId='e'+(nextEnemyId++); diedQ.push({id:e.__coopId,kind:e.kind});
+    if(e.kind==='cyclops'){ const B=window.__cyclops&&Number.isFinite(window.__cyclops.bonus)?window.__cyclops.bonus:800; guestMana.forEach((v,id)=>guestMana.set(id,Math.round((v+B)*10)/10)); send('cycFall',{ew:effWave(),b:B}); } } return r; }; }   // co-op sweep 2026-10-02: the Cyclops's +800 goes in every guest's own pool too (95c pays only S.mana, the host's), and each guest earns its own Gladehart ('cycFall', below)
 // ---- build 159 (6/7): the mob list at a third of the size. At the campaign's last wave (161 alive) the list was ~14 KB, 12 times a
 // second, to EVERY guest -- ~170 KB/s of the host's upload per guest at that peak, and most of it the same key names and the same
 // kind names 161 times over. 'mobs' carries the very same numbers, rounded exactly as before, as rows -- [id, kind, x, y, z, yaw,
@@ -1387,11 +1390,20 @@ function pickupPuppetsTick(dt){
 // its own page, where it alone can walk over it. Loot is never shown to anyone else; mana orbs stay shared.
 let LASTROLL=null;
 { const prev=rollItem; rollItem=function(minR,slot,lvl){ const it=prev(minR,slot,lvl); LASTROLL={it,args:[minR,slot,lvl]}; return it; }; }
-{ const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); if(role==='host'&&conns.size&&LASTROLL&&LASTROLL.it===it){ const a=LASTROLL.args; send('lootDrop',{minR:a[0]|0,slot:a[1]||null,lvl:Number.isFinite(+a[2])?+a[2]:null,ew:effWave(),x:+(+x).toFixed(2),z:+(+z).toFixed(2),gentle:!!gentle}); } return l; }; }   // only an item that came straight from rollItem is relayed: the Forest guarantee's set pieces (already personal, 93-gearsets.js) and take-backs are not. ew (build 159, 3/7): the hall's wave, which the guest rolls at
+// co-op sweep 2026-10-02: the held wave's reward is marked (rw) so a guest rolls it through waveRewardItem too -- the Throne Room's wave-7 mythic set piece (97b-setgate.js) is on the guest's own
+// roll as well as the host's. This wrap loads after 97b, so it sees the final item. An item flagged __noRelay (the dire wolf's Ice piece, rolled per guest by 95g) is not relayed as a plain one
+let LASTRW=null;
+{ const prev=waveRewardItem; waveRewardItem=function(){ const it=prev.apply(this,arguments); LASTRW=it; return it; }; }
+{ const prev=dropLoot; dropLoot=function(it,x,z,gentle){ const l=prev(it,x,z,gentle); if(role==='host'&&conns.size&&LASTROLL&&LASTROLL.it===it&&!(it&&it.__noRelay)){ const a=LASTROLL.args, rw=LASTRW===it?1:0; if(rw) LASTRW=null; send('lootDrop',{minR:a[0]|0,slot:a[1]||null,lvl:Number.isFinite(+a[2])?+a[2]:null,ew:effWave(),x:+(+x).toFixed(2),z:+(+z).toFixed(2),gentle:!!gentle,rw}); } return l; }; }   // only an item that came straight from rollItem is relayed: the Forest guarantee's set pieces (already personal, 93-gearsets.js) and take-backs are not. ew (build 159, 3/7): the hall's wave, which the guest rolls at
 // the guest's roll runs at the hall's wave (atHallWave, above): the level, the rarity odds (epic from wave 3, legendary from 6), the
 // Void and Forest chances (93-gearsets.js) and a mythic's stats (87-mythicdrops.js rolls them on the item's own level) all come out
 // as the host's own roll would -- only the dice are this guest's, and its own rules (Forest pity, its own 7% mythic)
-onMessage('lootDrop',d=>{ if(role!=='guest'||!d) return; atHallWave(d.ew,()=>{ const it=rollItem(Math.max(0,Math.min(4,d.minR|0)),d.slot||undefined,d.lvl||undefined); dropLoot(it,+d.x||0,+d.z||0,!!d.gentle); }); });
+onMessage('lootDrop',d=>{ if(role!=='guest'||!d) return; atHallWave(d.ew,()=>{ const it=d.rw?waveRewardItem():rollItem(Math.max(0,Math.min(4,d.minR|0)),d.slot||undefined,d.lvl||undefined); dropLoot(it,+d.x||0,+d.z||0,!!d.gentle); }); });
+// co-op sweep 2026-10-02: drops the host rolls once per guest and the guest makes on its own page, at the hall's wave -- a dire wolf's 6% Ice piece (95g-direwolf.js) and an ordinary mob's
+// named-mythic chance (87-mythicdrops.js), same odds as single player; and the Cyclops's fall (+800 is paid into this guest's pool on the host; Gladehart is earned here, once, like solo)
+onMessage('wolfIce',d=>{ if(role!=='guest'||!d||!window.__direwolf||!window.__direwolf.makeIce) return; atHallWave(d.ew,()=>dropLoot(window.__direwolf.makeIce(),+d.x||0,+d.z||0)); });
+onMessage('namedDrop',d=>{ if(role!=='guest'||!d) return; atHallWave(d.ew,()=>{ const M=window.__mythicDrops, it=M&&M.namedItem&&M.namedItem(); if(!it) return; const x=+d.x||0, z=+d.z||0; dropLoot(it,x,z); floatText(x,2.4,z,'✦ A NAMED MYTHIC ✦ '+it.name,'#ffcf3a'); toast('A named mythic dropped from a '+String(d.k||'mob').replace(/[^a-z0-9 ]/gi,'').slice(0,20)+': '+it.name); }); });
+onMessage('cycFall',d=>{ if(role!=='guest'||guestRunEnded) return; const b=d&&Number.isFinite(+d.b)?Math.round(+d.b):800; toast('☠ THE CYCLOPS FALLS — +'+b+' mana, and the hall remembers'); SFX.setBong&&SFX.setBong(); if(window.__gladehart) atHallWave(d&&d.ew,()=>window.__gladehart.reward(true)); });
 function hostBroadcastPickups(dt){
   if(role!=='host'||!conns.size) return;
   syncTP+=dt; if(syncTP<1/10) return; syncTP=0;

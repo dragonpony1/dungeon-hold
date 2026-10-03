@@ -189,6 +189,7 @@ function windSet(){ const look=(()=>{ try{ const m=window.__weapons&&window.__we
     burst(e.x,e.y+2,e.z,e.x,baseFloor(e.x,e.z),e.z,40); for(let k=0;k<5;k++){ const g=glow([0xff4fd8,0xffd27a,0xb05aff,0xffffff,0xff8ae0][k],5+k,.9); g.position.set(e.x+(Math.random()-.5)*4,e.y+1+Math.random()*3,e.z+(Math.random()-.5)*4); scene.add(g); projs.push({ kind:'splat', t:0, mesh:g }); }
     camShake=Math.max(camShake,.9); banner('💋 AVERY FALLS','the Wind set is yours'); setTimeout(()=>{ if(!enemies.some(x=>x.kind===K&&!x.dead)&&musicMode==='avery') setMusic(S.phase==='wave'?'wave':'build'); },2500);
     const N=window.__mythic&&window.__mythic.normalize; windSet().forEach((rec,i)=>{ const it=N?N(rec):null; if(!it) return; const a=i/5*TAU; dropLoot(it,hero.x+Math.cos(a)*3.5,hero.z+Math.sin(a)*3.5,true); });
+    try{ const n=NET(); if(n&&n.role&&n.role()==='host') n.send('averyFall',{ id:e.__coopId||null }); }catch(er){}   // co-op sweep 2026-10-02: each guest gets its own Wind set + banner (guestFall below)
     setTimeout(()=>{ if(!enemies.some(x=>x.kind===K&&!x.dead)) beamsOff(); },2500); } return r; }; }
 // ---- build 504: the guest's side
 function guestCut(){ if(cut) return; load().then(()=>{ if(cut||!MOBGLB[K]||!bust) return; done=true; cnt.intro++;
@@ -196,7 +197,13 @@ function guestCut(){ if(cut) return; load().then(()=>{ if(cut||!MOBGLB[K]||!bust
     if(TRACKS&&TRACKS.avery){ window.__musStart=window.__musStart||{}; window.__musStart.avery=()=>cut?SLAM-((SHOT_A+SHOT_B)-cut.t):SLAM+(performance.now()-stampAt)/1000; setMusic('avery'); } else setMusic('none');
     bust.g.position.set(0,-1.2,0); bust.g.rotation.y=0; if(!bust.g.parent) STAGE.add(bust.g); bust.mixer=new THREE.AnimationMixer(bust.g); const a=bust.mixer.clipAction(bust.clip); a.setLoop(THREE.LoopOnce,1); a.clampWhenFinished=true; a.play(); bust.act=a; a.paused=true;
     cut={ t:0, cam:camera.position.clone(), q:camera.quaternion.clone() }; cutEl.style.display='block'; cutEl.querySelector('.stamp').style.cssText=''; document.body.classList.add('avery-cut'); }); }
-let cutHooked=false; function hookCut(){ if(cutHooked) return; const n=NET(); if(!(n&&n.onMessage)) return; cutHooked=true; n.onMessage('averyCut',()=>{ if(isGuest()) guestCut(); }); }   // 99-network.js loads after this file: hooked on the first frame it is there
+// co-op sweep 2026-10-02: her fall on a GUEST -- the host's kill() above never runs there (her puppet just vanishes) and the Wind pieces are built, not rolled, so the loot relay never carried them.
+// The host says 'averyFall'; the guest shows the banner and drops ITS OWN five Wind pieces round its own hero (its own weapon look), personal like single player. Once per Avery (id). The beams and
+// music are already put back by the puppet-gone check below. Once per Avery: the same id, or anything within 20 s of the last (she is one per run).
+let fellId=null, fellT=-1e9, guestFalls=0;
+function guestFall(d){ if(!isGuest()) return; const id=d&&d.id||null, now=performance.now(); if((id&&id===fellId)||now-fellT<20000) return; fellId=id; fellT=now; guestFalls++; camShake=Math.max(camShake,.9); banner('💋 AVERY FALLS','the Wind set is yours');
+  const N=window.__mythic&&window.__mythic.normalize; windSet().forEach((rec,i)=>{ const it=N?N(rec):null; if(!it) return; const a=i/5*TAU; dropLoot(it,hero.x+Math.cos(a)*3.5,hero.z+Math.sin(a)*3.5,true); }); }
+let cutHooked=false; function hookCut(){ if(cutHooked) return; const n=NET(); if(!(n&&n.onMessage)) return; cutHooked=true; n.onMessage('averyCut',()=>{ if(isGuest()) guestCut(); }); n.onMessage('averyFall',d=>{ try{ guestFall(d); }catch(er){} }); }   // 99-network.js loads after this file: hooked on the first frame it is there
 hookCut(); { const prev=Meta.update; Meta.update=dt=>{ prev(dt); hookCut(); }; }
 // her puppet on a guest: the layered flight (wings beating as she climbs or turns, gliding otherwise), her bar from the host's health, the lights and music while she lives
 let gSeen=false, gGone=0;
@@ -205,7 +212,7 @@ let gSeen=false, gGone=0;
       const low=p.y<ROOF+2.2, beat=vy>.8||turn>1.2||(S.t%6)<1.6; pose(p,low?'Breathe':(beat?'Hover':'Glide'),low?'Wing_Fold':(beat?'Wingbeat':'Glide'),null,null,low?{ wingsOnce:true }:null); });
     if(live){ gSeen=true; gGone=0; bar.style.display='block'; const mx=live.max||live.maxSeen||MOBS[K].hp; bar.querySelector('.fill').style.width=Math.max(0,100*(live.hp||0)/mx)+'%'; if(!BEAMS.length) beamsOn(); for(const o of BEAMS){ o.b.rotation.z=Math.sin(S.t*.6+o.ph)*.45; o.b.rotation.x=Math.cos(S.t*.45+o.ph)*.25; } }
     else if(gSeen){ gGone+=dt; bar.style.display='none'; if(gGone>2){ gSeen=false; beamsOff(); if(musicMode==='avery') setMusic(S.phase==='wave'?'wave':'build'); } } }; }
-window.__avery={ guestCut, stampAt:()=>stampAt, kind:K, load, loaded:()=>!!(MOBGLB[K]&&bust), info:()=>Object.assign({ cut:!!cut, cutT:cut?+cut.t.toFixed(2):null, beams:BEAMS.length, feathers:FALL.length },cnt),
+window.__avery={ guestCut, guestFall, guestFalls:()=>guestFalls, stampAt:()=>stampAt, kind:K, load, loaded:()=>!!(MOBGLB[K]&&bust), info:()=>Object.assign({ cut:!!cut, cutT:cut?+cut.t.toFixed(2):null, beams:BEAMS.length, feathers:FALL.length },cnt),
   state:()=>enemies.filter(e=>!e.dead&&e.kind===K).map(e=>({ st:e.ast, phase:e.phase, x:+e.x.toFixed(1), z:+e.z.toFixed(1), y:+(e.y||0).toFixed(1), hp:Math.round(e.hp), max:e.max, swoops:e.aswoops })),
   peek:(wclip,frac)=>{ const e=enemies.find(x=>x.kind===K&&!x.dead); if(!e) return false; e.ast='peek'; const mx=e.mdl.mixer; mx.stopAllAction(); e.lay={ cur:{}, act:{}, at:{} }; for(const [g,c] of [['body','Hover'],['wings',wclip],['tail','Tail_Swish'],['head','Look_Around']]){ const sub=SUB[g]&&SUB[g][c]; if(!sub) continue; const act=mx.clipAction(sub); act.reset(); act.play(); act.time=sub.duration*frac; act.paused=true; } mx.update(0); return true; },   /* test hook: hold her in one pose (avery-test pictures) */ startCut, endCut, skip:()=>{ if(cut) cut.t=END-.01; }, windSet, way:WAY, perch:PERCH };
 })();

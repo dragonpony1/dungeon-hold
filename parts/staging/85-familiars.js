@@ -294,7 +294,8 @@ function scTick(dt){
   if(!gladeWorn()||S.phase!=='wave'||hero.dead>0||isGuest()) return; SC.t-=dt; if(SC.t>0) return; const t=thickest(); if(!t){ SC.t=.6; return; } SC.t=SC.every; scLaunch(t); }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); scTick(dt); }; }
 // the reward: felling the Cyclops (95c-cyclops.js) drops Gladehart by the crystal like a named mythic, once -- never if you already own it
-function gladeReward(){ const M=window.__mythic; if(!M||!M.NAMED||!M.NAMED.gladehart||isGuest()) return false; const has=M.has('gladehart')||Meta.bag().some(b=>b&&M.id(b)==='gladehart')||((Meta.armory&&Meta.armory())||[]).some(b=>b&&M.id(b)==='gladehart'); if(has) return false;
+// co-op sweep 2026-10-02: reward(true) is the co-op guest's own copy, called by 99-network when the host says the Cyclops fell / Trimaw's map is held -- each player earns its own pet, as in single player
+function gladeReward(coop){ const M=window.__mythic; if(!M||!M.NAMED||!M.NAMED.gladehart||(isGuest()&&!coop)) return false; const has=M.has('gladehart')||Meta.bag().some(b=>b&&M.id(b)==='gladehart')||((Meta.armory&&Meta.armory())||[]).some(b=>b&&M.id(b)==='gladehart'); if(has) return false;
   const it=M.normalize({tier:'named',named:'gladehart',lvl:Math.max(1,effWave())}); if(!it) return false; it.from='dungeon-hold'; const pic=window.__mythicDrops&&window.__mythicDrops.art&&window.__mythicDrops.art(it); if(pic) it.art=pic;
   dropLoot(it,R(-1.6,1.6),4.6,true); floatText(0,2.6,4.6,'✦ GLADEHART ✦ the spirit stag','#ff7ade'); toast('Gladehart, the spirit stag, fell by the Heartroot — pick it up'); return true; }
 window.__gladehart={worn:gladeWorn,charges:()=>SC.count,ghosts:()=>SC.ghosts.length,hits:()=>SC.hits,cd:()=>+SC.t.toFixed(2),fire:()=>{ const t=thickest(); if(!t) return false; scLaunch(t); return true; },thickest,reward:gladeReward,cfg:SC,ghostPos:()=>{ const G=SC.ghosts[0]; return G?{x:G.x,y:G.y,z:G.z}:null; }};
@@ -345,7 +346,7 @@ function trimawFire(e){ fam.kick=1; const tg=[e,...extraTargets(e,2)]; const [x,
 { const prev=famFire; famFire=function(e){ if(trimawWorn()){ trimawFire(e); return; } return prev(e); }; }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); statusUpdate(dt); tfxUpdate(dt); }; }
 // the reward: holding Throne Room survival wave 50 (winMap) drops Trimaw by the crystal, once -- never if you already own it. Solo/host only.
-function trimawReward(){ const M=window.__mythic; if(!M||!M.NAMED||!M.NAMED.trimaw||isGuest()) return false; const has=M.has('trimaw')||Meta.bag().some(b=>b&&M.id(b)==='trimaw')||((Meta.armory&&Meta.armory())||[]).some(b=>b&&M.id(b)==='trimaw'); if(has) return false;
+function trimawReward(coop){ const M=window.__mythic; if(!M||!M.NAMED||!M.NAMED.trimaw||(isGuest()&&!coop)) return false; const has=M.has('trimaw')||Meta.bag().some(b=>b&&M.id(b)==='trimaw')||((Meta.armory&&Meta.armory())||[]).some(b=>b&&M.id(b)==='trimaw'); if(has) return false;
   const it=M.normalize({tier:'named',named:'trimaw',lvl:Math.max(1,effWave())}); if(!it) return false; it.from='dungeon-hold'; const pic=window.__mythicDrops&&window.__mythicDrops.art&&window.__mythicDrops.art(it); if(pic) it.art=pic;
   dropLoot(it,R(-1.6,1.6),4.6,true); floatText(0,2.6,4.6,'✦ TRIMAW ✦ the magma hydra','#ff7ade'); toast('Trimaw, the magma hydra, fell by the Heartroot — pick it up'); return true; }
 { const prev=winMap; winMap=function(){ const r=prev.apply(this,arguments); if(SURVIVAL&&MAPI===1) trimawReward(); return r; }; }   // Throne Room (index 1) survival's fiftieth wave

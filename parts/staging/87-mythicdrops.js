@@ -64,6 +64,7 @@ function cardOnFloor(l,it){ const item=l.mesh.userData.item; const tex=new THREE
 // a regular mob killed in a regular wave: a very small chance of a named mythic where it fell (host or solo: the kill is real there; a co-op guest's floor gets it only from the wave reward roll)
 const MOB_BOSS=new Set(['trollboss','cyclops','pigflail','pigdagger','pigsling','archhag','avery']);
 { const prev=rollDrop; rollDrop=function(e){ prev(e); if(TUTORIAL||S.phase!=='wave'||!e||e.puppet||MOB_BOSS.has(e.kind)) return;
-    if(LR()<NAMED_MOB){ const it=namedItem(); if(it){ dropLoot(it,e.x,e.z); floatText(e.x,2.4,e.z,'✦ A NAMED MYTHIC ✦ '+it.name,GOLDC); if(typeof toast==='function') toast('A named mythic dropped from a '+(e.kind||'mob')+': '+it.name); } } }; }
+    if(LR()<NAMED_MOB){ const it=namedItem(); if(it){ dropLoot(it,e.x,e.z); floatText(e.x,2.4,e.z,'✦ A NAMED MYTHIC ✦ '+it.name,GOLDC); if(typeof toast==='function') toast('A named mythic dropped from a '+(e.kind||'mob')+': '+it.name); } }
+    try{ const N=window.__net; if(N&&N.role&&N.role()==='host'&&N.peers) N.peers().forEach(id=>{ if(LR()<NAMED_MOB) N.send('namedDrop',{x:+(+e.x).toFixed(2),z:+(+e.z).toFixed(2),ew:effWave(),k:String(e.kind||'mob').slice(0,20)},id); }); }catch(err){} }; }   // co-op sweep 2026-10-02: the same chance rolled once per guest (like 99g's jars); the guest makes its own named piece ('namedDrop', 99-network.js)
 window.__mythicDrops={fancy:()=>FANCY,beams:()=>BEAMS.length,rates:()=>({mythic:MYTHIC_DROP,named:NAMED_DROP,mob:NAMED_MOB}),set:(m,n,k)=>{ if(Number.isFinite(m)) MYTHIC_DROP=m; if(Number.isFinite(n)) NAMED_DROP=n; if(Number.isFinite(k)) NAMED_MOB=k; },mythicize,namedItem,eligible,art:mythicArt,SETS};
 })();

@@ -67,7 +67,7 @@ function bank(r,x,y,z){ const b=readIn(); b[JR[r].k]++; try{ localStorage.setIte
 let CLINKS=0;
 function clink(){ CLINKS++; try{ beep(4186,.1,'sine',.15,0); beep(8372,.06,'sine',.045,0); setTimeout(()=>{ beep(5588,.16,'sine',.13,0); beep(11175,.07,'sine',.035,0); },55); }catch(e){} }   // build 276 (Matt: "that sound could be higher and louder"): C8 then F8 (was G7, C8), about twice as loud
 function updateJars(dt){
-  if(S.phase==='wave') askJars();
+  if((typeof hallPhase==='function'?hallPhase():S.phase)==='wave') askJars();   // co-op sweep 2026-10-02: hallPhase (58-portal) is the host's phase on a guest, whose own S.phase never leaves 'build' -- so a guest gets Matt's jar models too
   for(let i=JARS.length-1;i>=0;i--){ const j=JARS[i]; j.t+=dt; const it=j.mesh.userData.item;
     if(!j.mesh.userData.real&&TPL[j.r]){ while(it.children.length) it.remove(it.children[0]); realJar(it,j.r); j.mesh.userData.real=true; }   // build 297: Matt's jar has landed -- this one on the floor becomes it
     // build 272 (Matt: "these jars wont allow me to pick them up"): a jar at rest keeps a tiny bounce, so its vy was never under .01 at this check -- only a jar still falling as you came near ever flew to you; landed once is landed
@@ -94,7 +94,8 @@ function rollJars(e){ if(!e||TUT) return; const N=window.__net, role=N&&N.role?N
   jarRoll(e.kind).forEach(r=>spawnJar(r,e.x,e.z));
   if(role==='host'&&N.peers) N.peers().forEach(id=>{ const rs=jarRoll(e.kind); if(rs.length) N.send('jarDrop',{rs,x:+(+e.x).toFixed(2),z:+(+e.z).toFixed(2)},id); }); }
 { const prev=rollDrop; rollDrop=function(e){ const out=prev.apply(this,arguments); try{ rollJars(e); }catch(err){} return out; }; }
-if(window.__net&&window.__net.onMessage) window.__net.onMessage('jarDrop',d=>{ const N=window.__net; if(!d||!N.role||N.role()!=='guest'||!Array.isArray(d.rs)) return; d.rs.slice(0,4).forEach(r=>spawnJar(r,+d.x||0,+d.z||0)); });
+// co-op sweep 2026-10-02: a guest keeps a boss's whole Legendary pile (Avery 40, Archhag 30, a pig lord 8), as single player does -- the cap is the biggest boss's count (was 4, from when bosses gave 2)
+if(window.__net&&window.__net.onMessage) window.__net.onMessage('jarDrop',d=>{ const N=window.__net; if(!d||!N.role||N.role()!=='guest'||!Array.isArray(d.rs)) return; d.rs.slice(0,Math.max(...Object.values(BOSS))).forEach(r=>spawnJar(r,+d.x||0,+d.z||0)); });
 // ---- each frame, with the loot; a new run (the wave counter back to 1) starts the counter afresh
 let lastWave=S.wave;
 { const prev=updateLoot; updateLoot=function(dt){ prev.apply(this,arguments); try{ if(S.wave===1&&lastWave!==1){ RUN.fill(0); drawHud(); } lastWave=S.wave; updateJars(dt); }catch(err){} }; }
