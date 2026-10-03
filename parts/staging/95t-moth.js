@@ -43,6 +43,7 @@ function burstEgg(q){ cnt.bursts++; const fl=eggFloor(q.x,q.z);
   const g=glow(0xb8d0ff,3.2,.9); g.position.set(q.x,fl+.6,q.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); try{ SFX.hit&&SFX.hit(); }catch(e){}
   for(const d of defs){ if(d.dead) continue; if(Math.hypot(d.x-q.x,d.z-q.z)<=BURST_R){ hurtDef(d,q.dmg); cnt.towerHits++; } }
   if(hero.dead<=0&&Math.hypot(hero.x-q.x,hero.z-q.z)<=BURST_R&&Math.abs((hero.y||0)-fl)<2){ hurtHero(EGG_HERO); cnt.heroHits++; }
+  for(const h of (Meta.heroes&&Meta.heroes())||[]) if(!h.isDead()&&Math.hypot(h.x-q.x,h.z-q.z)<=BURST_R&&Math.abs((h.y||0)-fl)<2){ h.hurt(EGG_HERO); cnt.heroHits++; }   // co-op sweep 2026-10-02: a teammate standing on the burst takes it too, as the host's hero does
   if(Math.hypot(q.x,q.z)<=4){ hurtCrystal(EGG_CRYSTAL,null,1); cnt.crystalHits++; }
   else if(typeof GOAL3!=='undefined'&&GOAL3>=0&&Math.hypot(q.x-C3X,q.z-C3Z)<=4){ hurtCrystal(EGG_CRYSTAL,null,3); cnt.crystalHits++; }
   else if(GOAL2>=0&&Math.hypot(q.x-C2X,q.z-C2Z)<=4){ hurtCrystal(EGG_CRYSTAL,null,2); cnt.crystalHits++; } }

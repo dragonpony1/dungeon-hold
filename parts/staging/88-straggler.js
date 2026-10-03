@@ -3,7 +3,8 @@
 // pillar) held the whole hall: no build phase, no raven, no portal, no horn. Now, once the queue is empty and only a few are left, a mob
 // that has neither moved nor attacked for STUCK_MARK seconds gets a tall red beacon (seen through walls) and a toast; if it's still
 // frozen STUCK_GIVEUP seconds after that it gives up and vanishes quietly -- no loot, no xp -- and the wave ends as usual. A mob that
-// is fighting (its attack timer restarts) or walking is never counted. The host decides in co-op; guests see the beacon-less result.
+// is fighting (its attack timer restarts) or walking is never counted. The host decides in co-op. Co-op sweep 2026-10-02: a guest used to see
+// nothing -- the host's mob list now names the marked mobs (99-network.js, b) and guestMarks() puts the same beacon and toast on their puppets.
 (function(){
 const STUCK_MARK=12, STUCK_GIVEUP=30, FEW=3, MOVED=.35;
 const BEACON_GEO=new THREE.CylinderGeometry(.12,.35,14,10,1,true);
@@ -17,8 +18,15 @@ const UNSTICK=1.5;
 function unstick(dt){ for(const e of enemies){ if(e.dead||e.fly) continue; if(!e.walking){ e.__wt=0; e.__wx=e.x; e.__wz=e.z; continue; }
     if(e.__wx===undefined||Math.hypot(e.x-e.__wx,e.z-e.__wz)>.08){ e.__wx=e.x; e.__wz=e.z; e.__wt=0; continue; }
     e.__wt=(e.__wt||0)+dt; if(e.__wt<UNSTICK) continue; e.__wt=0; const cx=cw(wc(e.x)), cz=cwz(wcz(e.z)); if(Math.hypot(cx-e.x,cz-e.z)<.05) continue; e.x=cx; e.z=cz; e.__wx=e.x; e.__wz=e.z; e.__unstuck=(e.__unstuck||0)+1; } }
+const GB=new Map();   // a guest's beacons: host mob id -> mesh
+function gbDrop(id){ const m=GB.get(id); if(m){ scene.remove(m); m.material.dispose(); GB.delete(id); } }
+function guestMarks(ids){ const want=new Set((ids||[]).filter(i=>typeof i==='string').slice(0,FEW+2)); for(const id of [...GB.keys()]) if(!want.has(id)) gbDrop(id);
+  const was=GB.size; want.forEach(id=>{ if(!GB.has(id)) GB.set(id,beacon()); }); if(!was&&GB.size) toast('A monster is stuck — follow the red beacon, or it gives up in '+STUCK_GIVEUP+' s'); }
+function guestTick(){ const M=window.__mobsync; if(!GB.size) return; const live=new Set(M?M.list():[]); for(const id of [...GB.keys()]) if(!live.has(id)) gbDrop(id);
+  if(M) M.each((p,id)=>{ const m=GB.get(id); if(m){ m.position.set(p.x,(p.y||0)+7,p.z); m.material.opacity=.4+.2*Math.sin(S.t*5); } }); }
 function tick(dt){ if(!(window.__net&&window.__net.role&&window.__net.role()==='guest')) unstick(dt);
   const guest=window.__net&&window.__net.role&&window.__net.role()==='guest';
+  if(guest) guestTick(); else if(GB.size) [...GB.keys()].forEach(gbDrop);
   const alive=enemies.filter(e=>!e.dead);
   for(const e of enemies) if(e.dead&&e.__beacon) clear(e);
   if(guest||S.phase!=='wave'||spawnQ.length||!alive.length||alive.length>FEW){ for(const e of alive){ e.__stuckT=0; e.__sx=e.x; e.__sz=e.z; clear(e); } told=false; return; }
@@ -29,8 +37,8 @@ function tick(dt){ if(!(window.__net&&window.__net.role&&window.__net.role()==='
     e.__stuckT=(e.__stuckT||0)+dt;
     if(e.__stuckT>=STUCK_MARK){ if(!e.__beacon){ e.__beacon=beacon(e); if(!told){ told=true; toast('A monster is stuck — follow the red beacon, or it gives up in '+STUCK_GIVEUP+' s'); } }
       const b=e.__beacon; b.position.set(e.x,(e.y||0)+7,e.z); b.material.opacity=.4+.2*Math.sin(S.t*5); }
-    if(e.__stuckT>=STUCK_MARK+STUCK_GIVEUP){ clear(e); e.through=true; e.dead=.001; floatText(e.x,(e.y||0)+2,e.z,'GAVE UP','#ff8a6a'); toast('A lost straggler gave up — the wave is yours'); }   // quietly, never kill(): no orb, loot or xp
+    if(e.__stuckT>=STUCK_MARK+STUCK_GIVEUP){ clear(e); e.through=true; e.dead=.001; floatText(e.x,(e.y||0)+2,e.z,'GAVE UP','#ff8a6a'); toast('A lost straggler gave up — the wave is yours'); const n=window.__net; if(n&&n.role&&n.role()==='host'&&n.send) n.send('toast','A lost straggler gave up — the wave is yours'); }   // quietly, never kill(): no orb, loot or xp
   } }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); tick(dt); }; }
-window.__straggler={unstuck:()=>enemies.reduce((a,e)=>a+(e.__unstuck||0),0),STUCK_MARK,STUCK_GIVEUP,FEW,marked:()=>enemies.filter(e=>!e.dead&&e.__beacon).length};
+window.__straggler={guestMarks,guestBeacons:()=>GB.size,unstuck:()=>enemies.reduce((a,e)=>a+(e.__unstuck||0),0),STUCK_MARK,STUCK_GIVEUP,FEW,marked:()=>enemies.filter(e=>!e.dead&&e.__beacon).length};
 })();

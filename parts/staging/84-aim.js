@@ -28,9 +28,10 @@ function aimDir3(){ const yaw=aimYaw(), el=aimElev(), c=Math.cos(el); return {fx
 let LOCK=null;
 function inCone(e,fx,fy,fz){ const dx=e.x-hero.x, dy=(e.y+e.h*.5)-(hero.y+1.3), dz=e.z-hero.z, d=Math.hypot(dx,dy,dz); if(d<.01) return null; const c=(dx*fx+dy*fy+dz*fz)/d; return {d,c}; }
 function pick(yaw){ const el=aimElev(), ce=Math.cos(el); const fx=Math.sin(yaw)*ce, fy=Math.sin(el), fz=Math.cos(yaw)*ce; const range=hero.reach||9;
+  const list=window.__mobsync?window.__mobsync.foes():enemies;   // co-op sweep 2026-10-02: on a guest page the host's mobs are puppets -- foes() hands their proxies (the real `enemies` on a host or in solo), so a guest's reticle locks on as single player's does
   let best=null, bs=1e9;   // always scan fresh, so a deliberate re-aim (pitching up onto a drake) can override a stale lock, not just lose it
-  for(const e of enemies){ if(e.dead) continue; const m=inCone(e,fx,fy,fz); if(!m||m.d>range+e.r) continue; if(m.c<(m.d<3?.5:.88)) continue; if(!los(hero.x,hero.z,e.x,e.z)) continue; const s=(1-m.c)*8+m.d/range; if(s<bs){ bs=s; best=e; } }
-  if(LOCK&&!LOCK.dead&&LOCK!==best){ const m=inCone(LOCK,fx,fy,fz); if(m&&m.d<=range*1.2+LOCK.r&&m.c>=(m.d<3?.35:.72)&&los(hero.x,hero.z,LOCK.x,LOCK.z)){ const ls=(1-m.c)*8+m.d/range; if(!best||ls<=bs+1.5) return LOCK; } }   // the retained lock, but only kept over a fresh pick when it's still competitive, not just barely legal
+  for(const e of list){ if(e.dead) continue; const m=inCone(e,fx,fy,fz); if(!m||m.d>range+e.r) continue; if(m.c<(m.d<3?.5:.88)) continue; if(!los(hero.x,hero.z,e.x,e.z)) continue; const s=(1-m.c)*8+m.d/range; if(s<bs){ bs=s; best=e; } }
+  if(LOCK&&!LOCK.dead&&LOCK!==best&&(list===enemies||list.includes(LOCK))){ const m=inCone(LOCK,fx,fy,fz); if(m&&m.d<=range*1.2+LOCK.r&&m.c>=(m.d<3?.35:.72)&&los(hero.x,hero.z,LOCK.x,LOCK.z)){ const ls=(1-m.c)*8+m.d/range; if(!best||ls<=bs+1.5) return LOCK; } }   // the retained lock, but only kept over a fresh pick when it's still competitive, not just barely legal
   LOCK=best; return best; }
 // what the shot being loosed carries (read by the bow and staff shots)
 function shot(){ const c=LAST_C; return {c,mul:TAP_MUL+(FULL_MUL-TAP_MUL)*c,full:c>=.999}; }

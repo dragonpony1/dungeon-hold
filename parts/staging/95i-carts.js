@@ -64,11 +64,11 @@ function jet(e,tx,tz){ const g=e.mdl&&e.mdl.g; let p=new THREE.Vector3(e.x,(e.y|
   const ty=(typeof floorH==='function'?floorH(tx,tz):0)+1.1; cnt.flames++;
   for(let i=0;i<14;i++){ const s=glow(i%3?0xb8ff5a:0x5aff7a,1.6,.001); s.userData.cartfx=1; scene.add(s); fx.push({ o:s, t:-i*.022, life:.42, x0:p.x, y0:p.y, z0:p.z, x1:tx+R(-.5,.5), y1:ty+R(-.3,.4), z1:tz+R(-.5,.5), w:R(-.4,.4) }); } }
 // build 392 (Matt: "the siege machines made it all the way up, they are a bit anemic, let's let them do 1/4 damage of whatever it hits existing health"): every blow a cart lands -- the fire cart's jet, the keg cart's lobbed keg, the keg going off on what it touches -- takes a QUARTER of
-// what its target has left: a tower (the aura rings too; never less than SIEGE_MIN, so a battered one does go down), the Heartroot, the hero (his armour still softens it). A teammate's hero takes the cart's own blow (the host does not track a guest's health here)
+// what its target has left: a tower (the aura rings too; never less than SIEGE_MIN, so a battered one does go down), the Heartroot, the hero (his armour still softens it). A teammate's hero takes a quarter of his own health too (co-op sweep 2026-10-02: the host tracks it, Meta.heroes hpNow; an older entry with no hpNow takes the cart's own blow)
 const SIEGE_K=.25, SIEGE_MIN=4; const lobs=[];
 function siegeHit(e,tg){ if(isGuest()||!tg) return; cnt.siegeHits=(cnt.siegeHits||0)+1;
   if(tg.kind==='def'){ const d=tg.obj; if(!d||!defs.includes(d)||d.kind==='perch'||d.kind==='trap') return; const dmg=Math.round(Math.max(SIEGE_MIN,d.hp*SIEGE_K)*10)/10; d.hp-=dmg; d.shake=.25; d.calm=0; floatText(d.x,(d.top||1)+.6,d.z,'-'+Math.round(dmg),'#ff6a5a'); if(d.hp<=0){ removeDef(d); try{ SFX.destroy(); }catch(er){} toast(DEFS[d.kind].name+' destroyed!'); } }
-  else if(tg.kind==='hero'){ if(tg.hero&&tg.hero.hurt===hurtHero){ if(hero.dead<=0) hurtHero(Math.max(1,hero.hp*SIEGE_K)); } else if(tg.hero&&!(tg.hero.isDead&&tg.hero.isDead())) tg.hero.hurt(e.dmg); }
+  else if(tg.kind==='hero'){ if(tg.hero&&tg.hero.hurt===hurtHero){ if(hero.dead<=0) hurtHero(Math.max(1,hero.hp*SIEGE_K)); } else if(tg.hero&&!(tg.hero.isDead&&tg.hero.isDead())) tg.hero.hurt(typeof tg.hero.hpNow==='function'?Math.max(1,tg.hero.hpNow()*SIEGE_K):e.dmg); }
   else if(tg.kind==='crystal'){ const cur=tg.which===2?(S.crystal2||0):S.crystal; hurtCrystal(Math.max(1,cur*SIEGE_K),e,tg.which); } }
 function flame(e,tg){ jet(e,tg.x||e.x,tg.z||e.z); const k=e.ramming?1.5:1; if(isGuest()) return;
   if(tg.kind==='def'||tg.kind==='crystal') siegeHit(e,tg);

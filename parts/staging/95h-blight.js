@@ -35,6 +35,7 @@ function explode(x,z,opt){ opt=opt||{}; geo(); cnt.blasts++; const y=(typeof flo
     for(const e of enemies){ if(e.dead) continue; const dx=e.x-x, dz=e.z-z, d=Math.hypot(dx,dz), reach=R_BLAST+(e.r||.5); if(d>reach) continue; const k=Math.max(.25,1-d/reach); hurt(e,Math.max(1,Math.round(DMG_MOB*k)),dx/(d||1)*1.6,dz/(d||1)*1.6); cnt.hurt++; }
     for(const d of defs.slice()){ const dd=Math.hypot(d.x-x,d.z-z); if(dd>R_BLAST) continue; hurtDef(d,Math.round(DMG_DEF*Math.max(.3,1-dd/R_BLAST))); cnt.defs++; }
     { const dh=Math.hypot(hero.x-x,hero.z-z); if(dh<R_BLAST&&hero.dead<=0){ hurtHero(Math.round(DMG_HERO*Math.max(.3,1-dh/R_BLAST))); cnt.hero++; } }
+    for(const h of (Meta.heroes&&Meta.heroes())||[]){ if(h.isDead()) continue; const dh=Math.hypot(h.x-x,h.z-z); if(dh<R_BLAST){ h.hurt(Math.round(DMG_HERO*Math.max(.3,1-dh/R_BLAST))); cnt.hero++; } }   // co-op sweep 2026-10-02: a teammate's hero in the blast too
     { const dc=Math.hypot(x,z); if(dc<R_BLAST-1){ try{ hurtCrystal(Math.round((opt.crystalDmg||DMG_CRYSTAL)*(1-dc/R_BLAST)),null); }catch(e){} } }
   }
   if(!opt.noCloud) cloud(x,z,y,opt.cloudR||R_CLOUD,opt.cloudT||CLOUD_T,!!opt.mad,opt.poison);
@@ -59,7 +60,7 @@ WORLDANIM.push(dt=>{
     c.puffs.forEach(s=>{ const u=s.userData, a=u.a+c.t*.22; s.position.set(c.x+Math.cos(a)*u.r*rad,c.y+u.h+Math.sin(c.t*.9+u.ph)*.45,c.z+Math.sin(a)*u.r*rad); s.material.opacity=u.base*env; s.scale.setScalar((6+Math.sin(c.t*.7+u.ph)*.9)*Math.max(.55,rad/R_CLOUD)); });
     if(isGuest()) continue; c.tick+=dt; if(c.tick>=TICK){ c.tick=0;
       for(const e of enemies){ if(e.dead) continue; if(Math.hypot(e.x-c.x,e.z-c.z)<c.rad+(e.r||.5)){ if(c.mad){ e.madT=Math.max(e.madT||0,1.3); } else { e.chillT=Math.max(e.chillT||0,.7); e.chillK=Math.min(e.chillK||1,.6); } if(c.poison>0){ e.poisonT=Math.max(e.poisonT||0,1.2); e.poisonDmg=Math.max(e.poisonDmg||0,c.poison); } } } }
-    c.htick+=dt; if(c.htick>=HERO_TICK){ c.htick=0; if(hero.dead<=0&&Math.hypot(hero.x-c.x,hero.z-c.z)<c.rad){ hurtHero(HERO_DMG); cnt.hero++; } } }
+    c.htick+=dt; if(c.htick>=HERO_TICK){ c.htick=0; if(hero.dead<=0&&Math.hypot(hero.x-c.x,hero.z-c.z)<c.rad){ hurtHero(HERO_DMG); cnt.hero++; } for(const h of (Meta.heroes&&Meta.heroes())||[]) if(!h.isDead()&&Math.hypot(h.x-c.x,h.z-c.z)<c.rad){ h.hurt(HERO_DMG); cnt.hero++; } } }   /* co-op sweep 2026-10-02: and a teammate's hero in the cloud (this runs on the host only) */
   for(const e2 of enemies) if(e2.madT>0) e2.madT=Math.max(0,e2.madT-dt); });
 // ---- a maddened mob picks the nearest other mob and fights it (the core calls these two: updateEnemies -> __madTarget, landHit -> __madHit)
 window.__madTarget=function(e){ let o=e.madTgt; if(!(o&&!o.dead&&o!==e&&Math.hypot(o.x-e.x,o.z-e.z)<MAD_STICK)){ o=null; let bd=MAD_SEEK; for(const q of enemies){ if(q===e||q.dead) continue; const d=Math.hypot(q.x-e.x,q.z-e.z); if(d<bd){ bd=d; o=q; } } e.madTgt=o; }
