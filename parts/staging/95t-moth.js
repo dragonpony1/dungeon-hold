@@ -33,14 +33,23 @@ function load(){ if(MOBGLB[K]) return Promise.resolve(); if(loadP) return loadP;
 // ---- the eggs
 const eggs=[];
 let EGG_GEO=null, EGG_MAT=null;
-function layEgg(e){ cnt.eggs++; if(!EGG_GEO){ EGG_GEO=new THREE.SphereGeometry(.28,10,8); EGG_MAT=new THREE.MeshBasicMaterial({ color:C(0xd8e6ff) }); }
+function eggLook(x,y,z){ if(!EGG_GEO){ EGG_GEO=new THREE.SphereGeometry(.28,10,8); EGG_MAT=new THREE.MeshBasicMaterial({ color:C(0xd8e6ff) }); }
   const g=new THREE.Group(); const shell=new THREE.Mesh(EGG_GEO,EGG_MAT); shell.scale.set(1,1.35,1); shell.userData.noOL=true; g.add(shell); const halo=glow(0x9fd0ff,1.1,.7); g.add(halo);
-  g.position.set(e.x,(e.y||0)+.6,e.z); scene.add(g); eggs.push({ g, halo, x:e.x, z:e.z, y:(e.y||0)+.6, vy:0, landed:false, t:0, dmg:Math.max(4,Math.round(e.dmg*EGG_TOWER)) }); }
+  g.position.set(x,y,z); scene.add(g); return { g, halo, x, z, y, vy:0, landed:false, t:0 }; }
+function layEgg(e){ cnt.eggs++; const q=eggLook(e.x,(e.y||0)+.6,e.z); q.dmg=Math.max(4,Math.round(e.dmg*EGG_TOWER)); eggs.push(q);
+  try{ const n=window.__net; if(n&&n.role&&n.role()==='host'&&n.peers().length) n.send('mothEgg',{ x:+e.x.toFixed(2), y:+q.y.toFixed(2), z:+e.z.toFixed(2) }); }catch(er){} }   // co-op sweep 2026-10-02: each guest drops a copy (below)
+// co-op sweep 2026-10-02: a GUEST saw moths fly over and nothing fall -- the eggs lived on the host's page only. The host says where each egg leaves its moth; the guest drops a COSMETIC copy that falls,
+// pulses and bursts with the same ring and sound but hurts nothing (the host's own egg does the damage, and a guest's hero is hit through Meta.heroes above). 99-network.js loads after this file: hooked lazily.
+let gEggs=0, eggHooked=false;
+function hookEggs(){ if(eggHooked) return; const n=window.__net; if(!(n&&n.onMessage)) return; eggHooked=true;
+  n.onMessage('mothEgg',d=>{ if(!(n.role&&n.role()==='guest')||!d) return; const x=+d.x, y=+d.y, z=+d.z; if(![x,y,z].every(Number.isFinite)||Math.abs(x)>500||Math.abs(z)>500) return; if(eggs.length>60) return;
+    const q=eggLook(x,y,z); q.cosmetic=true; q.dmg=0; eggs.push(q); gEggs++; }); }
 // build 462 (Matt: "get our moths and phase wraiths in there"): an egg lands on the Drawbridge yard's roof (56k9-moatdeck.js) rather than through it, and bursts on whichever Heartroot it falls by -- the castle's, the inn's or the keep's
 const eggFloor=(x,z)=>{ const D=window.__moatdeck; const deck=D&&D.cell&&D.cell(wc(x),wcz(z))?D.Y:-1e9; return Math.max(baseFloor(x,z),deck); };
 function burstEgg(q){ cnt.bursts++; const fl=eggFloor(q.x,q.z);
   for(let i=0;i<12;i++){ const a=i/12*TAU; const s=glow(i%2?0xc8dcff:0xffffff,.7,.85); s.position.set(q.x+Math.cos(a)*.4,fl+.4,q.z+Math.sin(a)*.4); scene.add(s); dust.push({ s, vx:Math.cos(a)*4, vz:Math.sin(a)*4, t:0 }); }
   const g=glow(0xb8d0ff,3.2,.9); g.position.set(q.x,fl+.6,q.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); try{ SFX.hit&&SFX.hit(); }catch(e){}
+  if(q.cosmetic) return;   // co-op sweep 2026-10-02: a guest's copy only shows the burst
   for(const d of defs){ if(d.dead) continue; if(Math.hypot(d.x-q.x,d.z-q.z)<=BURST_R){ hurtDef(d,q.dmg); cnt.towerHits++; } }
   if(hero.dead<=0&&Math.hypot(hero.x-q.x,hero.z-q.z)<=BURST_R&&Math.abs((hero.y||0)-fl)<2){ hurtHero(EGG_HERO); cnt.heroHits++; }
   for(const h of (Meta.heroes&&Meta.heroes())||[]) if(!h.isDead()&&Math.hypot(h.x-q.x,h.z-q.z)<=BURST_R&&Math.abs((h.y||0)-fl)<2){ h.hurt(EGG_HERO); cnt.heroHits++; }   // co-op sweep 2026-10-02: a teammate standing on the burst takes it too, as the host's hero does
@@ -49,8 +58,8 @@ function burstEgg(q){ cnt.bursts++; const fl=eggFloor(q.x,q.z);
   else if(GOAL2>=0&&Math.hypot(q.x-C2X,q.z-C2Z)<=4){ hurtCrystal(EGG_CRYSTAL,null,2); cnt.crystalHits++; } }
 const dust=[];
 // ---- every frame: each moth counts down to its next egg (sooner over a tower); eggs fall, pulse and burst
-{ const prev=updateEnemies; updateEnemies=function(dt){ prev(dt); const guest=!!(window.__net&&window.__net.role&&window.__net.role()==='guest'); if(guest) return;
-    for(const e of enemies){ if(e.dead||e.kind!==K||e.eggT===undefined) continue; e.eggT-=dt; e.sinceEgg+=dt;
+{ const prev=updateEnemies; updateEnemies=function(dt){ prev(dt); const guest=!!(window.__net&&window.__net.role&&window.__net.role()==='guest'); hookEggs();
+    if(!guest) for(const e of enemies){ if(e.dead||e.kind!==K||e.eggT===undefined) continue; e.eggT-=dt; e.sinceEgg+=dt;
       const over=e.sinceEgg>=OVER_CD&&defs.some(d=>!d.dead&&Math.hypot(d.x-e.x,d.z-e.z)<1.6);
       if(e.eggT<=0||over){ layEgg(e); e.eggT=EGG_CD; e.sinceEgg=0; } }
     for(let i=eggs.length-1;i>=0;i--){ const q=eggs[i]; const fl=eggFloor(q.x,q.z)+.3;
@@ -58,5 +67,5 @@ const dust=[];
       q.t+=dt; const k=q.t/HATCH; q.g.scale.setScalar(1+.18*Math.sin(q.t*14)*k); q.halo.material.opacity=.4+.5*k;
       if(q.t>=HATCH){ burstEgg(q); scene.remove(q.g); q.halo.material.dispose(); eggs.splice(i,1); } }
     for(let i=dust.length-1;i>=0;i--){ const p=dust[i]; p.t+=dt; p.s.position.x+=p.vx*dt; p.s.position.z+=p.vz*dt; p.s.position.y+=dt*.8; p.s.material.opacity=.85*(1-p.t/.7); if(p.t>=.7){ scene.remove(p.s); p.s.material.dispose(); dust.splice(i,1); } } }; }
-window.__moth={ kind:K, load, loaded:()=>!!MOBGLB[K], info:()=>Object.assign({ live:eggs.length },cnt), howMany, eggs:()=>eggs.map(q=>({ x:+q.x.toFixed(1), z:+q.z.toFixed(1), landed:q.landed, t:+q.t.toFixed(2) })) };
+window.__moth={ gEggs:()=>gEggs, kind:K, load, loaded:()=>!!MOBGLB[K], info:()=>Object.assign({ live:eggs.length },cnt), howMany, eggs:()=>eggs.map(q=>({ x:+q.x.toFixed(1), z:+q.z.toFixed(1), landed:q.landed, t:+q.t.toFixed(2) })) };
 })();

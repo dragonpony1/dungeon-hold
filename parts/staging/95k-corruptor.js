@@ -44,11 +44,16 @@ function snip(x,y,z){ cnt.snips++; for(const a of [.62,-.62]){ const sp=new THRE
 // a burst where it roars: a big violet flash and a ring racing out over the floor
 function burst(x,y,z){ cnt.bursts++; const gl=glow(0xc040ff,6,.001); gl.position.set(x,y+1.5,z); scene.add(gl); fx.push({ o:gl, t:0, life:.9, kind:'glow', s0:6, s1:26 });
   const rg=new THREE.Mesh(new THREE.RingGeometry(.85,1,48),new THREE.MeshBasicMaterial({ color:C(0xb050ff), transparent:true, opacity:.85, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide })); rg.rotation.x=-PI/2; rg.position.set(x,(typeof floorH==='function'?floorH(x,z):y)+.12,z); rg.userData.noOL=true; scene.add(rg); fx.push({ o:rg, t:0, life:1.0, kind:'ring' }); }
-{ const prev=landHit; landHit=function(e,tg){ if(e&&e.kind===K&&tg) snip(tg.x||e.x,(tg.kind==='hero'?(tg.hero&&tg.hero.y)||0:0)+1.8,tg.z||e.z); return prev.apply(this,arguments); }; }
+// co-op sweep 2026-10-02: on a GUEST its blows and its fall showed nothing (the Corruptor is a puppet there; landHit and kill run on the host only). The host says 'corrFx' and the guest draws the same snip / burst.
+const tell=(k,x,y,z)=>{ try{ const n=window.__net; if(n&&n.role&&n.role()==='host'&&n.peers().length) n.send('corrFx',{ k, x:+(+x||0).toFixed(2), y:+(+y||0).toFixed(2), z:+(+z||0).toFixed(2) }); }catch(er){} };
+{ const prev=landHit; landHit=function(e,tg){ if(e&&e.kind===K&&tg){ const x=tg.x||e.x, y=(tg.kind==='hero'?(tg.hero&&tg.hero.y)||0:0)+1.8, z=tg.z||e.z; snip(x,y,z); tell('snip',x,y,z); } return prev.apply(this,arguments); }; }
 // slain, it drops two good pieces
-{ const prev=kill; kill=function(e){ const was=e&&!e.dead; const r=prev.apply(this,arguments); if(was&&e.dead&&e.kind===K){ cnt.drops++; try{ for(let i=0;i<2;i++) dropLoot(rollItem(2),e.x+R(-1,1),e.z+R(-1,1)); burst(e.x,e.y||0,e.z); }catch(er){ console.warn('corruptor drop',er); } } return r; }; }
+{ const prev=kill; kill=function(e){ const was=e&&!e.dead; const r=prev.apply(this,arguments); if(was&&e.dead&&e.kind===K){ cnt.drops++; try{ for(let i=0;i<2;i++) dropLoot(rollItem(2),e.x+R(-1,1),e.z+R(-1,1)); burst(e.x,e.y||0,e.z); tell('burst',e.x,e.y||0,e.z); }catch(er){ console.warn('corruptor drop',er); } } return r; }; }
 // ---- per frame: the chest glow while casting; the snip and burst effects
-WORLDANIM.push(dt=>{
+let fxHooked=false, gFx=0;   // co-op sweep 2026-10-02: the guest's 'corrFx' listener, hooked once 99-network.js (which loads after this file) is up
+function hookFx(){ if(fxHooked) return; const n=window.__net; if(!(n&&n.onMessage)) return; fxHooked=true;
+  n.onMessage('corrFx',d=>{ if(!(n.role&&n.role()==='guest')||!d) return; const x=+d.x, y=+d.y, z=+d.z; if(![x,y,z].every(Number.isFinite)) return; gFx++; (d.k==='burst'?burst:snip)(x,y,z); }); }
+WORLDANIM.push(dt=>{ hookFx();
   for(const e of enemies){ if(e.kind!==K||!e.mdl||e.dead) continue; const g=e.mdl.g;
     e.castK=(e.castK||0)+((e.casting?1:0)-(e.castK||0))*Math.min(1,dt*4);
     if(!e.castG){ e.castG=glow(0xc040ff,6/Math.max(.01,e.sc||1),.001); e.castG.position.y=e.h*.62/Math.max(.01,e.sc||1); e.castG.visible=false; g.add(e.castG); } e.castG.visible=e.castK>.02; if(e.castG.visible) e.castG.material.opacity=.7*e.castK*(.75+.25*Math.sin(S.t*14)); }
@@ -60,5 +65,5 @@ WORLDANIM.push(dt=>{
 setInterval(()=>{ const p=document.getElementById('devpanel'); if(!p||document.getElementById('dp-corr')) return; const sec=document.createElement('div'); sec.className='sect'; sec.id='dp-corr';
   sec.innerHTML='<label>the Corruptor model (next load)</label><div class="row"><select id="dp-corr-sel"><option value="meshy">Meshy rig (2 arm pairs)</option><option value="fit">4-arm fit (Bob clips)</option></select></div>'; const note=p.querySelector('.note'); if(note) p.insertBefore(sec,note); else p.appendChild(sec);
   const sel=document.getElementById('dp-corr-sel'); sel.value=which; sel.onchange=()=>{ try{ localStorage.setItem('ddCorruptorModel',sel.value); }catch(er){} }; },800);
-window.__corruptor={ which:()=>which, load, loaded:()=>!!MOBGLB[K], snip, burst, info:()=>Object.assign({ fx:fx.length, alive:enemies.filter(e=>e.kind===K&&!e.dead).length },cnt) };
+window.__corruptor={ gFx:()=>gFx, which:()=>which, load, loaded:()=>!!MOBGLB[K], snip, burst, info:()=>Object.assign({ fx:fx.length, alive:enemies.filter(e=>e.kind===K&&!e.dead).length },cnt) };
 })();

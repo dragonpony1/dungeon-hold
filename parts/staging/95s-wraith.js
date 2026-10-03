@@ -47,7 +47,14 @@ const spotFor=e=>isLast(e)?lastStandSpot():hideSpot();
 const highFor=e=>isLast(e)?LOW+.8:HIGH;
 // ---- looks: a crimson beam to whom he mends, a sigil over them, his charging orb, the death fireworks
 function beam(a,b){ for(let i=1;i<7;i++){ const t=i/7; const g=glow(i%2?0xff3a4a:0xffb0b0,.5,.9); g.position.set(a.x+(b.x-a.x)*t,(a.y+1.4)+((b.y||0)+1-(a.y+1.4))*t,a.z+(b.z-a.z)*t); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); } }
-function mend(w,e){ e.hp=e.max; cnt.heals++; beam(w,e); const s=glow(0xff4a5a,1.4,.95); s.position.set(e.x,(e.y||0)+(e.h||1.4)+.4,e.z); scene.add(s); projs.push({kind:'splat',t:0,mesh:s}); floatText(e.x,(e.y||0)+(e.h||1.4)+.6,e.z,'✚','#ff6a7a'); }
+// co-op sweep 2026-10-02: a GUEST saw none of this -- his mobs are puppets there, so the heal beams, the orb, the dive flash and the fireworks (all drawn from the host's own loop and kill) never showed;
+// mobs' health just refilled and a tower lost 45% with no flash. The host now says 'wraithFx' on each event (a mend, the charge starting and ending, the dive, the death) and the guest draws the same looks.
+// Only looks: health and damage stay the host's. 99-network.js loads after this file, so the guest's listener is hooked on the first frame it is there.
+const NET=()=>window.__net, isHost=()=>{ const n=NET(); return !!(n&&n.role&&n.role()==='host'); }, isGuest=()=>{ const n=NET(); return !!(n&&n.role&&n.role()==='guest'); };
+const r2=v=>+(+v||0).toFixed(2), tell=(k,o)=>{ if(!isHost()) return; try{ const n=NET(); if(n.peers&&!n.peers().length) return; n.send('wraithFx',Object.assign({ k },o)); }catch(er){} };
+function mendLook(a,e){ beam(a,e); const s=glow(0xff4a5a,1.4,.95); s.position.set(e.x,(e.y||0)+(e.h||1.4)+.4,e.z); scene.add(s); projs.push({kind:'splat',t:0,mesh:s}); floatText(e.x,(e.y||0)+(e.h||1.4)+.6,e.z,'✚','#ff6a7a'); }
+function mend(w,e){ e.hp=e.max; cnt.heals++; mendLook(w,e); tell('mend',{ a:[r2(w.x),r2(w.y),r2(w.z)], b:[r2(e.x),r2(e.y),r2(e.z),r2(e.h||1.4)] }); }
+function diveLook(x,y,z){ const g=glow(0xff2a3a,4.5,.95); g.position.set(x,y,z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); camShake=Math.max(camShake,.3); try{ SFX.hit&&SFX.hit(); }catch(er){} }
 const hurtMobs=(w,n,near)=>enemies.filter(e=>!e.dead&&e!==w&&e.kind!==K&&e.hp<e.max*.9&&(!near||Math.hypot(e.x-w.x,e.z-w.z)<near)).sort((a,b)=>a.hp/a.max-b.hp/b.max).slice(0,n);
 function fireworks(x,y,z){ const C=[0xff3a4a,0xffd24a,0x6af0ff,0xc77aff,0x8ef05a,0xff8a2a]; for(let k=0;k<6;k++){ const at={ x:x+(Math.random()-.5)*3, y:y+1+Math.random()*3, z:z+(Math.random()-.5)*3 };
     for(let i=0;i<16;i++){ const a=i/16*TAU, b=(Math.random()-.5)*1.4, col=C[(k+i)%C.length]; const s=glow(col,.6,.95); s.position.set(at.x,at.y,at.z); scene.add(s); fx.push({ s, vx:Math.cos(a)*Math.cos(b)*5, vy:Math.sin(b)*5+1, vz:Math.sin(a)*Math.cos(b)*5, t:-k*.12, life:1.1 }); }
@@ -65,19 +72,33 @@ function goTo(e,x,z,spd,dt){ const dx=x-e.x, dz=z-e.z, d=Math.hypot(dx,dz); if(d
         if(tg){ if(goTo(e,tg.x,tg.z,SPD.tour,dt)<2.5){ mend(e,tg); e.wheals++; e.wtg=null; } }
         else { const c=enemies.filter(o=>!o.dead&&o.kind!==K); if(c.length){ const mx=c.reduce((a,o)=>a+o.x,0)/c.length, mz=c.reduce((a,o)=>a+o.z,0)/c.length; goTo(e,mx,mz,SPD.tour*.6,dt); } }
         if(e.wheals>=TOUR_HEALS||e.wt>=TOUR_T){ e.wst='hide'; e.wt=0; } }
-      else if(e.wst==='hide'||e.wst==='back'){ e.fly=highFor(e); const c=spotFor(e); if(goTo(e,c.x,c.z,e.wst==='hide'?SPD.hide:SPD.back,dt)<.3){ e.wst='charge'; e.wt=0; cnt.charges++; if(!e.orb){ e.orb=glow(0xff2a3a,1,.0); scene.add(e.orb); } } }
+      else if(e.wst==='hide'||e.wst==='back'){ e.fly=highFor(e); const c=spotFor(e); if(goTo(e,c.x,c.z,e.wst==='hide'?SPD.hide:SPD.back,dt)<.3){ e.wst='charge'; e.wt=0; cnt.charges++; if(!e.orb){ e.orb=glow(0xff2a3a,1,.0); scene.add(e.orb); } if(e.__coopId) tell('orb',{ id:e.__coopId, on:1 }); } }
       else if(e.wst==='charge'){ e.fly=highFor(e); { const c=spotFor(e); if(Math.hypot(c.x-e.x,c.z-e.z)>.6){ e.wst='back'; continue; } }   /* left the last alive while charging far off: he comes in */ const k=Math.min(1,e.wt/CHARGE_T); if(e.orb){ e.orb.scale.setScalar(1+k*4); e.orb.material.opacity=.25+.55*k+.1*Math.sin(S.t*12); }
         if(e.wt>=CHARGE_T){ for(const m of hurtMobs(e,VOLLEY_HEALS)) mend(e,m);   // the healing half of the volley, from his corner
           const pool=defs.filter(d=>!d.dead&&(d.kind==='harpoon'||d.kind==='ball')), any=defs.filter(d=>!d.dead&&d.kind!=='perch'&&d.kind!=='trap'&&d.kind!=='pit');
           const list=pool.length?pool:any; let tg=null, bd=1e9; for(const d of list){ const dd=Math.hypot(d.x-e.x,d.z-e.z); if(dd<bd){ bd=dd; tg=d; } }
-          if(e.orb){ e.orb.material.opacity=0; } if(tg){ e.wst='dive'; e.wdef=tg; e.wt=0; } else { e.wst='tour'; e.wt=0; e.wheals=0; } } }
+          if(e.orb){ e.orb.material.opacity=0; } if(e.__coopId) tell('orb',{ id:e.__coopId, on:0 }); if(tg){ e.wst='dive'; e.wdef=tg; e.wt=0; } else { e.wst='tour'; e.wt=0; e.wheals=0; } } }
       else if(e.wst==='dive'){ const d=e.wdef; if(!d||d.dead||!defs.includes(d)){ e.wst='back'; e.wt=0; continue; } e.fly=Math.max(1,(d.top||2)-(d.base||0)+.4);
         if(goTo(e,d.x,d.z,SPD.dive,dt)<1.2){ const dmg=Math.max(DIVE_MIN,Math.round((d.max||100)*DIVE_K)); const h0=d.hp; hurtDef(d,dmg); if(defs.includes(d)&&d.hp>0&&h0-d.hp<dmg) d.hp=Math.max(1,h0-dmg);   /* the full blow lands: a tower's own toughness does not soften his dive */ cnt.dives++; cnt.towerHits+=dmg;
-          const g=glow(0xff2a3a,4.5,.95); g.position.set(d.x,(d.top||2)+.5,d.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); camShake=Math.max(camShake,.3); try{ SFX.hit&&SFX.hit(); }catch(er){}
+          diveLook(d.x,(d.top||2)+.5,d.z); tell('dive',{ x:r2(d.x), y:r2((d.top||2)+.5), z:r2(d.z) });
           e.wst='back'; e.wt=0; } } }
     for(let i=fx.length-1;i>=0;i--){ const f=fx[i]; f.t+=dt; if(f.t<0){ f.s.visible=false; continue; } f.s.visible=true; const k=f.t/f.life; if(k>=1){ scene.remove(f.s); f.s.material.dispose(); fx.splice(i,1); continue; }
-      f.s.position.x+=f.vx*dt; f.s.position.y+=f.vy*dt-k*2*dt; f.s.position.z+=f.vz*dt; f.vx*=.96; f.vz*=.96; f.s.material.opacity=.95*(1-k); if(f.core) f.s.scale.setScalar(1+k*3); } }; }
+      f.s.position.x+=f.vx*dt; f.s.position.y+=f.vy*dt-k*2*dt; f.s.position.z+=f.vz*dt; f.vx*=.96; f.vz*=.96; f.s.material.opacity=.95*(1-k); if(f.core) f.s.scale.setScalar(1+k*3); }
+    if(gOrbs.size) guestOrbsTick(dt); }; }
 // ---- his death: the orb goes, fireworks light up the night
-{ const prev=kill; kill=function(e){ const was=e&&!e.dead&&e.kind===K; const r=prev.apply(this,arguments); if(was){ cnt.deaths++; if(e.orb){ scene.remove(e.orb); e.orb.material.dispose(); e.orb=null; } fireworks(e.x,(e.y||0)+1,e.z); } return r; }; }
-window.__wraith={ kind:K, load, loaded:()=>!!MOBGLB[K], info:()=>Object.assign({ fx:fx.length },cnt), state:()=>enemies.filter(e=>!e.dead&&e.kind===K).map(e=>({ st:e.wst, x:+e.x.toFixed(1), z:+e.z.toFixed(1), y:+(e.y||0).toFixed(1), hp:e.hp })), hideSpot, lastStandSpot, isLast, spotFor, doorDist:p=>Math.min(...spawnPts().map(q=>Math.hypot(q.x-p.x,q.z-p.z))), wantsWave };
+{ const prev=kill; kill=function(e){ const was=e&&!e.dead&&e.kind===K; const r=prev.apply(this,arguments); if(was){ cnt.deaths++; if(e.orb){ scene.remove(e.orb); e.orb.material.dispose(); e.orb=null; } fireworks(e.x,(e.y||0)+1,e.z); if(e.__coopId) tell('orb',{ id:e.__coopId, on:0 }); tell('boom',{ x:r2(e.x), y:r2((e.y||0)+1), z:r2(e.z) }); } return r; }; }
+// ---- co-op sweep 2026-10-02: the guest's side -- the same looks, on the host's word; his orb rides his puppet and swells over CHARGE_T as the host's does (and goes with the puppet, so a missed 'off' never leaves one behind)
+const gOrbs=new Map(); let gFx=0;
+function guestOrb(id,on){ const o=gOrbs.get(id); if(on){ if(o){ o.t=0; return; } const g=glow(0xff2a3a,1,0); scene.add(g); gOrbs.set(id,{ orb:g, t:0 }); } else if(o){ scene.remove(o.orb); o.orb.material.dispose(); gOrbs.delete(id); } }
+function guestOrbsTick(dt){ const M=window.__mobsync, live=new Map(); if(M&&M.each) M.each((p,id)=>live.set(String(id),p));
+  for(const [id,o] of gOrbs){ const p=live.get(id); if(!p||!isGuest()){ guestOrb(id,false); continue; } o.t+=dt; const k=Math.min(1,o.t/CHARGE_T); o.orb.position.set(p.x,(p.y||0)+1.4,p.z); o.orb.scale.setScalar(1+k*4); o.orb.material.opacity=.25+.55*k+.1*Math.sin(S.t*12); } }
+const fin=(...v)=>v.every(Number.isFinite);
+let fxHooked=false; function hookFx(){ if(fxHooked) return; const n=NET(); if(!(n&&n.onMessage)) return; fxHooked=true;
+  n.onMessage('wraithFx',d=>{ if(!isGuest()||!d) return; gFx++;
+    if(d.k==='mend'&&Array.isArray(d.a)&&Array.isArray(d.b)){ const a={ x:+d.a[0], y:+d.a[1], z:+d.a[2] }, b={ x:+d.b[0], y:+d.b[1], z:+d.b[2], h:+d.b[3]||1.4 }; if(fin(a.x,a.y,a.z,b.x,b.y,b.z)) mendLook(a,b); }
+    else if(d.k==='dive'){ if(fin(+d.x,+d.y,+d.z)) diveLook(+d.x,+d.y,+d.z); }
+    else if(d.k==='boom'){ if(fin(+d.x,+d.y,+d.z)) fireworks(+d.x,+d.y,+d.z); }
+    else if(d.k==='orb'&&d.id!=null) guestOrb(String(d.id),!!d.on); }); }
+hookFx(); { const prev=Meta.update; Meta.update=dt=>{ prev(dt); hookFx(); }; }
+window.__wraith={ gFx:()=>gFx, gOrbs:()=>gOrbs.size, guestOrb, kind:K, load, loaded:()=>!!MOBGLB[K], info:()=>Object.assign({ fx:fx.length },cnt), state:()=>enemies.filter(e=>!e.dead&&e.kind===K).map(e=>({ st:e.wst, x:+e.x.toFixed(1), z:+e.z.toFixed(1), y:+(e.y||0).toFixed(1), hp:e.hp })), hideSpot, lastStandSpot, isLast, spotFor, doorDist:p=>Math.min(...spawnPts().map(q=>Math.hypot(q.x-p.x,q.z-p.z))), wantsWave };
 })();

@@ -21,11 +21,25 @@ function attach(e){ const g=e.mdl&&e.mdl.g; if(!g) return; const t=torchGroup();
 // a torch-bearer cut down drops the torch where it stood
 { const prev=kill; kill=function(e){ const had=e&&e.torch&&!e.dead; const r=prev.apply(this,arguments);
     if(had&&e.dead){ const t=e.torch; e.torch=null; const i=bearers.indexOf(e); if(i>=0) bearers.splice(i,1); if(t.parent) t.parent.remove(t);
-      const f=torchGroup(); f.position.set(e.x,(typeof floorH==='function'?floorH(e.x,e.z):0)+.1,e.z); f.rotation.set(0,rnd()*6,PI/2-.25); scene.add(f); f.userData.parts.ph=rnd()*6; fallen.push({ g:f, t:0 }); cnt.dropped++; }
+      const f=torchGroup(); f.position.set(e.x,(typeof floorH==='function'?floorH(e.x,e.z):0)+.1,e.z); f.rotation.set(0,rnd()*6,PI/2-.25); scene.add(f); f.userData.parts.ph=rnd()*6; fallen.push({ g:f, t:0 }); cnt.dropped++;
+      try{ const n=window.__net; if(n&&n.role&&n.role()==='host'&&n.peers().length) n.send('torchDrop',{ x:+e.x.toFixed(2), z:+e.z.toFixed(2), ry:+f.rotation.y.toFixed(2) }); }catch(er){} }
     return r; }; }
+// co-op sweep 2026-10-02: on a GUEST the bearers were plain puppets -- no torch, no light, no torch dropped (attach and the drop run on the host's real mobs only). The host names its bearers once a
+// second ('torches', their co-op ids: new ones and late joiners catch up) and says where each dead one's torch fell ('torchDrop'); the guest puts the same torch in its puppet's hand and the same torch on the floor,
+// and the light pool below then works on it unchanged. 99-network.js loads after this file: the listeners are hooked on the first frame it is there.
+let TIDS=new Set(), tHooked=false, tSendT=0;
+function hookTorches(){ if(tHooked) return; const n=window.__net; if(!(n&&n.onMessage)) return; tHooked=true; const guest=()=>n.role&&n.role()==='guest';
+  n.onMessage('torches',d=>{ if(guest()) TIDS=new Set(Array.isArray(d&&d.ids)?d.ids.slice(0,200).map(String):[]); });
+  n.onMessage('torchDrop',d=>{ if(!guest()||!d) return; const x=+d.x, z=+d.z; if(!Number.isFinite(x)||!Number.isFinite(z)||fallen.length>20) return; const f=torchGroup(); f.position.set(x,(typeof floorH==='function'?floorH(x,z):0)+.1,z); f.rotation.set(0,+d.ry||0,PI/2-.25); scene.add(f); fallen.push({ g:f, t:0 }); cnt.dropped++; }); }
+function coopTorches(dt){ hookTorches(); const n=window.__net, role=n&&n.role&&n.role();
+  if(role==='host'){ tSendT-=dt; if(tSendT<=0){ tSendT=1; try{ if(n.peers().length) n.send('torches',{ ids:bearers.map(e=>e.__coopId).filter(v=>v!=null) }); }catch(er){} } return; }
+  if(role!=='guest') return; const M=window.__mobsync; if(!M||!M.each) return; const live=new Set();
+  M.each((p,id)=>{ id=String(id); live.add(id); if(!TIDS.has(id)||!p.mdl||!p.mdl.g) return; if(p.torch&&p.torch.parent===p.mdl.g) return; if(p.torch&&p.torch.parent) p.torch.parent.remove(p.torch);
+    const t=torchGroup(); t.position.set(-(p.mdl.r||.6)*.95,(p.mdl.h||1.6)*.42,.3); t.rotation.z=.12; t.scale.setScalar(1.35); p.mdl.g.add(t); p.torch=t; p.__tid=id; if(!bearers.includes(p)){ bearers.push(p); cnt.made++; } });
+  for(const p of bearers) if(p.__tid&&p.torch&&(!live.has(p.__tid)||!TIDS.has(p.__tid))){ if(p.torch.parent) p.torch.parent.remove(p.torch); p.torch=null; } }   // gone (or no longer a bearer): the drop is the host's 'torchDrop'
 const V=new THREE.Vector3();
 function flicker(t,S0){ const p=t.userData.parts, k=1+Math.sin(S.t*13+p.ph)*.18+Math.sin(S.t*7.3+p.ph*2)*.1; p.fl.scale.set(1,k,1); p.fl2.scale.set(1,1.1-(k-1),1); p.gl.material.opacity=.5+.2*(k-.9); }
-WORLDANIM.push(dt=>{
+WORLDANIM.push(dt=>{ coopTorches(dt);
   for(let i=bearers.length-1;i>=0;i--){ const e=bearers[i]; if(e.dead||!e.torch){ bearers.splice(i,1); continue; } flicker(e.torch); }
   for(let i=fallen.length-1;i>=0;i--){ const f=fallen[i]; f.t+=dt; flicker(f.g); if(f.t>DROP_T){ const k=Math.max(0,1-(f.t-DROP_T)/1.2); f.g.scale.setScalar(k||.001); if(f.t>DROP_T+1.2){ scene.remove(f.g); fallen.splice(i,1); } } }
   // the four lights go to the four torches nearest you (a torch further than the lights' reach is not lit at all)

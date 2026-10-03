@@ -120,10 +120,12 @@ const SLAM=119.97; let stampAt=0;
 // build 504 (Matt, with Jacob: "he didn't see any of Avery -- not the cinematic -- not the model, nothing"): a co-op GUEST gets all of her -- the host says when the scene starts and the guest plays its own
 // copy of it (a stand-in of her for the glide, the bust, the stamp, the music in step); her model is fetched there (99-network.js KIND_LOAD), her puppet flies in layers, her bar reads the host's health.
 const NET=()=>window.__net, isGuest=()=>{ const n=NET(); return !!(n&&n.role&&n.role()==='guest'); };
+// co-op sweep 2026-10-02: her fight's looks for a guest -- the FURIOUS banner at half health and the feather bursts of each swoop were drawn from the host's own loop only. 'averyFx' carries them (looks only).
+const r2=v=>+(+v||0).toFixed(2), tell=(k,d)=>{ try{ const n=NET(); if(n&&n.role&&n.role()==='host'&&n.peers&&n.peers().length) n.send('averyFx',Object.assign({ k },d)); }catch(er){} };
 function startCut(){ if(isGuest()) return guestCut(); done=true; cnt.intro++; avery=spawnAvery(); if(!avery) return; try{ const n=NET(); if(n&&n.role&&n.role()==='host') n.send('averyCut',{}); }catch(er){} beamsOn(); if(TRACKS&&TRACKS.avery){ window.__musStart=window.__musStart||{}; window.__musStart.avery=()=>cut?SLAM-((SHOT_A+SHOT_B)-cut.t):SLAM+(performance.now()-stampAt)/1000; setMusic('avery'); } else setMusic('none'); try{ SFX.horn&&SFX.horn(); }catch(e){}
   bust.g.position.set(0,-1.2,0); bust.g.rotation.y=0; if(!bust.g.parent) STAGE.add(bust.g); bust.mixer=new THREE.AnimationMixer(bust.g); const a=bust.mixer.clipAction(bust.clip); a.setLoop(THREE.LoopOnce,1); a.clampWhenFinished=true; a.play(); bust.act=a; a.paused=true;
   cut={ t:0, cam:camera.position.clone(), q:camera.quaternion.clone() }; cutEl.style.display='block'; cutEl.querySelector('.stamp').style.cssText=''; document.body.classList.add('avery-cut'); }
-function endCut(){ cutReal=0; if(!cut) return; camera.position.copy(cut.cam); camera.quaternion.copy(cut.q); cut=null; if(avery&&avery.guestFake){ scene.remove(avery.mdl.g); avery=null; } STAGE.visible=false; cutEl.style.display='none'; document.body.classList.remove('avery-cut');
+function endCut(){ cutReal=0; if(!cut) return; camera.position.copy(cut.cam); camera.quaternion.copy(cut.q); cut=null; try{ const n=NET(); if(n&&n.role&&n.role()==='host') n.send('averyCutEnd',{}); }catch(er){}   /* co-op sweep 2026-10-02: a guest's copy ends when the host's does (hookCut) */ if(avery&&avery.guestFake){ scene.remove(avery.mdl.g); avery=null; } STAGE.visible=false; cutEl.style.display='none'; document.body.classList.remove('avery-cut');
   if(avery&&!avery.dead){ avery.x=PERCH.x+10; avery.z=PERCH.z+6; avery.y=CRUISE; avery.fly=CRUISE-baseFloor(avery.x,avery.z); } setMusic(TRACKS&&TRACKS.avery?'avery':'wave'); banner('💋 AVERY','she puts the Drag in Dragon'); camShake=Math.max(camShake,.5); }
 // build 474 (Matt: "how can I see Avery, can I call her in from the dev hud"): the dev panel's Spawn with avery picked brings her in the way the wave does -- the whole cut scene, then the fight
 { const prev=spawnEnemy; spawnEnemy=function(kind){ if(kind!==K||inSpawn) return prev.apply(this,arguments); if(cut) return avery;
@@ -155,7 +157,7 @@ function headTo(e,x,z,spd,dt){ const dx=x-e.x, dz=z-e.z, d=Math.hypot(dx,dz); if
 function setY(e,y){ e.climb=y-(e.y||0); e.fly=Math.max(.6,y-baseFloor(e.x,e.z)); }
 { const prev=updateEnemies; updateEnemies=function(dt){ prev(dt);
     for(const e of enemies){ if(e.kind!==K||e.dead||!e.ast) continue; e.atk=1e9; e.holdT=0; e.slowT=0; e.chillT=0; e.at+=dt; e.beatT=Math.max(0,(e.beatT||0)-dt);
-      if(e.phase===1&&e.hp<=e.max*.5){ e.phase=2; banner('💅 AVERY IS FURIOUS','faster swoops, double the feathers'); camShake=Math.max(camShake,.6); burst(e.x,e.y+2,e.z,e.x,baseFloor(e.x,e.z),e.z,16); e.beatT=1.5; }
+      if(e.phase===1&&e.hp<=e.max*.5){ e.phase=2; banner('💅 AVERY IS FURIOUS','faster swoops, double the feathers'); camShake=Math.max(camShake,.6); burst(e.x,e.y+2,e.z,e.x,baseFloor(e.x,e.z),e.z,16); e.beatT=1.5; tell('furious',{ x:r2(e.x), y:r2(e.y), z:r2(e.z) }); }
       const fast=e.phase===2?1.25:1;
       if(e.ast==='cruise'){ setY(e,CRUISE+Math.sin(S.t*.7)*.8); const w=WAY[e.aw%WAY.length]; if(headTo(e,w.x,w.z,SPD.cruise*fast,dt)<2.5){ e.aw++; if(e.aw%2===0) e.beatT=Math.max(e.beatT,1.4); }   // a few strong beats every other turn of her round
         const turn=e.bank||0, climbing=e.climb>1.2||e.beatT>0; if(Math.abs(turn)>.35) e.banking=turn>0?'Bank_Left':'Bank_Right'; else if(Math.abs(turn)<.15) e.banking=null; pose(e,e.banking||(climbing?'Hover':'Glide'),climbing?'Wingbeat':'Glide');
@@ -163,8 +165,8 @@ function setY(e,y){ e.climb=y-(e.y||0); e.fly=Math.max(.6,y-baseFloor(e.x,e.z));
           else { const tg=pickTarget(e); if(tg){ e.atg=tg; e.ast='swoop'; e.at=0; e.beatT=.8; } e.acd=ATK_CD[e.phase-1]; } } }
       else if(e.ast==='swoop'){ const tg=e.atg; if(tg.def&&!defs.includes(tg.def)){ e.ast='cruise'; continue; } setY(e,tg.y+6);
         pose(e,e.beatT>0?'Hover':'Glide',e.beatT>0?'Wingbeat':'Wing_Fold',null,'Look_Around',{ fade:.25, wingsOnce:!(e.beatT>0) });   // a couple of beats, then wings tucked for the dive
-        if(headTo(e,tg.x,tg.z,SPD.swoop*fast,dt)<2||e.at>6){ e.ast='drop'; e.at=0; burst(e.x,e.y+1.5,e.z,tg.x,tg.y-1.5,tg.z,e.phase===2?16:10); e.strikeQ=(e.strikeQ||[]).concat([{ at:S.t+1.1, tg }]);
-          if(e.phase===2){ const t2=pickTarget(e,tg.def); if(t2&&(t2.def!==tg.def||t2.heart!==tg.heart)){ burst(e.x,e.y+1.5,e.z,t2.x,t2.y-1.5,t2.z,10); e.strikeQ.push({ at:S.t+1.2, tg:t2 }); } }
+        if(headTo(e,tg.x,tg.z,SPD.swoop*fast,dt)<2||e.at>6){ e.ast='drop'; e.at=0; burst(e.x,e.y+1.5,e.z,tg.x,tg.y-1.5,tg.z,e.phase===2?16:10); tell('burst',{ a:[e.x,e.y+1.5,e.z,tg.x,tg.y-1.5,tg.z].map(r2), n:e.phase===2?16:10 }); e.strikeQ=(e.strikeQ||[]).concat([{ at:S.t+1.1, tg }]);
+          if(e.phase===2){ const t2=pickTarget(e,tg.def); if(t2&&(t2.def!==tg.def||t2.heart!==tg.heart)){ burst(e.x,e.y+1.5,e.z,t2.x,t2.y-1.5,t2.z,10); tell('burst',{ a:[e.x,e.y+1.5,e.z,t2.x,t2.y-1.5,t2.z].map(r2), n:10 }); e.strikeQ.push({ at:S.t+1.2, tg:t2 }); } }
           e.aswoops++; cnt.swoops++; e.perched=false; } }
       else if(e.ast==='drop'){ const tg=e.atg; setY(e,tg.y+6); pose(e,'Hover','Hover',null,'Jaw_Open',{ fade:.2 });   // hovering over it, grinning, while the boa sheds
         if(e.at>DROP_T){ e.ast='cruise'; e.at=0; e.beatT=1.6; } }
@@ -192,11 +194,16 @@ function windSet(){ const look=(()=>{ try{ const m=window.__weapons&&window.__we
     try{ const n=NET(); if(n&&n.role&&n.role()==='host') n.send('averyFall',{ id:e.__coopId||null }); }catch(er){}   // co-op sweep 2026-10-02: each guest gets its own Wind set + banner (guestFall below)
     setTimeout(()=>{ if(!enemies.some(x=>x.kind===K&&!x.dead)) beamsOff(); },2500); } return r; }; }
 // ---- build 504: the guest's side
-function guestCut(){ if(cut) return; load().then(()=>{ if(cut||!MOBGLB[K]||!bust) return; done=true; cnt.intro++;
+// co-op sweep 2026-10-02: a guest whose models were still downloading started the whole 10 s scene late, frozen (no input sent) while the host was already fighting. Now its scene starts at the
+// point the host's has reached (the bust frame, the music and the stamp in step), and if the host's ended first ('averyCutEnd', gLate) it skips straight to what endCut leaves behind.
+let gLate=false, gLateSkips=0;
+function guestCut(){ if(cut) return; gLate=false; const at=performance.now(); load().then(()=>{ if(cut||!MOBGLB[K]||!bust) return; done=true; cnt.intro++;
+    if(gLate){ gLate=false; gLateSkips++; if(!stampAt) stampAt=performance.now(); if(TRACKS&&TRACKS.avery){ window.__musStart=window.__musStart||{}; window.__musStart.avery=()=>SLAM+(performance.now()-stampAt)/1000; } setMusic(TRACKS&&TRACKS.avery?'avery':'wave'); banner('💋 AVERY','she puts the Drag in Dragon'); camShake=Math.max(camShake,.5); return; }
     const m=makeMob(K); m.g.position.set(START.x,START.y,START.z); scene.add(m.g); avery={ mdl:m, x:START.x, z:START.z, y:START.y, guestFake:true }; beamsOn();
     if(TRACKS&&TRACKS.avery){ window.__musStart=window.__musStart||{}; window.__musStart.avery=()=>cut?SLAM-((SHOT_A+SHOT_B)-cut.t):SLAM+(performance.now()-stampAt)/1000; setMusic('avery'); } else setMusic('none');
     bust.g.position.set(0,-1.2,0); bust.g.rotation.y=0; if(!bust.g.parent) STAGE.add(bust.g); bust.mixer=new THREE.AnimationMixer(bust.g); const a=bust.mixer.clipAction(bust.clip); a.setLoop(THREE.LoopOnce,1); a.clampWhenFinished=true; a.play(); bust.act=a; a.paused=true;
-    cut={ t:0, cam:camera.position.clone(), q:camera.quaternion.clone() }; cutEl.style.display='block'; cutEl.querySelector('.stamp').style.cssText=''; document.body.classList.add('avery-cut'); }); }
+    cut={ t:0, cam:camera.position.clone(), q:camera.quaternion.clone() }; cutEl.style.display='block'; cutEl.querySelector('.stamp').style.cssText=''; document.body.classList.add('avery-cut');
+    const late=Math.min(END-.01,Math.max(0,(performance.now()-at)/1000)); if(late>.05){ cut.t=late; a.time=Math.max(0,Math.min(late-SHOT_A,SHOT_B)); if(late>SHOT_A+SHOT_B) stampAt=performance.now()-(late-SHOT_A-SHOT_B)*1000; } }); }
 // co-op sweep 2026-10-02: her fall on a GUEST -- the host's kill() above never runs there (her puppet just vanishes) and the Wind pieces are built, not rolled, so the loot relay never carried them.
 // The host says 'averyFall'; the guest shows the banner and drops ITS OWN five Wind pieces round its own hero (its own weapon look), personal like single player. Once per Avery (id). The beams and
 // music are already put back by the puppet-gone check below. Once per Avery: the same id, or anything within 20 s of the last (she is one per run).
@@ -207,7 +214,12 @@ function guestFall(d){ if(!isGuest()) return; const id=d&&d.id||null, now=perfor
 // (99-network's mobDyingTick keeps the puppet up for its fall, then calls this once). The banner, shake and loot stay guestFall's.
 let guestDies=0; function guestDie(p){ if(!isGuest()||!p) return; guestDies++; try{ if(p.mdl&&p.mdl.mixer) pose(p,'Hindleg_Tuck','Wing_Fold',null,'Jaw_Open',{ wingsOnce:true, fade:.15, force:true }); }catch(er){}
   burst(p.x,p.y+2,p.z,p.x,baseFloor(p.x,p.z),p.z,40); for(let k=0;k<5;k++){ const g=glow([0xff4fd8,0xffd27a,0xb05aff,0xffffff,0xff8ae0][k],5+k,.9); g.position.set(p.x+(Math.random()-.5)*4,p.y+1+Math.random()*3,p.z+(Math.random()-.5)*4); scene.add(g); projs.push({ kind:'splat', t:0, mesh:g }); } camShake=Math.max(camShake,.9); }
-let cutHooked=false; function hookCut(){ if(cutHooked) return; const n=NET(); if(!(n&&n.onMessage)) return; cutHooked=true; n.onMessage('averyCut',()=>{ if(isGuest()) guestCut(); }); n.onMessage('averyFall',d=>{ try{ guestFall(d); }catch(er){} }); }   // 99-network.js loads after this file: hooked on the first frame it is there
+let cutHooked=false; function hookCut(){ if(cutHooked) return; const n=NET(); if(!(n&&n.onMessage)) return; cutHooked=true; n.onMessage('averyCut',()=>{ if(isGuest()) guestCut(); }); n.onMessage('averyFall',d=>{ try{ guestFall(d); }catch(er){} });
+  n.onMessage('averyCutEnd',()=>{ if(!isGuest()) return; if(cut){ if(cut.t<END-.01) cut.t=END-.01; } else gLate=true; });   // co-op sweep 2026-10-02 (see guestCut)
+  n.onMessage('averyFx',d=>{ if(!isGuest()||!d) return; gFx++; const x=+d.x, y=+d.y, z=+d.z;
+    if(d.k==='furious'&&[x,y,z].every(Number.isFinite)){ banner('💅 AVERY IS FURIOUS','faster swoops, double the feathers'); camShake=Math.max(camShake,.6); burst(x,y+2,z,x,baseFloor(x,z),z,16); }
+    else if(d.k==='burst'&&Array.isArray(d.a)){ const a=d.a.slice(0,6).map(Number); if(a.length===6&&a.every(Number.isFinite)) burst(...a,Math.max(1,Math.min(16,d.n|0))); } }); }
+let gFx=0;   // 99-network.js loads after this file: hookCut is hooked on the first frame it is there
 hookCut(); { const prev=Meta.update; Meta.update=dt=>{ prev(dt); hookCut(); }; }
 // her puppet on a guest: the layered flight (wings beating as she climbs or turns, gliding otherwise), her bar from the host's health, the lights and music while she lives
 let gSeen=false, gGone=0;
@@ -216,7 +228,7 @@ let gSeen=false, gGone=0;
       const low=p.y<ROOF+2.2, beat=vy>.8||turn>1.2||(S.t%6)<1.6; pose(p,low?'Breathe':(beat?'Hover':'Glide'),low?'Wing_Fold':(beat?'Wingbeat':'Glide'),null,null,low?{ wingsOnce:true }:null); });
     if(live){ gSeen=true; gGone=0; bar.style.display='block'; const mx=live.max||live.maxSeen||MOBS[K].hp; bar.querySelector('.fill').style.width=Math.max(0,100*(live.hp||0)/mx)+'%'; if(!BEAMS.length) beamsOn(); for(const o of BEAMS){ o.b.rotation.z=Math.sin(S.t*.6+o.ph)*.45; o.b.rotation.x=Math.cos(S.t*.45+o.ph)*.25; } }
     else if(gSeen){ gGone+=dt; bar.style.display='none'; if(gGone>2){ gSeen=false; beamsOff(); if(musicMode==='avery') setMusic(hallPhase()==='wave'?'wave':'build'); } } }; }   /* co-op sweep 2026-10-02: the HOST's phase (58-portal hallPhase) -- a guest's own S.phase is 'build' all run, so this put the build track on mid-wave */
-window.__avery={ guestCut, guestFall, guestFalls:()=>guestFalls, guestDie, guestDies:()=>guestDies, stampAt:()=>stampAt, kind:K, load, loaded:()=>!!(MOBGLB[K]&&bust), info:()=>Object.assign({ cut:!!cut, cutT:cut?+cut.t.toFixed(2):null, beams:BEAMS.length, feathers:FALL.length },cnt),
+window.__avery={ gFx:()=>gFx, gLateSkips:()=>gLateSkips, guestCut, guestFall, guestFalls:()=>guestFalls, guestDie, guestDies:()=>guestDies, stampAt:()=>stampAt, kind:K, load, loaded:()=>!!(MOBGLB[K]&&bust), info:()=>Object.assign({ cut:!!cut, cutT:cut?+cut.t.toFixed(2):null, beams:BEAMS.length, feathers:FALL.length },cnt),
   state:()=>enemies.filter(e=>!e.dead&&e.kind===K).map(e=>({ st:e.ast, phase:e.phase, x:+e.x.toFixed(1), z:+e.z.toFixed(1), y:+(e.y||0).toFixed(1), hp:Math.round(e.hp), max:e.max, swoops:e.aswoops })),
   peek:(wclip,frac)=>{ const e=enemies.find(x=>x.kind===K&&!x.dead); if(!e) return false; e.ast='peek'; const mx=e.mdl.mixer; mx.stopAllAction(); e.lay={ cur:{}, act:{}, at:{} }; for(const [g,c] of [['body','Hover'],['wings',wclip],['tail','Tail_Swish'],['head','Look_Around']]){ const sub=SUB[g]&&SUB[g][c]; if(!sub) continue; const act=mx.clipAction(sub); act.reset(); act.play(); act.time=sub.duration*frac; act.paused=true; } mx.update(0); return true; },   /* test hook: hold her in one pose (avery-test pictures) */ startCut, endCut, skip:()=>{ if(cut) cut.t=END-.01; }, windSet, way:WAY, perch:PERCH };
 })();
