@@ -50,7 +50,7 @@ const shoot=(p,force)=>p.evaluate(async force=>{ const d=window.__dd, W=window._
   const name=W.mounted()&&W.mounted().name; W.force(null); return { name, got, lens, dmg:d.heroDmg(), reach:d.hero.reach }; },force);
 const SP=await shoot(page,null), SS=await shoot(page,'staff-void');
 const b=SP.got[0]||{}, s=SS.got[0]||{};
-check("his swing still throws a bolt from the polearm (one a swing), at the tap's damage (60% of his hero damage) and reach 18",SP.name==='polearm-void'&&SP.got.length===2&&SP.got.every(g=>g.t==='bolt')&&b.dmg===Math.round(SP.dmg*.6*10)/10&&SP.reach===18&&Math.abs(b.life*b.spd-(SP.reach+1))<.01,JSON.stringify(SP));
+check("his swing still throws a bolt from the polearm (one a swing), at the tap's damage (60% of his hero damage) and reach 18 (build 511 prep: a miss flies on to 1.5x it)",SP.name==='polearm-void'&&SP.got.length===2&&SP.got.every(g=>g.t==='bolt')&&b.dmg===Math.round(SP.dmg*.6*10)/10&&SP.reach===18&&Math.abs(b.life*b.spd-1.5*SP.reach)<.01,JSON.stringify(SP));
 check("the same damage, reach, speed and swing length as from a staff in the same hand (gameplay unchanged)",SS.name==='staff-void'&&b.dmg===s.dmg&&b.life===s.life&&b.spd===s.spd&&SP.lens.join()===SS.lens.join(),JSON.stringify({pole:{dmg:b.dmg,life:b.life,spd:b.spd,lens:SP.lens},staff:{dmg:s.dmg,life:s.life,spd:s.spd,lens:SS.lens}}));
 check("the bolt leaves from near the polearm's point (its poleTip; within 12% of the grip-to-point length of the very tip), far from the fist",b.fromHead!==null&&b.fromHead<.02&&b.toTip<b.len*.12&&b.fromGrip>b.len*.8,JSON.stringify(b));
 // a mythic dropped while playing him is a polearm by look -- and the Witch holds that same piece as her staff

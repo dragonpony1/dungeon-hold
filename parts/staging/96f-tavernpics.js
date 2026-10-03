@@ -9,7 +9,7 @@
 (function(){
 if(typeof tvCard!=='function'||typeof tvRenderSkills!=='function') return;
 const SK_IC={blade:'⚔️',vigor:'❤️',fleet:'👟',overseer:'🏹',loader:'🔁',mason:'🧱',wideshot:'💥',manawell:'🔷'};
-const ST_IC={dmg:'⚔️',spd:'⚡',hp:'❤️',def:'🛡️',regen:'💚',tow:'🏹',trate:'🔁',tarea:'🎯',mana:'🔷',move:'👟',fdmg:'🐾⚔️',frate:'🐾⚡',fproj:'🐾🔹'};
+const ST_IC={dmg:'⚔️',spd:'⚡',hp:'❤️',def:'🛡️',regen:'💚',tow:'🏹',trate:'🔁',tarea:'🎯',mana:'🔷',move:'👟',fdmg:'🐾⚔️',frate:'🐾⚡',fproj:'🐾🔹',wproj:'🏹🏹'};   // wproj (build 511 prep): a weapon's SHOTS, 90-forge.js
 const F=()=>Meta.forge;
 const ic=k=>ST_IC[k]||'✦';
 const val=(k,v)=>{ const f=F(); return f&&f.inc[k]!==undefined?f.fmt(k,Math.round(v*100)/100):(STATL[k]?STATL[k](v):String(v)); };
@@ -72,9 +72,9 @@ tvDeltas=function(it){ const eq=gear[it.slot]; const keys=Object.keys(it.stats);
 function forgeHtml(it){ const f=F(); if(!f||!it||!it.stats) return ''; const u=f.used(it), m=f.max(it), left=f.left(it), cost=f.cost(it), gold=Meta.gold();
   let h='<div class="tvf" id="tv-forge"><div class="tvf-top'+(left?'':' max')+'" title="Upgrades bought for this piece, out of what its rarity allows"><span class="ham">🔨</span><span class="bar"><i style="width:'+Math.round(100*u/Math.max(1,m))+'%"></i></span><span>'+(left?u+'/'+m:'★ MAXED')+'</span></div><div class="tvf-grid">';
   for(const k of f.keys(it)){ const c=f.can(it,k), v=it.stats[k]||0, pts=(it.ups&&it.ups[k])|0; const btn=(n,lab)=>'<button class="tv-btn'+(n===1?' hot':'')+'" data-act="tvup" data-id="'+it.id+'" data-key="'+k+'" data-n="'+n+'"'+(c.ok?'':' disabled')+' title="'+esc(c.ok?words(k)+': +'+n+' upgrade'+(n>1?'s':''):c.why)+'">'+lab+'</button>';
-    const blocked=!c.ok&&c.why!=='' && !/gold/.test(c.why);
-    h+='<div class="tvf-t'+(pts?' on':'')+'" title="'+esc(words(k))+(pts?' · '+pts+' put in':'')+'"><div class="i">'+ic(k)+'</div><div class="v'+(v?'':' z')+'">'+(v?esc(val(k,v)):'—')+'</div><div class="p">+'+f.inc[k]+' each</div>'+
-      (left&&!blocked?'<div class="b">'+btn(1,'+1 · ● '+Meta.fmtG(f.costFor?f.costFor(it,k):cost))+btn(5,'+5')+'</div>':'<div class="lk" title="'+esc(c.why)+'">'+(left?'🔒':'★')+'</div>')+'</div>'; }
+    const blocked=!c.ok&&c.why!=='' && !/gold/.test(c.why), shots=k==='wproj';   /* build 511 prep: SHOTS -- gold alone (open on a maxed piece too), one at a time (each dearer than the last), a lock at the rarity's cap */
+    h+='<div class="tvf-t'+(pts?' on':'')+'" data-k="'+k+'" title="'+esc(words(k))+(pts?' · '+pts+' put in':'')+(shots&&c.why&&blocked?' · '+esc(c.why):'')+'"><div class="i">'+ic(k)+'</div><div class="v'+(v?'':' z')+'">'+(v?esc(val(k,v)):'—')+'</div><div class="p">'+(shots?'🏹×'+(1+pts):'+'+f.inc[k]+' each')+'</div>'+
+      ((shots?!blocked:left&&!blocked)?'<div class="b">'+btn(1,'+1 · ● '+Meta.fmtG(f.costFor?f.costFor(it,k):cost))+(shots?'':btn(5,'+5'))+'</div>':'<div class="lk" title="'+esc(c.why)+'">'+(left||shots?'🔒':'★')+'</div>')+'</div>'; }
   return h+'</div>'+(left&&gold<cost?'<div class="dm" style="margin-top:6px;color:#ff9a7a">● '+Meta.fmtG(cost-gold)+' more gold for the next one</div>':'')+'</div>'; }
 { const prev=tvRenderDetail; tvRenderDetail=function(){ prev(); const s=TV.sel, el=$('tv-detail'); if(el) el.classList.remove('tvf-on'); if(!s||!el||el.classList.contains('hide')||(s.from!=='eq'&&s.from!=='bag')) return;
     const it=s.from==='eq'?gear[s.slot]:Meta.bag().find(b=>b.id===s.id); if(!it) return; el.classList.add('tvf-on'); const db=el.querySelector('.db'); if(!db) return; db.insertAdjacentHTML('beforebegin',forgeHtml(it));

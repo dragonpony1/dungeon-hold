@@ -81,7 +81,7 @@ window.__weapons.poleFor=poleFor;
 // ---- the light at the point: soft at rest, swelling and brightening as he charges a bolt (84-aim.js), in the bolt's own colour
 const LIGHTS=new WeakMap(), _s=new THREE.Vector3(); let made=0;
 function lightOf(o){ if(!o||!o.parent||!o.userData.pole||!o.userData.caster) return null; let g=LIGHTS.get(o); if(g!==undefined) return g; g=null; const tip=o.getObjectByName('poleTip');
-  if(tip){ const K=window.__staff&&window.__staff.info?window.__staff.info(o.userData.kind||'hazel'):null; g=glow(K&&K.glow!=null?K.glow:0x9ad8ff,1,.3); g.name='poleGlow'; tip.add(g); made++; } LIGHTS.set(o,g); return g; }
+  if(tip){ const K=window.__staff&&window.__staff.info?window.__staff.info(o.userData.kind||'hazel'):null, R=window.__rshots; g=glow(R?R.colour('bolt',o.userData.kind):K&&K.glow!=null?K.glow:0x9ad8ff,1,.3);   /* build 511 prep: the bolt's own colour (81-rangedshots.js) */ g.name='poleGlow'; tip.add(g); made++; } LIGHTS.set(o,g); return g; }
 function shine(o,c,hot){ const g=lightOf(o); if(!g) return; const ws=o.getWorldScale(_s).x||1, w=.38*(1+1.6*c)*(hot?1.12:1); g.scale.set(w/ws,w/ws,1); g.material.opacity=Math.min(.95,.26+.62*c+(hot?.12:0)); }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); const W=window.__weapons, main=W.mounted(), DW=window.__dualwield, off=DW&&DW.off?DW.off():null, offCasts=!!(off&&DW.offSwing&&DW.offSwing());
     const A=window.__aim, c=A&&A.holding&&A.holding()?A.charge():0, hot=hero.swingT>=0&&!(hero.dead>0);

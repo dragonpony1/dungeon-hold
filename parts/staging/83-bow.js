@@ -55,7 +55,8 @@ function animFor(root){ let a=ANIMS.get(root); if(a) return a; const by=n=>root.
 function bowFor(it){ if(!it) return 'bow-ash'; const sw=window.__weapons.setModel&&window.__weapons.setModel(it,'bow'); if(sw) return sw;   /* build 154: a gear set's own bow (86-setweapons.js) */ const pk=Meta.packs&&Meta.packs.of(it); if(pk&&pk.models&&pk.models.bow) return pk.models.bow; if(pk&&/void/i.test(pk.name||pk.id||'')) return 'bow-void'; const t=Math.max(1,Math.min(5,it.tier||tierOf(it.lvl||1))); return 'bow-'+['ash','yew','horn','storm','war'][t-1]; }
 // ---- the arrow: a shaft with a steel head and fletching in the bow's colour, flying flat ----
 const ARROWS=[];
-const ARROW_L=1.4, ARROW_V=30;
+const ARROW_L=1.4, ARROW_V=window.__rshots.ARROW_V;   // build 511 prep: 70 (was 30), 81-rangedshots.js
+const RS=()=>window.__rshots;
 function makeArrow(K,nocked){ const g=new THREE.Group(); const fl=K.glow||0xe8d8b0; const shaft=M(G.cyl(.03,.036,ARROW_L,6),mat(0x8a6a3a),0,0,0); shaft.rotation.x=PI/2; g.add(shaft); const head=M(G.cone(.075,.24,6),mat(0xb0b8c8),0,0,ARROW_L/2+.1); head.rotation.x=PI/2; g.add(head);
   for(const sx of [-1,1]){ g.add(M(G.box(.025,.13,.24),mat(fl),sx*.045,0,-ARROW_L/2+.16)); } g.add(M(G.box(.13,.025,.24),mat(fl),0,.045,-ARROW_L/2+.16));
   if(!nocked){ const gl=glow(K.glow||0xffe0a0,1.1,.7); gl.position.z=ARROW_L/2; g.add(gl); const tr=M(G.box(.06,.06,1.6),basic(fl,{transparent:true,opacity:.45}),0,0,-ARROW_L/2-.7); g.add(tr); }   // a flying arrow carries a glow at the head and a streak behind
@@ -65,18 +66,43 @@ function makeArrow(K,nocked){ const g=new THREE.Group(); const fl=K.glow||0xe8d8
 // wooden arrow (K.arrowTick(g,dt) moves it each frame); K.onHit(arrow,mob) -- after an arrow's hurt lands. The wedge lives HERE,
 // in the one fireArrow every loose goes through -- ours, fire()/fireFromHand(), and a co-op guest's on the host (99-network.js
 // hostGuestShot calls window.__bow.fireArrow with the guest's own bow kind) -- so a guest's shot fans out on the host as ours does
+// Build 511 prep (Matt: "some of the projectiles are anemic", "They should travel long and fast not a slow lob"): a plain or set arrow is 81-rangedshots.js's pooled glowing arrow -- a bright shaft and
+// fletching in the bow's set colour (86w's held glow) or its own, a white-hot head, a glow, a streak behind -- not a new wooden one each loose; a kind with its own projectile (K.arrow: Subterfuge's lightning)
+// keeps it and gets the streak. It flies at ARROW_V (70; was 30), walked in steps of at most SUB so it never skips a mob or a wall; a miss carries on to 1.5x the hero's reach (the caller's life) and fades.
+// Every hit flashes and throws sparks. opts.wedgeN (build 511 prep): a wedge bow's arrows for this loose -- its shot points add to its wedge (81-rangedshots.js wedgeN), 10 degrees apart as ever.
 function fireArrow(kind,from,dir,speed,opts){ opts=opts||{}; const K=BOW_KINDS[kind]||BOW_KINDS.ash;
-  if(K.wedge&&!opts.one){ const W=K.wedge; let mid=null; for(let i=0;i<W.n;i++){ const a=(W.n>1?i/(W.n-1)-.5:0)*W.spread; const g=fireArrow(kind,from,dir.clone().applyAxisAngle(_Y,a),speed,Object.assign({},opts,{one:true,dmg:opts.dmg?Math.round(opts.dmg*W.mul*10)/10:0})); if(i===(W.n>>1)) mid=g; } return mid; }   // turned about the world's up: a shot aimed up at a drake fans out level with its aim
-  const g=K.arrow?K.arrow(K,false):makeArrow(K); g.position.copy(from); const d=dir.clone().normalize(); g.lookAt(from.clone().add(d)); if(opts.size) g.scale.setScalar(opts.size); scene.add(g); ARROWS.push({g,d,v:speed||ARROW_V,t:0,life:opts.life||1.2,x:from.x,y:from.y,z:from.z,dmg:opts.dmg||0,pierce:opts.pierce||0,crit:!!opts.crit,hit:new Set(),kind,K,owner:opts.owner||null}); if(window.__shotEvent) window.__shotEvent('arrow',kind,from,d,speed||ARROW_V,opts); /* build 376: the co-op host tells the guests of every hero's arrow (99-network.js) */ return g; }   // owner: the co-op guest whose shot this is, on the host (86i-subterfuge.js shows that guest its chains)
-function arrowsUpdate(dt){ for(let i=ARROWS.length-1;i>=0;i--){ const a=ARROWS[i]; a.t+=dt; const step=a.v*dt; const nx=a.x+a.d.x*step, ny=a.y+a.d.y*step, nz=a.z+a.d.z*step;
-    if(wallAt(nx,nz)||ny<=baseFloor(nx,nz)+.05||ny>WALLH||a.t>=a.life){ scene.remove(a.g); ARROWS.splice(i,1); continue; } a.x=nx; a.y=ny; a.z=nz; a.g.position.set(nx,ny,nz); if(a.K&&a.K.arrowTick) a.K.arrowTick(a.g,dt);
-    if(a.dmg){ for(const e of enemies){ if(e.dead||a.hit.has(e)) continue; if(Math.hypot(e.x-nx,e.z-nz)<e.r+.45&&ny>e.y-.4&&ny<e.y+e.h+.6){ a.hit.add(e); hurt(e,a.dmg,a.d.x*1.2,a.d.z*1.2); SFX.hit(); if(a.crit&&!a.critShown){ a.critShown=true; floatText(e.x,e.y+e.h+.5,e.z,'💥 CRIT','#ffd24a'); } if(a.K&&a.K.onHit) a.K.onHit(a,e); if(a.pierce>0){ a.pierce--; if(a.d.y<0){ a.d.y=0; a.d.normalize(); a.g.lookAt(a.g.position.clone().add(a.d)); } continue; }   /* through it, and level again so it carries to the next */ scene.remove(a.g); ARROWS.splice(i,1); break; } } } } }   // an arrow stops in the first mob it meets (a full-draw one goes through two)
+  if(K.wedge&&!opts.one){ const W=K.wedge, N=Math.max(1,(opts.wedgeN|0)||W.n), spread=W.n>1?W.spread*(N-1)/(W.n-1):W.spread; let mid=null; for(let i=0;i<N;i++){ const a=(N>1?i/(N-1)-.5:0)*spread; const g=fireArrow(kind,from,dir.clone().applyAxisAngle(_Y,a),speed,Object.assign({},opts,{one:true,dmg:opts.dmg?Math.round(opts.dmg*W.mul*10)/10:0})); if(i===(N>>1)) mid=g; } return mid; }   // turned about the world's up: a shot aimed up at a drake fans out level with its aim
+  const R=RS(), size=opts.size||1, col=R.colour('arrow',kind), own=!!K.arrow, fx=R.take('arrow',col,size,own); let g=fx.g;
+  if(own){ g=K.arrow(K,false); g.position.copy(from); if(opts.size) g.scale.setScalar(opts.size); scene.add(g); }
+  const d=dir.clone().normalize(); if(own) g.lookAt(from.clone().add(d));
+  const a={g,fx,own,d,v:speed||ARROW_V,t:0,life:opts.life||1.2,x:from.x,y:from.y,z:from.z,go:0,size,col,dmg:opts.dmg||0,pierce:opts.pierce||0,crit:!!opts.crit,hit:new Set(),kind,K,owner:opts.owner||null};
+  R.place(fx,a.x,a.y,a.z,d,0,1); ARROWS.push(a); if(window.__shotEvent) window.__shotEvent('arrow',kind,from,d,a.v,opts); /* build 376: the co-op host tells the guests of every hero's arrow (99-network.js) */ return g; }   // owner: the co-op guest whose shot this is, on the host (86i-subterfuge.js shows that guest its chains)
+function dropArrow(i){ const a=ARROWS[i]; RS().give(a.fx); if(a.own) scene.remove(a.g); ARROWS.splice(i,1); }
+// a mob in the arrow's way at (nx,ny,nz): hurt it; true when the arrow is spent (it stops in the first mob it meets; a full-draw one goes through two)
+function arrowHits(a,nx,ny,nz){ for(const e of enemies){ if(e.dead||a.hit.has(e)) continue; if(Math.hypot(e.x-nx,e.z-nz)<e.r+.45&&ny>e.y-.4&&ny<e.y+e.h+.6){ a.hit.add(e); hurt(e,a.dmg,a.d.x*1.2,a.d.z*1.2); SFX.hit(); RS().impact(nx,ny,nz,a.col,a.size*.85);
+      if(a.crit&&!a.critShown){ a.critShown=true; floatText(e.x,e.y+e.h+.5,e.z,'💥 CRIT','#ffd24a'); } if(a.K&&a.K.onHit) a.K.onHit(a,e);
+      if(a.pierce>0){ a.pierce--; if(a.d.y<0){ a.d.y=0; a.d.normalize(); if(a.own) a.g.lookAt(a.g.position.clone().add(a.d)); } continue; }   /* through it, and level again so it carries to the next */
+      return true; } } return false; }
+function arrowsUpdate(dt){ const R=RS(), SUB=R.SUB; for(let i=ARROWS.length-1;i>=0;i--){ const a=ARROWS[i];
+    if(a.dying){ if(a.dying==='wall') R.impact(a.x,a.y,a.z,a.col,a.size*.7,true); dropArrow(i); continue; }   // it met a wall last frame: a small spark where it struck
+    a.t+=dt; if(a.t>=a.life){ dropArrow(i); continue; }   // flown its full length (1.5x reach): gone, faded out
+    const step=a.v*dt, n=Math.max(1,Math.ceil(step/SUB)), st=step/n; let spent=false;
+    for(let k=0;k<n;k++){ const nx=a.x+a.d.x*st, ny=a.y+a.d.y*st, nz=a.z+a.d.z*st;
+      if(wallAt(nx,nz)||ny<=baseFloor(nx,nz)+.05){ a.dying='wall'; break; } if(ny>WALLH){ a.dying='sky'; break; }   // stops short of it this frame (the prison's breakable walls look for it there, 56g), gone the next
+      a.x=nx; a.y=ny; a.z=nz; a.go+=st; if(a.dmg&&arrowHits(a,nx,ny,nz)){ spent=true; break; } }
+    if(spent){ dropArrow(i); continue; }
+    const fade=Math.min(1,(a.life-a.t)/(a.life*.18)); R.place(a.fx,a.x,a.y,a.z,a.d,a.go,fade);
+    if(a.own){ a.g.position.set(a.x,a.y,a.z); a.g.scale.setScalar(a.size*Math.max(.001,fade)); if(a.K.arrowTick) a.K.arrowTick(a.g,dt); } } }
 function gripWorld(g){ return (g.getObjectByName('bowGrip')||g).getWorldPosition(new THREE.Vector3()); }
 // the archer's attack: with a bow in hand a swing looses an arrow instead of sweeping the sword's cone (the staff's wrapper sits under this one)
 { const prevHit=hitCone; hitCone=function(){ const wo=window.__weapons.mounted(); if(!(wo&&/^bow-/.test(wo.name))) return prevHit(); const from=gripWorld(wo); const A=window.__aim, yaw=A?A.yaw():hero.yaw; const fx=Math.sin(yaw), fz=Math.cos(yaw); const range=hero.reach||12; let best=A?A.pick(yaw):null, bd=1e9;   // the aim module picks the target the reticle shows
     if(!A) for(const e of enemies){ if(e.dead) continue; const dx=e.x-hero.x, dz=e.z-hero.z, d=Math.hypot(dx,dz); if(d>range+e.r||d<.01||(dx*fx+dz*fz)/d<.75) continue; if(d<bd){ bd=d; best=e; } }
     const d3=A&&A.dir3(); const dir=best?new THREE.Vector3(best.x-from.x,(best.y+best.h*.5)-from.y,best.z-from.z):(d3?new THREE.Vector3(d3.fx,d3.fy,d3.fz):new THREE.Vector3(fx,-.01,fz));   // nothing locked: fly the real 3D aim ray, not flat
-    const sh=A?A.shot():{c:1,mul:1,full:false}, spd=ARROW_V*(1+.45*sh.c); const TL=window.__talents, crit=!!(TL&&TL.rCrit&&TL.rCrit());   /* build 448: the Ranger's Headhunter (x2, a bigger gold-flashing arrow) and Piercing Arrows (one more mob) */ fireArrow(wo.userData.kind,from,dir,spd,{dmg:Math.round(heroDmg()*sh.mul*(crit?2:1)*10)/10,life:(range+1)/spd,pierce:(sh.full?2:0)+(TL&&TL.rPierce?TL.rPierce():0),size:(1+.4*sh.c)*(crit?1.4:1),crit}); SFX.harpoon(); }; }
+    const sh=A?A.shot():{c:1,mul:1,full:false}, spd=ARROW_V*(1+.45*sh.c), R=RS(); const TL=window.__talents, rc=()=>!!(TL&&TL.rCrit&&TL.rCrit());   /* build 448: the Ranger's Headhunter (x2, a bigger gold-flashing arrow) and Piercing Arrows (one more mob) */
+    const kind=wo.userData.kind, K=BOW_KINDS[kind], n=R.shots(), pierce=(sh.full?2:0)+(TL&&TL.rPierce?TL.rPierce():0), life=R.FLY*range/spd;   /* build 511 prep: a miss flies on to 1.5x his reach */
+    const loose=(dv,crit,extra)=>fireArrow(kind,from,dv,spd,Object.assign({dmg:Math.round(heroDmg()*sh.mul*(crit?2:1)*10)/10,life,pierce,size:(1+.4*sh.c)*(crit?1.4:1),crit},extra||{}));
+    if(K&&K.wedge) loose(dir,rc(),{wedgeN:R.wedgeN(kind,n)});   /* build 511 prep: Subterfuge -- its wedge IS its volley; shot points add arrows to it */
+    else for(const dv of R.fan(dir,n)) loose(dv,rc());   /* build 511 prep: the weapon's SHOT points -- a volley fanned 7 degrees apart, the first on the aim (the locked mob), each a whole arrow with its own Headhunter roll */ SFX.harpoon(); }; }
 // a bow is always held upright and facing the way the archer faces, wherever the hand is: the mount's own turn (measured for a
 // staff hanging at the hip) would lay it flat when the arm comes up to aim. Each frame the mounted bow is re-aimed in world space
 // and slid so its grip (the stave's belly, ahead of the string) stays in the fist.
@@ -113,5 +139,5 @@ window.__bow={kinds:()=>Object.keys(BOW_KINDS),info:k=>Object.assign({kind:k},BO
   fire:(g,dx,dy,dz)=>fireArrow(g.userData.kind,gripWorld(g),new THREE.Vector3(dx,dy||0,dz),ARROW_V),
   fireFromHand:(dx,dy,dz)=>{ const wo=window.__weapons.mounted(); if(!(wo&&/^bow-/.test(wo.name))) return null; return fireArrow(wo.userData.kind,gripWorld(wo),new THREE.Vector3(dx,dy||0,dz),ARROW_V); },draw:()=>+DRAW.toFixed(2),turn:()=>+heroYawOff.toFixed(2),
   holdFor:(wo,yaw,aim)=>holdBowFor(wo,yaw,aim||0), animate:(wo,dt)=>animFor(wo)(dt),   // build 159 (4/7): a puppet's bow (98-party.js) -- held the way ours is, its motes and shards moving
-  fireArrow,ARROW_V,flying:()=>ARROWS.map(a=>({kind:a.kind,dmg:a.dmg,pierce:a.pierce,x:+a.x.toFixed(2),y:+a.y.toFixed(2),z:+a.z.toFixed(2),dx:+a.d.x.toFixed(3),dy:+a.d.y.toFixed(3),dz:+a.d.z.toFixed(3),hits:a.hit.size,owner:a.owner,part:(a.g.children[0]&&a.g.children[0].name)||''}))};   // build 170: what's in the air, for the suites   // raw (kind,fromVec3,dirVec3,speed,opts) and the base speed constant -- no live bow model needed, unlike fire()/fireFromHand() above; 99-network.js spawns a guest's shot straight from their host-tracked position this way
+  fireArrow,ARROW_V,flying:()=>ARROWS.map(a=>({kind:a.kind,dmg:a.dmg,pierce:a.pierce,x:+a.x.toFixed(2),y:+a.y.toFixed(2),z:+a.z.toFixed(2),dx:+a.d.x.toFixed(3),dy:+a.d.y.toFixed(3),dz:+a.d.z.toFixed(3),hits:a.hit.size,owner:a.owner,part:a.own?((a.g.children[0]&&a.g.children[0].name)||''):'arrowBody',spd:+a.v.toFixed(2),life:+a.life.toFixed(3),t:+a.t.toFixed(3),go:+a.go.toFixed(2),crit:a.crit,col:a.col,size:+a.size.toFixed(2)}))};   // build 170: what's in the air, for the suites   // raw (kind,fromVec3,dirVec3,speed,opts) and the base speed constant -- no live bow model needed, unlike fire()/fireFromHand() above; 99-network.js spawns a guest's shot straight from their host-tracked position this way
 })();

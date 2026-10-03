@@ -40,7 +40,7 @@ function heldFor(it,hm){ if(hm===undefined) hm=heroMount(); if(hm&&hm.pole&&wind
 // a CASTER's weapon: a staff, or a polearm held on a staff mount (attachWeapon marks it). It throws bolts (82-staff.js), charges and levels (84-aim.js)
 const POLE_RX=/^(polearm-|named-last_lantern$|named-sixseven$)/, TIP_F=.94;
 const isCaster=o=>!!(o&&(/^staff-/.test(o.name||'')||o.userData.caster));
-function poleKind(name){ const m=/^polearm-([a-z]+)$/.exec(name), ks=window.__staff&&window.__staff.kinds?window.__staff.kinds():[]; if(m&&ks.includes(m[1])) return m[1]; return /^named-/.test(name)?'battle':null; }   // the bolt's colours: the set's own (or the plain polearm's tier); a named polearm the battle staff's gold, as the Fighter's top staff had
+function poleKind(name){ const m=/^polearm-([a-z]+)$/.exec(name), ks=window.__staff&&window.__staff.kinds?window.__staff.kinds():[]; if(m&&(ks.includes(m[1])||(window.__heldglow&&window.__heldglow.col&&window.__heldglow.col(m[1])!=null))) return m[1]; return /^named-/.test(name)?'battle':null; }   // build 511 prep: or a set with a held-glow colour (the Forest's: no code-built staff of its own)   // the bolt's colours: the set's own (or the plain polearm's tier); a named polearm the battle staff's gold, as the Fighter's top staff had
 function unmount(){ if(W.obj&&W.obj.parent) W.obj.parent.remove(W.obj); W.obj=null; W.hand=null; }
 // mount a weapon on ANY rig's mount node (build 150: the party puppets wear what their player wears): the template by
 // name, sized to the node's length suffix and the tier, outlined/toonified for the node's world scale, tinted for a set
@@ -64,7 +64,17 @@ function attachWeapon(node,name,tier,setName,cb){ loadSword(name,root=>{ const l
     const pk=setName&&Meta.packs&&Meta.packs.get(setName); if(pk){ if(root.userData.proc||REAL_OVERRIDE[name]){ obj.userData.void=true; obj.userData.set=pk.name; } else setTint(obj,pk); }   // a set's own staff already wears its colours; a stand-in sword is tinted. Build 211: so does Matt's own real art (registerReal) -- tinting it darkened a real Fire bow to a flat orange cutout in the hand
     obj.userData.sword={name,tier,scale:s,gripY,tipY,len:L};
     if(mountKind==='staff'&&POLE_RX.test(name)){ obj.userData.caster=true; obj.userData.pole=true; const k=poleKind(name); if(k) obj.userData.kind=k; const tip=new THREE.Object3D(); tip.name='poleTip'; tip.position.set((box.min.x+box.max.x)/2,gripY+(tipY-gripY)*TIP_F,(box.min.z+box.max.z)/2); obj.add(tip); }   // build 510 prep: a polearm on a staff mount (the Fighter's, or a partner's Fighter puppet) is a caster's: its bolt leaves from poleTip, near the point (82-staff.js headOf)
+    // build 511 prep: Matt's REAL set staffs and bows (registerReal GLBs: 86j, 86l-86u) carried no kind, so their bolts and arrows came out the plain hazel blue / wooden ash -- the set's name says its kind,
+    // as a code-built one's own userData does. And a real staff had no 'staffHead', so the bolt left from the model's origin partway up the shaft: it now gets one at its head (the middle of the top fifth
+    // of the model, headPoint), with a soft glow there in the bolt's colour that 84-aim swells as she charges, the way the code-built crystal and the Fighter's point light do
+    if(!obj.userData.kind){ const m=/^(staff|bow)-([a-z_]+)$/.exec(name); if(m) obj.userData.kind=m[2]; }
+    if(mountKind==='staff'&&/^staff-/.test(name)&&!obj.getObjectByName('staffHead')){ const hd=new THREE.Object3D(); hd.name='staffHead'; hd.position.copy(headPoint(root)); obj.add(hd);
+      const R=window.__rshots, gl=glow(R?R.colour('bolt',obj.userData.kind):0x9ad8ff,.5/Math.max(1e-4,worldPerUnit),.38); gl.name='glow'; hd.add(gl); }
     node.add(obj); if(cb) cb(obj); }); }
+// build 511 prep: where a real staff's head is, in its own frame -- the middle of its top fifth (the crystal, orb or skull every one of Matt's staffs carries up there), worked out once per model
+function headPoint(root){ const ud=root.userData; if(ud.headPt) return new THREE.Vector3(ud.headPt.x,ud.headPt.y,ud.headPt.z); const box=ud.box, L=box.max.y-box.min.y, y0=box.max.y-.2*L, v=new THREE.Vector3(), sum=new THREE.Vector3(); let n=0;
+  root.updateMatrixWorld(true); root.traverse(m=>{ if(!m.isMesh||m.userData.isOL||!m.geometry||!m.geometry.attributes||!m.geometry.attributes.position) return; const p=m.geometry.attributes.position, step=Math.max(1,Math.floor(p.count/6000)); for(let i=0;i<p.count;i+=step){ v.fromBufferAttribute(p,i).applyMatrix4(m.matrixWorld); if(v.y>=y0){ sum.add(v); n++; } } });
+  const c=n?sum.multiplyScalar(1/n):new THREE.Vector3((box.min.x+box.max.x)/2,box.max.y-.1*L,(box.min.z+box.max.z)/2); ud.headPt={x:c.x,y:c.y,z:c.z}; return c; }
 function mountSword(name,tier,key){ const hm=heroMount(); if(!hm) return; const m=/\|set:(.+)$/.exec(key); attachWeapon(hm.node,name,tier,m?m[1]:null,obj=>{ if(W.key!==key){ if(obj.parent) obj.parent.remove(obj); return; }   // a newer request won
     unmount(); W.obj=obj; W.hand=hm.node.parent; W.tier=tier; }); }
 function weaponsUpdate(dt){ const hm=heroMount(); if(!hm){ if(W.obj) unmount(); W.key=''; return; } if(W.obj&&W.obj.parent&&W.obj.parent!==hm.node) unmount();   // the hero model changed: drop the old weapon at once, the new one follows when its model is ready

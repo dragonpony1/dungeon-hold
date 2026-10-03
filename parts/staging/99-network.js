@@ -799,22 +799,25 @@ function guestHitCone(id,yaw,dmg,reach,at){
           // co-op sweep 2026-10-02: the reticle locks for a guest now (84-aim.js pick() scans the mob proxies) -- the shot heads for the locked mob's middle, as
           // single player's does, from the height the host fires it (hostGuestShot: 1.3 a bolt, 1.1 an arrow); the bare aim ray only when nothing is locked
           let dx=d3.fx, dy=d3.fy, dz=d3.fz; const tg=A.pick(A.yaw()); if(tg){ dx=tg.x-hero.x; dy=(tg.y+tg.h*.5)-(hero.y+(isStaff?1.3:1.1)); dz=tg.z-hero.z; const L=Math.hypot(dx,dy,dz)||1; dx/=L; dy/=L; dz/=L; }
-          const spd=isStaff?26*(1+.35*sh.c):window.__bow.ARROW_V*(1+.45*sh.c);   // same speed formulas 82-staff.js/83-bow.js's own hitCone() overrides use
+          const RS=window.__rshots, spd=isStaff?RS.BOLT_V*(1+.35*sh.c):window.__bow.ARROW_V*(1+.45*sh.c);   // same speed formulas 82-staff.js/83-bow.js's own hitCone() overrides use (build 511 prep: 81-rangedshots.js's speeds)
           // co-op sweep 2026-10-02: the talents single player puts on the shot -- the Witch's boltMods (bigger, piercing, blasting bolts, the twin pair every 5th cast) and the
           // Ranger's Headhunter crit and Piercing Arrows -- with the same numbers 82-staff.js/83-bow.js use; tal = the bolt's on-hit ranks (Withering, Hex Mark, Rootgrasp, Fork,
           // Rot, Doom, Overgrowth, Solar Flare), run on the host by 96l-talents.js onBolt for this guest
-          const TL=window.__talents, TM=isStaff&&TL&&TL.boltMods?TL.boltMods():null, crit=!isStaff&&!!(TL&&TL.rCrit&&TL.rCrit()), tr=TL&&TL.tree?TL.tree():null;
+          // build 511 prep: the VOLLEY -- n = this hand's weapon's shots (81-rangedshots.js shots(): the 2nd weapon's own while its hand swings, 99k), fanned on the host as here; an arrow volley rolls
+          // Headhunter for each arrow (cr, one per arrow -- or one for a wedge bow's whole wedge, as 83-bow.js does), bd/bs = an arrow's damage and size before its crit
+          const n=RS.shots(), wedge=!isStaff&&!!RS.wedgeN(wo.userData.kind,n);
+          const TL=window.__talents, TM=isStaff&&TL&&TL.boltMods?TL.boltMods():null, crits=[]; if(!isStaff) for(let i=0;i<(wedge?1:n);i++) crits.push(!!(TL&&TL.rCrit&&TL.rCrit())); const crit=!!crits[0], tr=TL&&TL.tree?TL.tree():null;
           const tal=isStaff&&TL&&TL.rank&&(tr==='witch'||tr==='fighter')?{wither:TL.rank('wither'),mark:TL.rank('mark'),grasp:TL.rank('grasp'),fork:TL.rank('fork'),rot:TL.rank('rot'),doom:TL.rank('doom'),overgrow:TL.rank('overgrow'),fflare:TL.rank('fflare'),hd:Math.round(heroDmg()*10)/10}:undefined;
           const msg={wtype:isStaff?'bolt':'arrow',kind:wo.userData.kind,
             dmg:Math.round(heroDmg()*sh.mul*(crit?2:1)*10)/10,
             dir:{x:+dx.toFixed(3),y:+dy.toFixed(3),z:+dz.toFixed(3)},
-            spd:+spd.toFixed(2), life:+((range+1)/spd).toFixed(3),
+            spd:+spd.toFixed(2), life:+(RS.FLY*range/spd).toFixed(3), n, cr:isStaff?undefined:crits.map(c=>c?1:0), bd:Math.round(heroDmg()*sh.mul*10)/10, bs:+(isStaff?(1+.7*sh.c)*(TM?TM.size:1):1+.4*sh.c).toFixed(2),
             size:+(isStaff?(1+.7*sh.c)*(TM?TM.size:1):(1+.4*sh.c)*(crit?1.4:1)).toFixed(2),
             splash:isStaff?Math.max(sh.full?1.9:0,TM?TM.splash:0):0, pierce:isStaff?(TM?TM.pierce:0):(sh.full?2:0)+(TL&&TL.rPierce?TL.rPierce():0), crit:crit?1:undefined, tal,
             x:+hero.x.toFixed(2), y:+hero.y.toFixed(2), z:+hero.z.toFixed(2)};   // build 159 (4/7): where the shooter really stands, as a swing says (hostGuestShot)
           send('shot',msg);
-          if(TM&&TM.twin) for(const a of [.14,-.14]){ const v=new THREE.Vector3(dx,dy,dz).applyAxisAngle(new THREE.Vector3(0,1,0),a); send('shot',Object.assign({},msg,{dir:{x:+v.x.toFixed(3),y:+v.y.toFixed(3),z:+v.z.toFixed(3)}})); }
-          if(TL){ const bm=TL.boltMods, rc=TL.rCrit; TL.boltMods=()=>TM; TL.rCrit=()=>crit; try{ return prevHitCone(); }finally{ TL.boltMods=bm; TL.rCrit=rc; } }
+          if(TM&&TM.twin){ const hw=RS.halfWidth(n)+.14; for(const a of [hw,-hw]){ const v=new THREE.Vector3(dx,dy,dz).applyAxisAngle(new THREE.Vector3(0,1,0),a); send('shot',Object.assign({},msg,{n:1,dir:{x:+v.x.toFixed(3),y:+v.y.toFixed(3),z:+v.z.toFixed(3)}})); } }   // the twin pair flanks the volley (build 511 prep), one bolt each
+          if(TL){ const bm=TL.boltMods, rc=TL.rCrit; let ci=0; TL.boltMods=()=>TM; TL.rCrit=()=>!!crits[ci++]; try{ return prevHitCone(); }finally{ TL.boltMods=bm; TL.rCrit=rc; } }   // the local copy rolls the same crits, arrow by arrow
         }
       }
     }
@@ -832,10 +835,15 @@ function hostGuestShot(data,fromId){
   const from=new THREE.Vector3(g.x,y0+(data.wtype==='bolt'?1.3:1.1),g.z);   // an approximate hand/head height -- the host has no bone-accurate rig for a guest's puppet to read the real one from, same "good enough to read as real" tradeoff the mob/def puppets already make
   const dir=new THREE.Vector3(data.dir.x,data.dir.y,data.dir.z);
   const tal=data.wtype==='bolt'?guestBoltTal(data.tal):null;   // co-op sweep 2026-10-02: crit, and the guest's bolt talents with its own counters (96l-talents.js onBolt)
-  const opts={dmg:data.dmg,life:data.life,size:data.size,splash:data.splash,pierce:data.pierce,owner:fromId,crit:!!data.crit,tal,ctr:tal?(g.talCtr||(g.talCtr={bolt:0,flare:0,kill:0})):null};   // owner (build 170): whose arrow -- Subterfuge sends that guest the chain lightning it throws (86i-subterfuge.js)
-  if(data.wtype==='bolt') window.__staff.fireBolt(data.kind,from,dir,data.spd,opts);
-  else window.__bow.fireArrow(data.kind,from,dir,data.spd,opts);
+  const opts={dmg:data.dmg,life:clamp(+data.life||1.2,.05,5),size:data.size,splash:data.splash,pierce:data.pierce,owner:fromId,crit:!!data.crit,tal,ctr:tal?(g.talCtr||(g.talCtr={bolt:0,flare:0,kill:0})):null};   // owner (build 170): whose arrow -- Subterfuge sends that guest the chain lightning it throws (86i-subterfuge.js)
+  // build 511 prep: the guest's VOLLEY (its weapon's shot points, 81-rangedshots.js) -- n shots, never more than a weapon can buy (SHOTS_MAX), fanned about its aim exactly as its own page fans them, each a
+  // whole shot; an arrow volley's crits come one per arrow (cr) on the arrow's own damage and size before the crit (bd/bs). A wedge bow (Subterfuge) fans its wedge itself, its shot points adding arrows
+  const RS=window.__rshots, n=clamp((+data.n|0)||1,1,SHOTS_MAX), spd=clamp(+data.spd||(data.wtype==='bolt'?RS.BOLT_V:RS.ARROW_V),1,200), per=Array.isArray(data.cr)&&Number.isFinite(+data.bd);
+  const one=i=>{ if(!per) return Object.assign({},opts); const c=!!data.cr[i]; return Object.assign({},opts,{crit:c,dmg:Math.round(+data.bd*(c?2:1)*10)/10,size:(+data.bs||1)*(c?1.4:1)}); };
+  if(data.wtype==='bolt'){ for(const dv of RS.fan(dir,n)) window.__staff.fireBolt(data.kind,from,dv,spd,Object.assign({},opts)); }
+  else { const wn=RS.wedgeN(data.kind,n); if(wn) window.__bow.fireArrow(data.kind,from,dir,spd,Object.assign(one(0),{wedgeN:wn})); else RS.fan(dir,n).forEach((dv,i)=>window.__bow.fireArrow(data.kind,from,dv,spd,one(i))); }
 }
+const SHOTS_MAX=5;   // build 511 prep: one shot and the most a weapon's SHOTS points can add (90-forge.js UPCAP.wproj, Legendary/Mythic 4)
 onMessage('shot',(data,fromId)=>hostGuestShot(data,fromId));
 onMessage('swing',(data,fromId)=>{ guestHitCone(fromId,data.yaw,data.dmg,data.reach,data); });
 // co-op sweep 2026-10-02 (towers): the height a guest reports for its own hero (its 'input' y) -- the host's copy's g.y can lag a level behind after a snap, so the level a guest builds and picks
@@ -1381,7 +1389,7 @@ onMessage('tshot',data=>{ if(role!=='guest'||!data||!SHOT_KINDS[data.k]) return;
 // the heroes' own shots: the host's, and every guest's (which the host flies for real, hostGuestShot). The host says each one the moment it leaves (82-staff.js / 83-bow.js call __shotEvent), to every guest but the one who fired it (that page already flew its own); a guest flies a copy that hurts nothing
 window.__shotEvent=(w,kind,from,d,spd,opts)=>{ if(role!=='host'||!conns.size) return; const f=v=>+(+v||0).toFixed(3), msg=JSON.stringify({type:'hshot',data:{ w, kind, x:f(from.x), y:f(from.y), z:f(from.z), dx:f(d.x), dy:f(d.y), dz:f(d.z), spd:f(spd), life:f(opts&&opts.life), size:f(opts&&opts.size) }}); const own=opts&&opts.owner; conns.forEach((c,id)=>{ if(id===own||!c.open) return; c.send(msg); }); shotsSent++; };
 onMessage('hshot',data=>{ if(role!=='guest'||!data||!window.__staff||!window.__bow) return; shotsSeen++; const from=new THREE.Vector3(+data.x||0,+data.y||0,+data.z||0), dir=new THREE.Vector3(+data.dx||0,+data.dy||0,+data.dz||1); if(!(dir.lengthSq()>1e-6)) return; const o={ dmg:0, one:true, life:Math.max(.1,Math.min(5,+data.life||1.2)), size:+data.size||0 };   /* one (co-op sweep 2026-10-02): the host already fanned a Subterfuge wedge and sent each arrow -- fanning each again showed 25 */
-  if(data.w==='bolt'){ window.__staff.fireBolt(String(data.kind||'hazel'),from,dir,Math.max(1,Math.min(80,+data.spd||22)),o); if(SFX.harpoon) SFX.harpoon(); } else window.__bow.fireArrow(String(data.kind||'ash'),from,dir,Math.max(1,Math.min(80,+data.spd||22)),o); });
+  if(data.w==='bolt'){ window.__staff.fireBolt(String(data.kind||'hazel'),from,dir,Math.max(1,Math.min(200,+data.spd||22)),o); if(SFX.harpoon) SFX.harpoon(); } else window.__bow.fireArrow(String(data.kind||'ash'),from,dir,Math.max(1,Math.min(200,+data.spd||22)),o); });   // build 511 prep: the cap was 80 -- a full-draw arrow flies 101 now
 // co-op sweep 2026-10-02: the Frost tower's bite (game.js updateDefs: frostBite's ice glint on each mob it bites, then SFX.frost) -- host-only; the host now lists the bitten mobs each frame as 'frost'
 const FROSTQ=[]; { const prev=frostBite; frostBite=function(e){ const r=prev.apply(this,arguments); if(role==='host'&&conns.size&&e&&e.__coopId&&FROSTQ.length<40) FROSTQ.push(e.__coopId); return r; }; }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(FROSTQ.length){ if(role==='host'&&conns.size) send('frost',{t:FROSTQ.slice(0,40)}); FROSTQ.length=0; } }; }

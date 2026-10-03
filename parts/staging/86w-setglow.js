@@ -17,5 +17,5 @@ function tick(o,dt){ const obj=o&&o.obj; if(!o||!o.mats.length||!obj||!obj.paren
     const g=glow(o.col,.22+Math.random()*.12,.9); g.position.copy(v); scene.add(g); motes.push({ g, o, t:0, life:.9+Math.random()*.5, vx:(Math.random()-.5)*.3, vz:(Math.random()-.5)*.3 }); o.live++; cnt.motes++; } }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); const W=window.__weapons, obj=W&&W.mounted&&W.mounted(); if(obj!==cur){ cur=obj; st=light(obj); } t+=dt; tick(st,dt);
     for(let i=motes.length-1;i>=0;i--){ const m=motes[i]; m.t+=dt; const f=m.t/m.life; if(f>=1){ scene.remove(m.g); m.g.material.dispose(); m.o.live--; motes.splice(i,1); continue; } m.g.position.x+=m.vx*dt; m.g.position.y+=.55*dt; m.g.position.z+=m.vz*dt; m.g.material.opacity=.9*Math.sin(Math.PI*f); } }; }
-window.__heldglow={ dress:obj=>light(obj), tick:(o,dt)=>tick(o,dt), info:()=>Object.assign({ held:cur&&cur.userData.sword&&cur.userData.sword.name, glowing:st?st.mats.length:0, live:st?st.live:0 },cnt) };
+window.__heldglow={ dress:obj=>light(obj), tick:(o,dt)=>tick(o,dt), col:k=>COL[k]!==undefined?COL[k]:null,   /* build 511 prep: a set's glow colour by its key -- the colour of that set's bolts and arrows (81-rangedshots.js) */ info:()=>Object.assign({ held:cur&&cur.userData.sword&&cur.userData.sword.name, glowing:st?st.mats.length:0, live:st?st.live:0 },cnt) };
 })();
