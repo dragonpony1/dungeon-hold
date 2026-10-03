@@ -88,16 +88,18 @@ WORLDANIM.push(dt=>{ for(const m of MIX) m.update(dt); });
 // ---------------------------------------------------------------- the round
 const GF={ on:false, h:null, st:0, ball:null, b:null, charging:false, ct:0, power:0, aim:{ x:0, z:-1 }, putter:null, swing:0, done:{}, result:{}, total:0, wait:0 };
 const done=n=>GF.done[n]!==undefined;
-const nearTee=()=>{ if(S.phase!=='build') return null; let best=null, bd=2.4; for(const h of HOLES){ if(done(h.n)) continue; const d=Math.hypot(hero.x-h.T.x,hero.z-h.T.z); if(d<bd&&Math.abs((hero.y||0))<1){ bd=d; best=h; } } return best; };
+const nearTee=()=>{ if(hallPhase()!=='build') return null; let best=null, bd=2.4; for(const h of HOLES){ if(done(h.n)) continue; const d=Math.hypot(hero.x-h.T.x,hero.z-h.T.z); if(d<bd&&Math.abs((hero.y||0))<1){ bd=d; best=h; } } return best; };
 function ballMesh(){ const g=ballProto?ballProto.clone():M(G.sph(BR,12,10),mat(0xffffff)); scene.add(g); return g; }
-function start(h){ if(!h||GF.on||done(h.n)) return false; GF.on=true; GF.h=h; GF.st=0; const d=h.segs[0]; GF.aim={ x:d.dx, z:d.dz }; GF.b={ x:h.T.x, z:h.T.z, vx:0, vz:0, moving:false, region:'fw', flight:null, crossed:{} };
-  cam.yaw=Math.atan2(d.dx,d.dz); if(cam.pitch!==undefined) cam.pitch=Math.max(cam.pitch,.32);   /* the camera turns to look down the fairway (game.js updateCamera: it looks along sin/cos of its yaw) */ GF.ball=ballMesh(); if(!GF.putter){ GF.putter=new THREE.Group(); if(putterProto){ const p=putterProto.clone(); p.position.y=-1.5; GF.putter.add(p); } else GF.putter.add(M(G.cyl(.04,.04,1.5,6),goldM,0,-.75,0)); scene.add(GF.putter); }
+function putterMesh(){ const g=new THREE.Group(); if(putterProto){ const p=putterProto.clone(); p.position.y=-1.5; g.add(p); } else g.add(M(G.cyl(.04,.04,1.5,6),goldM,0,-.75,0)); scene.add(g); return g; }
+function start(h){ if(!h||GF.on||done(h.n)||hallPhase()!=='build') return false; GF.on=true; GF.h=h; GF.st=0; const d=h.segs[0]; GF.aim={ x:d.dx, z:d.dz }; GF.b={ x:h.T.x, z:h.T.z, vx:0, vz:0, moving:false, region:'fw', flight:null, crossed:{} };
+  cam.yaw=Math.atan2(d.dx,d.dz); if(cam.pitch!==undefined) cam.pitch=Math.max(cam.pitch,.32);   /* the camera turns to look down the fairway (game.js updateCamera: it looks along sin/cos of its yaw) */ GF.ball=ballMesh(); if(!GF.putter) GF.putter=putterMesh();
   GF.putter.visible=true; hud(true); return true; }
 function stop(){ if(!GF.on) return; if(GF.st>0&&GF.result[GF.h.n]===undefined){ GF.done[GF.h.n]='left'; } GF.on=false; if(GF.ball){ scene.remove(GF.ball); GF.ball=null; } if(GF.putter) GF.putter.visible=false; GF.charging=false; hud(false); }
 function toTee(why){ const h=GF.h; GF.b.x=h.T.x; GF.b.z=h.T.z; GF.b.vx=GF.b.vz=0; GF.b.moving=false; GF.b.region='fw'; GF.b.flight=null; GF.b.crossed={}; GF.st++; cnt.splashes++;
   floatText(h.T.x,1.4,h.T.z,why==='moat'?'💦 +1':'⛔ +1','#8ad8ff'); if(GF.st>=MAXST) finish(false); }
+const pipOf=(s,par)=>s===1?'⛳ ACE!':s<par?'★ '+s:s===par?'✓ '+s:'● '+s;
 function finish(holed){ const h=GF.h, s=GF.st; if(holed){ const n=PAY(s,h.par); GF.done[h.n]=s; GF.result[h.n]=s; cnt.holed++;
-    const pip=s===1?'⛳ ACE!':s<h.par?'★ '+s:s===h.par?'✓ '+s:'● '+s; floatText(h.C.x,2.2,h.C.z,pip,'#ffd27a');
+    const pip=pipOf(s,h.par); floatText(h.C.x,2.2,h.C.z,pip,'#ffd27a');
     if(s===1){ banner('⛳ HOLE IN ONE!',h.name); camShake=Math.max(camShake,.3); }
     for(let i=0;i<n;i++) setTimeout(()=>{ if(window.__jars&&window.__jars.spawn){ window.__jars.spawn(3,h.C.x,h.C.z); cnt.jars++; } },180*i);
     if(HOLES.every(x=>GF.result[x.n]!==undefined)){ const tot=HOLES.reduce((a,x)=>a+GF.result[x.n],0); GF.total=tot; if(tot<HOLES.reduce((a,x)=>a+x.par,0)){ banner('🏆 UNDER PAR','the White Tree Links'); for(let i=0;i<BONUS;i++) setTimeout(()=>{ window.__jars&&window.__jars.spawn(3,h.C.x,h.C.z); cnt.jars++; },900+180*i); } } }
@@ -136,8 +138,12 @@ function fling(sp){ const b=GF.b, h=GF.h; b.moving=false; b.vx=b.vz=0; cnt.fling
 // ---------------------------------------------------------------- every frame: the hero at the ball, the aim, the swing, the ball
 const aimBar=new THREE.Mesh(new THREE.PlaneGeometry(1,.14),new THREE.MeshBasicMaterial({ color:C(0xffe08a), transparent:true, opacity:.85, depthWrite:false })); aimBar.rotation.order='YXZ'; aimBar.visible=false; aimBar.userData.noOL=true; scene.add(aimBar);
 const v3=new THREE.Vector3(), RAX=new THREE.Vector3();
+// co-op sweep 2026-10-02: a guest's own S.phase stays 'build' the whole run (only the host's startWave moves it), so the horn never ended a guest's hole and the
+// tee prompt and E worked mid-wave -- hallPhase() (58-portal.js) is the host's phase on a guest, S.phase everywhere else. And with the host's hall now running
+// under his cinematic (the update wrap below), the tee prompt stays hidden while it plays
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt);
-    if(GF.on&&S.phase!=='build'){ stop(); }
+    if(CUT){ prompt(null); return; }
+    if(GF.on&&hallPhase()!=='build'){ stop(); }
     if(!GF.on){ prompt(nearTee()); return; } prompt(null);
     const b=GF.b; for(let k=0;k<4;k++) step(dt/4); if(!GF.on) return;
     if(b.sink){ b.sink=Math.max(0,b.sink-dt*3); }
@@ -191,7 +197,7 @@ function playCine(after){ if(CUT) return; try{ localStorage.setItem(CINE_KEY,'1'
   cutEl.style.display='block'; cutEl.querySelector('.title').style.opacity='0'; cutEl.querySelector('.stamp').style.cssText=''; document.body.classList.add('avery-cut'); pEl.style.display='none'; cEl.style.display='none'; lastP=''; }
 function endCine(){ if(!CUT) return; const after=CUT.after; CUT=null; for(const b of cineBalls) scene.remove(b); cineBalls=[]; for(const f of cineFx) scene.remove(f.s); cineFx=[]; cutEl.style.display='none'; document.body.classList.remove('avery-cut'); cutEl.querySelector('.card').classList.remove('on'); if(after) after(); }
 function card(n,name,sub){ const c=cutEl.querySelector('.card'); c.querySelector('.n').textContent=n; c.querySelector('.t').textContent=name; c.querySelector('.p').textContent=sub; c.classList.add('on'); }
-function stepCine(dt){ const c=CUT; c.t+=dt; const t=c.t; updateFx(dt);
+function stepCine(dt,noFx){ const c=CUT; c.t+=dt; const t=c.t; if(!noFx) updateFx(dt);   /* noFx: the hall ran this frame (co-op host, below) and its update already stepped the fx */
   for(let i=cineFx.length-1;i>=0;i--){ const f=cineFx[i]; f.t+=dt; f.vy-=9*dt; f.s.position.x+=f.vx*dt; f.s.position.y+=f.vy*dt; f.s.position.z+=f.vz*dt; f.s.material.opacity=Math.max(0,.95-f.t*.7); if(f.t>1.4){ scene.remove(f.s); cineFx.splice(i,1); } }
   const ttl=cutEl.querySelector('.title'), cd=cutEl.querySelector('.card'), stp=cutEl.querySelector('.stamp');
   let pos, look;
@@ -219,7 +225,14 @@ function stepCine(dt){ const c=CUT; c.t+=dt; const t=c.t; updateFx(dt);
     const s=Math.min(1,u/.18); stp.style.opacity='1'; stp.style.transform='translate(-50%,-50%) rotate(-6deg) scale('+(3-2*s).toFixed(3)+')'; }
   camera.position.copy(pos); camera.lookAt(look);
   if(t>=CINE_T) endCine(); }
-{ const prev=update; update=function(dt){ if(CUT){ stepCine(dt); updateHUD(); return; } return prev(dt); }; }
+// co-op sweep 2026-10-02: (1) a co-op host's hall never stops for his guests (build 159, Meta.sharedHall) -- the cinematic froze it for 25 s: his hero, the
+// heroes/world/defs broadcasts, a guest's placed tower and mana, the tower cards. With guests in, the hall runs under it as under his menus (keys cleared, the
+// gnome stands) and the cinematic's camera is laid over it. Solo and on a guest the cinematic still holds the page still, as before.
+// (2) the hall leaving the build phase ends the cinematic at once, with no hole after it: on a guest the host's horn (or the run's end) can sound mid-cinematic,
+// which used to keep the guest letterboxed and not sending his position while the mobs came, then drop him into a hole mid-wave. Solo it never fires.
+{ const prev=update; update=function(dt){ if(CUT){ if(hallPhase()!=='build'){ CUT.after=null; endCine(); return prev.apply(this,arguments); }
+    if(Meta.sharedHall&&Meta.sharedHall()){ for(const k in K) K[k]=0; if(TOUCH){ joy.x=0; joy.y=0; } prev.apply(this,arguments); if(CUT) stepCine(dt,true); return; }
+    stepCine(dt); updateHUD(); return; } return prev.apply(this,arguments); }; }
 addEventListener('keydown',ev=>{ if(!CUT) return; ev.stopImmediatePropagation(); if((ev.code==='Space'||ev.code==='Enter'||ev.code==='NumpadEnter')&&!ev.repeat&&CUT.t>1) CUT.t=CINE_T-.01; },true);
 addEventListener('mousedown',ev=>{ if(CUT){ ev.stopImmediatePropagation(); ev.preventDefault(); } },true);
 const seenCine=()=>{ try{ return !!localStorage.getItem(CINE_KEY); }catch(e){ return true; } };
@@ -242,7 +255,29 @@ let lastP='';
 function prompt(h){ const s=h?'⛳ '+h.n+' · '+h.name+' · par '+h.par+'  <kbd>E</kbd>':''; if(s!==lastP){ lastP=s; pEl.innerHTML=s; pEl.style.display=s?'block':'none'; } }
 function hud(on){ if(!on){ cEl.style.display='none'; return; } const h=GF.h; const pips='●'.repeat(Math.min(GF.st,MAXST))+'○'.repeat(Math.max(0,h.par-GF.st));
   cEl.innerHTML='⛳ '+h.n+' · '+h.name+' · par '+h.par+'<div class="pips">'+pips+'</div><div class="pw"><i style="width:'+Math.round(GF.power*100)+'%"></i></div><div style="font-size:12px;margin-top:3px">🖱 hold · release &nbsp; <kbd>E</kbd> ✖</div>'; cEl.style.display='block'; }
-window.__golf={ info:()=>Object.assign({ on:GF.on, hole:GF.h&&GF.h.n, strokes:GF.st, done:Object.assign({},GF.done), result:Object.assign({},GF.result), total:GF.total, millOpen:millOpen(), bridgeDown:bridgeDown() },cnt),
+// ---------------------------------------------------------------- co-op sweep 2026-10-02: partners see each other putt. A golfer's ball, aim, power and swing ride the
+// look every hero already sends 15 times a second (99-network.js lookOf: a guest's input, the host's heroes broadcast), so each other page draws that player's ball,
+// putter and aim line, and hears and sees the cup (the pip, the cup sound). The jars, the banners and the shake stay the golfer's own.
+const r2=v=>Math.round(v*100)/100;
+function mine(){ if(!GF.on||!GF.b||!GF.h) return null; const b=GF.b, y=b.y!=null?b.y:TURF+BR-(b.sink!==undefined?(1-b.sink)*.4:0);
+  return { n:GF.h.n, x:r2(b.x), y:r2(y), z:r2(b.z), ax:r2(GF.aim.x), az:r2(GF.aim.z), p:r2(GF.power), r:(!b.moving&&!b.flight&&b.sink===undefined)?1:0, c:GF.charging?1:0, sw:r2(GF.swing), st:GF.st|0, ho:cnt.holed|0 }; }
+const PEERS=new Map(), fin=v=>typeof v==='number'&&isFinite(v);
+function peerDrop(id){ const p=PEERS.get(id); if(!p) return; scene.remove(p.ball); scene.remove(p.putter); scene.remove(p.bar); PEERS.delete(id); }
+function peer(id,g){ const h=g&&typeof g==='object'&&HOLES[(g.n|0)-1];
+  if(!h||g.n!==(g.n|0)||![g.x,g.y,g.z,g.ax,g.az,g.p,g.sw,g.st,g.ho].every(fin)||Math.abs(g.x)>500||Math.abs(g.z)>500||Math.abs(g.y)>100){ peerDrop(id); return; }
+  let p=PEERS.get(id); if(!p){ const bar=aimBar.clone(); bar.material=aimBar.material.clone(); scene.add(bar); p={ ball:ballMesh(), putter:putterMesh(), bar, x:g.x, y:g.y, z:g.z, ho:g.ho, g }; PEERS.set(id,p); }
+  if(g.ho>p.ho&&h.C){ floatText(h.C.x,2.2,h.C.z,pipOf(g.st,h.par),'#ffd27a'); try{ SFX.crystal&&SFX.crystal(); }catch(e){} }
+  p.ho=g.ho; p.g=g; }
+let partyHooked=false;
+WORLDANIM.push(dt=>{ const P=window.__party;
+  if(!partyHooked&&P&&P.setLook){ partyHooked=true; const sl=P.setLook; P.setLook=function(id,look){ try{ peer(id,look&&look.gf||null); }catch(e){} return sl.apply(this,arguments); }; }   // every look a page gets for a partner's puppet (99-network.js)
+  if(!PEERS.size) return; const live=P&&P.list?P.list():[];
+  for(const [id,p] of PEERS){ if(!live.includes(id)){ peerDrop(id); continue; } const g=p.g, dx=g.x-p.x, dz=g.z-p.z, d=Math.hypot(dx,dz), k=d>2.5?1:1-Math.exp(-18*dt);
+    const px=p.x, pz=p.z; p.x+=dx*k; p.y+=(g.y-p.y)*k; p.z+=dz*k; p.ball.position.set(p.x,p.y,p.z); const mx=p.x-px, mz=p.z-pz, dd=Math.hypot(mx,mz); if(dd>1e-5&&dd<3){ RAX.set(mz/dd,0,-mx/dd); p.ball.rotateOnWorldAxis(RAX,dd/BR); }
+    const al=Math.hypot(g.ax,g.az)||1, ax=g.ax/al, az=g.az/al, ready=!!g.r, back=g.c?-.15-g.p*.85:g.sw>0?.55*g.sw:0;
+    p.putter.position.set(p.x-ax*.12+az*.05,1.5+TURF,p.z-az*.12-ax*.05); p.putter.rotation.set(0,Math.atan2(ax,az),0); p.putter.rotateX(back); p.putter.visible=ready||g.sw>0;
+    p.bar.visible=ready; if(ready){ const L=1.2+g.p*5; p.bar.scale.set(L,1,1); p.bar.position.set(p.x+ax*(L/2+.25),TURF+.03,p.z+az*(L/2+.25)); p.bar.rotation.set(-PI/2,yawX(ax,az),0); p.bar.material.color.setHex(g.p>.8?0xff7a5a:0xffe08a); } } });
+window.__golf={ mine, peer, peers:()=>[...PEERS].map(([id,p])=>({ id, n:p.g.n, x:+p.x.toFixed(2), z:+p.z.toFixed(2), ho:p.ho, putter:p.putter.visible, bar:p.bar.visible })), info:()=>Object.assign({ on:GF.on, hole:GF.h&&GF.h.n, strokes:GF.st, done:Object.assign({},GF.done), result:Object.assign({},GF.result), total:GF.total, millOpen:millOpen(), bridgeDown:bridgeDown() },cnt),
   holes:HOLES.map(h=>({ n:h.n, par:h.par, tee:h.T, cup:h.C })), start:n=>start(HOLES.find(h=>h.n===n)), stop, ball:()=>GF.b&&{ x:+GF.b.x.toFixed(2), z:+GF.b.z.toFixed(2), moving:GF.b.moving, flight:!!GF.b.flight, region:GF.b.region },
   putt:(ax,az,power)=>{ if(!GF.on) return false; const l=Math.hypot(ax,az)||1; GF.aim={ x:ax/l, z:az/l }; GF.power=power; const keep=GF.aim; const v=1.2+power*12.5; GF.b.vx=keep.x*v; GF.b.vz=keep.z*v; GF.b.moving=true; GF.st++; cnt.putts++; return true; },
   cine:after=>playCine(after), cineT:()=>CUT?+CUT.t.toFixed(2):null, skipCine:()=>{ if(CUT) CUT.t=CINE_T-.01; }, set:o=>{ if(o.mill!==undefined&&MILL.act) MILL.act.time=o.mill; if(o.bridge!==undefined&&BRIDGE.act) BRIDGE.act.time=o.bridge; }, ready:()=>cnt.models>=9,
