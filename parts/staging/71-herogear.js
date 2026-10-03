@@ -41,6 +41,9 @@ function persist(){ HG[heroPick.id]=snap(); on=heroPick.id; try{ localStorage.se
   for(const s of SLOTS) see(HG[cur][s]); Meta.bag().forEach(see); { const a=parse(read('ddArmory')); if(Array.isArray(a)) a.forEach(see); }
   for(const h of HEROES){ if(h.id===cur) continue; for(const s of SLOTS){ const it=HG[h.id][s]; if(!it) continue; if(seen.has(it.id)) HG[h.id][s]=null; else seen.add(it.id); } }
   for(const s of SLOTS){ const it=HG[cur][s]; gear[s]=it&&gear[s]&&gear[s].id===it.id?gear[s]:it; }   // the same object where it is the same piece (modules before this one already looked at it)
+  // build 509 prep: the 2nd familiar (97h-tworings.js) rides ddGear outside the five slots, and the saveGear just below rewrote ddGear from `gear` before 97h (a later file) had read it back -- a worn 2nd pet
+  // vanished on every reload. It is carried across this rewrite now (97h still checks it before wearing it); the 2nd weapon keeps its own per-hero store (99k-dualwield.js)
+  { const r=parse(raw); if(r&&r.familiar2&&typeof r.familiar2==='object'&&!gear.familiar2&&!(saved&&saved.on&&saved.on!==cur)&&!(r.familiar2.id&&(seen.has(r.familiar2.id)||Meta.bag().some(b=>b&&b.id===r.familiar2.id)))) gear.familiar2=r.familiar2; }
   saveGear(); applyGear(); hero.hp=hero.max;
   // the loadout cards: the old four (one shared list) become the current hero's four (68-paperdoll.js reads dd_heroLoadouts)
   if(read(LDH_KEY)==null){ const a=parse(read(LD_OLD)); if(Array.isArray(a)) try{ localStorage.setItem(LDH_KEY,JSON.stringify({[cur]:a})); }catch(e){} } }

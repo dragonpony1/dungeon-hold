@@ -203,5 +203,5 @@ function clearBench(){ BENCH.forEach(o=>scene.remove(o)); BENCH.length=0; }
 // the kit the other sets' files build with (the same helpers and frames as the three above)
 const kit={V,lit,shapeOf,slab,tube,helix,spike,toward,noOL,pulseGlow,faceCracks,crescent,OUTER,INNER,EDGE_IN,finish,SWORD_BOX,POLE_BOX,DIAG,
   g:{mat,basic,glow,M,G,PI,TAU,outline}};   // g: the game's own helpers, for tools/weapon-shot.mjs to hand a set file tried from outside the build
-window.__setweapons={sets:()=>Object.keys(SETS),setOf,setModel,bench,clear:clearBench,benched:()=>BENCH.length,addSet,kit};
+window.__setweapons={sets:()=>Object.keys(SETS),setOf,setModel,bench,clear:clearBench,benched:()=>BENCH.length,addSet,kit,pulse};   // pulse (build 509 prep): a 2nd weapon in the free hand breathes too (99k-dualwield.js)
 })();

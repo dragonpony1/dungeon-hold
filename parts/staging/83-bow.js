@@ -103,8 +103,10 @@ function plantBow(kind,x,z,yaw,scale){ const g=makeBow(kind); const s=scale||1.5
 // the string is drawn back with an arrow on it until the release, when the real arrow flies
 const ATTACK_TURN=-PI/2; let DRAW=0;
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); arrowsUpdate(dt); const wo=window.__weapons.mounted(); const bow=!!(wo&&/^bow-/.test(wo.name)); const swinging=bow&&hero.swingT>=0&&!(hero.dead>0);
-    if(bow||heroYawOff!==0) heroYawOff=angLerp(heroYawOff,swinging?ATTACK_TURN:0,1-Math.exp(-14*dt));
-    if(bow){ holdBow(wo); animFor(wo)(dt); const A=window.__aim, held=!!(A&&A.holding()); const drawing=swinging&&(held||hero.swingT<swingDur()*hitFrac()); DRAW=lerp(DRAW,drawing?(held?.35+.65*A.charge():1):0,1-Math.exp(-(drawing?16:40)*dt)); /* held, the string comes back with the charge */ setDraw(wo,DRAW); } PLANTED.forEach(p=>animFor(p)(dt)); }; }
+    const DW=window.__dualwield, off=bow&&DW&&DW.off?DW.off():null, two=!!(off&&/^bow-/.test(off.name)), offOn=two&&DW.offSwing(), act=offOn?off:wo;   // build 509 prep: Bifurcation's 2nd bow (99k-dualwield.js) -- the bow loosing this shot draws and turns him; the other rests at his side
+    if(bow||heroYawOff!==0) heroYawOff=two?lerp(heroYawOff,swinging?(offOn?-ATTACK_TURN:ATTACK_TURN):0,1-Math.exp(-14*dt)):angLerp(heroYawOff,swinging?ATTACK_TURN:0,1-Math.exp(-14*dt));   // the 2nd bow's shot is the archery clip mirrored, so he turns the other way (a plain lerp: -90 to +90 never swings round his back)
+    if(bow&&two){ animFor(off)(dt); const rest=act===off?wo:off; holdBowFor(rest,hero.yaw+heroYawOff,0); setDraw(rest,0); }
+    if(bow){ holdBow(act); animFor(wo)(dt); const A=window.__aim, held=!!(A&&A.holding()); const drawing=swinging&&(held||hero.swingT<swingDur()*hitFrac()); DRAW=lerp(DRAW,drawing?(held?.35+.65*A.charge():1):0,1-Math.exp(-(drawing?16:40)*dt)); /* held, the string comes back with the charge */ setDraw(act,DRAW); } PLANTED.forEach(p=>animFor(p)(dt)); }; }
 Object.keys(BOW_KINDS).forEach(k=>{ window.__weapons.register('bow-'+k,()=>makeBow(k)); });   // served by the weapon mount like a loaded sword
 window.__bow={kinds:()=>Object.keys(BOW_KINDS),info:k=>Object.assign({kind:k},BOW_KINDS[k]),make:makeBow,bowFor,arrows:()=>ARROWS.length,plant:plantBow,planted:()=>PLANTED.length,clear:()=>{ PLANTED.forEach(g=>scene.remove(g)); PLANTED.length=0; },
   addKind:(k,K)=>{ BOW_KINDS[k]=K; window.__weapons.register('bow-'+k,()=>makeBow(k)); },   // build 154: a gear set's bow (86-setweapons.js) — K as above, plus K.deco for its own fittings; its arrows take K.glow

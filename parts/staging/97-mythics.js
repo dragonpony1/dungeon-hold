@@ -27,6 +27,13 @@ const NAMED={
   // they have their own, 10% each per wave held.
   beast_mode:{name:'Beast Mode',slot:'charm',stats:{fdmg:20,frate:30,tow:10},power:'a SECOND FAMILIAR: a second familiar slot opens, and a second pet flies at your other shoulder',reward:true},
   malamute:{name:'Malamute',slot:'charm',stats:{fdmg:14,frate:20,move:14},power:'a SECOND FAMILIAR: a second familiar slot opens, and a second pet flies at your other shoulder',reward:true},
+  // build 509 prep (Matt approved the dual-wield rings: "build it ill do the art later"): four named charms, ONE PER HERO -- worn by their own hero, each opens a SECOND WEAPON SLOT (99k-dualwield.js): the 2nd weapon
+  // sits in the free hand and the attacks alternate hands. Worn by anyone else it is only a charm with these stats. Stats in Beast Mode's spirit (two of the hand's own stats + one of the hero's), weapon-flavoured.
+  // reward:true keeps them out of the ordinary named-mythic roll -- like the pet rings they drop 10% each per wave held.
+  twotimer:{name:'Twotimer',slot:'charm',stats:{dmg:16,spd:24,def:8},power:'the KNIGHT\'s ring -- TWO SWORDS: a second weapon slot opens, a second sword rides in his left hand, and his swings alternate hands',reward:true,hero:'knight'},
+  toil_n_trouble:{name:'Toil-n-Trouble',slot:'charm',stats:{dmg:14,spd:22,mana:24},power:'the WITCH\'s ring -- TWO STAFFS: a second weapon slot opens, a second staff rides in her free hand, and her bolts alternate staffs',reward:true,hero:'witch'},
+  tootsie:{name:'Tootsie',slot:'charm',stats:{dmg:15,spd:22,tow:10},power:'the FIGHTER\'s ring -- TWO BATTLE STAFFS: a second weapon slot opens, a second staff rides in his free hand, and his bolts alternate staffs',reward:true,hero:'fighter'},
+  bifurcation:{name:'Bifurcation',slot:'charm',stats:{dmg:14,spd:20,move:14},power:'the RANGER\'s ring -- TWO BOWS: a second weapon slot opens, a second bow rides in his free hand, and his arrows alternate bows',reward:true,hero:'troll'},
   sixseven:{name:'6/7',slot:'weapon',stats:{dmg:28,spd:16,move:12},power:'a halberd: every 6th swing throws lightning through up to 7 enemies, 70% of your damage to each'},   // build 258, Matt's Storm Halberd ("the polearm is called the 6/7"); the power is 97d-sixseven.js's, my call
   subterfuge:{name:'Subterfuge',slot:'weapon',stats:{dmg:26,spd:18,move:12},power:'a bow: every shot is five lightning arrows in a 40° wedge, each half an arrow, and each one that hits jumps to 3 more enemies (60%, 35%, 20%)'},   // build 170, Matt's; the eleventh, a game-made one (the hideout's forge doesn't know it). Its power is 86i-subterfuge.js's
 };
