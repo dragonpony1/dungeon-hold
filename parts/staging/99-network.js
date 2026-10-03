@@ -619,11 +619,12 @@ function guestInputTick(dt){
       // them, mobs at the old spot kept hurting them, their shots started there. A far spot that holds for .3 s (several reports
       // agreeing, not one stray packet) on floor a hero can stand on is where the copy goes
       if(g.holdT>0) g.holdT-=dt;
-      else if(typeof inp.x==='number'&&typeof inp.z==='number'){ const dx=inp.x-g.x, dz=inp.z-g.z, d=Math.hypot(dx,dz); const iy=Number.isFinite(inp.y)&&Math.abs(inp.y)<200?inp.y:null; if(iy!=null) g.y=floorAt(g.x,g.z,iy);   /* co-op sweep 2026-10-02 (towers): the copy walks on the level its guest reports (the Drawbridge roof or the yard under it) -- it used to stay on whichever level it was last on, and bumped into the yard's towers under a guest walking the roof */
+      else if(typeof inp.x==='number'&&typeof inp.z==='number'){ const dx=inp.x-g.x, dz=inp.z-g.z, d=Math.hypot(dx,dz); const iy=Number.isFinite(inp.y)&&Math.abs(inp.y)<200?inp.y:null; if(iy!=null) g.y=iy;   /* co-op sweep 2026-10-02 (towers): the copy walks on the level its guest reports (the Drawbridge roof or the yard under it) -- it used to stay on whichever level it was last on, and bumped into the yard's towers under a guest walking the roof */
+        /* co-op sweep 2026-10-02 (drawbridge-map): AT the guest's own height, not the floor under the copy's lagging spot -- a copy beside a perch read the ground there and the deck's box stopped it short, so it stood on the ground at the post while its guest stood on the deck 2.5 up, and mobs at the foot swung at it (game.js nearestHero: h.y-e.y<1.4). Moving at the guest's height, moveCircle/solidAt let it onto the perch deck, a tower top or over the rail exactly as they let the guest */
         if(d>0&&d<30){ g.farT=0; const vmax=Math.max(16,11*(1+(s?s.stat.move:0)/100)*(s?s.mult.move:1)*4/3), k=Math.min(1,vmax*dt/d); moveCircle(g,dx*k,dz*k,.42,true); if(d>1.4){ g.stuckT=(g.stuckT||0)+dt; if(g.stuckT>.8){ g.x=inp.x; g.z=inp.z; g.stuckT=0; } } else g.stuckT=0; }   /* build 150 ("guests not doing any damage"): a copy that cannot walk to where its guest really stands (a hedge or a wall between, the guest on a ledge) snaps there after .8 s -- the guest's swings and the mobs' aim use the copy, so a copy stuck behind a defense fought nothing */
         else if(d>=30){ g.farT=(g.farT||0)+dt; if(g.farT>=.3&&!heroSolid(gat(wc(inp.x),wcz(inp.z)))){ g.x=inp.x; g.z=inp.z; g.y=floorAt(g.x,g.z,0); g.stuckT=0; g.farT=0; } }
         else g.farT=0;
-        if(typeof inp.hyaw==='number') g.yaw=inp.hyaw; g.y=floorAt(g.x,g.z,iy!=null?iy:g.y); }
+        if(typeof inp.hyaw==='number') g.yaw=inp.hyaw; { const fl=floorAt(g.x,g.z,iy!=null?iy:g.y); g.y=(iy!=null&&iy>fl&&iy-fl<4)?iy:fl; } }   /* drawbridge-map: a guest mid-jump stays in the air (the same <4 bound hostGuestShot uses), as a solo hero does; otherwise the surface under it */
       else {
       let mx=0,mz=0; if(inp.w) mz+=1; if(inp.s) mz-=1; if(inp.d) mx+=1; if(inp.a) mx-=1;
       const len=Math.hypot(mx,mz);
@@ -1281,6 +1282,9 @@ function defPuppetFoot(p,d){ if(role!=='guest'||!p||!d||!DEFS[d.kind]) return; c
   let cells; window.__placeLong=!!d.lg; try{ cells=footprintCells(kind,d.x,d.z,d.rot||0); } finally{ window.__placeLong=undefined; }   // this hedge's own length, not this guest's Long Hedge (96l-talents.js longOn)
   const f={ kind, x:d.x, z:d.z, rot:d.rot||0, top:DEFS[kind].top+y }; p.foot=f; p.cells=cells.filter(i=>walk(grid[i])&&!MOBBLOCK[i]&&!GDEFAT.has(i)); for(const i of p.cells) GDEFAT.set(i,f); }   // list order = the host's placing order, so a tower on a perch claims no cells, as there
 { const prev=solidAt; solidAt=function(x,z,y,forHero){ if(forHero&&role==='guest'&&GDEFAT.size){ const cx=wc(x), cz=wcz(z), d=inb(cx,cz)?GDEFAT.get(idx(cx,cz)):null; if(d&&!NOWALK_DEF[d.kind]&&y<=d.top+.3&&y<d.top-.25&&defBlocksHero(d,x,z)) return true; } return prev.apply(this,arguments); }; }
+// co-op sweep 2026-10-02 (drawbridge-map): 96b-perch.js finds a perch to stand a ballista on through defAt, empty on a guest -- so a guest's ballista ghost never snapped up onto the host's perch (centre, deck height, range sector) as solo's does.
+// On a guest the host's perch in the aimed square (GDEFAT) is that surface too; the 96b ghost wrap then snaps to it, and the ghost wrap below turns it red when a tower already stands there. The host is untouched (role check).
+(window.__standSurf=window.__standSurf||[]).push((kind,x,z)=>{ if(role!=='guest'||!GDEFAT.size) return null; const cx=wc(x), cz=wcz(z); if(!inb(cx,cz)) return null; const f=GDEFAT.get(idx(cx,cz)); return (f&&f.kind==='perch')?{ x:f.x, z:f.z, y:f.top, key:f }:null; });
 { const prev=floorAt; floorAt=function(x,z,y){ const f=prev.apply(this,arguments); if(role!=='guest'||!GDEFAT.size) return f; const cx=wc(x), cz=wcz(z), d=inb(cx,cz)?GDEFAT.get(idx(cx,cz)):null; return d&&y>=d.top-.25?Math.max(f,d.top):f; }; }
 function pupWardNow(){ const T=window.__talents; if(!T||!T.tree||!T.tree()) return null; const w=T.rank('ward')+T.rank('kward'); return w?{ w, k:T.rank('kward')?1:0, vig:!!T.knight().vigil }:null; }
 function pupLook(p,W){ if(!p.mdl) return; const s=p.kind==='slice'?(p.rr>0?p.rr/DEFS.slice.range:1):markGrow(p.lvl); p.mdl.scale.setScalar(s); const st=p.mdl.userData.stretch; if(st) st.scale.x=HEDGE_STRETCH*(p.lg?1.6:1)/s;
@@ -1311,6 +1315,7 @@ window.__myMana=()=>{ const w=hostWorld, id=window.__net.myId(); return (role===
     if(surf){ for(const p of DEFPUP.values()) if(p.kind!=='perch'&&Math.hypot(p.x-aim.x,p.z-aim.z)<.3){ reason='A tower already stands here'; break; } }
     else if(footprintCells(placing,x,z,ghostYaw).some(i=>GDEFAT.has(i))) reason='Already occupied';
     if(!reason){ const ex=surf?aim.x:x, ez=surf?aim.z:z; if(mobProxies().some(e=>Math.hypot(e.x-ex,e.z-ez)<2.2)) reason='Enemy too close'; } }
+  if(!reason&&placing==='perch'&&window.__perch&&window.__perch.cap){ let n=0; for(const p of DEFPUP.values()) if(p.kind==='perch') n++; if(n>=window.__perch.cap) reason='Only '+window.__perch.cap+' perches at a time'; }   // drawbridge-map: 96b's cap, counted over the host's perches (96b counts this page's empty defs)
   if(reason){ ghostOk=false; ghostReason=reason; ghost.traverse(o=>{ if(o.isMesh) o.material=GHOST_BAD; }); if(typeof ghostSector!=='undefined'&&ghostSector&&typeof tintSector==='function') tintSector(ghostSector,0xff3030); } }; }
 function guestPick(){ if(role!=='guest'||!hero) return null; const fx=Math.sin(hero.yaw||0), fz=Math.cos(hero.yaw||0); let best=null, bs=1e9; const lvl=!!(window.__moatdeck&&Number.isFinite(window.__moatdeck.Y));   // co-op sweep 2026-10-02: on the Drawbridge only the towers at your own level, as 56k9-moatdeck.js picks
   DEFPUP.forEach((p,id)=>{ if(p.x===undefined) return; if(lvl&&Math.abs((p.y||0)-(hero.y||0))>=3) return; const dx=p.x-hero.x, dz=p.z-hero.z, dist=Math.hypot(dx,dz); if(dist>=3.4) return; const facing=dist>.05?(1-(dx*fx+dz*fz)/dist):1; const hurt=p.max&&p.hp<p.max;
@@ -1413,6 +1418,7 @@ function hostTryPlaceDef(kind,x,z,yaw,fromId,gyIn){
   else if(!surf&&cells.some(i=>defAt[i])) reason='Already occupied';
   else if(cells.includes(idx(wc(g.x),wcz(g.z)))||Math.hypot(x-g.x,z-g.z)<1.1) reason="You're standing there";   // the same self-overlap rule updateGhost (game.js) enforces locally, mirrored here against the guest's own HOST-tracked position
   else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units';
+  if(!reason&&kind==='perch'&&window.__perch&&window.__perch.cap&&defs.filter(d=>d.kind==='perch').length>=window.__perch.cap) reason='Only '+window.__perch.cap+' perches at a time';   // co-op sweep 2026-10-02 (drawbridge-map): 96b-perch.js's cap (2 for the whole hall) lived only in the placer's own ghost -- a guest's counts its empty defs, so a Ranger guest could put down any number of free perches
   const realMana=S.mana; S.mana=guestMana.has(fromId)?guestMana.get(fromId):MAP_MANA;
   if(!reason&&S.mana<cfg.mana) reason='Not enough mana';
   else if(!reason&&!deck&&enemies.some(e=>!e.dead&&Math.hypot(e.x-x,e.z-z)<2.2)) reason='Enemy too close';
