@@ -995,7 +995,7 @@ let guestRunEnded=false;
 // no held flag still pays at 'runEnd', as it always did. guestHeld is what this page was told and paid at HALL HELD
 let guestHeld=null;
 function guestShowRunEnd(w){
-  guestRunEnded=true; S.phase=w.phase; cancelPlace(); droneOff(); setMusic('none');
+  guestRunEnded=true; S.phase=w.phase; deathCut=null; cancelPlace(); droneOff(); setMusic('none');
   if(w.phase==='won'){ try{ if(window.__jars&&window.__jars.sweep) window.__jars.sweep(); }catch(e){} }   // co-op sweep 2026-10-02: a held hall's jars still on this guest's floor are banked, as single player's MOVE ON does (99g sweep)
   if(document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play');
   const sv=!!w.survival, held=w.phase==='won'?w.wave|0:Math.max(0,(w.wave|0)-1), rec=sv&&window.__survival?window.__survival.record(held):null;   // build 176: a Survival run -- the waves held go on this player's own best for the map too (they held them)
@@ -1059,8 +1059,18 @@ onMessage('mapHeld',data=>{ if(role!=='guest'||guestRunEnded||guestHeld||!data) 
 // (winMap's effWave()). A guest used to work it out from the map's count both times, so holding the Throne Room paid the host 500
 // and the guest 325, and the gap grew every map
 function runPay(w,won){ w=w|0; return w>0?25*w+(won?150:0):0; }
+// co-op sweep 2026-10-02 (hud-ui): the Heartroot's 2-second death cut was host-only -- the host's update() stops at 'deathcut' (no broadcasts), so a guest's hall froze mid-fight
+// and then the end card came. startDeathCut now sends 'deathCut' (which Heartroot, the killer's co-op id); the guest runs game.js's own updateDeathCut camera toward that Heartroot and
+// the killer's puppet (its attack clip slowed, as the host's), with the same slowed crystal hit 40-music.js plays. The guest's end of the cut pays nothing (finishDeath below):
+// it holds in 'deathcut' until the host's 'runEnd', as before
+{ const prevCut=startDeathCut; startDeathCut=function(killer,which){ const r=prevCut.apply(this,arguments); if(role==='host'&&conns.size&&S.phase==='deathcut'){ const k=deathCut&&deathCut.killer; if(k&&!k.__coopId) k.__coopId='e'+(nextEnemyId++); send('deathCut',{w:which|0,k:k?k.__coopId:null}); } return r; }; }
+onMessage('deathCut',d=>{ if(role!=='guest'||guestRunEnded||!d||!(S.phase==='build'||S.phase==='wave')) return; const w=d.w|0, p=d.k!=null?MOBPUP.get(String(d.k)):null; cancelPlace();
+  deathCut={t:0,dur:2,killer:p?{x:p.x,y:p.y||0,z:p.z,h:(PROX_SIZE[p.kind]||[.5,1.3])[1]}:null,eye:null,eye2:null,look:null,hx:w===3?C3X:w===2?C2X:0,hz:w===3?C3Z:w===2?C2Z:0,pm:null};
+  if(p&&p.mdl&&p.mdl.glb&&p.mdl.actions&&p.mdl.actions.attack&&p.mdl.mixer){ mobPlay(p.mdl,'attack',{restart:true,fade:0,speed:.5}); deathCut.pm=p.mdl; }
+  playSample('crystal',1,.62); GSFX.deathCut=(GSFX.deathCut|0)+1; S.phase='deathcut'; });
+{ const prev=updateDeathCut; updateDeathCut=function(dt){ if(role==='guest'&&deathCut&&deathCut.pm){ try{ deathCut.pm.mixer.update(dt); }catch(e){} } return prev.apply(this,arguments); }; }   // a puppet's clips run in mobPuppetsTick, which the cut freezes with the rest
 { const origFinishDeath=finishDeath;
-  finishDeath=function(){ origFinishDeath(); if(role==='host'){ send('runEnd',{phase:'dead',wave:S.wave,pay:runPay(S.wave,false),survival:!!SURVIVAL}); parkHost(); } }; }
+  finishDeath=function(){ if(role==='guest'){ deathCut=null; return; } origFinishDeath(); if(role==='host'){ send('runEnd',{phase:'dead',wave:S.wave,pay:runPay(S.wave,false),survival:!!SURVIVAL}); parkHost(); } }; }
 // build 160: the last wave held opens the victory lap (game.js winMap) -- the guests get it and the map's pay at once ('mapHeld'), and
 // the host stays on the matchmaking server: the run isn't over, and a friend may still walk in to see the hall. The run ends at the
 // host's MOVE ON (moveOn): 'runEnd' (held:true -- the pay already went out) and parkHost go from there now, as they went from winMap
@@ -1288,6 +1298,20 @@ window.__defFxGuest=window.__defFxGuest||{}; window.__defFxGuest.snare={ fx:(p,f
   const burst=glow(0x8a3cff,Math.max(.2,Math.min(6,a[3]))*2.6,.85); burst.position.copy(to); scene.add(burst); projs.push({kind:'splat',t:0,mesh:burst}); floatText(a[0],a[4],a[2],'SNARED!','#c9a8ff'); SFX.destroy(); GSFX.snare=(GSFX.snare|0)+1; } };
 // build 499 (Matt, playing with Jacob: "when he walks up to a tower it doesn't say on bottom which one he's targeting, so he has a hard time upgrading the right defense"): a guest's E is the host's pickDef
 // (game.js) run at the guest's own spot and facing -- the guest's screen now runs the SAME pick over the towers it sees, rings the one E will act on (gold: upgrade, green: repair) and shows its card (60-lootfeel.js)
+// co-op sweep 2026-10-02 (hud-ui): a guest's placement ghost judged the guest's OWN page -- its local S.mana (never spent here), S.du 0, no defAt, no enemies -- so it showed green and
+// 'click to set it down' for a spot the host then refused after two clicks. On a guest the ghost now reads this guest's own pool and the hall's DU while game.js/56k9/96b judge it, then
+// checks the host's towers (GDEFAT, the deck puppets) and the mob puppets the way hostTryPlaceDef will: Already occupied (a ballista may still go on a free perch), Enemy too close
+// (not up on the deck). The reasons are the host's own words, so solo and co-op read the same. window.__myMana = this page's own pool (60-lootfeel.js's spend flash reads it).
+window.__myMana=()=>{ const w=hostWorld, id=window.__net.myId(); return (role==='guest'&&w)?((w.manas&&id in w.manas)?w.manas[id]:0):S.mana; };
+{ const prev=updateGhost; updateGhost=function(){ if(role!=='guest'||!hostWorld||!placing) return prev.apply(this,arguments);
+  const m0=S.mana, du0=S.du; S.mana=window.__myMana(); S.du=+hostWorld.du||0; try{ prev.apply(this,arguments); } finally{ S.mana=m0; S.du=du0; }
+  if(!ghostOk||!ghost||!ghostPos) return; const x=ghostPos[0], z=ghostPos[1], MD=window.__moatdeck, deck=!!(MD&&MD.deckAt&&MD.deckAt(x,z,hero.y||0)&&!(MD.noDeck&&MD.noDeck(placing))); let reason='';
+  if(deck){ for(const p of DEFPUP.values()) if(p.kind!=='perch'&&p.railboxes&&p.railboxes.length&&Math.hypot(p.x-x,p.z-z)<1.6){ reason='Already occupied'; break; } }   // 56k9's DECK_GAP
+  else { const ci=inb(wc(x),wcz(z))?idx(wc(x),wcz(z)):-1, aim=ci>=0?GDEFAT.get(ci):null, surf=placing==='harpoon'&&aim&&aim.kind==='perch';   // 96b-perch.js deckFor: the perch in the aimed square
+    if(surf){ for(const p of DEFPUP.values()) if(p.kind!=='perch'&&Math.hypot(p.x-aim.x,p.z-aim.z)<.3){ reason='A tower already stands here'; break; } }
+    else if(footprintCells(placing,x,z,ghostYaw).some(i=>GDEFAT.has(i))) reason='Already occupied';
+    if(!reason){ const ex=surf?aim.x:x, ez=surf?aim.z:z; if(mobProxies().some(e=>Math.hypot(e.x-ex,e.z-ez)<2.2)) reason='Enemy too close'; } }
+  if(reason){ ghostOk=false; ghostReason=reason; ghost.traverse(o=>{ if(o.isMesh) o.material=GHOST_BAD; }); if(typeof ghostSector!=='undefined'&&ghostSector&&typeof tintSector==='function') tintSector(ghostSector,0xff3030); } }; }
 function guestPick(){ if(role!=='guest'||!hero) return null; const fx=Math.sin(hero.yaw||0), fz=Math.cos(hero.yaw||0); let best=null, bs=1e9; const lvl=!!(window.__moatdeck&&Number.isFinite(window.__moatdeck.Y));   // co-op sweep 2026-10-02: on the Drawbridge only the towers at your own level, as 56k9-moatdeck.js picks
   DEFPUP.forEach((p,id)=>{ if(p.x===undefined) return; if(lvl&&Math.abs((p.y||0)-(hero.y||0))>=3) return; const dx=p.x-hero.x, dz=p.z-hero.z, dist=Math.hypot(dx,dz); if(dist>=3.4) return; const facing=dist>.05?(1-(dx*fx+dz*fz)/dist):1; const hurt=p.max&&p.hp<p.max;
     const sc=(hurt?0:10)+facing*1.6+dist*.35; if(sc<bs){ bs=sc; best={ id, kind:p.kind, lvl:p.lvl, hp:p.hp, max:p.max, kills:p.kills|0, spent:p.spent|0, x:p.x, y:p.y, z:p.z }; } }); return best; }
@@ -1605,7 +1629,7 @@ function guestHostLeft(why){
   setTimeout(()=>{ if(role==='guest'&&!conns.size) leave(); },0);   // no host, no guest: role back to none, the Peer off the broker (after this close event has finished, not inside it)
   if(hostLeftSaid||why==='full') return;
   if(guestRunEnded){ hostLeftSaid=true; $('deadp').textContent+=' The host has left the game.'; return; }   // already on SHATTERED / HALL HELD: that screen stays, it just says so
-  if(!(S.phase==='build'||S.phase==='wave')) return;   // still on the title screen: the lobby's own
+  if(!(S.phase==='build'||S.phase==='wave'||S.phase==='deathcut')) return;   // still on the title screen: the lobby's own   (co-op sweep 2026-10-02: 'deathcut' -- the host gone mid-cut still ends the run here)
   if(guestHeld){ hostLeftSaid=true; if(window.__pause&&window.__pause.isOpen()) window.__pause.close(false); guestShowRunEnd({phase:'won',held:true,wave:guestHeld.wave,mapName:guestHeld.mapName}); $('deadp').textContent+=' The host has left the game.'; toast('The host left the game'); return; }   // build 160: gone on the victory lap -- the hall WAS held, and this guest paid for it at HALL HELD: its own HALL HELD screen (REJOIN and all), not THE HOST LEFT
   hostLeftSaid=guestRunEnded=true; S.phase='dead'; cancelPlace(); droneOff(); setMusic('none');
   if(window.__pause&&window.__pause.isOpen()) window.__pause.close(false);
