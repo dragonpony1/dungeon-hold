@@ -71,8 +71,8 @@ function battle(){ const K=KS.battle, g=base(new THREE.Group(),K); g.name='polea
   for(const [x,a] of [[-.012,.2],[0,0],[.012,-.2]]){ const t=M(G.box(.012,.14,.006),mat(0xb02a2a),x,1.12,.045); t.rotation.z=a; g.add(t); }   // a red tassel
   g.add(pulseGlow(K.glow,.5,.17,1.36,0));
   return finish(g,'plain',box(-.21,.29,1.72),.3,1.64); }
-const BUILD={hazel,copper,runed,storm,battle};
-PLAIN.forEach(k=>window.__weapons.register('polearm-'+k,()=>{ const g=BUILD[k](); g.userData.kind=k; return g; }));
+const POLE_MAKE={hazel,copper,runed,storm,battle};   // not BUILD: that is the game's build number (game.js), and tools grep for "const BUILD="
+PLAIN.forEach(k=>window.__weapons.register('polearm-'+k,()=>{ const g=POLE_MAKE[k](); g.userData.kind=k; return g; }));
 // ---- which polearm the Fighter holds for an item: the set's own (setModel's 'pole' hand: 86-setweapons, 86h-named, 86r-realforest), a pack's stand-in, else the plain one of its tier
 function poleFor(it){ if(!it) return 'polearm-hazel'; const W=window.__weapons; const sm=W.setModel&&W.setModel(it,'pole'); if(sm) return sm;
   const pk=Meta.packs&&Meta.packs.of(it); if(pk&&pk.models&&pk.models.polearm) return pk.models.polearm; if(pk&&/void/i.test(pk.name||pk.id||'')) return 'polearm-void';
