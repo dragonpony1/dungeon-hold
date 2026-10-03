@@ -619,11 +619,11 @@ function guestInputTick(dt){
       // them, mobs at the old spot kept hurting them, their shots started there. A far spot that holds for .3 s (several reports
       // agreeing, not one stray packet) on floor a hero can stand on is where the copy goes
       if(g.holdT>0) g.holdT-=dt;
-      else if(typeof inp.x==='number'&&typeof inp.z==='number'){ const dx=inp.x-g.x, dz=inp.z-g.z, d=Math.hypot(dx,dz);
+      else if(typeof inp.x==='number'&&typeof inp.z==='number'){ const dx=inp.x-g.x, dz=inp.z-g.z, d=Math.hypot(dx,dz); const iy=Number.isFinite(inp.y)&&Math.abs(inp.y)<200?inp.y:null; if(iy!=null) g.y=floorAt(g.x,g.z,iy);   /* co-op sweep 2026-10-02 (towers): the copy walks on the level its guest reports (the Drawbridge roof or the yard under it) -- it used to stay on whichever level it was last on, and bumped into the yard's towers under a guest walking the roof */
         if(d>0&&d<30){ g.farT=0; const vmax=Math.max(16,11*(1+(s?s.stat.move:0)/100)*(s?s.mult.move:1)*4/3), k=Math.min(1,vmax*dt/d); moveCircle(g,dx*k,dz*k,.42,true); if(d>1.4){ g.stuckT=(g.stuckT||0)+dt; if(g.stuckT>.8){ g.x=inp.x; g.z=inp.z; g.stuckT=0; } } else g.stuckT=0; }   /* build 150 ("guests not doing any damage"): a copy that cannot walk to where its guest really stands (a hedge or a wall between, the guest on a ledge) snaps there after .8 s -- the guest's swings and the mobs' aim use the copy, so a copy stuck behind a defense fought nothing */
         else if(d>=30){ g.farT=(g.farT||0)+dt; if(g.farT>=.3&&!heroSolid(gat(wc(inp.x),wcz(inp.z)))){ g.x=inp.x; g.z=inp.z; g.y=floorAt(g.x,g.z,0); g.stuckT=0; g.farT=0; } }
         else g.farT=0;
-        if(typeof inp.hyaw==='number') g.yaw=inp.hyaw; g.y=floorAt(g.x,g.z,g.y); }
+        if(typeof inp.hyaw==='number') g.yaw=inp.hyaw; g.y=floorAt(g.x,g.z,iy!=null?iy:g.y); }
       else {
       let mx=0,mz=0; if(inp.w) mz+=1; if(inp.s) mz-=1; if(inp.d) mx+=1; if(inp.a) mx-=1;
       const len=Math.hypot(mx,mz);
@@ -826,6 +826,9 @@ function hostGuestShot(data,fromId){
 }
 onMessage('shot',(data,fromId)=>hostGuestShot(data,fromId));
 onMessage('swing',(data,fromId)=>{ guestHitCone(fromId,data.yaw,data.dmg,data.reach,data); });
+// co-op sweep 2026-10-02 (towers): the height a guest reports for its own hero (its 'input' y) -- the host's copy's g.y can lag a level behind after a snap, so the level a guest builds and picks
+// towers at (the Drawbridge roof vs the yard under it) goes by the guest's own word, as its x/z already does
+const gyOf=(id,g)=>{ const i=guestIn.get(id); return i&&Number.isFinite(i.y)&&Math.abs(i.y)<200?i.y:((g&&g.y)||0); };
 const guestByHero=new Map();   // build 434: id|hero -> {stat,mult}, the last a guest reported while that hero was out
 const guestStats=new Map();   // id -> {stat:{tow,trate,tarea,move,def,hp,regen},mult:{tow,tcd,aoe,move,hp}} -- this guest's OWN gear/skill numbers, last reported
 // build 159 (5/7): myth, five and idle -- the named mythics this guest wears, its full sets and whether its hero stands still -- so the
@@ -833,8 +836,16 @@ const guestStats=new Map();   // id -> {stat:{tow,trate,tarea,move,def,hp,regen}
 const strList=(a,ok)=>Array.isArray(a)?a.filter(k=>typeof k==='string'&&k.length<40&&(!ok||ok(k))).slice(0,8):[];
 onMessage('input',(data,fromId)=>{ guestIn.set(fromId,data); if(data.stat&&data.mult){ const NM=window.__mythic&&window.__mythic.NAMED;
   if(typeof data.pick==='string') guestByHero.set(fromId+'|'+data.pick,{stat:data.stat,mult:data.mult,kind:data.kind||{}});   /* build 434: each guest's numbers kept per hero, so their towers keep the placer's after a switch */
-  guestStats.set(fromId,{pick:typeof data.pick==='string'?data.pick:null,stat:data.stat,mult:data.mult,kind:data.kind||{},myth:strList(data.myth,k=>!!(NM&&Object.prototype.hasOwnProperty.call(NM,k))),five:strList(data.five),idle:!!data.idle,tt:cleanTT(data.tt),tal:cleanDefTal(data.tal)}); } });
+  guestStats.set(fromId,{pick:typeof data.pick==='string'?data.pick:null,stat:data.stat,mult:data.mult,kind:data.kind||{},myth:strList(data.myth,k=>!!(NM&&Object.prototype.hasOwnProperty.call(NM,k))),five:strList(data.five),idle:!!data.idle,tt:cleanTT(data.tt),tal:cleanDefTal(data.tal),nt:data.nt&&typeof data.nt==='object'?{ w:Math.max(0,Math.min(6,data.nt.w|0)), k:data.nt.k?1:0, vig:data.nt.vig?1:0 }:null}); } });
 Meta.defOwnerTalent=(id,h,t)=>{ const s=guestStats.get(id); return s&&s.tt?((s.tt[h]||{})[t]|0):undefined; };   // co-op sweep 2026-10-02: that guest's tower-talent rank (96l-talents.js towRank); undefined = not known (an older guest, or gone)
+// co-op sweep 2026-10-02 (towers): "towers near you" talents round a GUEST too -- Wardkeeper/Bannerman (+8% tower damage a rank within 8, 96l-talents.js) and Vigil (x.77 tower cooldown within 8 of a
+// still Knight, not the trap). 96l only ever measured from the host's own hero. One hero's boost per tower, the strongest (single player has one hero): never stacked
+{ const prev=stat; stat=function(d,k){ let v=prev.apply(this,arguments); if(role!=='host'||!d||(k!=='dmg'&&k!=='cd')||!guestHero.size) return v;
+    let best=0, vig=false; guestHero.forEach((g,id)=>{ const s=guestStats.get(id), n=s&&s.nt; if(!n||g.dead>0||Math.hypot(d.x-g.x,d.z-g.z)>8) return; if(n.w>best) best=n.w; if(n.vig) vig=true; });
+    if(!best&&!vig) return v; const TL=window.__talents, hn=hero&&hero.dead<=0&&Math.hypot(d.x-hero.x,d.z-hero.z)<=8, mine=!!(TL&&TL.tree&&TL.tree());
+    if(k==='dmg'&&best){ const hw=mine&&hn?TL.rank('ward')+TL.rank('kward'):0; if(best>hw) v=Math.round(v/(1+.08*hw)*(1+.08*best)*10)/10; }
+    if(k==='cd'&&vig&&d.kind!=='trap'&&!(mine&&hn&&TL.knight().vigil)) v*=.77;
+    return v; }; }
 Meta.coopFive=()=>{ if(role!=='host') return null; const out=[]; guestHero.forEach((g,id)=>{ const s=guestStats.get(id); if(s&&s.five&&s.five.length) out.push({id,five:s.five,g}); }); return out; };   // co-op sweep 2026-10-02: who wears which full sets (93b-sets8.js: the Earth's guard round each guest)
 Meta.coopWear=()=>{ if(role!=='host') return null; const out=[]; guestHero.forEach((g,id)=>{ const s=guestStats.get(id); if(s&&s.myth&&s.myth.length) out.push({id,myth:s.myth,idle:s.idle,g}); }); return out; };   // who wears what, for 97-mythics.js (g: the host's live copy of that guest's hero)
 // a guest's Rootsplitter: its own 4th swing drew the roots on its own screen (97-mythics.js) and says so here; the host holds its mobs
@@ -910,6 +921,7 @@ onMessage('heroes',data=>{
 // defensive ones (Light Feet, Last Stand, Aegis, Thorns, Briar Skin, Martyr's Light, Mending Light) and Martyr's blast damage
 const TT_IDS={knight:['ktrap','kthorn','klong'],troll:['rtangle','rvenom','rsky'],fighter:['fbind']}, DEF_TAL=['rdodge','kstand','kaegis','kthorns','briar','fmartyr','fmend'];
 function guestTowerTal(){ const T=window.__talents; if(!T||!T.hr) return undefined; const o={}; for(const h in TT_IDS) for(const k of TT_IDS[h]){ const r=T.hr(h,k); if(r>0) (o[h]||(o[h]={}))[k]=r; } return o; }
+function guestNearTal(){ const T=window.__talents; if(!T||!T.tree||!T.tree()) return undefined; const w=T.rank('ward')+T.rank('kward'), vig=T.knight().vigil?1:0; return (w||vig)?{ w, k:T.rank('kward')?1:0, vig }:undefined; }   // co-op sweep 2026-10-02: the guest's own ranks (0 outside its hero's tree) and its own Vigil (Knight, still 1 s, alive)
 function guestDefTal(){ const T=window.__talents; if(!T||!T.tree||!T.tree()) return undefined; const o={}; for(const k of DEF_TAL){ const r=T.rank(k); if(r) o[k]=r; } if(o.fmartyr) o.md=Math.round(heroDmg()*3*10)/10; return o; }
 const cleanTT=t=>{ if(!t||typeof t!=='object') return null; const o={}; for(const h in TT_IDS){ const x=t[h]; if(!x||typeof x!=='object') continue; for(const k of TT_IDS[h]){ const r=Math.max(0,Math.min(3,x[k]|0)); if(r) (o[h]||(o[h]={}))[k]=r; } } return o; };
 const cleanDefTal=t=>{ if(!t||typeof t!=='object') return {}; const o={}; for(const k of DEF_TAL){ const r=Math.max(0,Math.min(3,t[k]|0)); if(r) o[k]=r; } if(o.fmartyr) o.md=Math.max(0,Math.min(1e5,+t.md||0)); return o; };
@@ -917,7 +929,7 @@ let syncTIn=0;
 function guestSendInput(dt){
   if(role!=='guest') return;
   syncTIn+=dt; if(syncTIn<1/15) return; syncTIn=0;
-  send('input',{w:K.w?1:0,s:K.s?1:0,a:K.a?1:0,d:K.d?1:0,shift:K.shift?1:0,yaw:+cam.yaw.toFixed(3),pick:window.__heroes.pick(),x:+hero.x.toFixed(2),z:+hero.z.toFixed(2),hyaw:+hero.yaw.toFixed(3),   /* build 147: where this guest's own hero really is -- the host follows it instead of re-simulating the keys (see guestInputTick) */
+  send('input',{w:K.w?1:0,s:K.s?1:0,a:K.a?1:0,d:K.d?1:0,shift:K.shift?1:0,yaw:+cam.yaw.toFixed(3),pick:window.__heroes.pick(),x:+hero.x.toFixed(2),z:+hero.z.toFixed(2),y:+(hero.y||0).toFixed(2),hyaw:+hero.yaw.toFixed(3),   /* build 147: where this guest's own hero really is -- the host follows it instead of re-simulating the keys (see guestInputTick) */
     stat:{tow:heroStat('tow'),trate:heroStat('trate'),tarea:heroStat('tarea'),move:heroStat('move'),def:heroStat('def'),hp:heroStat('hp'),regen:heroStat('regen'),mana:heroStat('mana')},
     mult:{tow:heroMult('tow'),tcd:heroMult('tcd'),aoe:heroMult('aoe'),move:heroMult('move'),hp:heroMult('hp'),mana:heroMult('mana'),thp:heroMult('thp')},
     kind:Meta.defKindMap?Meta.defKindMap():{},   // a full set's per-defense-kind power (94-voidset.js), for the halos this guest places
@@ -925,7 +937,7 @@ function guestSendInput(dt){
     myth:window.__mythic&&window.__mythic.worn?window.__mythic.worn():[], five:Meta.sets&&Meta.sets.active?Meta.sets.active().filter(a=>a.tier>=5).map(a=>a.name):[], idle:(!hero.moving&&hero.swingT<0&&hero.dead<=0)?1:0,   // build 159 (5/7): what the host needs to run this guest's named mythics and five-piece powers (the 'input' handler), and Mossheart's "stand still"
     sw:mySw, swd:+swingDur().toFixed(3),   // co-op sweep 2026-10-02: its swings, for its puppet (98-party.js setAct); its death the host already knows
     look:lookOf(),   // build 150: what this guest wears, for its puppet on every other screen
-    tt:guestTowerTal(), tal:guestDefTal(),   // co-op sweep 2026-10-02: the talent ranks the host needs for this guest's towers (any hero's) and for this guest himself when hurt
+    tt:guestTowerTal(), tal:guestDefTal(), nt:guestNearTal(),   /* nt (co-op sweep 2026-10-02, towers): Wardkeeper/Bannerman and Vigil, for the towers near this guest */   // co-op sweep 2026-10-02: the talent ranks the host needs for this guest's towers (any hero's) and for this guest himself when hurt
     mz:MOBS_V});   // build 159 (6/7): "I read the packed mob list" -- the host sends 'mobs' instead of 'enemies' from then on (hostBroadcastEnemies)
 }
 
@@ -1217,7 +1229,7 @@ const DEFPUP=new Map();   // id -> {kind,lvl,mdl}
 function defPuppetAdd(id,kind,lvl,x,y,z,rot){
   ensureDefMark(kind,lvl); ensureDefMark(kind,lvl+1);   // Marks II-IV are fetched lazily (50-defmodels.js), and only reskinDefs asks, over the local defs -- empty on a guest, who builds on the host -- so without this a guest never fetched them and saw every Mark II-V defense in its Mark I look
   const m=makeDef(kind,false,lvl); m.position.set(x,y,z); m.rotation.y=rot; scene.add(m);
-  const pup={kind,lvl,mdl:m}; DEFPUP.set(id,pup);
+  const pup={kind,lvl,mdl:m}; DEFPUP.set(id,pup); pupMarkRings(pup);
   if(kind==='perch'&&window.__perch&&role==='guest'){ pup.railboxes=window.__perch.boxesFor(x,z,rot,y); for(const b of pup.railboxes) RAILBOXES.push(b); }   // build 376: the Archer's Perch's footholds, so a guest can climb it (96b-perch.js)
 }
 // the cage's show on a guest (build 148): the host cues charge / calm / implode over the wire (Meta.onDefFx), the guest runs
@@ -1229,7 +1241,7 @@ onMessage('fx',data=>{ const p=data&&DEFPUP.get(data.id); if(!p) return;
   if(data.fx==='charge'){ fx.phase='charge'; fx.t=0; fx.k=0; fx.dur=+data.arg||2; SFX.spore(); }   /* co-op sweep 2026-10-02: the spore hiss the host hears as the cage starts to charge (game.js cageTick) */ else if(data.fx==='calm'){ fx.phase='rest'; fx.t=0; } else if(data.fx==='implode'){ fx.phase='boom'; fx.t=0; fx.k=1; fx.cloud=DEFS.slice.cloud; SFX.implode(); } });
 // co-op sweep 2026-10-02: the full-set rune ring the host draws under a tower (93-gearsets.js defRingUpdate), on its puppet here -- added, recoloured or dropped as the list says, and hung again on a rebuilt model
 const PUP_RING_GEO=new THREE.RingGeometry(.7,.92,28);
-function defPupLong(p,lg){ p.lg=lg?1:0; const s=p.mdl&&p.mdl.userData.stretch; if(s) s.scale.x=HEDGE_STRETCH*(p.lg?1.6:1); }   // co-op sweep 2026-10-02: a Long Hedge (96l-talents.js LONG_K) stands its real length here
+function defPupLong(p,lg){ p.lg=lg?1:0; const s=p.mdl&&p.mdl.userData.stretch; if(s) s.scale.x=HEDGE_STRETCH*(p.lg?1.6:1)/markGrow(p.lvl); }   // co-op sweep 2026-10-02: a Long Hedge (96l-talents.js LONG_K) stands its real length here
 function defPupRing(p,rc){ rc=rc|0; if(p.ring&&(p.ringCol!==rc||p.ring.parent!==p.mdl)){ if(p.ring.parent) p.ring.parent.remove(p.ring); p.ring.material.dispose(); p.ring=null; } p.ringCol=rc;
   if(rc&&!p.ring){ const rad=Math.max(1.15,((DEFS[p.kind]||{}).top||1.5)*.75); const m=new THREE.Mesh(PUP_RING_GEO,new THREE.MeshBasicMaterial({color:rc,transparent:true,opacity:.5,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); m.rotation.x=-PI/2; m.position.y=.07; m.scale.set(rad,rad,1); m.userData.noOL=true; p.mdl.add(m); p.ring=m; } }
 // co-op sweep 2026-10-02: the aura towers' rings on a guest -- the halos' ring + column (game.js auraRing), the Totem's and Frost's ring, spinner and plume (updateDefs' own block),
@@ -1239,15 +1251,45 @@ function pupAura(p,dt,foes){ const rr=p.rr, s=p.mdl.scale.x||1; if(p.kind==='tot
     let a=p.mdl.userData.aura; if(!a){ const col=AURA_K[p.kind]; a=new THREE.Group(); const ring=new THREE.Mesh(new THREE.RingGeometry(.94,1,48),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); ring.rotation.x=-PI/2; ring.userData.noOL=true; a.add(ring); const inner=new THREE.Mesh(new THREE.RingGeometry(.2,.24,24),ring.material.clone()); inner.rotation.x=-PI/2; inner.userData.noOL=true; a.add(inner); const plume=glow(col,1.5,.55); a.add(plume); a.userData.ring=ring; a.userData.inner=inner; a.userData.plume=plume; p.mdl.add(a); p.mdl.userData.aura=a; }
     a.position.y=.03; a.scale.set(rr/s,1/s,rr/s); a.userData.plume.scale.set(1.5/rr,1.5,1); a.userData.plume.position.set(0,((DEFS[p.kind]||{}).top||2)-.1,0); a.userData.inner.rotation.z+=dt*(n?2.5:.8); a.userData.ring.material.opacity=.28+.1*Math.sin(S.t*2.4)+(n?.12:0); a.userData.plume.material.opacity=.45+.15*Math.sin(S.t*3.1); return; }
   let n=0; for(const e of foes) if(!e.fly&&Math.hypot(e.x-p.x,e.z-p.z)<rr+e.r*.5) n++; auraRing(p,rr,AURA_K[p.kind],n,s); }
-function defPuppetsTick(dt){ if(role!=='guest') return; let foes=null; DEFPUP.forEach(p=>{ if(p.rr>0&&AURA_K[p.kind]&&p.mdl) pupAura(p,dt,foes||(foes=mobProxies())); if(p.ring) p.ring.material.opacity=.35+.2*Math.sin(S.t*2.4+(p.x||0)+(p.z||0)); { const H=window.__defFxGuest&&window.__defFxGuest[p.kind]; if(H&&H.tick) H.tick(p,dt); }   /* co-op sweep 2026-10-02: the module's own clips/clocks on the puppet */ towerChevrons(p,p.mdl,p.kind,p.lvl);   /* build 177: a guest sees the host's Mark V+ chevrons too -- the defs list already carries lvl, and they ride p.mdl, so a mark-up's rebuilt model (onMessage('defs') below) just gets them hung again */
+function defPuppetsTick(dt){ if(role!=='guest') return; let foes=null; const W=pupWardNow(); DEFPUP.forEach(p=>{ pupLook(p,W); if(p.rr>0&&AURA_K[p.kind]&&p.mdl) pupAura(p,dt,foes||(foes=mobProxies())); if(p.ring) p.ring.material.opacity=.35+.2*Math.sin(S.t*2.4+(p.x||0)+(p.z||0)); { const H=window.__defFxGuest&&window.__defFxGuest[p.kind]; if(H&&H.tick) H.tick(p,dt); }   /* co-op sweep 2026-10-02: the module's own clips/clocks on the puppet */ towerChevrons(p,p.mdl,p.kind,p.lvl);   /* build 177: a guest sees the host's Mark V+ chevrons too -- the defs list already carries lvl, and they ride p.mdl, so a mark-up's rebuilt model (onMessage('defs') below) just gets them hung again */
   if(p.kind!=='slice') return; const fx=p.fx||(p.fx=cageState()); fx.t+=dt;
   if(fx.phase==='charge'){ fx.k=Math.min(1,fx.t/fx.dur); if(fx.t>fx.dur+1){ fx.phase='rest'; fx.t=0; } } else if(fx.phase==='boom'){ if(fx.t>=.45){ fx.phase='rest'; fx.t=0; fx.k=0; } } else if(fx.t>fx.next){ fx.t=0; fx.next=R(3,7); fx.flex=.5; }
-  if(fx.cloud>0) fx.cloud-=dt; cageAnim(p.mdl,fx,dt,fx.phase==='rest'?0:1); }); }
-function defPuppetRemove(id){ const p=DEFPUP.get(id); if(!p) return; scene.remove(p.mdl); if(p.railboxes) for(const b of p.railboxes){ const i=RAILBOXES.indexOf(b); if(i>=0) RAILBOXES.splice(i,1); } DEFPUP.delete(id); }   // no manual dispose, same reasoning as mob puppets: the real defs array's own removeDef never disposes either
+  if(fx.cloud>0) fx.cloud-=dt; cageAnim(p.mdl,fx,dt,fx.phase==='rest'?0:1); }); pupRunes(dt); }
+function defPuppetRemove(id){ const p=DEFPUP.get(id); if(!p) return; scene.remove(p.mdl); if(p.cells) for(const i of p.cells) if(GDEFAT.get(i)===p.foot) GDEFAT.delete(i); if(p.railboxes) for(const b of p.railboxes){ const i=RAILBOXES.indexOf(b); if(i>=0) RAILBOXES.splice(i,1); } DEFPUP.delete(id); }   // no manual dispose, same reasoning as mob puppets: the real defs array's own removeDef never disposes either
+// co-op sweep 2026-10-02 (towers): a guest's puppets look and stand as the host's real towers do --
+//  * size: the host grows every tower 7% a mark (game.js updateDefs markGrow; the cage by its range), the hedge keeping its length (holdHedgeLength), the pit shaped to its range with its rim sunk
+//    (96c-pitfall.js pitShape); Marks II-IV's gold base ring (upgradeDef) on the kinds the host never reskins -- the only ones that keep it there
+//  * solid: GDEFAT is the host's defAt for this guest's own hero, filled the way placeDefAt claims cells -- walked into and stood on as game.js solidAt/floorAt do; a roof tower gets the box
+//    56k9-moatdeck.js gives it instead
+//  * Wardkeeper/Bannerman's ring under the towers near this guest, pulsing with its Vigil (96l-talents.js, which only walks the empty local defs here)
+//  * the Rune Totem's rune-light links and rune circles (game.js runeDraw), drawn over the puppets
+const GDEFAT=new Map();   // cell idx -> {kind,x,z,rot,top}
+function pupMarkRings(p){ if(!p||!p.mdl||DEF_LAZY[p.kind]) return; for(let l=2;l<=Math.min(p.lvl||1,CHEV_FROM-1);l++){ const ring=M(new THREE.TorusGeometry(p.kind==='spike'?1.1:.98,.045,6,18),mat(0xe0b040),0,.16+.1*(l-2),0); ring.rotation.x=PI/2; ring.userData.markRing=1; p.mdl.add(ring); } }
+function defPuppetFoot(p,d){ if(role!=='guest'||!p||!d||!DEFS[d.kind]) return; const kind=d.kind, D=window.__moatdeck, y=+d.y||0;
+  const deck=d.dk!==undefined?!!d.dk:!!(D&&D.cell&&Number.isFinite(D.Y)&&D.cell(wc(d.x),wcz(d.z))&&y>=D.Y-.01);
+  if(deck){ const r=.7, b={ x0:d.x-r, x1:d.x+r, z0:d.z-r, z1:d.z+r, top:DEFS[kind].top+y, bot:y, noStand:true }; RAILBOXES.push(b); (p.railboxes=p.railboxes||[]).push(b); return; }
+  let cells; window.__placeLong=!!d.lg; try{ cells=footprintCells(kind,d.x,d.z,d.rot||0); } finally{ window.__placeLong=undefined; }   // this hedge's own length, not this guest's Long Hedge (96l-talents.js longOn)
+  const f={ kind, x:d.x, z:d.z, rot:d.rot||0, top:DEFS[kind].top+y }; p.foot=f; p.cells=cells.filter(i=>walk(grid[i])&&!MOBBLOCK[i]&&!GDEFAT.has(i)); for(const i of p.cells) GDEFAT.set(i,f); }   // list order = the host's placing order, so a tower on a perch claims no cells, as there
+{ const prev=solidAt; solidAt=function(x,z,y,forHero){ if(forHero&&role==='guest'&&GDEFAT.size){ const cx=wc(x), cz=wcz(z), d=inb(cx,cz)?GDEFAT.get(idx(cx,cz)):null; if(d&&!NOWALK_DEF[d.kind]&&y<=d.top+.3&&y<d.top-.25&&defBlocksHero(d,x,z)) return true; } return prev.apply(this,arguments); }; }
+{ const prev=floorAt; floorAt=function(x,z,y){ const f=prev.apply(this,arguments); if(role!=='guest'||!GDEFAT.size) return f; const cx=wc(x), cz=wcz(z), d=inb(cx,cz)?GDEFAT.get(idx(cx,cz)):null; return d&&y>=d.top-.25?Math.max(f,d.top):f; }; }
+function pupWardNow(){ const T=window.__talents; if(!T||!T.tree||!T.tree()) return null; const w=T.rank('ward')+T.rank('kward'); return w?{ w, k:T.rank('kward')?1:0, vig:!!T.knight().vigil }:null; }
+function pupLook(p,W){ if(!p.mdl) return; const s=p.kind==='slice'?(p.rr>0?p.rr/DEFS.slice.range:1):markGrow(p.lvl); p.mdl.scale.setScalar(s); const st=p.mdl.userData.stretch; if(st) st.scale.x=HEDGE_STRETCH*(p.lg?1.6:1)/s;
+  if(p.kind==='pit'&&p.rr>0&&window.__pit&&window.__pit.shape) window.__pit.shape(p.mdl,p.lvl,p.rr);
+  let ring=p.mdl.userData.wardRing; const on=!!(W&&hero&&hero.dead<=0&&p.x!==undefined&&Math.hypot(p.x-hero.x,p.z-hero.z)<=8);
+  if(on&&!ring){ ring=new THREE.Mesh(new THREE.RingGeometry(.9,1.25,32),new THREE.MeshBasicMaterial({color:C(W.k?0xffd27a:0x8ef05a),transparent:true,opacity:.6,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide})); ring.rotation.x=-PI/2; ring.position.y=.08; ring.userData.noOL=true; p.mdl.add(ring); p.mdl.userData.wardRing=ring; }
+  if(ring){ ring.visible=on; if(on) ring.material.opacity=W.vig?.6+.3*Math.sin(S.t*9):.45+.2*Math.sin(S.t*3); } }
+function pupRunes(dt){ if(!DEFPUP.size) return; const list=[]; DEFPUP.forEach(p=>{ if(p.x===undefined) return; const o=p.rn||(p.rn={}); o.x=p.x; o.z=p.z; o.base=p.y||0; o.lvl=p.lvl||1; o.kind=p.kind; o.rr=p.rr||0; o.buffD=0; o.buffS=0; list.push(o); });
+  RUNE.n=0; for(const t of list){ if(t.kind!=='totem'||!(t.rr>0)) continue; for(const d of list){ if(d===t||d.kind==='totem'||!runeTakes(d)||Math.hypot(d.x-t.x,d.z-t.z)>t.rr) continue; d.buffD=1; if(RUNE.n<RUNE.max){ const L=RUNE.links[RUNE.n]||(RUNE.links[RUNE.n]={}); L.t=t; L.d=d; RUNE.n++; } } }
+  if(!RUNE.n) return; const keep=defs.slice(); defs.length=0; for(const o of list) defs.push(o); try{ runeDraw(dt); } finally{ defs.length=0; for(const d of keep) defs.push(d); } }   // the guest's own updateDefs already hid them this frame (its defs are empty); this draws them last
+// the Snare's capture (game.js snareCapture: the streak from the tower, the purple burst, SNARED!, SFX.destroy) -- host-only; the host now cues it through Meta.onDefFx and the guest draws it, without the kill
+{ const prev=snareCapture; snareCapture=function(d,e){ if(role==='host'&&conns.size&&d&&e) try{ Meta.onDefFx(d,'snare',[e.x,e.y+e.h*.5,e.z,e.r,e.y+e.h+.5].map(v=>+(+v||0).toFixed(2))); }catch(er){} return prev.apply(this,arguments); }; }
+window.__defFxGuest=window.__defFxGuest||{}; window.__defFxGuest.snare={ fx:(p,fx,a)=>{ if(fx!=='snare'||!Array.isArray(a)||a.length<5||!a.slice(0,5).every(v=>Number.isFinite(v)&&Math.abs(v)<1e4)) return;
+  const from=new THREE.Vector3(p.x,(DEFS.snare.top+(p.y||0))*.6,p.z), to=new THREE.Vector3(a[0],a[1],a[2]); const streak=glow(0xc9a8ff,1.4,.8); streak.position.copy(from).lerp(to,.5); streak.scale.set(.5,.5,from.distanceTo(to)*1.6); streak.lookAt(to); scene.add(streak); projs.push({kind:'splat',t:0,mesh:streak});
+  const burst=glow(0x8a3cff,Math.max(.2,Math.min(6,a[3]))*2.6,.85); burst.position.copy(to); scene.add(burst); projs.push({kind:'splat',t:0,mesh:burst}); floatText(a[0],a[4],a[2],'SNARED!','#c9a8ff'); SFX.destroy(); GSFX.snare=(GSFX.snare|0)+1; } };
 // build 499 (Matt, playing with Jacob: "when he walks up to a tower it doesn't say on bottom which one he's targeting, so he has a hard time upgrading the right defense"): a guest's E is the host's pickDef
 // (game.js) run at the guest's own spot and facing -- the guest's screen now runs the SAME pick over the towers it sees, rings the one E will act on (gold: upgrade, green: repair) and shows its card (60-lootfeel.js)
-function guestPick(){ if(role!=='guest'||!hero) return null; const fx=Math.sin(hero.yaw||0), fz=Math.cos(hero.yaw||0); let best=null, bs=1e9;
-  DEFPUP.forEach((p,id)=>{ if(p.x===undefined) return; const dx=p.x-hero.x, dz=p.z-hero.z, dist=Math.hypot(dx,dz); if(dist>=3.4) return; const facing=dist>.05?(1-(dx*fx+dz*fz)/dist):1; const hurt=p.max&&p.hp<p.max;
+function guestPick(){ if(role!=='guest'||!hero) return null; const fx=Math.sin(hero.yaw||0), fz=Math.cos(hero.yaw||0); let best=null, bs=1e9; const lvl=!!(window.__moatdeck&&Number.isFinite(window.__moatdeck.Y));   // co-op sweep 2026-10-02: on the Drawbridge only the towers at your own level, as 56k9-moatdeck.js picks
+  DEFPUP.forEach((p,id)=>{ if(p.x===undefined) return; if(lvl&&Math.abs((p.y||0)-(hero.y||0))>=3) return; const dx=p.x-hero.x, dz=p.z-hero.z, dist=Math.hypot(dx,dz); if(dist>=3.4) return; const facing=dist>.05?(1-(dx*fx+dz*fz)/dist):1; const hurt=p.max&&p.hp<p.max;
     const sc=(hurt?0:10)+facing*1.6+dist*.35; if(sc<bs){ bs=sc; best={ id, kind:p.kind, lvl:p.lvl, hp:p.hp, max:p.max, kills:p.kills|0, spent:p.spent|0, x:p.x, y:p.y, z:p.z }; } }); return best; }
 let gRing=null;
 function guestRing(p){ if(!p){ if(gRing) gRing.visible=false; return; } if(!gRing){ gRing=new THREE.Mesh(new THREE.RingGeometry(.82,1,40),new THREE.MeshBasicMaterial({color:0xe8b94a,transparent:true,opacity:.6,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending})); gRing.rotation.x=-PI/2; gRing.userData.noOL=true; scene.add(gRing); }
@@ -1257,13 +1299,13 @@ function guestRing(p){ if(!p){ if(gRing) gRing.visible=false; return; } if(!gRin
 const DCARD={ last:new Map(), t:0, got:null };
 function hostSendCards(dt){ if(role!=='host'||!conns.size||!window.__cardHtml) return; DCARD.t+=dt; if(DCARD.t<.25) return; DCARD.t=0; const now=performance.now();
   conns.forEach((c,id)=>{ const g=guestHero.get(id); let msg={ none:1 };
-    if(g&&!(g.dead>0)&&(S.phase==='build'||S.phase==='wave')){ const d=pickDef({ x:g.x, z:g.z, yaw:g.yaw }); if(d){ const m=guestMana.has(id)?guestMana.get(id):S.mana; const cd=window.__cardHtml(d,m); msg={ key:cd.key, html:cd.html, x:+d.x.toFixed(2), y:+(d.base||0).toFixed(2), z:+d.z.toFixed(2), hurt:d.hp<d.max?1:0, r:d.kind==='slice'?+(stat(d,'range')*.55).toFixed(2):1.25 }; } }
+    if(g&&!(g.dead>0)&&(S.phase==='build'||S.phase==='wave')){ const d=pickDef({ x:g.x, z:g.z, y:gyOf(id,g), yaw:g.yaw }); if(d){ const m=guestMana.has(id)?guestMana.get(id):S.mana; const cd=window.__cardHtml(d,m); msg={ key:cd.key, html:cd.html, x:+d.x.toFixed(2), y:+(d.base||0).toFixed(2), z:+d.z.toFixed(2), hurt:d.hp<d.max?1:0, r:d.kind==='slice'?+(stat(d,'range')*.55).toFixed(2):1.25 }; } }
     const was=DCARD.last.get(id); const k=msg.none?'none':msg.key+'@'+msg.x+','+msg.z; if(was&&was.k===k&&now-was.at<1000) return; DCARD.last.set(id,{ k, at:now }); send('dcard',msg,id); }); }
 onMessage('dcard',data=>{ if(role!=='guest'||!data) return; DCARD.got=data.none?null:Object.assign({ at:performance.now() },data); });
 const guestCardNow=()=>{ const c=DCARD.got; return c&&performance.now()-c.at<2500?c:null; };
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); hostSendCards(dt); if(role!=='guest'){ if(gRing) gRing.visible=false; return; }
     const live=(S.phase==='build'||S.phase==='wave')&&!placing; const c=live&&guestCardNow(); if(c){ guestRing({ x:c.x, y:c.y, z:c.z, hp:c.hurt?0:1, max:1 }); if(gRing) gRing.scale.setScalar(c.r||1.25); } else guestRing(live?guestPick():null); }; }
-window.__defsync={ card:()=>guestCardNow(), pick:guestPick, list:()=>[...DEFPUP.keys()], get:id=>{ const p=DEFPUP.get(id); if(!p) return null; return {id,kind:p.kind,lvl:p.lvl,chev:p.chev&&p.chev.parent===p.mdl?p.chev.userData.n:0,ring:p.ring&&p.ring.parent===p.mdl?p.ringCol:0,lg:p.lg|0,aura:!!(p.mdl.userData.aura&&p.mdl.userData.aura.parent===p.mdl),rr:p.rr||0,stretch:p.mdl.userData.stretch?+p.mdl.userData.stretch.scale.x.toFixed(3):null,x:+p.mdl.position.x.toFixed(2),y:+p.mdl.position.y.toFixed(2),z:+p.mdl.position.z.toFixed(2)}; } };
+window.__defsync={ card:()=>guestCardNow(), pick:guestPick, list:()=>[...DEFPUP.keys()], get:id=>{ const p=DEFPUP.get(id); if(!p) return null; return {id,kind:p.kind,lvl:p.lvl,chev:p.chev&&p.chev.parent===p.mdl?p.chev.userData.n:0,ring:p.ring&&p.ring.parent===p.mdl?p.ringCol:0,lg:p.lg|0,aura:!!(p.mdl.userData.aura&&p.mdl.userData.aura.parent===p.mdl),rr:p.rr||0,stretch:p.mdl.userData.stretch?+p.mdl.userData.stretch.scale.x.toFixed(3):null,x:+p.mdl.position.x.toFixed(2),y:+p.mdl.position.y.toFixed(2),z:+p.mdl.position.z.toFixed(2),sc:+p.mdl.scale.x.toFixed(3),mr:p.mdl.children.filter(o=>o.userData.markRing).length,pitB:p.mdl.userData.pit?+p.mdl.userData.pit.body.scale.x.toFixed(3):null,ward:!!(p.mdl.userData.wardRing&&p.mdl.userData.wardRing.visible),cells:p.cells?p.cells.length:0,deckBox:!!(p.railboxes&&p.railboxes.length&&p.kind!=='perch')}; }, rune:()=>RUNE.n };   /* co-op sweep 2026-10-02 (towers): sc/mr/pitB/ward/cells/deckBox -- coop-sweep-towers-test.mjs */
 // ---- build 376 (Matt: "he cannot see projectiles from ballistas"): a tower's shot was a host-only object -- fire() (game.js) pushes it into the host's own `projs`, and a guest's screen only ever showed the read-only tower. The host now says each shot it fires (a ballista's bolt, an acorn cannon's three acorns, a trebuchet's turnip: where it starts and how it flies), and a guest flies the same projectile on its own screen, drawn and moving as the host's (updateProj), with no damage (its `enemies` are empty; the host's shot already hurt the real mobs). The hit sound/splash of a turnip ride along for free
 const SHOT_KINDS={harpoon:1,acorn:1,turnip:1,arrow:1}; let shotsSent=0, shotsSeen=0;
 function sendShots(from,d){ if(role!=='host'||!conns.size) return; for(let i=from;i<projs.length;i++){ const p=projs[i]; if(!p||!SHOT_KINDS[p.kind]) continue; const f=v=>+(+v||0).toFixed(3);
@@ -1290,17 +1332,17 @@ function hostBroadcastDefs(dt){
   if(role!=='host'||!conns.size) return;
   syncTD+=dt; if(syncTD<.5) return; syncTD=0;   // static once placed -- 2Hz is plenty to catch a new one, an upgrade, or one destroyed
   const list=defs.map(d=>{ if(!d.__coopId) d.__coopId='d'+(nextDefId++);
-    return {id:d.__coopId,kind:d.kind,lvl:d.lvl||1,x:+d.x.toFixed(2),y:+d.base.toFixed(2),z:+d.z.toFixed(2),rot:+d.rot.toFixed(2),hp:Math.ceil(d.hp),max:d.max,kills:d.kills|0,spent:Math.round(d.spent||0),rc:d.setRing?(d.setRingCol|0):0,lg:d.long?1:0,sec:d.secret?1:0,rr:AURA_K[d.kind]?+stat(d,'range').toFixed(2):undefined}; });   /* rr (co-op sweep 2026-10-02): an aura tower's reach, the host's stat() (its placer's stats, talents, mythics, a Halo Surge) -- for the ring on the guest's puppet (pupAura) */   /* sec (co-op sweep 2026-10-02): a Deep Prison secret mortar -- the guest dresses its puppet as one (56g guestMount) */   /* co-op sweep 2026-10-02: rc = the full-set rune ring under it (93-gearsets.js), drawn on the guest's puppet too */   /* build 499: hp/max/kills/spent -- a guest's own tower card and pick (below) */
+    return {id:d.__coopId,kind:d.kind,lvl:d.lvl||1,x:+d.x.toFixed(2),y:+d.base.toFixed(2),z:+d.z.toFixed(2),rot:+d.rot.toFixed(2),hp:Math.ceil(d.hp),max:d.max,kills:d.kills|0,spent:Math.round(d.spent||0),rc:d.setRing?(d.setRingCol|0):0,lg:d.long?1:0,sec:d.secret?1:0,rr:(AURA_K[d.kind]||d.kind==='pit'||d.kind==='slice')?+stat(d,'range').toFixed(2):undefined,dk:d.onDeck?1:0}; });   /* co-op sweep 2026-10-02 (towers): rr for the pit and the cage too (their size on the guest, pupLook), dk = on the Drawbridge roof (defPuppetFoot) */   /* rr (co-op sweep 2026-10-02): an aura tower's reach, the host's stat() (its placer's stats, talents, mythics, a Halo Surge) -- for the ring on the guest's puppet (pupAura) */   /* sec (co-op sweep 2026-10-02): a Deep Prison secret mortar -- the guest dresses its puppet as one (56g guestMount) */   /* co-op sweep 2026-10-02: rc = the full-set rune ring under it (93-gearsets.js), drawn on the guest's puppet too */   /* build 499: hp/max/kills/spent -- a guest's own tower card and pick (below) */
   sendSnap('defs',{list});
 }
 onMessage('defs',data=>{
   const ids=new Set();
   data.list.forEach(d=>{ ids.add(d.id);
     let p=DEFPUP.get(d.id); if(p){ p.hp=d.hp; p.max=d.max; p.kills=d.kills; p.spent=d.spent; p.x=d.x; p.y=d.y; p.z=d.z; p.rr=+d.rr||0; }
-    if(!p){ defPuppetAdd(d.id,d.kind,d.lvl,d.x,d.y,d.z,d.rot); const np=DEFPUP.get(d.id); if(np){ np.hp=d.hp; np.max=d.max; np.kills=d.kills; np.spent=d.spent; np.x=d.x; np.y=d.y; np.z=d.z; np.rr=+d.rr||0; defPupRing(np,d.rc); defPupLong(np,d.lg); if(d.sec){ try{ const PWk=window.__prisonwalls; if(PWk&&PWk.guestMount) PWk.guestMount(np); }catch(er){} } } if(GSFX.defsSeen){ SFX.place(); GSFX.place++; } return; }   // a defense set down since the last list: the placement sound (build 147), whoever placed it
+    if(!p){ defPuppetAdd(d.id,d.kind,d.lvl,d.x,d.y,d.z,d.rot); const np=DEFPUP.get(d.id); if(np){ np.hp=d.hp; np.max=d.max; np.kills=d.kills; np.spent=d.spent; np.x=d.x; np.y=d.y; np.z=d.z; np.rr=+d.rr||0; defPupRing(np,d.rc); defPupLong(np,d.lg); defPuppetFoot(np,d); if(d.sec){ try{ const PWk=window.__prisonwalls; if(PWk&&PWk.guestMount) PWk.guestMount(np); }catch(er){} } } if(GSFX.defsSeen){ SFX.place(); GSFX.place++; } return; }   // a defense set down since the last list: the placement sound (build 147), whoever placed it
     ensureDefMark(d.kind,d.lvl); ensureDefMark(d.kind,d.lvl+1); const T=defTemplate(d.kind,d.lvl);   // an upgrade on the host asks for that mark's model here too (and the next one up), as reskinDefs does for the host's own
     if(d.lvl>p.lvl){ SFX.place(); GSFX.upgrade++; }   // a mark up: the same sound the host hears for it (build 147)
-    if(p.lvl!==d.lvl||(T&&p.mdl.userData.tpl!==T)){ scene.remove(p.mdl); p.mdl=makeDef(d.kind,false,d.lvl); p.mdl.position.set(d.x,d.y,d.z); p.mdl.rotation.y=d.rot; scene.add(p.mdl); p.lvl=d.lvl; }
+    if(p.lvl!==d.lvl||(T&&p.mdl.userData.tpl!==T)){ scene.remove(p.mdl); p.mdl=makeDef(d.kind,false,d.lvl); p.mdl.position.set(d.x,d.y,d.z); p.mdl.rotation.y=d.rot; scene.add(p.mdl); p.lvl=d.lvl; pupMarkRings(p); }
     defPupRing(p,d.rc); if((p.lg|0)!==(d.lg?1:0)||d.lg) defPupLong(p,d.lg);   // a new mark, or its model just landed (the first build wore the mark below while it downloaded): the same test reskinDefs makes, caught on the host's next list, twice a second
   });
   [...DEFPUP.keys()].forEach(id=>{ if(!ids.has(id)) defPuppetRemove(id); });   // sold or destroyed on the host -- same roster-diff removal as heroes and enemies
@@ -1318,14 +1360,16 @@ onMessage('defs',data=>{
 // guest's own host-tracked position, so a guest can't insta-build clear across the map.
 { const origPlaceDefAt=placeDefAt;
   placeDefAt=function(kind,x,z,rot){
-    if(role==='guest'){ send('place',{kind,x:+x.toFixed(2),z:+z.toFixed(2),yaw:+rot.toFixed(3)}); return null; }
+    if(role==='guest'){ send('place',{kind,x:+x.toFixed(2),z:+z.toFixed(2),yaw:+rot.toFixed(3),y:+(hero.y||0).toFixed(2)}); return null; }   // y (co-op sweep 2026-10-02): the level this guest stands on (the Drawbridge roof, hostTryPlaceDef)
     return origPlaceDefAt(kind,x,z,rot);
   }; }
 // phase 12: mana cost checks/spends below read/write the shared S.mana binding -- but by the time this runs it's
 // been temporarily swapped to mean THIS guest's own pool (see the S.mana swap around the call site, same trick
 // hostDefAction below already uses), so placeDefAt's own internal S.mana-=cfg.mana (game.js) lands on the right
 // pool with zero changes to game.js itself.
-function hostTryPlaceDef(kind,x,z,yaw,fromId){
+// co-op sweep 2026-10-02 (towers): gyIn = the guest's own height as it placed. On the Drawbridge roof (56k9-moatdeck.js) a tower goes on the level the GUEST stands on, checked the way the
+// roof ghost checks it there (crowding, standing on it, DU, mana -- not the yard squares under it), and a refused roof spot says so instead of silently doing nothing
+function hostTryPlaceDef(kind,x,z,yaw,fromId,gyIn){
   if(role!=='host') return;
   const cfg=DEFS[kind]; if(!cfg) return;
   const g=guestHero.get(fromId);
@@ -1338,20 +1382,23 @@ function hostTryPlaceDef(kind,x,z,yaw,fromId){
   const cx=wc(x), cz=wcz(z), t=gat(cx,cz), cells=footprintCells(kind,x,z,yaw);
   let reason=null;
   const surf=(window.__perch&&window.__perch.deckFor)?window.__perch.deckFor(kind,x,z):null;   // build 381: a ballista may stand on a free perch's deck or a Cloister hedge (96b-perch.js)
-  if(!surf&&(!(t===T.FLOOR||t===T.CARPET)||cells.some(i=>!walk(grid[i])||MOBBLOCK[i]))) reason="Can't build there";
+  const gy=Number.isFinite(+gyIn)?+gyIn:gyOf(fromId,g), MD=window.__moatdeck, upDeck=!surf&&!!(MD&&MD.deckAt&&MD.deckAt(x,z,gy)), deck=upDeck&&!MD.noDeck(kind);
+  if(upDeck&&!deck) reason="That one goes on the ground";
+  else if(deck){ if(MD.crowded(x,z)) reason='Already occupied'; else if(Math.hypot(x-g.x,z-g.z)<1.05) reason="You're standing there"; else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units'; }
+  else if(!surf&&(!(t===T.FLOOR||t===T.CARPET)||cells.some(i=>!walk(grid[i])||MOBBLOCK[i]))) reason="Can't build there";
   else if(!surf&&cells.some(i=>defAt[i])) reason='Already occupied';
   else if(cells.includes(idx(wc(g.x),wcz(g.z)))||Math.hypot(x-g.x,z-g.z)<1.1) reason="You're standing there";   // the same self-overlap rule updateGhost (game.js) enforces locally, mirrored here against the guest's own HOST-tracked position
   else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units';
   const realMana=S.mana; S.mana=guestMana.has(fromId)?guestMana.get(fromId):MAP_MANA;
   if(!reason&&S.mana<cfg.mana) reason='Not enough mana';
-  else if(!reason&&enemies.some(e=>!e.dead&&Math.hypot(e.x-x,e.z-z)<2.2)) reason='Enemy too close';
+  else if(!reason&&!deck&&enemies.some(e=>!e.dead&&Math.hypot(e.x-x,e.z-z)<2.2)) reason='Enemy too close';
   if(reason){ S.mana=realMana; send('toast',reason,fromId); return; }
-  const d=placeDefAt(kind,x,z,yaw); if(d){ d.ownerId=fromId; d.ownerHero=Meta.defOwnerHero(fromId)||null; const st=seatOf.get(fromId); if(st) d.ownerSeat=st.seat; }   // stat() (game.js) reads this via Meta.defOwnerStat/Mult so the defense keeps ITS PLACER's buffs, not the host's own; the seat (build 159, 3/7) is how it finds its placer again after a rejoin (seatJoin)
+  const d=(MD&&MD.placeAt)?MD.placeAt(kind,x,z,yaw,gy):placeDefAt(kind,x,z,yaw); if(!d&&deck) send('toast','Already occupied',fromId); if(d){ d.ownerId=fromId; d.ownerHero=Meta.defOwnerHero(fromId)||null; const st=seatOf.get(fromId); if(st) d.ownerSeat=st.seat; }   // stat() (game.js) reads this via Meta.defOwnerStat/Mult so the defense keeps ITS PLACER's buffs, not the host's own; the seat (build 159, 3/7) is how it finds its placer again after a rejoin (seatJoin)
   guestMana.set(fromId,S.mana); S.mana=realMana;
 }
 // co-op sweep 2026-10-02: a guest's hedge is as long as HIS Long Hedge says (96l-talents.js longOn reads this while the host places it), not the host's
 { const inner=hostTryPlaceDef; hostTryPlaceDef=function(kind,x,z,yaw,fromId){ if(role!=='host') return inner.apply(this,arguments); window.__placeLong=kind==='spike'&&Meta.defOwnerHero(fromId)==='knight'&&Meta.defOwnerTalent(fromId,'knight','klong')>0; try{ return inner.apply(this,arguments); }finally{ window.__placeLong=undefined; } }; }
-onMessage('place',(data,fromId)=>hostTryPlaceDef(data.kind,data.x,data.z,data.yaw,fromId));
+onMessage('place',(data,fromId)=>hostTryPlaceDef(data.kind,data.x,data.z,data.yaw,fromId,data.y));
 
 { const origRepair=repair, origUpgrade=upgrade, origSell=sell;
   repair=function(pos){ if(role==='guest'){ send('defAction',{action:'repair'}); return; } origRepair(pos); };
@@ -1380,7 +1427,7 @@ function hostDefAction(data,fromId){
   const g=guestHero.get(fromId); if(!g) return;
   if(g.dead>0){ send('toast',"You're down — wait to respawn",fromId); return; }
   if(S.phase==='start'||S.phase==='dead'||S.phase==='won'||S.phase==='deathcut'){ send('toast','Not right now',fromId); return; }   // build 159 (3/7): the same end-of-run gate hostTryPlaceDef has always had -- a repair, upgrade or sell after the hall fell or held used to go through
-  const pos={x:g.x,z:g.z,yaw:g.yaw};   // build 165: the guest's facing too -- game.js's pickDef takes a hurt tower first, then the one you face
+  const pos={x:g.x,z:g.z,y:gyOf(fromId,g),yaw:g.yaw};   // y (co-op sweep 2026-10-02): the guest's level -- on the Drawbridge roof it picks the roof's towers, not the yard's under it (56k9-moatdeck.js pickDef)   // build 165: the guest's facing too -- game.js's pickDef takes a hurt tower first, then the one you face
   // build 159 (3/7), Matt's call: a guest sells only the defenses it built -- sell() takes whichever is nearest, so pressing X by a
   // friend's tower took it down and put 70% of what THEY paid in your own pool. The host may sell any (its hall), and repairing or
   // upgrading anyone's stays open to everyone: helping is fine

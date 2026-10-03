@@ -29,7 +29,9 @@ const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='gue
     g.userData.pit={body,hole,halves,teeth,glo,dust,rim,rimH};
     if(ghost){ g.traverse(m=>{ if(m.isMesh){ if(m.userData.isOL) m.visible=false; else m.material=GHOST_OK; } }); } else { if(!T) outline(g); g.add(blob(.95)); }
     return g; }; }
-function pitAnim(d,dt){ const u=d.mdl.userData.pit; if(!u) return; const P=d.pit||{phase:'rest',t:0}; const rr=stat(d,'range'), s=d.mdl.scale.x||1; u.body.scale.setScalar(rr/s); if(u.rim){ const cap=[.55,.85,1.0,1.15][Math.min(3,Math.max(0,(d.lvl||1)-1))], m=Math.min(1,cap/u.rimH); u.rim.scale.y=(s/rr)*m; u.rim.position.y=-.35*u.rimH*s*m/rr; }   /* build 240 (Matt: "you're gonna have to set those pitfalls down into the ground some"): the rim stands 35% sunk into the floor -- its bottom is under the floor, only the rest shows */   /* the bigger marks' rims are 1.2-1.7 tall as authored; capped so they never hide the mobs sinking behind them */   /* the rim widens with the pit's range but stays low: mobs must be seen sinking behind it, not hidden by a well wall */
+// co-op sweep 2026-10-02 (towers): the pit's size and its sunk rim split out as pitShape, so a co-op guest's puppet pit (99-network.js) is shaped from the host's range too -- the host's own is unchanged
+function pitShape(mdl,lvl,rr){ const u=mdl.userData.pit; if(!u) return; const s=mdl.scale.x||1; u.body.scale.setScalar(rr/s); if(u.rim){ const cap=[.55,.85,1.0,1.15][Math.min(3,Math.max(0,(lvl||1)-1))], m=Math.min(1,cap/u.rimH); u.rim.scale.y=(s/rr)*m; u.rim.position.y=-.35*u.rimH*s*m/rr; } }   /* build 240 (Matt: "you're gonna have to set those pitfalls down into the ground some"): the rim stands 35% sunk into the floor -- its bottom is under the floor, only the rest shows */   /* the bigger marks' rims are 1.2-1.7 tall as authored; capped so they never hide the mobs sinking behind them */   /* the rim widens with the pit's range but stays low: mobs must be seen sinking behind it, not hidden by a well wall */
+function pitAnim(d,dt){ const u=d.mdl.userData.pit; if(!u) return; const P=d.pit||{phase:'rest',t:0}; pitShape(d.mdl,d.lvl,stat(d,'range'));
   const open=P.phase==='open'?Math.min(1,P.t/.35):P.phase==='crush'?Math.max(0,1-P.t/.45):0;   // how far the hatch has split
   for(const h of u.halves) h.position.set(0,.06,h.userData.side*.96*open); u.hole.visible=open>.02;
   const crush=P.phase==='crush'?Math.min(1,P.t/.16):0;   // the teeth snap inward
@@ -56,5 +58,5 @@ function pitCrush(d,P,cfg,rr){ P.phase='crush'; P.t=0; const dmg=stat(d,'dmg')*c
 // a mob that sank comes back up when its pit closes or is gone; the look only
 function surface(dt){ for(const e of enemies){ if(!(e.sink>0)) continue; const d=e.sinkBy; const still=!e.dead&&d&&defs.includes(d)&&d.pit&&d.pit.phase==='open'&&d.pit.held.includes(e); if(still) continue; e.sink=Math.max(0,e.sink-dt*(e.dead?0:1.6)); e.lift=-e.sink; if(e.sink<=0) e.sinkBy=null; } }
 { const prev=updateDefs; updateDefs=function(dt){ prev(dt); for(const d of defs) if(d.kind==='pit') pitTick(d,dt); surface(dt); }; }
-window.__pit={cfg:DEFS.pit,state:d=>d&&d.pit?{phase:d.pit.phase,t:+d.pit.t.toFixed(2),held:d.pit.held.length,cool:+(d.pit.cool||0).toFixed(1)}:null};
+window.__pit={cfg:DEFS.pit,shape:pitShape,state:d=>d&&d.pit?{phase:d.pit.phase,t:+d.pit.t.toFixed(2),held:d.pit.held.length,cool:+(d.pit.cool||0).toFixed(1)}:null};
 })();

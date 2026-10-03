@@ -57,7 +57,9 @@ const LIM=BOT-.45, V=new THREE.Vector3(), L=new THREE.Vector3();
     const k=(LIM-ty)/(p.y-ty); p.set(hero.x+(p.x-hero.x)*k,LIM,hero.z+(p.z-hero.z)*k); camera.lookAt(L); cnt.camClamp++; }; }
 // ---- towers on the deck
 const NO_DECK=k=>!!NOWALK_DEF[k]||k==='spike';
-const up=()=>(hero.y||0)>=Y-.6;
+// co-op sweep 2026-10-02: the host placing a GUEST's tower asks at the GUEST's height (forceY, set by __moatdeck.placeAt below) -- it used to ask the host's own hero, so a guest's roof tower went into the yard
+// whenever the host stood on the ground (and a guest's yard tower went up on the roof whenever the host stood up there)
+let forceY=null; const up=()=>(forceY!=null?forceY:(hero.y||0))>=Y-.6;
 const towerAt=(cx,cz)=>defs.find(d=>d.onDeck&&d.cx===cx&&d.cz===cz)||null;
 // build 497 (Matt: "they snap to the grid instead of being able to place them" -- ballistas on the Drawbridge): a tower on the deck goes exactly where it is aimed, as on the ground -- not to the middle of its
 // square. Crowding is a distance now: too close to another deck tower is 'Already occupied'.
@@ -73,7 +75,8 @@ const DECK_GAP=1.6, crowded=(x,z)=>defs.find(d=>d.onDeck&&Math.hypot(d.x-x,d.z-z
     const r=.7, b={ x0:d.x-r, x1:d.x+r, z0:d.z-r, z1:d.z+r, top:d.top, bot:Y, noStand:true }; RAILBOXES.push(b); d.railboxes=(d.railboxes||[]).concat(b);   /* solid to the hero up top (96b-perch.js's removeDef wrap takes d.railboxes down with it) */
     reflow(); cnt.placed++; return d; }; }
 // aiming picks the towers at your own level
-{ const prev=pickDef; pickDef=function(pos){ if(pos&&pos!==hero) return prev.apply(this,arguments); const hy=hero.y||0; const all=defs.slice(), keep=all.filter(d=>Math.abs((d.base||0)-hy)<3);
+// co-op sweep 2026-10-02: the host picking for a guest (its card, its E/X) passes the guest's height as pos.y, so a guest picks at his own level too; a pos with no y is left alone, as before
+{ const prev=pickDef; pickDef=function(pos){ const other=pos&&pos!==hero; if(other&&!Number.isFinite(pos.y)) return prev.apply(this,arguments); const hy=other?pos.y:(hero.y||0); const all=defs.slice(), keep=all.filter(d=>Math.abs((d.base||0)-hy)<3);
     if(keep.length===all.length) return prev.apply(this,arguments); defs.length=0; for(const d of keep) defs.push(d); try{ return prev.apply(this,arguments); } finally { defs.length=0; for(const d of all) defs.push(d); } }; }
-window.__moatdeck={ cell, inHole, towerAt, under, Y, hole:()=>HAS_HOLE?{ x0:hx0, x1:hx1, z0:hz0, z1:hz1 }:null, info:()=>Object.assign({ onDeck:defs.filter(d=>d.onDeck).length },cnt) };
+window.__moatdeck={ cell, inHole, towerAt, under, Y, crowded, noDeck:NO_DECK, deckAt:(x,z,y)=>(y||0)>=Y-.6&&cell(wc(x),wcz(z)), placeAt:(kind,x,z,rot,y)=>{ forceY=Number.isFinite(y)?y:null; try{ return placeDefAt(kind,x,z,rot); } finally{ forceY=null; } },   /* co-op sweep 2026-10-02: hostTryPlaceDef (99-network.js) */ hole:()=>HAS_HOLE?{ x0:hx0, x1:hx1, z0:hz0, z1:hz1 }:null, info:()=>Object.assign({ onDeck:defs.filter(d=>d.onDeck).length },cnt) };
 })();

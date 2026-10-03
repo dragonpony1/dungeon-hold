@@ -53,7 +53,7 @@ function spring(d){ DMGSRC=d;   /* build 463: kills counted (00-killcount.js) */
 const CLIP_RESET=4, CLIP_ARM=3;
 function trapState(d){ if(d.snapT>=0&&d.snapT<.7) return 'Snap_Shut'; if(d.cd>CLIP_RESET) return 'Closed'; if(d.cd>0) return 'Reset'; if(d.armT>CLIP_ARM) return 'Reset'; if(d.armT>0) return 'Arm'; return 'Armed'; }
 function trapAnim(d,dt,pup){ const hold=d.mdl.userData.hold, T=d.mdl.userData.tpl; if(!hold||!T) return;
-    hold.scale.setScalar(pup?1:1/markGrow(d.lvl));   /* a guest's puppet is never mark-grown, so it needs no holding back */
+    hold.scale.setScalar(1/markGrow(d.lvl));   /* co-op sweep 2026-10-02 (towers): a guest's puppet is mark-grown now too (99-network.js pupLook), so it is held back the same */
     if(d.snapT>=0){ d.snapT+=dt; if(d.snapT>=.7) d.snapT=-1; }   /* the snap clock (the stand-in counts it in its own bar code) */
     if(d.__mixMdl!==d.mdl){ d.__mixMdl=d.mdl; d.__mix=new THREE.AnimationMixer(hold); d.__acts={}; d.__clip=null; cnt.mixers=(cnt.mixers||0)+1;
       for(const c of T.clips||[]){ const a=d.__mix.clipAction(c); if(c.name!=='Armed'&&c.name!=='Closed'){ a.setLoop(THREE.LoopOnce,1); a.clampWhenFinished=true; } d.__acts[c.name]=a; } }
