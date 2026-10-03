@@ -2,14 +2,14 @@
 // While a Corruptor of Fate is alive on a wave, the horde's way in is not fixed: every 15 seconds it pulls one open gate SHUT and lets the one it shut before open again. Four seconds before a gate shuts it shows it: the Corruptor
 // leans back, a violet beam of light runs from him to the gate, a violet veil shimmers up in the doorway and a clock-face sigil on the floor in front of it spins faster and faster (a clock racing out). A shut gate stays veiled
 // and its sigil turns slowly; whatever the wave would have sent through it comes out of another open gate instead (spawnEnemy is the one place every mob comes from). Mobs already out keep coming, of course. There are never fewer
-// than two gates open: with only two (waves one and two), the power does nothing at all. When the Corruptor dies every gate opens again, a flash at each. Only on THE DEEP PRISON; not in a co-op hall (guests would see none of it).
+// than two gates open: with only two (waves one and two), the power does nothing at all. When the Corruptor dies every gate opens again, a flash at each. Only on THE DEEP PRISON; in a co-op hall since build 508 (the host switches, its guests see it: 'fate').
 // The first gate shuts 8 seconds after the Corruptor comes into the fight (its warning starts at 4). No lights are made (violet sprites and flat planes only). Test hook: window.__fate.
 (function(){
 'use strict';
 window.__fate={ info:()=>null };
 if(!MAP||MAP.id!=='prison') return;
 const WARN=4, PERIOD=15, FIRST=8, K='corruptor';
-const inCoop=()=>{ try{ return !!(window.__net&&window.__net.role&&window.__net.role()); }catch(er){ return false; } };
+const isGuest=()=>{ try{ return !!(window.__net&&window.__net.role&&window.__net.role()==='guest'); }catch(er){ return false; } };   // build 508 (Matt approved, co-op): was inCoop -- the switching never ran in a co-op hall
 const cnt={ shuts:0, warns:0, remaps:0, reopens:0 };
 const FATE={ on:false, clock:0, next:FIRST, shut:null, warn:null, warnAt:0 };
 const openLanes=()=>{ const mw=effWave()-MAP.wbase, all=Object.keys(LANES); return all.some(k=>LANES[k].from)?all.filter(k=>(LANES[k].from||1)<=mw):all; };
@@ -43,13 +43,26 @@ function doSwitch(){ const k=FATE.warn; if(!k) return; if(FATE.shut){ const old=
 function stopAll(){ for(const k in gates){ const G=gates[k]; if(G.mode==='shut'||G.mode==='warn'){ G.mode='open'; G.t=0; G.fade=1; flashAt(G.x,G.y,G.z); cnt.reopens++; } } FATE.on=false; FATE.shut=null; FATE.warn=null; for(const s of BEAM) s.visible=false; for(const e of enemies) if(e.kind===K) e.casting=false; }
 // every mob comes through spawnEnemy: one bound for a shut gate goes out of another open one
 { const prev=spawnEnemy; spawnEnemy=function(kind,lane){ if(FATE.shut&&lane===FATE.shut&&FATE.on){ const open=openLanes().filter(k=>k!==FATE.shut); if(open.length){ lane=open[(rnd()*open.length)|0]; cnt.remaps++; } } return prev.call(this,kind,lane); }; }
-WORLDANIM.push(dt=>{
-  const b=boss(), act=!inCoop()&&S.phase==='wave'&&!cutscene()&&!!b;
-  if(act){ if(!FATE.on){ FATE.on=true; FATE.clock=0; FATE.next=FIRST; } FATE.clock+=dt;
+// build 508 (Matt approved, co-op): a co-op HOST switches the gates as solo does (every spawn is its own) and says which gate is warned and which shut ('fate', on each change and every 2 s while
+// it runs, for a late joiner); a GUEST draws the same veils, sigils, flashes and beam (from the Corruptor's puppet) and hears the same roar and boom
+let gF=null, fHooked=false, fSent='', fSentT=0, gFn=0;
+function hookF(){ if(fHooked) return; const n=window.__net; if(!(n&&n.onMessage)) return; fHooked=true; n.onMessage('fate',d=>{ if(!isGuest()||!d) return; gFn++; gF={ w:typeof d.w==='string'&&LANES[d.w]?d.w:null, s:typeof d.s==='string'&&LANES[d.s]?d.s:null }; }); }
+function tellF(){ const n=window.__net; if(!(n&&n.role&&n.role()==='host'&&n.peers&&n.peers().length)) return; const sig=(FATE.warn||'')+'|'+(FATE.shut||''), now=performance.now(); if(sig===fSent&&!(FATE.on&&now-fSentT>2000)) return; fSent=sig; fSentT=now; try{ n.send('fate',{ w:FATE.warn, s:FATE.shut }); }catch(er){} }
+const reopen=k=>{ const G=gateFor(k); if(G.mode!=='shut'&&G.mode!=='warn') return; G.mode='open'; G.t=0; G.fade=1; flashAt(G.x,G.y,G.z); cnt.reopens++; };
+function guestF(dt){ const want=gF||{ w:null, s:null }; FATE.clock+=dt;
+  if(want.s!==FATE.shut){ if(FATE.shut) reopen(FATE.shut); FATE.shut=want.s; if(want.s){ setMode(want.s,'shut'); cnt.shuts++; camShake=Math.max(camShake,.35); try{ SFX.boom&&SFX.boom(); }catch(er){} } }
+  if(want.w!==FATE.warn){ if(FATE.warn&&FATE.warn!==want.s) reopen(FATE.warn); FATE.warn=want.w; if(want.w){ FATE.warnAt=FATE.clock; setMode(want.w,'warn'); cnt.warns++; try{ SFX.roar&&SFX.roar(); }catch(er){} } }
+  FATE.on=!!(FATE.warn||FATE.shut); }
+const pupBoss=()=>{ let o=null; const M=window.__mobsync; if(M&&M.each) M.each(p=>{ if(!o&&p.kind===K&&p.mdl) o=p; }); return o; };
+WORLDANIM.push(dt=>{ hookF(); const gu=isGuest();
+  const b=boss(), act=!gu&&S.phase==='wave'&&!cutscene()&&!!b;
+  if(gu) guestF(dt);
+  else if(act){ if(!FATE.on){ FATE.on=true; FATE.clock=0; FATE.next=FIRST; } FATE.clock+=dt;
     if(!FATE.warn&&FATE.clock>=FATE.next-WARN){ beginWarn(); if(!FATE.warn) FATE.next+=PERIOD; }   // too few gates open: nothing this round
     if(FATE.warn&&FATE.clock>=FATE.next){ doSwitch(); FATE.next+=PERIOD; } }
   else if(FATE.on&&!cutscene()) stopAll();
   if(b) b.casting=!!(act&&FATE.warn);
+  if(!gu) tellF();
   // the looks
   const S_=S.t; for(const k in gates){ const G=gates[k]; G.t+=dt; let vo=0, so=0, go=0, rate=0;
     if(G.mode==='warn'){ const p=Math.min(1,(FATE.clock-FATE.warnAt)/WARN); vo=(.1+.5*p)*(.75+.25*Math.sin(S_*(8+30*p))); so=.2+.65*p; go=(.25+.6*p)*(.7+.3*Math.sin(S_*(6+20*p))); rate=1+9*p; }
@@ -57,9 +70,9 @@ WORLDANIM.push(dt=>{
     else if(G.mode==='open'){ G.fade=Math.max(0,G.fade-dt/.7); vo=.5*G.fade; so=.6*G.fade; go=.5*G.fade; rate=.6; if(G.fade<=0){ G.mode='off'; G.veil.visible=G.sig.visible=G.gl.visible=false; } }
     if(G.mode!=='off'){ G.veil.material.opacity=vo; G.sig.material.opacity=so; G.gl.material.opacity=go; G.gl.scale.setScalar(7+go*5); G.spin+=dt*rate; G.sig.rotation.z=G.spin; } }
   // the beam
-  const wk=FATE.warn&&b?gates[FATE.warn]:null; if(wk){ const ax=b.x, ay=(b.y||0)+3.4, az=b.z, bx=wk.x, by=wk.y+2.8, bz=wk.z, px=-(bz-az), pz=(bx-ax), pl=Math.hypot(px,pz)||1;
+  const bb=b||(gu&&FATE.warn?pupBoss():null), wk=FATE.warn&&bb?gates[FATE.warn]:null; if(wk){ const ax=bb.x, ay=(bb.y||0)+3.4, az=bb.z, bx=wk.x, by=wk.y+2.8, bz=wk.z, px=-(bz-az), pz=(bx-ax), pl=Math.hypot(px,pz)||1;
     BEAM.forEach((s,i)=>{ const u=i/(BEAM.length-1), w=Math.sin(S_*7+i*.9)*.45*Math.sin(u*PI); s.visible=true; s.position.set(ax+(bx-ax)*u+px/pl*w,ay+(by-ay)*u+Math.sin(S_*5+i)*.2,az+(bz-az)*u+pz/pl*w); s.material.opacity=.45+.35*Math.sin(S_*10+i*1.3); s.scale.setScalar(1.3+.5*Math.sin(S_*8+i)); }); }
   else for(const s of BEAM) if(s.visible) s.visible=false;
   for(let i=flashes.length-1;i>=0;i--){ const f=flashes[i]; f.t+=dt; const k=f.t/f.life; if(k>=1){ scene.remove(f.s); f.s.material.dispose(); flashes.splice(i,1); continue; } f.s.material.opacity=.9*(1-k); f.s.scale.setScalar(6+k*10); } });
-window.__fate={ makeSigil:(size,col)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(size||5,size||5),new THREE.MeshBasicMaterial({ map:sigilTex(), color:C(col||0xc070ff), transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide })); m.rotation.set(-PI/2,0,0); m.userData.noOL=true; return m; }, info:()=>Object.assign({ on:FATE.on, shut:FATE.shut, warn:FATE.warn, clock:+FATE.clock.toFixed(2), next:FATE.next, open:openLanes().filter(k=>k!==FATE.shut), modes:Object.fromEntries(Object.keys(gates).map(k=>[k,gates[k].mode])), beam:BEAM.filter(s=>s.visible).length },cnt), consts:{ WARN, PERIOD, FIRST }, gate:k=>{ const G=gates[k]; return G?{ x:G.x, y:G.y, z:G.z, mode:G.mode, veil:G.veil.visible, vo:+G.veil.material.opacity.toFixed(2), sig:G.sig.visible, so:+G.sig.material.opacity.toFixed(2) }:null; } };
+window.__fate={ makeSigil:(size,col)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(size||5,size||5),new THREE.MeshBasicMaterial({ map:sigilTex(), color:C(col||0xc070ff), transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide })); m.rotation.set(-PI/2,0,0); m.userData.noOL=true; return m; }, gFn:()=>gFn, info:()=>Object.assign({ on:FATE.on, shut:FATE.shut, warn:FATE.warn, clock:+FATE.clock.toFixed(2), next:FATE.next, open:openLanes().filter(k=>k!==FATE.shut), modes:Object.fromEntries(Object.keys(gates).map(k=>[k,gates[k].mode])), beam:BEAM.filter(s=>s.visible).length },cnt), consts:{ WARN, PERIOD, FIRST }, gate:k=>{ const G=gates[k]; return G?{ x:G.x, y:G.y, z:G.z, mode:G.mode, veil:G.veil.visible, vo:+G.veil.material.opacity.toFixed(2), sig:G.sig.visible, so:+G.sig.material.opacity.toFixed(2) }:null; } };
 })();

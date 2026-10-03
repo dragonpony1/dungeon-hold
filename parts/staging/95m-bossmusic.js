@@ -49,7 +49,7 @@ function toDepths(){ if(!BM.on) return; BM.t=Math.max(BM.t,DEPTHS_AT); if(BM.sta
 WORLDANIM.push(dt=>{ if(!BM.on) return; const cine=!!(window.__finale&&window.__finale.active&&window.__finale.active()); if(!cine) advance(BM.t+dt);
   if(audioOn()&&typeof musicMode!=='undefined'&&musicMode!=='none'){ stop(1.5,false,'game music '+musicMode); return; }   // another part of the game has put its own music on (a wave's end plays the build music)
   if(!audioOn()&&BM.stage!=='off'&&BM.played.length){ stop(.5,false,'music off'); return; }   // music or sound turned off partway
-  if(!cine&&BM.stage==='battle'){ const alive=enemies.some(e=>!e.dead); BM.calm=alive?0:BM.calm+dt; if(BM.calm>3||S.phase==='dead'||S.phase==='won') stop(2.5,true,'quiet'); } });
+  if(!cine&&BM.stage==='battle'){ const n=window.__net, gu=!!(n&&n.role&&n.role()==='guest'), alive=gu?!!(window.__mobsync&&window.__mobsync.foes&&window.__mobsync.foes().length):enemies.some(e=>!e.dead);   /* build 508 (co-op): a guest's mobs are the host's puppets (its own enemies list is empty: the drums stopped 3 s in) */ BM.calm=alive?0:BM.calm+dt; if(BM.calm>3||S.phase==='dead'||S.phase==='won') stop(2.5,true,'quiet'); } });
 // ---- the dev panel (F9): which battle track
 setInterval(()=>{ const p=document.getElementById('devpanel'); if(!p||document.getElementById('dp-battle')) return; const sec=document.createElement('div'); sec.className='sect'; sec.id='dp-battle';
   sec.innerHTML='<label>the wall fight music, after boss 2</label><div class="row"><select id="dp-battle-sel"><option value="depths">Drums from the Depths</option><option value="alt">Fundamental 30</option></select></div>'; const note=p.querySelector('.note'); if(note) p.insertBefore(sec,note); else p.appendChild(sec);

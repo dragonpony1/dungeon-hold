@@ -13,7 +13,11 @@ window.__finale={ info:()=>null };
 if(!MAP||MAP.id!=='prison') return;
 const PWK=window.__prisonwalls; if(!PWK||!PWK.shatter||!PWK.BreakableWall) return;
 const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
-const inCoop=()=>{ try{ return !!(window.__net&&window.__net.role&&window.__net.role()); }catch(er){ return false; } };   // the cutscene holds the host's game still, which a co-op hall (guests see no barrier yet) must never feel: in a shared hall the wall just stays
+// build 508 (Matt approved, co-op): the wall falls in a co-op hall too, the Avery way (95u). The HOST runs it as single player does (the boss, the crowd, the boluses -- every spawn is its own) and says
+// 'finale' (and 'finaleSkip'); each GUEST plays its own copy of the scene (a stand-in boss that is not in `enemies`, the panels, the strip, the camera, the music) over the host's crowd, which reaches it as
+// puppets. The hold keeps the links going (99-network holdTick); the host's world carries fin (where its scene is) so a guest that joins, reloads or loads late starts at the host's point or finds the wall down
+const NET=()=>window.__net, isHost=()=>{ const n=NET(); return !!(n&&n.role&&n.role()==='host'); };
+const tell=(type,d)=>{ try{ const n=NET(); if(isHost()&&n.peers&&n.peers().length) n.send(type,d||{}); }catch(er){} };
 const COLS=13, ROWS=2, XA=2, XB=44, Z0=43, Z1=45, FLOOR_Y=6, PH=(WALLH-FLOOR_Y)/ROWS, MID=6;   // thirteen panels across the rim, two high, up to the roof; MID is the column the boss strikes
 const FIN_WAVE=6, FIN_T=16;   // the wave it happens on, and how many seconds into that wave
 const X0=cw(XA)-CELL/2, X1=cw(XB)+CELL/2, BZ=cwz(Z0)-CELL/2, ZB=cwz(Z1)+CELL/2, PWID=(X1-X0)/COLS, XC=(X0+X1)/2, XS=X0+PWID*(MID+.5);   // the wall's two ends, its front face, the back wall behind the three rows, a panel's width, the strike point
@@ -60,7 +64,7 @@ const letterbox=on=>bars.forEach(d=>{ d.style.height=on?'12vh':'0'; });
 const skipBtn=document.createElement('div'); skipBtn.textContent='\u23ED'; skipBtn.style.cssText='position:fixed;right:2.2vw;bottom:2.4vh;z-index:91;font-size:3.2vh;line-height:1;color:#e6d8ff;background:#1b1026cc;border:1px solid #6a4a9a;border-radius:8px;padding:.5vh 1vw;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .5s'; document.body.appendChild(skipBtn);
 const slowK=t=>{ const a=smooth((t-(T_HIT-.5))/.5), b=smooth((t-(T_HIT+1.9))/.9); return 1-(1-SLOW)*a*(1-b); };   // 1 normal, 40% through the break and its ripple, eased in and out
 // ---- the crowd
-const FIN={ active:false, done:false, t:0, boss:null, ev:{}, crowd:[], crowdQ:[], laterQ:[], bolusQ:[], gateQ:[], laterT:0, blend:0, from:null, endP:null, endQ:null, focus:null, cracks:[], sigil:null, dustT:0, skipped:false, cartN:0 };
+const FIN={ active:false, done:false, t:0, boss:null, ev:{}, crowd:[], crowdQ:[], laterQ:[], bolusQ:[], gateQ:[], laterT:0, blend:0, from:null, endP:null, endQ:null, focus:null, cracks:[], sigil:null, dustT:0, skipped:false, cartN:0, guest:false, bossId:null, wait:false };   // guest/bossId/wait: build 508 (co-op)
 const CARTK=new Set(['kegcart','firecart']);
 function buildQueue(mix,teams){ const q=[]; for(const [k,n] of mix) for(let i=0;i<n;i++) q.push(k); for(let i=q.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; const t=q[i]; q[i]=q[j]; q[j]=t; } for(const k of teams) q.splice((rnd()*(q.length+1))|0,0,k); return q; }
 function sync(e){ e.y=baseFloor(e.x,e.z); const g=e.mdl.g; g.position.set(e.x,e.y+(e.lift||0),e.z); g.rotation.y=e.yaw; }
@@ -84,47 +88,84 @@ function breakPanel(p){ p.broken=true; const sgn=Math.sign(p.c-MID); const pt=ne
   p.w.destroy(pt,dir); puff(p.x,FLOOR_Y+p.r*PH+2,BZ-.5,p.r?3:4,PWID); camShake=Math.max(camShake,.45); cnt.broken++; try{ if(cnt.broken%3===1&&SFX.boom) SFX.boom(); else if(SFX.hit) SFX.hit(); }catch(er){} }
 function strike(){ for(const c of FIN.cracks) c.s.visible=false; if(backing) backing.visible=false; const base=T_HIT; for(const p of panels) p.tb=base+RIP*Math.abs(p.c-MID)+(p.r?.14:0); camShake=1.3; try{ SFX.boom&&SFX.boom(); }catch(er){} if(window.__corruptor) window.__corruptor.snip(XS,FLOOR_Y+3,BZ-.8); }
 function openStrip(){ setStrip(false); FIN.opened=true; }
-function cutTick(dt){ FIN.t+=dt; const t=FIN.t, b=FIN.boss; const once=(k,at,fn)=>{ if(t>=at&&!FIN.ev[k]){ FIN.ev[k]=1; fn(); } };
-  if(b&&!b.dead&&t<T_GO){ const u=Math.min(1,t/T_RUN), k=smooth(u); b.x=FIN.bx0+(XS-FIN.bx0)*k; b.z=FIN.bz0+((BZ-2.4)-FIN.bz0)*k; b.yaw=-PI/2*(1-smooth((t-T_RUN)/.9)); b.walking=t<T_RUN; b.casting=t>=T_CAST&&t<T_SWING; if(b.shoutT>0) b.shoutT-=dt; if(t>=T_SWING){ b.shoutT=0; b.swing=(t<T_HIT+.3)?(t-T_SWING):-1; } sync(b); mobAnim(b,dt); }
+function cutTick(dt){ if(!FIN.wait) FIN.t+=dt; const t=FIN.t, b=FIN.boss; const once=(k,at,fn)=>{ if(t>=at&&!FIN.ev[k]){ FIN.ev[k]=1; fn(); } };   // wait (build 508): a guest's scene ahead of the host's holds a moment
+  if(b&&!b.dead&&t<T_GO){ const u=Math.min(1,t/T_RUN), k=smooth(u); b.x=FIN.bx0+(XS-FIN.bx0)*k; b.z=FIN.bz0+((BZ-2.4)-FIN.bz0)*k; b.yaw=-PI/2*(1-smooth((t-T_RUN)/.9)); b.walking=t<T_RUN; b.casting=t>=T_CAST&&t<T_SWING; if(b.shoutT>0) b.shoutT-=dt; if(t>=T_SWING){ b.shoutT=0; b.swing=(t<T_HIT+.3)?(t-T_SWING):-1; } sync(b); if(b.mdl&&b.mdl.mixer) mobAnim(b,dt); }   /* the mixer test (build 508): a guest's stand-in may be a rigless figure if no boss model has landed */
   // the build-up: the cracks of the panels the boss passes light violet (all of them, harder and harder, as it gathers), dust comes down, the wall trembles
   if(t<T_HIT){ const prog=smooth((t-T_RUN)/(T_HIT-T_RUN)), bx=b?b.x:XS; for(const c of FIN.cracks){ const near=Math.max(0,1-Math.abs(bx-c.x)/11), v=Math.max(near*smooth(t/1.5),prog*.9)*(.78+.22*Math.sin(t*9+c.i*1.7)); c.s.material.opacity=Math.min(.85,v*.7); c.s.visible=v>.02; }
     if(t>3){ FIN.dustT-=dt; if(FIN.dustT<=0){ FIN.dustT=.35; puff(R(X0+5,X1-5),FLOOR_Y+PH*2-1.5,BZ-.6,1,2.5); } } if(t>5) camShake=Math.max(camShake,.08+.3*smooth((t-5)/(T_HIT-5))); }
   if(FIN.sigil){ const sg=FIN.sigil, a=t-T_ROAR; sg.rotation.z+=dt*(1+Math.max(0,a)*2.4); sg.material.opacity=t<T_HIT?Math.min(.75,.15+a*.12):Math.max(0,.75-(t-T_HIT)*1.6); if(t>T_HIT+.6){ scene.remove(sg); sg.material.dispose(); FIN.sigil=null; } }
   if(t<T_GO&&t>T_OPEN) for(const c of FIN.crowd){ if(c.dead||!c.mdl) continue; const g=c.mdl.g, ph=c.ph||0; g.position.y=(c.y||0)+Math.abs(Math.sin(t*(3+(ph%2))+ph))*(c.kind==='goblin'?.14:.06); g.rotation.y=c.yaw+Math.sin(t*1.7+ph*3)*.18; }   // the horde is restless
+  if(FIN.guest&&t<T_GO){ pupHide(true); const M=window.__mobsync; if(t>T_OPEN&&M&&M.each) M.each((p,id)=>{ if(id===FIN.bossId||!p.mdl||p.z<BZ+1) return; const g=p.mdl.g, ph=p.ph0===undefined?(p.ph0=Math.random()*6.28):p.ph0;   // build 508: on a guest the host's boss puppet stays hidden behind the stand-in, and the crowd (puppets) is as restless
+      g.position.y=(p.y||0)+Math.abs(Math.sin(t*(3+((ph*7|0)%2))+ph))*(p.kind==='goblin'?.14:.06); g.rotation.y=p.yaw+Math.sin(t*1.7+ph*3)*.18; }); }
   once('roar',T_ROAR,()=>{ if(window.__fate&&window.__fate.makeSigil&&b&&!FIN.sigil){ const sg=window.__fate.makeSigil(8,0xc070ff); sg.position.set(b.x,(b.y||FLOOR_Y)+.14,b.z); scene.add(sg); FIN.sigil=sg; } if(b&&b.kind==='corruptor'&&b.mdl&&b.mdl.actions&&b.mdl.actions.shout){ b.roar=1; b.shoutT=b.mdl.actions.shout.getClip().duration; mobPlay(b.mdl,'shout',{ restart:true, fade:.15, speed:1 }); camShake=Math.max(camShake,.8); try{ SFX.roar&&SFX.roar(); }catch(er){} } else if(b&&b.mdl&&b.mdl.actions&&b.mdl.actions.shout) ogreRoar(b,1); else { camShake=Math.max(camShake,.7); try{ SFX.roar&&SFX.roar(); }catch(er){} } if(b&&window.__corruptor&&b.kind==='corruptor') window.__corruptor.burst(b.x,b.y||FLOOR_Y,b.z); });
   once('roar2',T_GO-1.6,()=>{ camShake=Math.max(camShake,.8); try{ SFX.roar&&SFX.roar(); }catch(er){} if(b&&!b.dead&&window.__corruptor) window.__corruptor.burst(b.x,b.y||FLOOR_Y,b.z); });
-  once('go',T_GO,()=>{ if(b&&!b.dead){ b.spd=b.spd0; b.walking=false; b.swing=-1; b.casting=false; } skipBtn.style.opacity=0; skipBtn.style.pointerEvents='none'; });
+  once('go',T_GO,()=>{ if(b&&!b.dead){ b.spd=b.spd0; b.walking=false; b.swing=-1; b.casting=false; } skipBtn.style.opacity=0; skipBtn.style.pointerEvents='none'; if(FIN.guest) dropStandIn(); });   // build 508: a guest's stand-in gives way to the host's boss (its puppet)
   once('hit',T_HIT,strike); once('open',T_OPEN,openStrip);
   for(const p of panels) if(!p.broken&&p.tb!==null&&t>=p.tb) breakPanel(p);
   for(let n=0;n<6&&FIN.crowdQ.length;n++) placeNext(FIN.crowdQ);
   if(t<T_GO) for(const e of FIN.crowd) if(!e.dead&&e.mdl&&e.mdl.mixer) mobAnim(e,dt);
   if(window.__bossMusic) window.__bossMusic.sync(t); }
-function skip(){ if(!FIN.active||FIN.t>=T_GO-.2) return false; FIN.skipped=true; FIN.t=T_GO-.05; while(FIN.crowdQ.length) placeNext(FIN.crowdQ); if(window.__bossMusic) window.__bossMusic.toDepths(); return true; }
+function skip(fromHost){ if(!FIN.active||FIN.t>=T_GO-.2||(FIN.guest&&fromHost!==true)) return false; FIN.skipped=true; FIN.t=T_GO-.05; FIN.wait=false; while(FIN.crowdQ.length) placeNext(FIN.crowdQ); if(window.__bossMusic) window.__bossMusic.toDepths(); tell('finaleSkip',{}); return true; }   // build 508: in co-op only the host skips (its guests skip with it)
 skipBtn.onclick=()=>skip(); addEventListener('keydown',e=>{ if(e.code==='Enter') skip(); });
 function clearScene(){ for(const c of FIN.cracks){ scene.remove(c.s); c.s.material.dispose(); } FIN.cracks=[]; if(FIN.sigil){ scene.remove(FIN.sigil); FIN.sigil.material.dispose(); FIN.sigil=null; } skipBtn.style.opacity=0; skipBtn.style.pointerEvents='none'; }
-function endCut(){ FIN.active=false; FIN.done=true; const b=FIN.boss; if(b&&!b.dead){ b.spd=b.spd0; b.walking=false; b.swing=-1; b.casting=false; } clearScene(); letterbox(false); try{ if(window.__mortarwake) window.__mortarwake.wake(); }catch(er){ console.warn('mortar wake',er); } FIN.endP=camera.position.clone(); FIN.endQ=camera.quaternion.clone(); FIN.blend=BLEND_T; FIN.focus=null;
-  if(!FIN.opened) openStrip(); for(const p of panels) if(!p.broken) breakPanel(p); if(backing) backing.visible=false; FIN.laterQ=buildQueue(LATER,LATER_TEAMS); FIN.laterT=1.5; cnt.ends++; }
-function start(){ if(FIN.active||FIN.done||isGuest()||inCoop()||!ready) return false; FIN.active=true; FIN.t=0; FIN.ev={}; FIN.crowd=[]; FIN.opened=false; FIN.crowdQ=buildQueue(MIX,TEAMS); FIN.laterQ=[]; FIN.bolusQ=[]; cnt.starts++; for(let i=0;i<BOLUS_AT.length;i++) spawnQ.push({ t:S.waveT+BOLUS_AT[i], kind:'__bolus'+i, lane:'E' }); spawnQ.sort((a,b)=>a.t-b.t); if(window.__carts) CARTK.forEach(k=>{ try{ window.__carts.load(k); }catch(er){} });
+function endCut(){ FIN.active=false; FIN.done=true; FIN.wait=false; const b=FIN.boss, G=FIN.guest; if(G) dropStandIn(); else if(b&&!b.dead){ b.spd=b.spd0; b.walking=false; b.swing=-1; b.casting=false; } clearScene(); letterbox(false); if(!G) try{ if(window.__mortarwake) window.__mortarwake.wake(); }catch(er){ console.warn('mortar wake',er); }   /* build 508: a guest's rooms wake with the host's (95n reads its world) */ FIN.endP=camera.position.clone(); FIN.endQ=camera.quaternion.clone(); FIN.blend=BLEND_T; FIN.focus=null;
+  if(!FIN.opened) openStrip(); for(const p of panels) if(!p.broken) breakPanel(p); if(backing) backing.visible=false; if(!G){ FIN.laterQ=buildQueue(LATER,LATER_TEAMS); FIN.laterT=1.5; } cnt.ends++; }   // build 508: the second crowd is the host's to spawn
+function start(){ if(FIN.active||FIN.done||isGuest()||!ready) return false; FIN.active=true; FIN.guest=false; FIN.wait=false; FIN.t=0; FIN.ev={}; FIN.crowd=[]; FIN.opened=false; FIN.crowdQ=buildQueue(MIX,TEAMS); FIN.laterQ=[]; FIN.bolusQ=[]; cnt.starts++; for(let i=0;i<BOLUS_AT.length;i++) spawnQ.push({ t:S.waveT+BOLUS_AT[i], kind:'__bolus'+i, lane:'E' }); spawnQ.sort((a,b)=>a.t-b.t); if(window.__carts) CARTK.forEach(k=>{ try{ window.__carts.load(k); }catch(er){} });   // build 508: a co-op host plays it too (was: never in a co-op hall)
   const v=new THREE.Vector3(); camera.getWorldDirection(v); FIN.from={ p:[camera.position.x,camera.position.y,camera.position.z], l:[camera.position.x+v.x*20,camera.position.y+v.y*20,camera.position.z+v.z*20] };
   FIN.hp0=hero.hp; try{ if(window.__corruptor) window.__corruptor.load(); }catch(er){}
   const b=spawnEnemy(window.__corruptor&&window.__corruptor.loaded()?'corruptor':'ogre','E'); FIN.boss=b; if(b){ b.spd0=b.spd; b.spd=1.0;   /* build 372 (Matt: "he walks to fast"): the walk clip plays at the mob's speed over its size -- 11 made it flap at 7 times; at 1.0 it plays at the slowest gait (.7), a slow glide while the scripted travel carries him */ b.finaleBoss=true; FIN.bx0=b.x; FIN.bz0=b.z; const gl=glow(0xc040ff,5/b.sc,.5); gl.position.y=b.h*.55/b.sc; b.mdl.g.add(gl); }
+  FIN.bossId=null; try{ const n=NET(); if(b&&isHost()&&n.mobId) FIN.bossId=n.mobId(b); }catch(er){} tell('finale',{ t:0, b:FIN.bossId });   // build 508: the guests start theirs (b: the boss's co-op id, its puppet kept hidden behind their stand-in)
   FIN.cracks=[]; FIN.dustT=0; FIN.skipped=false; FIN.sigil=null; FIN.cartN=0; panels.filter(p=>p.r===0).forEach((p,i)=>{ const s=glow(0xb050ff,9,.001); s.position.set(p.x,FLOOR_Y+3.2,BZ-.5); s.material.opacity=0; s.visible=false; scene.add(s); FIN.cracks.push({ s, x:p.x, i }); });
   if(b&&window.__corruptor) window.__corruptor.burst(b.x,FLOOR_Y,b.z); if(window.__bossMusic) window.__bossMusic.start(); skipBtn.style.opacity=.85; skipBtn.style.pointerEvents='auto';
   letterbox(true); try{ SFX.roar&&SFX.roar(); }catch(er){} return true; }
+// ---- build 508 (Matt approved, co-op): the GUEST's copy. Its stand-in boss (not in `enemies`: a guest never spawns) walks the same scripted path, roars, casts and snips; the panels, the strip, the camera and the
+// music are its own; the crowd is the host's, as puppets (their boss's kept hidden until the stand-in gives way at the drums). t: where the host's scene is (a late start begins there)
+function cracksOn(){ FIN.cracks=[]; panels.filter(p=>p.r===0).forEach((p,i)=>{ const s=glow(0xb050ff,9,.001); s.position.set(p.x,FLOOR_Y+3.2,BZ-.5); s.material.opacity=0; s.visible=false; scene.add(s); FIN.cracks.push({ s, x:p.x, i }); }); }
+function pupHide(h){ const id=FIN.bossId, M=window.__mobsync; if(!id||!M||!M.each) return; M.each((p,k)=>{ if(k===id&&p.mdl&&p.mdl.g) p.mdl.g.visible=!h; }); }
+function dropStandIn(){ const b=FIN.boss; if(b&&b.guestFake){ scene.remove(b.mdl.g); FIN.boss=null; } pupHide(false); }
+function guestStart(d){ if(!isGuest()||!ready||FIN.active||FIN.done||!(S.phase==='build'||S.phase==='wave')) return false; const t0=Math.max(0,Math.min(T_GO-1,+(d&&d.t)||0));
+  FIN.active=true; FIN.guest=true; FIN.wait=false; FIN.t=t0; FIN.ev={}; FIN.crowd=[]; FIN.crowdQ=[]; FIN.laterQ=[]; FIN.bolusQ=[]; FIN.gateQ=[]; FIN.opened=false; FIN.bossId=d&&typeof d.b==='string'?d.b.slice(0,24):null; cnt.starts++; cnt.guestStarts=(cnt.guestStarts|0)+1;
+  const v=new THREE.Vector3(); camera.getWorldDirection(v); FIN.from={ p:[camera.position.x,camera.position.y,camera.position.z], l:[camera.position.x+v.x*20,camera.position.y+v.y*20,camera.position.z+v.z*20] }; FIN.hp0=hero.hp;
+  try{ if(window.__corruptor) window.__corruptor.load(); }catch(er){}
+  const kind=window.__corruptor&&window.__corruptor.loaded()?'corruptor':'ogre', m=makeMob(kind), L=LANES.E||LANES[Object.keys(LANES)[0]], fx=Math.sin(L.face||0), fz=Math.cos(L.face||0), st=m.r+.35;
+  if(m.glb&&m.actions.cast){ m.actions.cast.setLoop(THREE.LoopOnce,1); m.actions.cast.clampWhenFinished=true; }   // as 95k's spawn wrap sets it on the real one
+  const b={ kind, mdl:m, x:cw(L.cx)+fx*st, y:0, z:cwz(L.cz)+fz*st, yaw:L.face||0, h:m.h, r:m.r, sc:m.g.scale.x, spd:1.0, spd0:(MOBS[kind]||{}).spd||1, dead:0, swing:-1, walking:false, shoutT:0, roar:0, ph:0, finaleBoss:true, guestFake:true };
+  scene.add(m.g); FIN.boss=b; FIN.bx0=b.x; FIN.bz0=b.z; sync(b); const gl=glow(0xc040ff,5/b.sc,.5); gl.position.y=b.h*.55/b.sc; m.g.add(gl);
+  cracksOn(); FIN.dustT=0; FIN.skipped=false; FIN.sigil=null; FIN.cartN=0; if(window.__corruptor) window.__corruptor.burst(b.x,FLOOR_Y,b.z);
+  if(window.__bossMusic){ window.__bossMusic.start(); if(t0>0) window.__bossMusic.sync(t0); } skipBtn.style.opacity=0; skipBtn.style.pointerEvents='none';   // the skip is the host's
+  letterbox(true); try{ SFX.roar&&SFX.roar(); }catch(er){} return true; }
+// a guest arriving after the scene (or too late in it): the wall is simply down, the three rows open (quietly: no shards, no booms); the drums if the host's scene is still on
+function guestFallen(music){ if(!isGuest()||FIN.active||FIN.done) return false; FIN.done=true; FIN.guest=true; if(!FIN.opened) openStrip();
+  for(const p of panels){ if(p.broken) continue; p.broken=true; const w=p.w; w.broken=true; w.health=0; w.intact.visible=false; w.fragments.visible=false; cnt.broken++; } if(backing) backing.visible=false; cnt.guestFallen=(cnt.guestFallen|0)+1;
+  if(music&&window.__bossMusic){ window.__bossMusic.start(); window.__bossMusic.toDepths(); } return true; }
+// the host's world says where its scene is (fin: {a,t,b} running, {d} done, 0 not yet): a guest starts late, catches up (or waits) to stay within a little of it, ends with it, and puts the wall back with it (the dev panel)
+function guestWatch(){ hookNet(); if(!isGuest()) return; const n=NET(), w=n&&n.world&&n.world(); if(!w||!('fin' in w)||w.mapName!==MAP.name||!(S.phase==='build'||S.phase==='wave')) return; const f=w.fin;
+  if(f&&f.a){ const ht=+f.t; if(!Number.isFinite(ht)) return;
+    if(!FIN.active&&!FIN.done){ if(ready){ if(ht<T_GO-1) guestStart({ t:ht, b:f.b }); else guestFallen(true); } }
+    else if(FIN.active&&FIN.guest){ if(ht-FIN.t>.6) FIN.t=ht; FIN.wait=FIN.t-ht>.6; } }
+  else if(f&&f.d){ if(FIN.active&&FIN.guest){ FIN.wait=false; if(FIN.t<T_END-.01) FIN.t=T_END-.01; } else if(!FIN.done&&ready) guestFallen(false); }
+  else if(f===0&&FIN.done&&!FIN.active&&FIN.guest) reset(); }
+let netHooked=false; function hookNet(){ if(netHooked) return; const n=NET(); if(!(n&&n.onMessage)) return; netHooked=true;   // 99-network.js loads after this file
+  n.onMessage('finale',d=>{ if(isGuest()) guestStart(d||{}); });
+  n.onMessage('finaleSkip',()=>{ if(isGuest()&&FIN.active&&FIN.guest) skip(true); }); }
+hookNet();
 // ---- the game holds still while it plays: only the world's own animation, the cutscene's camera and the crowd's idling run
-{ const prev=update; update=function(dt){ if(!FIN.active||S.phase==='start'||S.phase==='deathcut'||S.phase==='dead'||S.phase==='won') return prev.apply(this,arguments);
-    cutTick(dt); if(FIN.t>=T_GO&&S.phase!=='dead'&&S.phase!=='won'&&!Meta.isOpen()){ updateDefs(dt); updateEnemies(dt); updateProj(dt); updateOrbs(dt); updateLoot(dt); updateWave(dt); Meta.update(dt); }
+// (build 508: and in co-op the links -- 99-network holdTick: the host's lists go out under the hold, a guest's puppets move; on a guest before the scene touches them)
+{ const prev=update; update=function(dt){ if(FIN.active&&FIN.guest&&(S.phase==='deathcut'||S.phase==='dead'||S.phase==='won')) endCut();   // build 508: a guest's run ended by the host mid-scene: its bars come off for the end card
+    if(!FIN.active||S.phase==='start'||S.phase==='deathcut'||S.phase==='dead'||S.phase==='won') return prev.apply(this,arguments);
+    const hold=()=>{ const n=NET(); if(n&&n.holdTick&&n.role&&n.role()) try{ n.holdTick(dt); }catch(er){ console.warn('finale hold',er); } }, early=FIN.guest&&FIN.t<T_GO; if(early) hold();
+    cutTick(dt); if(FIN.t>=T_GO&&S.phase!=='dead'&&S.phase!=='won'&&!Meta.isOpen()){ updateDefs(dt); updateEnemies(dt); updateProj(dt); updateOrbs(dt); updateLoot(dt); updateWave(dt); Meta.update(dt); } else if(!early) hold();
     if(hero.dead<=0&&FIN.hp0&&hero.hp<FIN.hp0) hero.hp=FIN.hp0;   // untouchable while the bars are on
     updateFx(dt*slowK(FIN.t)); updateCamera(dt); updateHUD(); Meta.hud(); if(FIN.t>=T_END) endCut(); }; }
 { const prev=updateCamera; updateCamera=function(dt){ if(FIN.active){ cutCamera(dt); return; } prev.apply(this,arguments);
     if(FIN.blend>0&&FIN.endP){ FIN.blend=Math.max(0,FIN.blend-dt); const k=smooth(1-FIN.blend/BLEND_T), q=camera.quaternion.clone(); camera.position.copy(FIN.endP).lerp(camera.position,k); camera.quaternion.copy(FIN.endQ).slerp(q,k); } }; }
 // ---- the sixth wave begins, and sixteen seconds in the wall falls (a marker in the wave's own spawn list: the wave cannot end before it)
 { const prev=startWave; startWave=function(){ const w0=S.wave; const r=prev.apply(this,arguments); if(!SURVIVAL&&!FIN.done&&!FIN.active&&S.phase==='wave'&&S.wave===FIN_WAVE&&w0!==S.wave){ spawnQ.push({ t:FIN_T, kind:'__finale', lane:'E' }); spawnQ.sort((a,b)=>a.t-b.t); } return r; }; }
-function releaseBolus(i){ if(isGuest()||inCoop()||S.phase==='dead') return; const gate=BOLUS_GATE[i]; if(gate&&LANES[gate]){ for(const k of buildQueue(BOLUS_MIX,BOLUS_TEAMS[i]||[])) FIN.gateQ.push([k,gate]); cnt.boluses++; cnt.gateBoluses=(cnt.gateBoluses||0)+1; camShake=Math.max(camShake,.5); return; }
+function releaseBolus(i){ if(isGuest()||S.phase==='dead') return;   /* build 508: a co-op host's boluses too (its guests see them as puppets) */ const gate=BOLUS_GATE[i]; if(gate&&LANES[gate]){ for(const k of buildQueue(BOLUS_MIX,BOLUS_TEAMS[i]||[])) FIN.gateQ.push([k,gate]); cnt.boluses++; cnt.gateBoluses=(cnt.gateBoluses||0)+1; camShake=Math.max(camShake,.5); return; }
   FIN.bolusQ=FIN.bolusQ.concat(buildQueue(BOLUS_MIX,BOLUS_TEAMS[i]||[])); cnt.boluses++; camShake=Math.max(camShake,.7); for(let k=0;k<7;k++) puff(R(X0+6,X1-6),FLOOR_Y+.5,BZ+1.5,7,5); }
 { const prev=spawnEnemy; spawnEnemy=function(kind,lane){ if(typeof kind==='string'&&kind.slice(0,7)==='__bolus'){ releaseBolus(+kind.slice(7)); return null; } if(kind==='__finale'){ if(!start()&&!ready&&!isGuest()&&!FIN.done) spawnQ.push({ t:S.waveT+1, kind:'__finale', lane:'E' }); return null; } return prev.apply(this,arguments); }; }
 // ---- per frame: the panels' tumble, the dust, the crowd that follows out of the dark
-WORLDANIM.push(dt=>{ for(const p of panels) p.w.update(dt);
+WORLDANIM.push(dt=>{ for(const p of panels) p.w.update(dt); try{ guestWatch(); }catch(er){ console.warn('finale (guest)',er); }
   for(let i=dust.length-1;i>=0;i--){ const d=dust[i]; d.t+=dt; const k=d.t/d.life; if(k>=1){ world.remove(d.s); dust.splice(i,1); continue; } d.s.position.x+=d.vx*dt; d.s.position.y+=d.vy*dt; d.s.position.z+=d.vz*dt; d.s.material.opacity=.5*Math.sin(Math.min(1,k*1.6)*PI)*(1-k*.4); d.s.scale.setScalar(d.s.scale.x+dt*2.2); }
   if(!FIN.active&&FIN.bolusQ.length&&S.phase!=='dead'){ for(let n=0;n<4&&FIN.bolusQ.length;n++) placeNext(FIN.bolusQ,'bolus'); }
   if(!FIN.active&&FIN.gateQ.length&&S.phase!=='dead'){ for(let n=0;n<4&&FIN.gateQ.length;n++){ const [k,g]=FIN.gateQ.shift(); const e=spawnEnemy(k,g); if(e) cnt.bolus++; } }
@@ -137,6 +178,7 @@ setInterval(()=>{ const p=document.getElementById('devpanel'); if(!p||document.g
   document.getElementById('dp-finale-go').onclick=()=>{ start(); }; document.getElementById('dp-finale-back').onclick=()=>{ reset(); }; },800);
 window.__torchFocus=()=>FIN.focus;
 window.__finale={ info:()=>Object.assign({ panels:panels.length, intactPanels:panels.filter(p=>!p.broken).length, active:FIN.active, done:FIN.done, t:+FIN.t.toFixed(2), sealed:strip.every(i=>grid[i]===T.WALL), open:strip.every(i=>grid[i]===T.FLOOR), crowdNow:FIN.crowd.filter(e=>!e.dead).length, queued:FIN.crowdQ.length, laterQueued:FIN.laterQ.length, backing:!!(backing&&backing.visible), ready, dust:dust.length },cnt),
-  start, reset, ready:()=>ready, active:()=>FIN.active, done:()=>FIN.done, boss:()=>FIN.boss, crowd:()=>FIN.crowd, panelList:()=>panels.map(p=>({ r:p.r, c:p.c, x:+p.x.toFixed(1), broken:p.broken, tb:p.tb===null?null:+p.tb.toFixed(2) })), strip:()=>strip.slice(),
+  start, reset, ready:()=>ready, active:()=>FIN.active, done:()=>FIN.done, boss:()=>FIN.boss, crowd:()=>FIN.crowd,
+  net:()=>FIN.active&&!FIN.guest?{ a:1, t:+FIN.t.toFixed(2), b:FIN.bossId||null }:(FIN.done&&!FIN.guest?{ d:1 }:0), guest:()=>({ on:FIN.guest, wait:FIN.wait, bossId:FIN.bossId, standIn:!!(FIN.boss&&FIN.boss.guestFake), standInKind:FIN.boss&&FIN.boss.guestFake?FIN.boss.kind:null }), guestStart, guestFallen,   /* build 508: net() rides the host's world (fin); guest() a test hook */ panelList:()=>panels.map(p=>({ r:p.r, c:p.c, x:+p.x.toFixed(1), broken:p.broken, tb:p.tb===null?null:+p.tb.toFixed(2) })), strip:()=>strip.slice(),
   geom:{ X0, X1, BZ, ZB, PWID, XS, FLOOR_Y, COLS, ROWS, MID }, times:{ T_RUN, T_ROAR, T_CAST, T_SWING, T_HIT, T_OPEN, T_GO, T_END, FIN_WAVE, FIN_T }, skip, camAt:t=>{ const keep=FIN.t; FIN.t=t; cutCamera(0); FIN.t=keep; return { p:camera.position.toArray(), l:FIN.focus }; } };
 })();

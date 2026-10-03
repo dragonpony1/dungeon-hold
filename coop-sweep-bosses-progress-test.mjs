@@ -5,6 +5,7 @@
 //  * the boss model pre-fetch follows the hall's wave on a guest (its own S.wave never moves) -- 99-network.js
 //  * a held hall gives the guest its difficulty medal for the map (the best wave / shop tier stays the host's, coop-rewards-test) -- 95r-difficulty.js / 99-network.js
 //  * the Deep Prison's mortar-room walls: a guest's sword breaks them, the guest sees each blow and the break, and the host's mortar is a Hex Mortar on the guest; the glow follows the host's losses -- 56g / 95n / 99-network.js
+//    (build 508: locked on both pages until they wake, as in single player -- the wall's scene runs in co-op now, coop-finale-test)
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 let PeerServer;
 try { ({ PeerServer } = await import("peer")); }
@@ -105,10 +106,16 @@ await pair(5,'the Deep Prison');
   const lost=await guestPage.evaluate(()=>window.__mortarwake.lost());
   check("the mortar rooms' glow on the guest follows the host's lost defenses",lost===6,String(lost));
   const sp=await guestPage.evaluate(()=>{ const w=window.__prisonwalls.raw()[0], s=w.spot; return { id:s.id, x:s.cx0+s.nx*2, z:s.cz0+s.nz*2, yaw:Math.atan2(-s.nx,-s.nz) }; });
-  const unlocked=await hostPage.evaluate(()=>window.__prisonwalls.walls().map(w=>w.locked));
+  // build 508: the wall's scene runs in co-op now, so the host's rooms stay locked until it ends (as in single player) and a guest's follow the host's
+  const locked0=await hostPage.evaluate(()=>window.__prisonwalls.walls().map(w=>w.locked)), gLocked0=await guestPage.evaluate(()=>window.__prisonwalls.walls().map(w=>w.locked));
+  for(let i=0;i<3;i++){ await guestPage.evaluate(sp=>window.__net.send('swing',{yaw:sp.yaw,x:sp.x,z:sp.z,dmg:10,reach:2.4}),sp); await tickBoth(3,8); }
+  const h0=await hostPage.evaluate(id=>window.__prisonwalls.walls().find(w=>w.id===id),sp.id);
+  check("until the rooms wake (the wall's scene, build 508) they are locked on both pages and a guest's blows do nothing, as in single player",locked0.every(Boolean)&&gLocked0.every(Boolean)&&h0&&!h0.broken,JSON.stringify({locked0,gLocked0,h0}));
+  await hostPage.evaluate(()=>window.__mortarwake.wake()); await tickBoth(3,5);
+  const unlocked=await hostPage.evaluate(()=>window.__prisonwalls.walls().map(w=>w.locked)), gUnlocked=await guestPage.evaluate(()=>window.__prisonwalls.walls().map(w=>w.locked));
   for(let i=0;i<6;i++){ await guestPage.evaluate(sp=>window.__net.send('swing',{yaw:sp.yaw,x:sp.x,z:sp.z,dmg:10,reach:2.4}),sp); await tickBoth(3,8); }
   const h=await hostPage.evaluate(id=>window.__prisonwalls.walls().find(w=>w.id===id),sp.id);
-  check("the guest's sword breaks the wall on the host (it is unlocked in co-op)",h&&h.broken,JSON.stringify({h,unlocked}));
+  check("once they wake (the guest's with the host's) the guest's sword breaks the wall on the host",h&&h.broken&&unlocked.every(l=>!l)&&gUnlocked.every(l=>!l),JSON.stringify({h,unlocked,gUnlocked}));
   await tickBoth(16,10);   // the .8 s opening, the mortar placed, the next defs list
   const g=await guestPage.evaluate(id=>({ wall:window.__prisonwalls.walls().find(w=>w.id===id), info:window.__prisonwalls.info(), spot:window.__prisonwalls.spots().find(s=>s.id===id) }),sp.id);
   const hs=await hostPage.evaluate(id=>window.__prisonwalls.spots().find(s=>s.id===id),sp.id);
