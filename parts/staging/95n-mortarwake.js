@@ -50,6 +50,7 @@ let sawStart=false;
 WORLDANIM.push(dt=>{
   if(S.phase==='start'){ if(!sawStart){ sawStart=true; AW.lost=0; hideTip(); TIP.shown=false; } } else sawStart=false;
   tipTick();
+  { const n=window.__net; if(n&&n.role&&n.role()==='guest'&&n.world){ const hw=n.world(); if(hw&&Number.isFinite(+hw.mwl)) AW.lost=Math.max(0,+hw.mwl|0); } }   // co-op sweep 2026-10-02: on a guest the glow swells with the HOST's count (its defenses are the hall's; this page has none to lose)
   const want=policyLock()&&!AW.awake; for(const w of PW.raw()){ if(w.broken) continue; w.locked=want; if(!AW.awake) w.awake=false; } });
 setInterval(()=>{ const p=document.getElementById('devpanel'); if(!p||document.getElementById('dp-mortarwake')) return; const sec=document.createElement('div'); sec.className='sect'; sec.id='dp-mortarwake';
   sec.innerHTML='<label>the mortar rooms (they wake when the wall falls; the show plays at the first door)</label><div class="row"><button id="dp-mw-wake">🔓 Wake them</button><button id="dp-mw-lock">🔒 Lock them</button><button id="dp-mw-lose">💀 Lose a defense</button></div>'; const note=p.querySelector('.note'); if(note) p.insertBefore(sec,note); else p.appendChild(sec);

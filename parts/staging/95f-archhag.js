@@ -16,6 +16,7 @@
 // Only MAP.id==='court', campaign. Test hook: window.__archhag.
 (function(){
 window.__archhag={loaded:()=>false};
+const bossFx=k=>{ try{ const n=window.__net; if(n&&n.role&&n.role()==='host') n.send('bossFx',{k}); }catch(er){} };   // co-op sweep 2026-10-02: the entrance's banner/shake/music on a guest too (99-network 'bossFx'; __net is looked up at call time -- it loads after this file)
 if(TUTORIAL) return;
 const K='archhag', TK='topiary', SK='stickman';
 const FILES={walk:'archhag-walk.glb',attack:'archhag-cast.glb',idle:'archhag-idle.glb',death:'archhag-death.glb'};
@@ -146,7 +147,7 @@ function guestWake(x,z){ const D=window.__courtdecor; if(!D||!D.topiList) return
   if(!t.plinth){ const pl=cutModel(t.mesh.clone(),cutOf(t),false); pl.visible=true; pl.scale.setScalar(1); (t.mesh.parent||world).add(pl); t.plinth=pl; cutModel(t.mesh,cutOf(t),true); } t.mesh.visible=false; t.mesh.userData.awake=true; return true; }
 function flash(x,y,z,col,r){ const g=glow(col,r||3,.9); g.position.set(x,y,z); scene.add(g); let a=.9; const f=()=>{ a-=.04; g.material.opacity=Math.max(0,a); if(a>0) requestAnimationFrame(f); else { scene.remove(g); g.material.dispose(); } }; requestAnimationFrame(f); }
 function wakeAll(){ const D=window.__courtdecor; if(!D||!D.topiList) return 0; let n=0; for(const t of D.topiList()){ if(t.mesh.userData.awake||t.mesh.userData.stump) continue; const e=wakeOne(t); if(e){ n++; flash(t.mesh.position.x,t.mesh.position.y+2,t.mesh.position.z,0x7aff5a,4); } }
-  if(n&&!wokeOnce){ wokeOnce=true; banner('🌿 THE GARDEN WAKES','the Archhag calls the topiaries off their pedestals'); camShake=Math.max(camShake,.6); } return n; }
+  if(n&&!wokeOnce){ wokeOnce=true; banner('🌿 THE GARDEN WAKES','the Archhag calls the topiaries off their pedestals'); camShake=Math.max(camShake,.6); bossFx('garden'); } return n; }
 // ---------------------------------------------------------------- her arrival cast: ten stickmen climb out of the ground round her
 let sticks=[];
 let raisedOnce=false;
@@ -168,7 +169,7 @@ function raiseStickmen(h){ const lk=Object.keys(LANES); let n=0; const cx=wc(h.x
   for(let i=0;i<want;i++){ const a=i/STICKMEN*TAU, r=1.6+(i%3)*.8; const px=h.x+Math.cos(a)*r, pz=h.z+Math.sin(a)*r; const cell=laneNear(wc(px),wcz(pz),3)||laneNear(cx,cz,4); if(!cell) continue;
     const e=spawnEnemy(SK,lk[0]); e.x=cw(cell.x)+(Math.random()-.5)*.8; e.z=cwz(cell.z)+(Math.random()-.5)*.8; e.rise=0; e.mdl.g.position.set(e.x,-1.8,e.z); sticks.push(e); n++;
     flash(e.x,.4,e.z,0x9aff5a,1.6); }
-  if(!raisedOnce){ raisedOnce=true; banner('💀 THE STICKMEN RISE','the Archhag calls them out of the earth -- they are fast'); queueBolus(); } else if(n) floatText(h.x,h.y+h.h+1.2,h.z,'💀 ×'+n,'#b8ff6a'); return n; }
+  if(!raisedOnce){ raisedOnce=true; banner('💀 THE STICKMEN RISE','the Archhag calls them out of the earth -- they are fast'); bossFx('sticks'); queueBolus(); } else if(n) floatText(h.x,h.y+h.h+1.2,h.z,'💀 ×'+n,'#b8ff6a'); return n; }
 // ---------------------------------------------------------------- the curse: purple chains round the tower, its next shot held off
 function chains(d){ const g=new THREE.Group(); const m=new THREE.MeshBasicMaterial({color:C(0xb050ff),transparent:true,opacity:.85,depthWrite:false});
   for(let k=0;k<3;k++){ const ring=new THREE.Mesh(new THREE.TorusGeometry(1.05,.07,6,20),m); ring.rotation.x=PI/2; ring.position.y=.6+k*.85; ring.userData.noOL=true; g.add(ring); }
@@ -199,7 +200,7 @@ function castSpecial(e,what){ e.special=what; e.swing=0; e.pending={kind:'specia
 // the two bars: a blow never carries her past the line between them, and she is untouchable while she casts the garden awake
 { const prev=hurt; hurt=function(e,dmg,kx,kz){ if(e&&e.kind===K&&!e.dead){ if(e.shield>0) return; if(e.phase===1&&e.hp-dmg<LINE(e)){ dmg=Math.max(0,e.hp-LINE(e)); } }
     const r=prev.apply(this,arguments); if(e&&e.kind===K) e.squash=0;   // no flinch
-    if(e&&e.kind===K&&!e.dead&&e.phase===1&&e.hp<=LINE(e)+.01){ e.phase=2; e.hp=LINE(e); e.shield=4; e.raiseT=RAISE_EVERY; castSpecial(e,'wake'); banner('🌑 THE ARCHHAG RAGES','her second life -- the garden stirs'); camShake=Math.max(camShake,.7); }
+    if(e&&e.kind===K&&!e.dead&&e.phase===1&&e.hp<=LINE(e)+.01){ e.phase=2; e.hp=LINE(e); e.shield=4; e.raiseT=RAISE_EVERY; castSpecial(e,'wake'); banner('🌑 THE ARCHHAG RAGES','her second life -- the garden stirs'); camShake=Math.max(camShake,.7); bossFx('rage'); }
     return r; }; }
 // ---------------------------------------------------------------- each frame: stickmen rising and running, the leaps, the hops, no slow on her, the regrowth, her fall held, the sleep when she falls
 // build 318 (Matt: "shes doing a knock back or some kind of intruputionevery time she gets hit. she needs to ignore any of that"): no shove (99e-bossgrit.js), and now nothing pins or flinches her either --
@@ -210,7 +211,7 @@ function castSpecial(e,what){ e.special=what; e.swing=0; e.pending={kind:'specia
       if(e.hagRise>=1){ e.hexT=(e.hexT===undefined?2:e.hexT)-dt; if(e.hexT<=0&&!(e.swing>=0)&&!e.special){ e.hexT=hex(e)?HEX_EVERY:.5; } }   // build 327: her hex, cast on the move
       if(e.hagRise>=1){ e.growT=(e.growT===undefined?GROW_FIRST:e.growT)-dt; if(e.growT<=0&&!(e.swing>=0)&&!e.special&&!(e.shield>0)){ e.growT=GROW_EVERY; castSpecial(e,'grow'); } }   // build 318: GROW on her own clock
       if(e.raiseT>0){ e.raiseT-=dt; if(e.raiseT<=0){ if(!MOBGLB[SK].real&&!stickDone&&(e.raiseWait=(e.raiseWait||0)+dt)<6){ loadSticks(); e.raiseT=.001; } else if(e.special||e.swing>=0){ e.raiseT=.001; } else { castSpecial(e,'raise'); e.raiseT=(e.raiseN||0)===0?RAISE_WOLVES_FIRST:RAISE_EVERY;   /* build 416: in her second life too */ } } }   // another cast still running: the raise waits for it
-      if(e.phase===1&&e.hp<=LINE(e)+.01){ e.phase=2; e.hp=LINE(e); e.shield=4; e.raiseT=RAISE_EVERY; castSpecial(e,'wake'); banner('🌑 THE ARCHHAG RAGES','her second life -- the garden stirs'); camShake=Math.max(camShake,.7); } }   // any damage that skipped hurt() (a poison tick) still turns the page
+      if(e.phase===1&&e.hp<=LINE(e)+.01){ e.phase=2; e.hp=LINE(e); e.shield=4; e.raiseT=RAISE_EVERY; castSpecial(e,'wake'); banner('🌑 THE ARCHHAG RAGES','her second life -- the garden stirs'); camShake=Math.max(camShake,.7); bossFx('rage'); } }   // any damage that skipped hurt() (a poison tick) still turns the page
     prev(dt);
     for(const e of enemies){ if(e.kind!==K||e.dead||e.hagRise===undefined||e.hagRise>=1) continue; e.hagRise=Math.min(1,e.hagRise+dt/1.4); e.mdl.g.position.y=e.y-4*(1-e.hagRise)*(1-e.hagRise); }   // rising out of the ground, slowing as she stands clear
     // the twig man's limbs swing in code; his rigged model has no such pivots, so they are looked up once, then skipped
@@ -240,7 +241,7 @@ function sleepAll(hagE){ const list=enemies.filter(e=>e.topi&&!e.dead);   // col
 let waveTotal=0, doneWave=-1;
 { const prev=startWave; startWave=function(){ prev(); if(court()&&S.wave===MAP.waves) waveTotal=spawnQ.length; }; }
 function spawnHag(){ const lk=Object.keys(LANES); if(!lk.length) return null; doneWave=S.wave; ensureTopiKinds();
-  banner('🌑 THE ARCHHAG','the brier matron walks into the garden'); camShake=1.0;
+  banner('🌑 THE ARCHHAG','the brier matron walks into the garden'); camShake=1.0; bossFx('hag');
   // build 310 (Matt: "all goes quite when she comes on and just this solitary drumline"): the music falls silent as she rises, then only his drumline (music-archhag.mp3), until she falls
   setMusic('none'); setTimeout(()=>{ if(enemies.some(x=>x.kind===K&&!x.dead)) setMusic('archhag'); },1800);
   const e=spawnEnemy(K,lk[0]); e.max=Math.round(e.max*(1+P2K)/2); e.hp=e.max; e.phase=1; e.shield=0; e.raiseT=RAISE_FIRST;   // her first raise, 10 s after she rises (game time: counted in updateEnemies); then every 10 s while her first bar lasts

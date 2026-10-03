@@ -25,7 +25,7 @@ const isFinal=w=>!SURVIVAL&&MAP.wbase!==undefined&&(w-MAP.wbase)===MAP.waves;
 // ---- the stand itself: the aura rings and the cage lose their immunity for the wave
 let on=false, saved=null;
 const want=()=>!SURVIVAL&&MAP.waves&&S.phase==='wave'&&S.wave===MAP.waves;
-function begin(){ window.__finalStand=true; saved=Object.assign({},NOWALK_DEF); for(const k of Object.keys(NOWALK_DEF)){ if(k!=='perch'&&k!=='pit'&&k!=='trap') delete NOWALK_DEF[k]; } reflow(); camShake=Math.max(camShake,.9); cnt.begins++; }
+function begin(){ window.__finalStand=true; saved=Object.assign({},NOWALK_DEF); for(const k of Object.keys(NOWALK_DEF)){ if(k!=='perch'&&k!=='pit'&&k!=='trap') delete NOWALK_DEF[k]; } reflow(); camShake=Math.max(camShake,.9); cnt.begins++; try{ const n=window.__net; if(n&&n.role&&n.role()==='host') n.send('bossFx',{k:'final'}); }catch(er){} }   /* co-op sweep 2026-10-02: the stand's shake on a guest too (99-network 'bossFx') */
 function end(){ window.__finalStand=false; if(saved){ Object.assign(NOWALK_DEF,saved); saved=null; } reflow(); cnt.ends++; }
 WORLDANIM.push(()=>{ const w=!!want(); if(w===on) return; on=w; if(w) begin(); else end(); });
 // ---- stronger: every mob of the wave, once (the pusher orcs of a cart too: they are spawned inside the cart's own spawn)

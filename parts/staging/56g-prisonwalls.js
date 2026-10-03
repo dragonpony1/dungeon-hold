@@ -83,14 +83,17 @@ function openAlcoveOld2(sp){ const nx=sp.nx, px=sp.px, zc=sp.zc, zh=sp.zh, dep=2
   // the weapon: a real defense, placed free (its mana and defense units handed straight back), Mark VI, tougher than a built one, not for sale
   const x=cw(sp.cin), m0=S.mana; const d=placeDefAt(sp.kind,x,zc,nx>0?PI/4:-PI/4); S.mana=m0; S.du-=DEFS[sp.kind].du; d.spent=0; d.secret=true; d.lvl=LVL; d.max=Math.round(DEFS[sp.kind].hp*(1+.4*(LVL-1)))*TOUGH; d.hp=d.max; d.pop=0; sp.def=d; cnt.weapons++; if(!mountMortar(d,sp)) pendingMount.push(sp);
   floatText(x,d.top+1.6,zc,'🔓 '+DEFS[sp.kind].ic,'#e8b94a'); try{ SFX.place&&SFX.place(); }catch(e){} }
-function openAlcove(sp){ const nx=sp.nx, nz=sp.nz, tx=sp.tx, tz=sp.tz, half=sp.half, dep=2*CELL, cx0=sp.cx0, cz0=sp.cz0;
+// co-op sweep 2026-10-02: split in two -- openView, the room itself (its floor opened, the dark walls, the light, the dust), runs on a guest too when the host's wall breaks; openAlcove adds the weapon,
+// on the host (or solo) only: on a guest placeDefAt asks the host to build a tower (99-network.js), so the mortar arrives there as the host's own, a puppet (guestMount below)
+function openView(sp){ if(sp.viewed) return; sp.viewed=true; const nx=sp.nx, nz=sp.nz, tx=sp.tx, tz=sp.tz, half=sp.half, dep=2*CELL, cx0=sp.cx0, cz0=sp.cz0;
   for(const r of [sp.rin,sp.rout]) for(let c=sp.c0;c<=sp.c1;c++){ const cc=nz!==0?[c,r]:[r,c]; grid[idx(cc[0],cc[1])]=T.FLOOR; hgt[idx(cc[0],cc[1])]=0; } reflow();
   const dark=mat(0x2c3628,{side:THREE.DoubleSide}); const add=(w,h,px0,py,pz0,ry,rx)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),dark); m.position.set(px0,py,pz0); m.rotation.set(rx||0,ry||0,0); m.userData.noOL=true; world.add(m); };
   const mx=cx0-nx*dep/2, mz=cz0-nz*dep/2, dimX=Math.abs(tx)*2*half+Math.abs(nx)*dep, dimZ=Math.abs(tz)*2*half+Math.abs(nz)*dep;
   // the alcove's floor, ceiling, back and two sides
   add(dimX,dimZ,mx,.03,mz,0,-PI/2); add(dimX,dimZ,mx,OPEN_H-.03,mz,0,PI/2); add(2*half,OPEN_H,cx0-nx*dep,OPEN_H/2,cz0-nz*dep,sp.yaw); add(dep,OPEN_H,mx+tx*half,OPEN_H/2,mz+tz*half,Math.atan2(tx,tz)); add(dep,OPEN_H,mx-tx*half,OPEN_H/2,mz-tz*half,Math.atan2(tx,tz));
   const l=new THREE.PointLight(C(0xffc870),3.8,24,2); l.position.set(cx0-nx*1.5,4,cz0-nz*1.5); world.add(l); sp.light=l; sp.flash=1;
-  puff(cx0+nx*1.4,1,cz0+nz*1.4,18,2*half);
+  puff(cx0+nx*1.4,1,cz0+nz*1.4,18,2*half); }
+function openAlcove(sp){ openView(sp); const nx=sp.nx, nz=sp.nz, cx0=sp.cx0, cz0=sp.cz0;
   // the weapon: a real defense, placed free (its mana and defense units handed straight back), Mark VI, tougher than a built one, not for sale. It rests facing straight out of its room, down the field
   // it comes to rest three squares out in the pit, and holds its fire until it has rolled there
   const x=cx0-nx*CELL/2+nx*ROLL, z=cz0-nz*CELL/2+nz*ROLL, m0=S.mana; const d=placeDefAt(sp.kind,x,z,sp.yaw); d.cd=Math.max(d.cd||0,3.2); S.mana=m0; S.du-=DEFS[sp.kind].du; d.spent=0; d.secret=true; d.lvl=LVL; d.max=Math.round(DEFS[sp.kind].hp*(1+.4*(LVL-1)))*TOUGH; d.hp=d.max; d.pop=0; sp.def=d; cnt.weapons++; if(!mountMortar(d,sp)) pendingMount.push(sp);
@@ -129,8 +132,8 @@ Promise.all([load('prison-wall-intact.glb'),load('prison-wall-fragments.glb'),lo
   for(const sp of SPOTS){ if(spotFaces(sp).some(q=>q<0)){ console.warn('prison walls: no wall face for',sp.id); continue; }
     cellWall=cellWall||world.userData.cellWall; lowerFaces(sp,OPEN_H);
     const meshy=sp.src==='meshy'&&shards, wScale=meshy?OPEN_H/1.925:SCALE;
-    const w=new BreakableWall(meshy?wall2.clone(true):intact.clone(true),meshy?shards:frag.clone(true),{ gravity:9.81/wScale, onHit:(ww,pt)=>{ cnt.hits++; try{ SFX.hit&&SFX.hit(); }catch(e){} puff(pt?pt.x:0,2.5,pt?pt.z:0,2,sp.half*1.6); },
-      onBreak:(ww,pt)=>{ cnt.broken++; try{ if(window.__mortarshow) window.__mortarshow.onBreak(sp,ww); }catch(er){ console.warn('mortar show',er); } try{ SFX.boom&&SFX.boom(); SFX.hit&&SFX.hit(); }catch(e){} puff(sp.cx0,2.5,sp.cz0,22,sp.half*2); timers.push({ t:.8, fn:()=>openAlcove(sp) }); } });
+    const w=new BreakableWall(meshy?wall2.clone(true):intact.clone(true),meshy?shards:frag.clone(true),{ gravity:9.81/wScale, onHit:(ww,pt)=>{ cnt.hits++; try{ SFX.hit&&SFX.hit(); }catch(e){} puff(pt?pt.x:0,2.5,pt?pt.z:0,2,sp.half*1.6); pwNet('pwHit',{id:sp.id,x:pt?+pt.x.toFixed(2):sp.cx0,z:pt?+pt.z.toFixed(2):sp.cz0}); },
+      onBreak:(ww,pt)=>{ cnt.broken++; try{ if(window.__mortarshow) window.__mortarshow.onBreak(sp,ww); }catch(er){ console.warn('mortar show',er); } try{ SFX.boom&&SFX.boom(); SFX.hit&&SFX.hit(); }catch(e){} puff(sp.cx0,2.5,sp.cz0,22,sp.half*2); pwNet('pwBreak',{id:sp.id}); timers.push({ t:.8, fn:()=>isGuest()?openView(sp):openAlcove(sp) }); } });
     const back=.47*wScale/2;   // the wall's front on the opening's plane, its thickness behind it, in the alcove
     w.group.scale.setScalar(wScale); w.group.position.set(sp.cx0-sp.nx*back,0,sp.cz0-sp.nz*back); w.group.rotation.y=sp.yaw; world.add(w.group); w.spot=sp; w.kind=meshy?'meshy':'hi3d';
     // a soft gold glow (green on the Meshy wall's glowing crack) breathes over the wall until it breaks
@@ -168,9 +171,11 @@ function mortarFire(m,shell){ m.fires++; if(m.fire){ m.fire.reset(); m.fire.time
   if(shell&&shell.mesh){ if(HEXB.proto) hexShell(shell); else shell.mesh.traverse(o=>{ if(o.material&&o.material.color&&!o.isSprite){ o.material=o.material.clone(); o.material.color.set(0x5cff80); if(o.material.emissive) o.material.emissive.set(0x2cc850); } }); const tg=glow(0x70ff90,1.6,.8); shell.mesh.add(tg); } }
 // ---------------- what breaks them: your sword's swing, or a staff bolt of yours
 function nearPlane(sp,x,z,r){ const p=nearPt(sp,x,z); return Math.hypot(x-p.x,z-p.z)<r; }
-function meleeWalls(){ if(isGuest()) return; const fx=Math.sin(hero.yaw), fz=Math.cos(hero.yaw);
-  for(const w of walls){ if(w.broken) continue; const sp=w.spot, np=nearPt(sp,hero.x,hero.z), wx=np.x, wz=np.z, dx=wx-hero.x, dz=wz-hero.z, d=Math.hypot(dx,dz);
-    if(d<Math.min(hero.reach||2.4,3.2)+1.8&&(dx*fx+dz*fz)/Math.max(d,.01)>.25) w.hit(HIT,new THREE.Vector3(wx,1.5,wz),new THREE.Vector3(fx,0,fz)); } }
+// co-op sweep 2026-10-02: from any spot and facing -- the host's own swing (hitCone, below) and a guest's, which the host runs (99-network.js guestHitCone)
+function meleeFrom(x,z,yaw,reach){ if(isGuest()) return 0; const fx=Math.sin(yaw), fz=Math.cos(yaw); let n=0;
+  for(const w of walls){ if(w.broken) continue; const sp=w.spot, np=nearPt(sp,x,z), wx=np.x, wz=np.z, dx=wx-x, dz=wz-z, d=Math.hypot(dx,dz);
+    if(d<Math.min(reach||2.4,3.2)+1.8&&(dx*fx+dz*fz)/Math.max(d,.01)>.25&&w.hit(HIT,new THREE.Vector3(wx,1.5,wz),new THREE.Vector3(fx,0,fz))) n++; } return n; }
+function meleeWalls(){ if(isGuest()) return; meleeFrom(hero.x,hero.z,hero.yaw,hero.reach); }
 { const prev=hitCone; hitCone=function(){ prev.apply(this,arguments); meleeWalls(); }; }
 // the secret weapons are not for sale, and giving one back hands back the defense units it never took
 { const prevSell=sell; sell=function(pos){ const d=typeof pickDef==='function'?pickDef(pos):null; if(d&&d.secret){ toast('🔒 A secret weapon'); return; } return prevSell.apply(this,arguments); }; }
@@ -193,12 +198,21 @@ WORLDANIM.push(dt=>{ clock+=dt; for(const w of walls) w.update(dt);
   for(let i=timers.length-1;i>=0;i--){ const t=timers[i]; t.t-=dt; if(t.t<=0){ timers.splice(i,1); try{ t.fn(); }catch(e){ console.warn('prison walls',e); } } }
   for(let i=dust.length-1;i>=0;i--){ const p=dust[i]; p.t+=dt; const k=p.t/p.life; if(k>=1){ world.remove(p.s); dust.splice(i,1); continue; } p.s.position.x+=p.vx*dt; p.s.position.y+=p.vy*dt; p.s.position.z+=p.vz*dt; p.s.material.opacity=.5*Math.sin(Math.min(1,k*1.6)*PI)*(1-k*.4); p.s.scale.setScalar(p.s.scale.x+dt*2.2); }
   for(const sp of SPOTS) if(sp.flash>0){ sp.flash=Math.max(0,sp.flash-dt*.5); if(sp.light) sp.light.intensity=3.8+sp.flash*3.5; }
-  if(!isGuest()&&walls.some(w=>!w.broken)&&window.__staff&&window.__staff.boltList){ const bl=window.__staff.boltList(); if(bl.length) for(const b of bl){ if(!b.mine||b.y>OPEN_H+1) continue; for(const w of walls){ if(w.broken) continue; const sp=w.spot; if(nearPlane(sp,b.x,b.z,2.1)) { const np=nearPt(sp,b.x,b.z); w.hit(HIT,new THREE.Vector3(np.x,1.6,np.z),new THREE.Vector3(-sp.nx,0,-sp.nz)); } } } } });
+  if(!isGuest()&&walls.some(w=>!w.broken)&&window.__staff&&window.__staff.boltList){ const bl=window.__staff.boltList(); if(bl.length) for(const b of bl){ if(b.y>OPEN_H+1) continue;   /* co-op sweep 2026-10-02: no b.mine test -- on this (host or solo) page every bolt is a player's: its own, or a guest's the host flies for real (99-network.js hostGuestShot) */ for(const w of walls){ if(w.broken) continue; const sp=w.spot; if(nearPlane(sp,b.x,b.z,2.1)) { const np=nearPt(sp,b.x,b.z); w.hit(HIT,new THREE.Vector3(np.x,1.6,np.z),new THREE.Vector3(-sp.nx,0,-sp.nz)); } } } } });
 // ---- build 368 (Matt, playing the Archer: "it was going awesomely till i was on the archer and didn't have a sword"): the bow's arrows break the rooms' walls too -- an arrow of the bow module (83-bow.js) that reaches a wall's plane, flying INTO it, counts as a blow of 25, like a sword swing or a staff bolt (four break one)
 function arrowBlows(){ if(isGuest()||!window.__bow||!window.__bow.arrows||!window.__bow.arrows()) return; if(!walls.some(w=>!w.broken)) return;
   for(const a of window.__bow.flying()){ if(a.y>OPEN_H+1) continue; for(const w of walls){ if(w.broken) continue; const sp=w.spot; if(!nearPlane(sp,a.x,a.z,2.6)) continue; if(a.dx*-sp.nx+a.dz*-sp.nz<.25) continue; const np=nearPt(sp,a.x,a.z); w.hit(HIT,new THREE.Vector3(np.x,Math.min(Math.max(a.y,.5),OPEN_H),np.z),new THREE.Vector3(-sp.nx,0,-sp.nz)); cnt.arrowHits=(cnt.arrowHits||0)+1; } } }
 WORLDANIM.push(()=>arrowBlows());
-window.__prisonwalls={ shatter, BreakableWall, AMMO, REARM, mounts:()=>mounts, spots:()=>SPOTS, raw:()=>walls, walls:()=>walls.map(w=>({ id:w.spot.id, kind:w.kind, health:w.health, broken:w.broken, locked:!!w.locked, awake:!!w.awake, x:+w.group.position.x.toFixed(2), z:+w.group.position.z.toFixed(2), chunks:w.chunks.length, debris:w.fragments.visible, glow:!!(w.beacon&&w.beacon.gs.parent) })),
+// ---- co-op sweep 2026-10-02: a guest saw nothing of these rooms -- its wall never broke when the host's did, and the mortar came out as a plain trebuchet. The host says each hit and the break
+// (pwNet); the guest's wall shakes and falls the same way (its own onBreak opens the room, never the weapon), and the host's mortar, a puppet here, wears the Hex Mortar (guestMount, from 99-network's defs list)
+function pwNet(type,d){ try{ const n=window.__net; if(n&&n.role&&n.role()==='host') n.send(type,d); }catch(er){} }
+function guestBreak(id){ if(!isGuest()) return false; const sp=SPOTS.find(s=>s.id===id); if(!sp) return false; const w=walls.find(x=>x.spot===sp); if(!w){ sp.pendBreak=true; return true; } if(w.broken) return false; w.locked=false; cnt.guestBreaks=(cnt.guestBreaks||0)+1; return w.destroy(new THREE.Vector3(sp.cx0,1.5,sp.cz0),new THREE.Vector3(-sp.nx,0,-sp.nz)); }
+function guestHit(id,x,z){ if(!isGuest()) return false; const w=walls.find(q=>q.spot.id===id); if(!w||w.broken) return false; w.shake=.20; cnt.hits++; try{ SFX.hit&&SFX.hit(); }catch(e){} puff(Number.isFinite(x)?x:w.spot.cx0,2.5,Number.isFinite(z)?z:w.spot.cz0,2,w.spot.half*1.6); return true; }
+function guestMount(p){ if(!isGuest()||!p||!Number.isFinite(p.x)||!Number.isFinite(p.z)) return false; let sp=null, bd=14; for(const s of SPOTS){ const d=Math.hypot(p.x-s.cx0,p.z-s.cz0); if(d<bd){ bd=d; sp=s; } } if(!sp) return false;
+  guestBreak(sp.id);   // a guest who walks in after the break: the wall falls here now
+  if(sp.def===p) return true; sp.def=p; if(!mountMortar(p,sp)&&!pendingMount.includes(sp)) pendingMount.push(sp); cnt.guestMounts=(cnt.guestMounts||0)+1; return true; }
+WORLDANIM.push(()=>{ for(const w of walls) if(w.spot.pendBreak&&!w.broken){ w.spot.pendBreak=false; guestBreak(w.spot.id); } });
+window.__prisonwalls={ meleeFrom, guestBreak, guestHit, guestMount, shatter, BreakableWall, AMMO, REARM, mounts:()=>mounts, spots:()=>SPOTS, raw:()=>walls, walls:()=>walls.map(w=>({ id:w.spot.id, kind:w.kind, health:w.health, broken:w.broken, locked:!!w.locked, awake:!!w.awake, x:+w.group.position.x.toFixed(2), z:+w.group.position.z.toFixed(2), chunks:w.chunks.length, debris:w.fragments.visible, glow:!!(w.beacon&&w.beacon.gs.parent) })),
   hit:(id,n)=>{ const w=walls.find(x=>x.spot.id===id); if(!w) return false; const sp=w.spot; w.time+=1; return w.hit(n||HIT,new THREE.Vector3(sp.cx0,1.5,sp.cz0),new THREE.Vector3(-sp.nx,0,-sp.nz)); },
   mortProto:()=>MORT.proto,
   mortars:()=>mounts.map(m=>({ id:m.sp.id, rolled:m.rolled, fires:m.fires, ammo:m.d.ammo===undefined?AMMO:m.d.ammo, dry:!!m.d.dry, pipsLit:(m.pips||[]).filter((s,i)=>s.visible&&i<(m.d.ammo===undefined?AMMO:m.d.ammo)).length, hasMuzzle:!!m.muzzle, shells:flying.length, clips:MORT.clips.map(c=>c.name) })),

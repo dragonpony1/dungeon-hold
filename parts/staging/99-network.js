@@ -103,6 +103,7 @@
 // for every kill, whoever landed it -- because a guest's bolts and arrows are simulated on the host with no clean way
 // to attribute a killing blow, and towers are shared anyway. What stays host-only, deliberately: Meta.onRunEnd's own
 // bookkeeping (best wave, shop tier, campaign progress) -- that's the host's save telling the host's story.
+// (Since then a guest keeps its own campaign progress (build 150), its Survival best (176) and -- co-op sweep 2026-10-02 -- its difficulty medal ('mapHeld' below); the best wave / shop tier is still the host's.)
 // ===== PHASE 14: a lobby before the hall (99b-lobby.js, its own module): HOST A GAME and JOIN A FRIEND now both land
 // in it, with a loading light per player and the host's map synced -- this file only hands over to it (openHost/
 // openGuest in the title-screen block below) and gained two small hooks for it: onLeave (a listener for a connection
@@ -750,6 +751,7 @@ function guestHitCone(id,yaw,dmg,reach,at){
   const s=s0, P=Meta.packs, M=window.__mythic, hp0=g.hp, before=new Map(); for(const e of enemies) if(!e.dead) before.set(e,e.hp);
   const go=()=>P&&P.guestSwing?P.guestSwing(s&&s.five,d,cone,g):(cone(),[]);
   const fired=M&&M.asHero?M.asHero(go):go();
+  try{ const PWk=window.__prisonwalls; if(PWk&&PWk.meleeFrom) PWk.meleeFrom(gx,gz,yaw,r0); }catch(er){}   // co-op sweep 2026-10-02: the Deep Prison's mortar-room walls take a guest's sword too (56g meleeFrom, the host's own reach rule)
   if(wind) for(const [e,h] of before) if(e.hp<h||e.dead){ for(let i=0;i<3;i++) moveCircle(e,fx*.9,fz*.9,e.r*.8,false); const gl=glow(0xd8f0b0,1.2,.85); gl.position.set(e.x,(e.y||0)+.4,e.z); scene.add(gl); projs.push({kind:'splat',t:0,mesh:gl}); }
   const TL=window.__talents; if(T&&TL&&TL.coopSwing){ const run=()=>TL.coopSwing({g,gx,gz,fx,fz,r0,d,T,before}); const o=M&&M.asHero?M.asHero(run):run();
     if(o.bash) send('powerFx',{k:'tal',t:'bash'},id); if(o.bleed) send('powerFx',{k:'tal',t:'bleed'},id); if(o.kill&&T.fury) send('powerFx',{k:'tal',t:'fury'},id); }
@@ -929,6 +931,16 @@ function guestSendInput(dt){
 // pass runs, the same override trick every hook in this codebase uses rather than editing game.js's own functions.
 let hostWorld=null;
 window.__world={ host:()=>hostWorld };
+// co-op sweep 2026-10-02: each boss's model is fetched in the background a few waves early, keyed on the page's own S.wave -- which never moves on a guest, so a guest fetched it only on first sight
+// (KIND_LOAD) and watched stand-ins meanwhile. The hall's wave starts the same fetches here, at the host's own thresholds (95d:73, 95f:70, 95u:60, 95s:27, 95t:27); every loader is safe to call each frame
+{ const prev=Meta.update; Meta.update=function(){ const r=prev.apply(this,arguments); const w=hostWorld;
+    if(role==='guest'&&w&&Number.isFinite(w.wave)&&MAP&&w.mapName===MAP.name&&!TUTORIAL){ const wv=w.wave, sv=!!w.survival;
+      try{ if(!sv&&MAP.id==='throne'&&wv>=5&&window.__pigbosses&&window.__pigbosses.ensure) window.__pigbosses.ensure();
+        if(!sv&&MAP.id==='court'&&wv>=5&&window.__archhag&&window.__archhag.ensure) window.__archhag.ensure();
+        if(!sv&&MAP.id==='moat'&&wv>=5&&window.__avery&&window.__avery.load) window.__avery.load();
+        if((sv?wv>=10:(wv>=2&&/^(feast|moat|prison)$/.test(MAP.id)))&&window.__wraith&&window.__wraith.load) window.__wraith.load();
+        if(sv&&wv>=4&&window.__moth&&window.__moth.load) window.__moth.load(); }catch(er){} }
+    return r; }; }
 let syncTW=0;
 function hostBroadcastWorld(dt){
   if(role!=='host'||!conns.size) return;
@@ -938,7 +950,7 @@ function hostBroadcastWorld(dt){
   // personal resource). mana:S.mana stays too, unchanged meaning (the HOST's own pool) -- nothing else reads it
   // differently than before, so no existing caller (tests included) needed to change.
   const manas={}; manas[selfId]=S.mana; guestMana.forEach((v,id)=>{ manas[id]=v; });
-  sendSnap('world',{crystal:S.crystal,left:enemies.filter(e=>!e.dead).length+spawnQ.length,   /* build 503 (Matt, with Jacob: "he does not see enemies left under the wave count") */ crystal2:GOAL2>=0?S.crystal2:null,crystal3:(typeof GOAL3!=='undefined'&&GOAL3>=0)?S.crystal3:null,   /* build 499 (Matt, with Jacob: "his heartroot health didn't change when one took damage"): the Drawbridge's third, the keep's */ crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,held:!!S.held,waveTotal:runWaves(),survival:!!SURVIVAL,diff:window.__difficulty?window.__difficulty.id():'normal',mapName:MAP.name,mana:S.mana,manas,du:S.du,duCap:DU_CAP,hk:(window.__hideout&&window.__hideout.ownKey)?window.__hideout.ownKey():'main'});   // hk (build 377): the host's hideout key -- a guest visiting the hideout is sent to the HOST's table (59-hideout.js)
+  sendSnap('world',{crystal:S.crystal,left:enemies.filter(e=>!e.dead).length+spawnQ.length,   /* build 503 (Matt, with Jacob: "he does not see enemies left under the wave count") */ crystal2:GOAL2>=0?S.crystal2:null,crystal3:(typeof GOAL3!=='undefined'&&GOAL3>=0)?S.crystal3:null,   /* build 499 (Matt, with Jacob: "his heartroot health didn't change when one took damage"): the Drawbridge's third, the keep's */ crystalMax:CRYSTAL_MAX,wave:S.wave,phase:S.phase,held:!!S.held,waveTotal:runWaves(),survival:!!SURVIVAL,diff:window.__difficulty?window.__difficulty.id():'normal',mapName:MAP.name,mana:S.mana,manas,du:S.du,duCap:DU_CAP,hk:(window.__hideout&&window.__hideout.ownKey)?window.__hideout.ownKey():'main',mwl:(window.__mortarwake&&window.__mortarwake.lost)?window.__mortarwake.lost():0});   /* mwl (co-op sweep 2026-10-02): the Deep Prison's defenses lost, which swell the mortar rooms' glow (95n) -- a guest has no real defenses to count */   // hk (build 377): the host's hideout key -- a guest visiting the hideout is sent to the HOST's table (59-hideout.js)
    // held (build 160): the host's hall is on its victory lap -- phase 'build', but no horn to wait for
 }
 // a guest's own local S.phase never actually moves through 'deathcut'/'dead'/'won' -- only the HOST's real crystal
@@ -1008,7 +1020,7 @@ onMessage('world',data=>{ hostWorld=data; if(role==='guest'&&data){ SURVIVAL=!!d
 // (bolts and arrows are not synced). GSFX counts them for the suites.
 const GSFX={horn:0,held:0,crystal:0,place:0,upgrade:0,die:0,phase:null,crystalHp:null,defsSeen:false,dieT:0};
 window.__gsfx=()=>Object.assign({},GSFX);
-function guestWorldSfx(w){ if(GSFX.phase&&GSFX.phase!==w.phase){ if(w.phase==='wave'){ SFX.horn(); GSFX.horn++; } else if(w.phase==='build'&&GSFX.phase==='wave'){ SFX.held(); GSFX.held++; } } GSFX.phase=w.phase;
+function guestWorldSfx(w){ if(GSFX.phase&&GSFX.phase!==w.phase){ if(w.phase==='wave'){ SFX.horn(); GSFX.horn++; } else if(w.phase==='build'&&GSFX.phase==='wave'){ SFX.held(); GSFX.held++; if(!w.held&&!guestRunEnded){ const wv=w.wave|0; banner('HALL HELD','wave '+wv+' of '+(w.waveTotal|0)+' repelled  ·  +'+(50+10*effWave(wv))+' mana  ·  a reward drops by the Heartroot'); GSFX.heldBanner=(GSFX.heldBanner|0)+1; } } } GSFX.phase=w.phase;   /* co-op sweep 2026-10-02: and game.js updateWave's HALL HELD banner between waves (numbers only -- banner() writes innerHTML); the last wave's comes with 'mapHeld' */
   if(GSFX.crystalHp!==null&&w.crystal<GSFX.crystalHp-.01){ SFX.crystal(); if(SFX.alarm) SFX.alarm(); GSFX.crystal++; } GSFX.crystalHp=w.crystal;
   // build 500 (Matt, with Jacob: "he can't hear when the thing is getting hit"): the Drawbridge's other two Heartroots, the inn's and the keep's, ring the same hit and alarm on a guest
   for(const k of ['crystal2','crystal3']){ const v=w[k]; if(v==null) continue; const was=GSFX[k+'Hp']; if(was!=null&&v<was-.01){ SFX.crystal(); if(SFX.alarm) SFX.alarm(); GSFX.crystal++; } GSFX[k+'Hp']=v; } }
@@ -1020,6 +1032,7 @@ onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded&&data){ if(data.pha
 onMessage('mapHeld',data=>{ if(role!=='guest'||guestRunEnded||guestHeld||!data) return;
   const pay=typeof data.pay==='number'&&Number.isFinite(data.pay)?Math.max(0,Math.round(data.pay)):0;
   guestHeld={pay,wave:data.wave|0,mapName:typeof data.mapName==='string'?data.mapName.slice(0,60):MAP.name}; if(!data.survival) guestMapCleared(); else if(window.__survival) window.__survival.record(data.wave|0);   // build 176: Survival complete clears nothing, but the fifty waves go on this guest's own best
+  try{ if(window.__difficulty&&window.__difficulty.record) window.__difficulty.record(); }catch(er){}   // co-op sweep 2026-10-02: the difficulty medal for this map, as solo's winMap -> Meta.onMapHeld keeps it (95r) -- the best wave (shop tier) stays the host's, as phase 13 chose
   if(data.survival&&MAPI===1&&window.__trimaw) atHallWave((data.wave|0)+MAP.wbase,()=>window.__trimaw.reward(true));   // co-op sweep 2026-10-02: Throne Room survival held -- the guest earns its own Trimaw, as 85-familiars' winMap wrap gives solo/host
   if(pay){ Meta.addGold(pay,'run'); Meta.save(); floatText(hero.x,hero.y+3.2,hero.z,'+'+Meta.fmtG(pay)+' ● gold — the hall is held','#ffd060'); }
   banner(data.survival?'SURVIVAL COMPLETE':'HALL HELD',MAP.name+(data.survival?' stands':' is yours')+(pay?'  ·  +'+pay+' ● gold':'')+'  ·  the host moves the party on when ready'); });   // the fanfare itself already played: guestWorldSfx hears the host's phase leave 'wave'   // MAP.name, never the host's text: banner() writes innerHTML (a guest is on the host's map, so it is the same name)
@@ -1042,10 +1055,14 @@ function runPay(w,won){ w=w|0; return w>0?25*w+(won?150:0):0; }
 // it. startWave is a plain top-level function (game.js), so this reassigns the same binding every call site already
 // looks up by name (the G key, the wave button, window.__dd.startWave) rather than touching game.js itself.
 { const origStartWave=startWave;
-  startWave=function(){ if(role==='guest'){ toast((hostWorld&&hostWorld.held)||guestHeld?"The hall is held — the host moves the party on when they're ready":"Only the host can start the wave — you're helping defend their hall"); return; } origStartWave(); }; }   // build 160: on the host's victory lap the guest's horn reads ▶ MOVE ON, and MOVE ON is the host's call too
+  startWave=function(){ if(role==='guest'){ toast((hostWorld&&hostWorld.held)||guestHeld?"The hall is held — the host moves the party on when they're ready":"Only the host can start the wave — you're helping defend their hall"); return; }
+    if(role!=='host'||!conns.size) return origStartWave();
+    // co-op sweep 2026-10-02: the guest never saw the wave's big banner (WAVE 3 OF 7 / the mob list) -- game.js's own first banner() of the horn is caught and sent on, word for word
+    const was=S.phase, ob=banner; let bn=null; banner=function(t,sub){ if(!bn) bn={t:String(t),sub:String(sub==null?'':sub)}; return ob.apply(this,arguments); }; try{ origStartWave(); } finally{ banner=ob; } if(bn&&was!=='wave'&&S.phase==='wave') send('waveBanner',bn); }; }   // build 160: on the host's victory lap the guest's horn reads ▶ MOVE ON, and MOVE ON is the host's call too
 
 { const prevH=Meta.hud; Meta.hud=()=>{ prevH();
   if(role==='guest'&&hostWorld){ const w=hostWorld; guestWorldSfx(w);
+    if(!guestRunEnded){ if(w.phase==='wave'&&musicMode==='build') setMusic('wave'); else if(w.phase==='build'&&musicMode==='wave') setMusic('build'); }   // co-op sweep 2026-10-02: the guest's music follows the HOST's phase (startWave/updateWave's setMusic never run here) -- a level check, so a late join, sound turned back on, or a boss track ending mid-wave all land right; boss tracks and 'none' are left alone
     $('cbar').style.width=Math.max(0,w.crystal/w.crystalMax*100)+'%';
     if(w.phase==='wave'){ $('wavet').textContent=(w.survival?'SURVIVAL · WAVE ':'WAVE ')+w.wave+' / '+w.waveTotal; $('phaset').textContent=Number.isFinite(w.left)?w.left+' enem'+(w.left===1?'y':'ies')+' left':'Helping defend the hall'; }   // build 503: the host's count, as the host sees it   // build 176: the host's Survival run reads as one here too (waveTotal is its fifty)
     else if(w.phase==='build'&&w.held){ $('wavet').textContent=w.survival?'SURVIVAL COMPLETE — '+w.mapName+' STANDS':'HALL HELD — '+w.mapName+' CLEARED'; $('phaset').textContent='The hall is yours to roam — the host moves the party on when ready'; }   // build 160: the host's victory lap
@@ -1237,14 +1254,14 @@ function hostBroadcastDefs(dt){
   if(role!=='host'||!conns.size) return;
   syncTD+=dt; if(syncTD<.5) return; syncTD=0;   // static once placed -- 2Hz is plenty to catch a new one, an upgrade, or one destroyed
   const list=defs.map(d=>{ if(!d.__coopId) d.__coopId='d'+(nextDefId++);
-    return {id:d.__coopId,kind:d.kind,lvl:d.lvl||1,x:+d.x.toFixed(2),y:+d.base.toFixed(2),z:+d.z.toFixed(2),rot:+d.rot.toFixed(2),hp:Math.ceil(d.hp),max:d.max,kills:d.kills|0,spent:Math.round(d.spent||0),rc:d.setRing?(d.setRingCol|0):0,lg:d.long?1:0}; });   /* co-op sweep 2026-10-02: rc = the full-set rune ring under it (93-gearsets.js), drawn on the guest's puppet too */   /* build 499: hp/max/kills/spent -- a guest's own tower card and pick (below) */
+    return {id:d.__coopId,kind:d.kind,lvl:d.lvl||1,x:+d.x.toFixed(2),y:+d.base.toFixed(2),z:+d.z.toFixed(2),rot:+d.rot.toFixed(2),hp:Math.ceil(d.hp),max:d.max,kills:d.kills|0,spent:Math.round(d.spent||0),rc:d.setRing?(d.setRingCol|0):0,lg:d.long?1:0,sec:d.secret?1:0}; });   /* sec (co-op sweep 2026-10-02): a Deep Prison secret mortar -- the guest dresses its puppet as one (56g guestMount) */   /* co-op sweep 2026-10-02: rc = the full-set rune ring under it (93-gearsets.js), drawn on the guest's puppet too */   /* build 499: hp/max/kills/spent -- a guest's own tower card and pick (below) */
   sendSnap('defs',{list});
 }
 onMessage('defs',data=>{
   const ids=new Set();
   data.list.forEach(d=>{ ids.add(d.id);
     let p=DEFPUP.get(d.id); if(p){ p.hp=d.hp; p.max=d.max; p.kills=d.kills; p.spent=d.spent; p.x=d.x; p.y=d.y; p.z=d.z; }
-    if(!p){ defPuppetAdd(d.id,d.kind,d.lvl,d.x,d.y,d.z,d.rot); const np=DEFPUP.get(d.id); if(np){ np.hp=d.hp; np.max=d.max; np.kills=d.kills; np.spent=d.spent; np.x=d.x; np.y=d.y; np.z=d.z; defPupRing(np,d.rc); defPupLong(np,d.lg); } if(GSFX.defsSeen){ SFX.place(); GSFX.place++; } return; }   // a defense set down since the last list: the placement sound (build 147), whoever placed it
+    if(!p){ defPuppetAdd(d.id,d.kind,d.lvl,d.x,d.y,d.z,d.rot); const np=DEFPUP.get(d.id); if(np){ np.hp=d.hp; np.max=d.max; np.kills=d.kills; np.spent=d.spent; np.x=d.x; np.y=d.y; np.z=d.z; defPupRing(np,d.rc); defPupLong(np,d.lg); if(d.sec){ try{ const PWk=window.__prisonwalls; if(PWk&&PWk.guestMount) PWk.guestMount(np); }catch(er){} } } if(GSFX.defsSeen){ SFX.place(); GSFX.place++; } return; }   // a defense set down since the last list: the placement sound (build 147), whoever placed it
     ensureDefMark(d.kind,d.lvl); ensureDefMark(d.kind,d.lvl+1); const T=defTemplate(d.kind,d.lvl);   // an upgrade on the host asks for that mark's model here too (and the next one up), as reskinDefs does for the host's own
     if(d.lvl>p.lvl){ SFX.place(); GSFX.upgrade++; }   // a mark up: the same sound the host hears for it (build 147)
     if(p.lvl!==d.lvl||(T&&p.mdl.userData.tpl!==T)){ scene.remove(p.mdl); p.mdl=makeDef(d.kind,false,d.lvl); p.mdl.position.set(d.x,d.y,d.z); p.mdl.rotation.y=d.rot; scene.add(p.mdl); p.lvl=d.lvl; }
@@ -1349,6 +1366,22 @@ function hostDefAction(data,fromId){
 }
 onMessage('defAction',(data,fromId)=>hostDefAction(data,fromId));
 onMessage('toast',msg=>{ if(role==='guest') toast(msg); });
+// ---- co-op sweep 2026-10-02: the hall's big moments, on a guest too. The wave's banner (sent from the startWave wrap above: escaped, banner() writes innerHTML), and each boss's
+// entrance -- banner, camera shake, roar or march -- which ran only inside the host's own spawn code (95c/95d/95f/95p send 'bossFx' with a key; the words here are this page's own, the host's to the letter).
+// A boss track waits for that boss's puppet: the mob list follows the message, and 95d's bar would drop a march straight back to the wave track on a frame with no pig in it
+onMessage('waveBanner',d=>{ if(role!=='guest'||guestRunEnded||!d) return; const esc=s=>String(s==null?'':s).slice(0,240).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';'); banner(esc(d.t),esc(d.sub)); GSFX.waveBanner=(GSFX.waveBanner|0)+1; });
+const BOSSFX={pigs:['🐗 THE PIG BOSSES','three raiders storm the hall',1.0],cyclops:['☠ THE CYCLOPS','the ground shakes — something huge is coming',1.1],hag:['🌑 THE ARCHHAG','the brier matron walks into the garden',1.0],sticks:['💀 THE STICKMEN RISE','the Archhag calls them out of the earth -- they are fast',0],rage:['🌑 THE ARCHHAG RAGES','her second life -- the garden stirs',.7],garden:['🌿 THE GARDEN WAKES','the Archhag calls the topiaries off their pedestals',.6],final:[null,null,.9]};
+const pupHas=re=>mobProxies().some(x=>!x.dead&&re.test(x.kind));
+function musWhen(re,mode,ms,orElse){ let n=20; const t=()=>{ if(guestRunEnded) return; if(pupHas(re)) setMusic(mode); else if(--n>0) setTimeout(t,150); else if(orElse) orElse(); }; setTimeout(t,ms); }
+onMessage('bossFx',d=>{ if(role!=='guest'||guestRunEnded||!d) return; const k=String(d.k), f=Object.prototype.hasOwnProperty.call(BOSSFX,k)?BOSSFX[k]:null; if(!f) return; GSFX.bossFx=(GSFX.bossFx||[]).concat(k).slice(-20);
+  if(f[0]) banner(f[0],f[1]); if(f[2]) camShake=Math.max(camShake,f[2]);
+  if(k==='cyclops'&&typeof playSample==='function') playSample('cyclopsRoar',.7);
+  if(k==='pigs') musWhen(/^pig(flail|dagger|sling)$/,'pigboss',0);
+  if(k==='hag'){ setMusic('none'); musWhen(/^archhag$/,'archhag',1800,()=>{ if(musicMode==='none'&&!guestRunEnded) setMusic(hostWorld&&hostWorld.phase==='wave'?'wave':'build'); }); } });   // 95f spawnHag: the music falls silent as she rises, then her drumline
+// the Cyclops's Eye Glare and Stomp: the host aims them at a guest too (Meta.heroes) but drew them only on its own screen -- 95c draws them here from 'cycFx' (looks only; the damage stays the host's)
+onMessage('pwBreak',d=>{ if(role!=='guest'||!d) return; try{ const PWk=window.__prisonwalls; if(PWk&&PWk.guestBreak) PWk.guestBreak(String(d.id)); }catch(er){ console.warn('prison wall',er); } });   // the Deep Prison's mortar-room walls (56g): the host's break and blows, on this page's wall too
+onMessage('pwHit',d=>{ if(role!=='guest'||!d) return; try{ const PWk=window.__prisonwalls; if(PWk&&PWk.guestHit) PWk.guestHit(String(d.id),+d.x,+d.z); }catch(er){} });
+onMessage('cycFx',d=>{ if(role!=='guest'||guestRunEnded||!d||!window.__cyclops||!window.__cyclops.fx) return; try{ window.__cyclops.fx(d); }catch(er){ console.warn('cyclops fx',er); } });
 
 // ---- phase 12: loot and mana orbs, read-only puppets on every guest's screen, with a real pickup round trip so a
 // guest can actually collect either -- not just see them. Both share the exact same root cause: kill(e) (game.js)

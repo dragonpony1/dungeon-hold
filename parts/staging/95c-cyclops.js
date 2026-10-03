@@ -60,7 +60,11 @@ let doneWave=-1;   // the map-relative wave he's already answered, so a later ru
 SAMPLES.cyclopsRoar='assets/sfx-cyclops-roar.mp3'; sampleFetch('cyclopsRoar');
 function spawnCyclops(){ const k=Object.keys(LANES)[0]; if(!k) return; doneWave=S.wave; banner('☠ THE CYCLOPS','the ground shakes — something huge is coming');
   const e=spawnEnemy('cyclops',k); e.stompCd=5+R(0,2); e.eyeCd=7+R(0,2); e.eyeCharging=false; e.eyeOpenT=0; camShake=1.1;
-  playSample('cyclopsRoar',.7); }
+  playSample('cyclopsRoar',.7); cyNet('bossFx',{k:'cyclops'}); }
+// co-op sweep 2026-10-02: a guest saw no entrance, and no Eye Glare or Stomp -- yet both hurt it (Meta.heroes). The host sends each one; fx() below draws it on the guest with this file's own looks and timings (the damage stays the host's).
+// __net is looked up at call time: 99-network loads after this file
+function cyNet(type,d){ try{ const n=window.__net; if(n&&n.role&&n.role()==='host') n.send(type,d); }catch(er){} }
+const q2=v=>Math.round(v*100)/100;
 { const prev=updateWave; updateWave=function(dt){
     if(SURVIVAL&&S.phase==='wave'&&MAP.id==='throne'&&!spawnQ.length&&!enemies.some(e=>!e.dead)){
       const mw=effWave()-MAP.wbase; if(mw===20&&doneWave!==S.wave) spawnCyclops();
@@ -78,23 +82,24 @@ const FX=[];   // {mesh,t,life,kind:'beam'} or {mesh,kind:'glow'} -- glow's own 
 function stomp(e){ const fl=baseFloor(e.x,e.z); const R_HERO=5.5, R_DEF=4.2, dmg=Math.round(MOBS.cyclops.dmg*1.15);
   e.swing=0;   // build 190 (Matt: "no arm swining animations"): Stomp had no gesture of its own -- he just stood there while the ring/knockback happened. Riding e.swing plays his real Heavy_Hammer_Swing clip (mobAnim, game.js) for the same window an ordinary melee hit would, same slam-it-down motion, no new animation needed
   const ring=glow(0xffb050,1,.85); ring.position.set(e.x,fl+.15,e.z); ring.rotation.x=-Math.PI/2; scene.add(ring); projs.push({kind:'shock',t:0,mesh:ring,r:R_HERO});
-  camShake=Math.max(camShake,.9);
+  camShake=Math.max(camShake,.9); cyNet('cycFx',{k:'stomp',x:q2(e.x),y:q2(fl),z:q2(e.z),r:R_HERO});
   for(const h of _heroes()) if(!h.isDead()){ const dx=h.x-e.x, dz=h.z-e.z, d=Math.hypot(dx,dz); if(d<=R_HERO&&d>.01) h.hurt(dmg); }
   const dxH=hero.x-e.x, dzH=hero.z-e.z, dH=Math.hypot(dxH,dzH);
   if(hero.dead<=0&&dH<=R_HERO&&dH>.01){ const nx=dxH/dH, nz=dzH/dH; for(let i=0;i<7;i++) moveCircle(hero,nx*.5,nz*.5,.42,true); }
   for(const d of defs){ const dx=d.x-e.x, dz=d.z-e.z, dd=Math.hypot(dx,dz); if(dd<=R_DEF) hurtDef(d,dmg); } }
-function eyeStartGlow(e){ const g=glow(0xff4fc8,.75,0); g.position.set(e.x,baseFloor(e.x,e.z)+e.h*.7*e.sc,e.z); scene.add(g); FX.push({mesh:g,kind:'glow',owner:e}); e.eyeGlow=g; }
+function eyeStartGlow(e){ const g=glow(0xff4fc8,.75,0); g.position.set(e.x,baseFloor(e.x,e.z)+e.h*.7*e.sc,e.z); scene.add(g); FX.push({mesh:g,kind:'glow',owner:e}); e.eyeGlow=g; cyNet('cycFx',{k:'glare',x:q2(e.x),y:q2(g.position.y),z:q2(e.z)}); }
 function eyeFire(e){ e.eyeCharging=false; e.eyeOpenT=1.0; e.eyeCd=9+R(0,2);
   const gi=FX.findIndex(f=>f.owner===e); if(gi>=0){ scene.remove(FX[gi].mesh); FX[gi].mesh.material.dispose(); FX.splice(gi,1); } e.eyeGlow=null;
   const ex=e.x+e.eyeDx*.6, ez=e.z+e.eyeDz*.6, ey=baseFloor(e.x,e.z)+e.h*.7*e.sc, L=16;
   const beam=new THREE.Mesh(new THREE.CylinderGeometry(.14,.14,L,8),basic(0xff4fc8,{transparent:true,opacity:.9,depthWrite:false,blending:THREE.AdditiveBlending}));
   beam.position.set(ex+e.eyeDx*L/2,ey,ez+e.eyeDz*L/2); beam.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(e.eyeDx,0,e.eyeDz));
   beam.userData.noOL=true; scene.add(beam); FX.push({mesh:beam,kind:'beam',t:0,life:.3});
-  SFX.harpoon(); camShake=Math.max(camShake,.6);
+  SFX.harpoon(); camShake=Math.max(camShake,.6); cyNet('cycFx',{k:'beam',x:q2(ex),y:q2(ey),z:q2(ez),dx:+e.eyeDx.toFixed(4),dz:+e.eyeDz.toFixed(4)});
   const dmg=Math.round(MOBS.cyclops.dmg*1.6);
   for(const h of _heroes()) if(!h.isDead()){ const px=h.x-ex, pz=h.z-ez, along=px*e.eyeDx+pz*e.eyeDz; if(along<0||along>L) continue;
     if(Math.abs(px*e.eyeDz-pz*e.eyeDx)<=1.15) h.hurt(dmg); } }
 function fxTick(dt){ for(let i=FX.length-1;i>=0;i--){ const f=FX[i];
+    if(f.owner==='net'){ f.t+=dt; f.mesh.material.opacity=Math.min(.85,f.t/1.3*.85); if(f.t>=1.5){ scene.remove(f.mesh); f.mesh.material.dispose(); FX.splice(i,1); } continue; }   // a guest's glare (fx below): it charges as the host's does, and goes with the beam
     if(f.kind==='beam'){ f.t+=dt; f.mesh.material.opacity=.9*(1-f.t/f.life); if(f.t>=f.life){ scene.remove(f.mesh); f.mesh.material.dispose(); FX.splice(i,1); } } } }
 // a tower he hasn't reached yet, worth a thrown boulder instead of waiting to walk all the way up to it (adjacent
 // towers are left to his ordinary melee -- this is flavor on top of closing in, not a replacement for it)
@@ -129,5 +134,18 @@ const CYC_BONUS=800;   // co-op sweep 2026-10-02: on window.__cyclops.bonus too 
 { const prev=kill; kill=function(e){ const wasCyclops=e.kind==='cyclops'&&!e.dead; prev(e);
     if(wasCyclops){ const bonus=CYC_BONUS; S.mana+=bonus; dropLoot(rollItem(4),R(-1.6,1.6),4.6,true); dropLoot(rollItem(4),R(-1.6,1.6),4.6,true);   // 4 is Legendary, rollRarity's own natural ceiling -- 5 is the separate mythic tier 87-mythicdrops.js hands out on its own roll, not something to force here
       toast('☠ THE CYCLOPS FALLS — +'+bonus+' mana, and the hall remembers'); SFX.setBong&&SFX.setBong(); if(window.__gladehart) window.__gladehart.reward(); } }; }   // build 221: and Gladehart, once
-window.__cyclops={bonus:CYC_BONUS,loaded:()=>!!MOBGLB.cyclops,spawn:spawnCyclops,ensure:loadCyclopsModel,alive:()=>{ const e=enemies.find(x=>x.kind==='cyclops'&&!x.dead); return e?{hp:e.hp,max:e.max,stompCd:+e.stompCd.toFixed(2),eyeCd:+e.eyeCd.toFixed(2),eyeCharging:e.eyeCharging,eyeOpenT:+e.eyeOpenT.toFixed(2)}:null; }};
+const fin=v=>Number.isFinite(+v)&&Math.abs(+v)<1e4;
+function fx(d){ if(!d||!fin(d.x)||!fin(d.y)||!fin(d.z)) return false; const x=+d.x, y=+d.y, z=+d.z; cnt.fx=(cnt.fx||0)+1;
+  const dropGlare=()=>{ for(let i=FX.length-1;i>=0;i--) if(FX[i].owner==='net'){ scene.remove(FX[i].mesh); FX[i].mesh.material.dispose(); FX.splice(i,1); } };
+  if(d.k==='glare'){ dropGlare(); const g=glow(0xff4fc8,.75,0); g.position.set(x,y,z); scene.add(g); FX.push({mesh:g,kind:'glow',owner:'net',t:0}); toast('The Cyclops glares…'); return true; }
+  if(d.k==='beam'){ if(!fin(d.dx)||!fin(d.dz)) return false; let dx=+d.dx, dz=+d.dz; const n=Math.hypot(dx,dz); if(n<.01) return false; dx/=n; dz/=n; dropGlare(); const L=16;
+    const beam=new THREE.Mesh(new THREE.CylinderGeometry(.14,.14,L,8),basic(0xff4fc8,{transparent:true,opacity:.9,depthWrite:false,blending:THREE.AdditiveBlending}));
+    beam.position.set(x+dx*L/2,y,z+dz*L/2); beam.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx,0,dz)); beam.userData.noOL=true; scene.add(beam); FX.push({mesh:beam,kind:'beam',t:0,life:.3});
+    SFX.harpoon(); camShake=Math.max(camShake,.6); return true; }
+  if(d.k==='stomp'){ const r=fin(d.r)?Math.min(12,Math.max(0,+d.r)):5.5; const ring=glow(0xffb050,1,.85); ring.position.set(x,y+.15,z); ring.rotation.x=-Math.PI/2; scene.add(ring); projs.push({kind:'shock',t:0,mesh:ring,r});
+    camShake=Math.max(camShake,.9); const dxH=hero.x-x, dzH=hero.z-z, dH=Math.hypot(dxH,dzH);
+    if(hero.dead<=0&&dH<=r&&dH>.01){ const nx=dxH/dH, nz=dzH/dH; for(let i=0;i<7;i++) moveCircle(hero,nx*.5,nz*.5,.42,true); cnt.knock=(cnt.knock||0)+1; } return true; }   // this guest's own hero is pushed back, as the host's is; its position goes to the host as ever
+  return false; }
+const cnt={};
+window.__cyclops={fx,fxInfo:()=>Object.assign({glares:FX.filter(f=>f.owner==='net').length,beams:FX.filter(f=>f.kind==='beam').length},cnt),bonus:CYC_BONUS,loaded:()=>!!MOBGLB.cyclops,spawn:spawnCyclops,ensure:loadCyclopsModel,alive:()=>{ const e=enemies.find(x=>x.kind==='cyclops'&&!x.dead); return e?{hp:e.hp,max:e.max,stompCd:+e.stompCd.toFixed(2),eyeCd:+e.eyeCd.toFixed(2),eyeCharging:e.eyeCharging,eyeOpenT:+e.eyeOpenT.toFixed(2)}:null; }};
 })();

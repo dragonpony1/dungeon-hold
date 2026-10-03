@@ -100,8 +100,9 @@ let doneWave=-1;
 // the hall suddenly has two dozen other things demanding its attention too
 function pigEscort(){ const lk=Object.keys(LANES); if(!lk.length) return; const now=S.waveT;
   for(let i=0;i<30;i++) spawnQ.push({t:now-.01,kind:'goblin',lane:lk[i%lk.length]}); spawnQ.sort((a,b)=>a.t-b.t); }
+const bossFx=k=>{ try{ const n=window.__net; if(n&&n.role&&n.role()==='host') n.send('bossFx',{k}); }catch(er){} };   // co-op sweep 2026-10-02: the entrance's banner/shake/music on a guest too (99-network 'bossFx'; __net is looked up at call time -- it loads after this file)
 function spawnPigBosses(){ const lk=Object.keys(LANES); if(!lk.length) return; doneWave=S.wave;
-  banner('🐗 THE PIG BOSSES','three raiders storm the hall'); camShake=1.0; setMusic('pigboss'); pigEscort();
+  banner('🐗 THE PIG BOSSES','three raiders storm the hall'); camShake=1.0; setMusic('pigboss'); pigEscort(); bossFx('pigs');
   spawnEnemy('pigflail',lk[0]); spawnEnemy('pigdagger',lk[1%lk.length]); spawnEnemy('pigsling',lk[2%lk.length]); }
 { const prev=updateWave; updateWave=function(dt){
     if(!SURVIVAL&&S.phase==='wave'&&MAP.id==='throne'&&S.wave===MAP.waves&&doneWave!==S.wave&&pigWaveTotal>0){
