@@ -34,7 +34,7 @@ function dropBeam(x,z,col){ const m=new THREE.Mesh(BEAM_GEO,new THREE.MeshBasicM
 // the game's own per-item picture override (93-gearsets.js itemArt → the bag, the shop, the sheet); the weapon's kind
 // rides in it.look (sword/staff/polearm/bow). No bow pictures yet, no familiar ones: those keep the slot's emoji.
 const PICS='hideout/assets/hideout/items/', NAMED_PIC={hourglass_of_hollow_sand:'hourglass_hollow_sand',
-  twotimer:null, toil_n_trouble:null, tootsie:null, bifurcation:null};   /* build 509 prep: the four dual-wield rings (99k-dualwield.js) have no thumbnail yet -- their cards show a picture emoji instead. When Matt's
+  };   /* build 510: Matt's four dual-wield ring thumbnails are in (parts/hideout/assets/hideout/items/named/<id>.jpg; ALSO belong on hideout-wip public/assets/hideout/items/named/). Was, build 509 prep: the four dual-wield rings (99k-dualwield.js) have no thumbnail yet -- their cards show a picture emoji instead. When Matt's
   thumbnails land (hideout-wip branch: public/assets/hideout/items/named/twotimer.jpg, toil_n_trouble.jpg, tootsie.jpg, bifurcation.jpg, then node sync-hideout.mjs), delete these four nulls; rings already dropped pick theirs up (99k fillArt) */   /* build 430: the two familiar rings have their pictures now (named/beast_mode.jpg, named/malamute.jpg -- Matt's thumbnails) */   // null: no picture yet (build 170's Subterfuge) -- its card keeps the weapon emoji, its floor shows the bow
 function mythicArt(it){ if(!it) return null; if(it.named){ const f=NAMED_PIC[it.named]; return f===null?null:PICS+'named/'+(f||it.named)+'.jpg'; } if(!it.setId) return null;
   const piece=it.slot==='weapon'?(it.look==='bow'?null:(it.look||'sword')):{armor:'armor',amulet:'amulet',charm:'trinket'}[it.slot];
