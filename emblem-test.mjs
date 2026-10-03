@@ -20,7 +20,7 @@ check("the Knight's weapon shows a sword on its bag card, a polearm piece a pole
 check("the Witch's weapons show a staff (a polearm piece too: she holds it as a staff)",has(out.witch.card,"🪄")&&has(out.witch.pole,"🪄"),JSON.stringify({w:out.witch.icon,wp:out.witch.poleIcon}));
 check("the Fighter's weapons show a polearm, whatever the piece (build 510 prep: he holds only polearms)",has(out.fighter.card,"🔱")&&has(out.fighter.pole,"🔱")&&out.fighter.icon==="🔱"&&out.fighter.sicon==="🔱",JSON.stringify({f:out.fighter.icon,fp:out.fighter.poleIcon,s:out.fighter.sicon}));
 check("the Ranger's weapons show a bow",has(out.troll.card,"🏹")&&has(out.troll.pole,"🏹"),JSON.stringify({r:out.troll.icon}));
-check("armor keeps its shield",Object.values(out).every(o=>has(o.armor,"🛡")),"");
+check("armor keeps its shield (a set piece: its picture, the shield emblem under it -- build 514)",Object.values(out).every(o=>has(o.armor,"🛡")||o.armor.includes('<span class="ie">🛡</span>')),"");
 const lc=await page.evaluate(()=>{ const d=window.__dd; d.start(); d.step(1/60,3); const it=d.rollItem(2,"weapon",5); it.stats.dmg=999; it.score=99999; d.dropLoot(it,d.hero.x,d.hero.z,true); d.step(1/60,30); const c=window.__feel.card(); return c?c.html.slice(0,200):null; });
 check("the loot card's emblem is the Ranger's bow too",!!lc&&lc.includes("🏹"),lc);
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
