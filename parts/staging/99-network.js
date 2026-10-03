@@ -103,7 +103,8 @@
 // for every kill, whoever landed it -- because a guest's bolts and arrows are simulated on the host with no clean way
 // to attribute a killing blow, and towers are shared anyway. What stays host-only, deliberately: Meta.onRunEnd's own
 // bookkeeping (best wave, shop tier, campaign progress) -- that's the host's save telling the host's story.
-// (Since then a guest keeps its own campaign progress (build 150), its Survival best (176) and -- co-op sweep 2026-10-02 -- its difficulty medal ('mapHeld' below); the best wave / shop tier is still the host's.)
+// (Since then a guest keeps its own campaign progress (build 150), its Survival best (176), -- co-op sweep 2026-10-02 -- its difficulty medal ('mapHeld' below) and -- build 508, Matt approved -- its
+// best wave and shop tier (Meta.noteBest from 'mapHeld' and guestShowRunEnd, which also shows it the end-of-run tally). Only the host's save tells the host's story; each guest's tells its own.)
 // ===== PHASE 14: a lobby before the hall (99b-lobby.js, its own module): HOST A GAME and JOIN A FRIEND now both land
 // in it, with a loading light per player and the host's map synced -- this file only hands over to it (openHost/
 // openGuest in the title-screen block below) and gained two small hooks for it: onLeave (a listener for a connection
@@ -584,6 +585,10 @@ function seatLeave(id){ const s=seatOf.get(id); seatOf.delete(id); if(!s||!guest
 function atHallWave(ew,fn){ const w0=S.wave; S.wave=typeof ew==='number'&&Number.isFinite(ew)?ew-MAP.wbase:(hostWorld&&Number.isFinite(hostWorld.wave)?hostWorld.wave:w0);
   try{ return fn(); } finally{ S.wave=w0; } }
 onMessage('waveHeld',d=>{ if(role==='guest'&&d&&Number.isFinite(+d.w)) atHallWave(+d.w,()=>Meta.onWaveHeld(+d.w)); });   // d.w is already the host's effWave() (updateWave passes it)
+// build 508 (Matt approved, co-op): a guest's run counts on its own best wave and shop tier now, so the shop's tier line (10-meta.js tierLine, read by 20-tavern.js) counts the waves the HALL has held
+// this run -- the line reads S.wave and S.phase, which never move on a guest: both are borrowed from the host's world for the one call, as atHallWave borrows the wave
+{ const prev=Meta.tierLine; Meta.tierLine=function(){ const w=hostWorld; if(role!=='guest'||!w||guestRunEnded||!(w.phase==='build'||w.phase==='wave')||!Number.isFinite(w.wave)||w.mapName!==MAP.name) return prev.apply(this,arguments);
+    const w0=S.wave, p0=S.phase; S.wave=w.wave|0; S.phase=w.phase; try{ return prev.apply(this,arguments); } finally{ S.wave=w0; S.phase=p0; } }; }
 // phase 13: party xp -- every kill's xp to every guest, as the host's own onKill fires
 { const origOnKill=Meta.onKill; Meta.onKill=e=>{ origOnKill(e); if(role==='host'&&e) send('killXp',{kind:e.kind}); }; }
 onMessage('killXp',d=>{ if(role==='guest'&&d) Meta.onKill({kind:d.kind}); });
@@ -992,6 +997,8 @@ function hostBroadcastWorld(dt){
 // silently stops firing at the exact moment it matters most. Reusing the same #dead overlay finishDeath()/winMap()
 // already show solo, retitled for a guest (never Meta.onRunEnd -- that's the single-player reward/campaign-progress
 // hook, scored off THIS client's own wave/gear, not something the host's outcome should trigger for a guest at all).
+// (Build 508: what onRunEnd keeps that a guest should keep too -- the best wave, the shop tier, the tally -- it now gets from the host's
+// numbers through Meta.noteBest and guestTally, still without onRunEnd itself.)
 let guestRunEnded=false;
 // build 160: the victory lap. The host's last wave held no longer ends the run -- its hall stays open (game.js winMap) until the host
 // presses MOVE ON -- so a guest hears about it twice: 'mapHeld' the moment the horde breaks, and 'runEnd' at the host's MOVE ON. The
@@ -1001,7 +1008,7 @@ let guestRunEnded=false;
 // the lap (its pay is in its save from before), and not one that walked in during the lap (it held nothing). An older host that sends
 // no held flag still pays at 'runEnd', as it always did. guestHeld is what this page was told and paid at HALL HELD
 let guestHeld=null;
-function guestShowRunEnd(w){
+function guestShowRunEnd(w,o){
   guestRunEnded=true; S.phase=w.phase; deathCut=null; cancelPlace(); droneOff(); setMusic('none');
   if(w.phase==='won'){ try{ if(window.__jars&&window.__jars.sweep) window.__jars.sweep(); }catch(e){} }   // co-op sweep 2026-10-02: a held hall's jars still on this guest's floor are banked, as single player's MOVE ON does (99g sweep)
   if(document.exitPointerLock) document.exitPointerLock(); document.body.classList.remove('play');
@@ -1010,9 +1017,22 @@ function guestShowRunEnd(w){
   else { sting(); $('deadh1').textContent='THE GATE HAS OPENED'; $('deadh2').textContent='THE HALL FELL ON WAVE '+w.wave+(sv?' · SURVIVED '+held+' WAVE'+(held===1?'':'S')+(rec&&rec.newBest?' — A NEW BEST':''):''); }
   const paidAtHeld=w.phase==='won'&&!!w.held;   // build 160: paid at HALL HELD (mapHeld, below) -- or, arriving on the lap, not at all
   const pay=paidAtHeld?(guestHeld?guestHeld.pay:0):typeof w.pay==='number'&&Number.isFinite(w.pay)?Math.max(0,Math.round(w.pay)):w.wave>0?25*w.wave+(w.phase==='won'?150:0):0; if(pay&&!paidAtHeld){ Meta.addGold(pay,'run'); Meta.save(); }   // phase 13: the run's payout -- since build 159 (3/7) the host's own number (runPay), so a later map pays the guest what it pays the host; the old map-wave formula only for an older host that sends none
+  // build 508 (Matt approved, co-op): the run counts on this guest's own best wave and shop tier now, from the very wave the host's own books take (finishDeath: the map's wave; MOVE ON: the campaign's,
+  // effWave). Paid at HALL HELD, its best went in then ('mapHeld'); the tier moves here, at the run's end, as solo's. Nothing is paid by it
+  const nb=paidAtHeld?!!(guestHeld&&guestHeld.newBest):Meta.noteBest(w.phase==='won'?MAP.wbase+(w.wave|0):(w.wave|0)); if(paidAtHeld) Meta.noteBest(0);
   $('deadp').textContent=(pay?'+'+pay+' ● gold for the run. ':'')+'Your own gear, gold and skills stay with you. Go again.'+(offerRejoin()?" ⟲ REJOIN puts you in the host's next game as soon as they host it.":'');
+  if(!$('deadwave')){ const s=document.createElement('span'); s.id='deadwave'; s.style.display='none'; $('deadh2').appendChild(s); }   // the tavern's close writes the wave into it (20-tavern.js): the card's words above replaced it
   $('nextmapbtn').style.display='none'; $('dead').classList.remove('hide');
+  if(o&&o.tally) guestTally(w,{pay,paidAtHeld,nb,sv,held,rec});
 }
+// build 508 (Matt approved, co-op): the end of a co-op run shows a guest the same tally solo gets (20-tavern.js Tavern.summary: kills, xp, gold, levels, loot, a new best), its #dead card behind it as
+// solo's. NEXT MAP is the host's call, so never offered; ⟲ REJOIN (the card's) heads the tally's buttons instead. kills: the host's count for the hall (runEnd carries it)
+function guestTally(w,x){ if(typeof Tavern==='undefined'||!Tavern||!Tavern.summary) return false;
+  const data=Object.assign(Meta.summary(),{ wave:w.wave|0, kills:Number.isFinite(+w.kills)?Math.max(0,Math.round(+w.kills)):0, won:w.phase==='won', map:MAPI, mapName:MAP.name, hasNext:false, payout:x.pay, paidEarly:x.paidAtHeld, newBest:x.nb });   // MAP.name, never the host's text: the tally writes innerHTML
+  if(x.sv&&x.rec) data.survival={ held:x.held, best:x.rec.best, newBest:x.rec.newBest, total:SURVIVAL_WAVES };
+  try{ Tavern.summary(data); }catch(e){ console.error(e); return false; } GSFX.tally=(GSFX.tally|0)+1;
+  const db=document.querySelector('#tv-sum .db'); if(db&&REJOIN&&REJOIN.style.display!=='none'&&!document.getElementById('tv-rejoin')){ const b=document.createElement('button'); b.className='tv-btn hot'; b.id='tv-rejoin'; b.textContent=REJOIN.textContent; b.addEventListener('click',()=>REJOIN.click()); db.insertBefore(b,db.firstChild); const h=db.querySelector('.hot:not(#tv-rejoin)'); if(h) h.classList.remove('hot'); }
+  return true; }
 // build 159 (7/7): ⟲ REJOIN <CODE>, beside TRY AGAIN on a guest's end screen (TRY AGAIN stays what it always was: this player's own
 // title screen, to go solo or anywhere). It reloads through the lobby's own rejoin link -- ?coopjoin=CODE, which 99b-lobby.js reads,
 // strips and joins by itself, a join that waits for the host's next game (join()'s o.wait) -- and on the map this page is on, when
@@ -1050,16 +1070,17 @@ function guestWorldSfx(w){ if(GSFX.phase&&GSFX.phase!==w.phase){ if(w.phase==='w
   // co-op sweep 2026-10-02: ...as hurtCrystal does on the host for them -- the hit, the flash and that Heartroot's shake, no bell (the host never rings it for these two; 56k8 shows their strips)
   for(const k of ['crystal2','crystal3']){ const v=w[k]; if(v==null) continue; const was=GSFX[k+'Hp']; if(was!=null&&v<was-.01){ SFX.crystal(); flashDmg(); if(k==='crystal2') crystal2Shake=.4; else crystal3Shake=.4; GSFX.crystal++; } GSFX[k+'Hp']=v; } }
 function guestMapCleared(){ try{ const cur=parseInt(localStorage.getItem('ddMapsCleared'))||0; localStorage.setItem('ddMapsCleared',String(Math.max(cur,MAPI+1))); }catch(e){} }   /* build 150: a hall held with the host counts for the guest too (winMap records it on the host only) -- the next room and the other heroes open for them as well */
-onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded&&data){ if(data.phase==='won'&&!data.survival) guestMapCleared(); guestShowRunEnd(data); } });   // build 176: a Survival run held clears nothing (the host's map may be past this guest's own campaign)
+onMessage('runEnd',data=>{ if(role==='guest'&&!guestRunEnded&&data){ if(data.phase==='won'&&!data.survival) guestMapCleared(); guestShowRunEnd(data,{tally:true}); } });   // tally (build 508): the end-of-run tally too -- not for THE HOST LEFT (guestHostLeft), whose run stopped rather than ended   // build 176: a Survival run held clears nothing (the host's map may be past this guest's own campaign)
 // build 160: the host's hall is held -- the victory lap begins, on this page too: the banner, the map counted as cleared, and the map's
 // payout, right now (see guestHeld above). The HUD, the horn button (▶ MOVE ON, which only tells a guest the host decides) and the portal
 // follow the host's world broadcast (held:true, phase 'build'); the end screen waits for the host's MOVE ON ('runEnd')
 onMessage('mapHeld',data=>{ if(role!=='guest'||guestRunEnded||guestHeld||!data) return;
   const pay=typeof data.pay==='number'&&Number.isFinite(data.pay)?Math.max(0,Math.round(data.pay)):0;
   guestHeld={pay,wave:data.wave|0,mapName:typeof data.mapName==='string'?data.mapName.slice(0,60):MAP.name}; if(!data.survival) guestMapCleared(); else if(window.__survival) window.__survival.record(data.wave|0);   // build 176: Survival complete clears nothing, but the fifty waves go on this guest's own best
-  try{ if(window.__difficulty&&window.__difficulty.record) window.__difficulty.record(); }catch(er){}   // co-op sweep 2026-10-02: the difficulty medal for this map, as solo's winMap -> Meta.onMapHeld keeps it (95r) -- the best wave (shop tier) stays the host's, as phase 13 chose
+  try{ if(window.__difficulty&&window.__difficulty.record) window.__difficulty.record(); }catch(er){}   // co-op sweep 2026-10-02: the difficulty medal for this map, as solo's winMap -> Meta.onMapHeld keeps it (95r) -- and since build 508 the best wave too (below)
   if(data.survival&&MAPI===1&&window.__trimaw) atHallWave((data.wave|0)+MAP.wbase,()=>window.__trimaw.reward(true));   // co-op sweep 2026-10-02: Throne Room survival held -- the guest earns its own Trimaw, as 85-familiars' winMap wrap gives solo/host
   if(pay){ Meta.addGold(pay,'run'); Meta.save(); floatText(hero.x,hero.y+3.2,hero.z,'+'+Meta.fmtG(pay)+' ● gold — the hall is held','#ffd060'); }
+  guestHeld.newBest=Meta.noteBest(MAP.wbase+(data.wave|0),false);   // build 508 (Matt approved, co-op): the best wave goes on this guest's own books here, as solo's winMap -> Meta.onMapHeld settles it (the host passes effWave()); the shop tier at the run's end
   banner(data.survival?'SURVIVAL COMPLETE':'HALL HELD',MAP.name+(data.survival?' stands':' is yours')+(pay?'  ·  +'+pay+' ● gold':'')+'  ·  the host moves the party on when ready'); });   // the fanfare itself already played: guestWorldSfx hears the host's phase leave 'wave'   // MAP.name, never the host's text: banner() writes innerHTML (a guest is on the host's map, so it is the same name)
 // build 159 (3/7): what the host's own Meta.onRunEnd pays (10-meta.js: 25 a wave, +150 for a map held), worked out from the very wave
 // the host pays itself on -- the map's own count when the crystal falls (finishDeath), the CAMPAIGN wave when the map is held
@@ -1077,14 +1098,14 @@ onMessage('deathCut',d=>{ if(role!=='guest'||guestRunEnded||!d||!(S.phase==='bui
   playSample('crystal',1,.62); GSFX.deathCut=(GSFX.deathCut|0)+1; S.phase='deathcut'; });
 { const prev=updateDeathCut; updateDeathCut=function(dt){ if(role==='guest'&&deathCut&&deathCut.pm){ try{ deathCut.pm.mixer.update(dt); }catch(e){} } return prev.apply(this,arguments); }; }   // a puppet's clips run in mobPuppetsTick, which the cut freezes with the rest
 { const origFinishDeath=finishDeath;
-  finishDeath=function(){ if(role==='guest'){ deathCut=null; return; } origFinishDeath(); if(role==='host'){ send('runEnd',{phase:'dead',wave:S.wave,pay:runPay(S.wave,false),survival:!!SURVIVAL}); parkHost(); } }; }
+  finishDeath=function(){ if(role==='guest'){ deathCut=null; return; } origFinishDeath(); if(role==='host'){ send('runEnd',{phase:'dead',wave:S.wave,pay:runPay(S.wave,false),survival:!!SURVIVAL,kills:S.kills}); parkHost(); } }; }   // kills (build 508): the guest's end-of-run tally
 // build 160: the last wave held opens the victory lap (game.js winMap) -- the guests get it and the map's pay at once ('mapHeld'), and
 // the host stays on the matchmaking server: the run isn't over, and a friend may still walk in to see the hall. The run ends at the
 // host's MOVE ON (moveOn): 'runEnd' (held:true -- the pay already went out) and parkHost go from there now, as they went from winMap
 { const origWinMap=winMap;
   winMap=function(){ const was=S.held; origWinMap(); if(role==='host'&&!was&&S.held) send('mapHeld',{wave:S.wave,mapName:MAP.name,pay:runPay(effWave(),true),survival:!!SURVIVAL}); }; }
 { const origMoveOn=moveOn;
-  moveOn=function(){ const was=S.phase; origMoveOn(); if(role==='host'&&was!=='won'&&S.phase==='won'){ send('runEnd',{phase:'won',held:true,wave:S.wave,mapName:MAP.name,pay:runPay(effWave(),true),survival:!!SURVIVAL}); parkHost(); } }; }
+  moveOn=function(){ const was=S.phase; origMoveOn(); if(role==='host'&&was!=='won'&&S.phase==='won'){ send('runEnd',{phase:'won',held:true,wave:S.wave,mapName:MAP.name,pay:runPay(effWave(),true),survival:!!SURVIVAL,kills:S.kills}); parkHost(); } }; }
 
 // starting a wave is the host's call alone -- a guest is visiting the host's hall, not running a second one next to
 // it. startWave is a plain top-level function (game.js), so this reassigns the same binding every call site already

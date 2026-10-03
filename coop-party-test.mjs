@@ -48,7 +48,7 @@ const reloadVia=async(p,act)=>{ const ld=p.waitForEvent('load',{timeout:240000})
 const codeShown=p=>until(p,()=>{ const el=document.getElementById('hostCode'); return el&&/^[A-Z0-9]{5}$/.test(el.textContent)?{code:el.textContent,same:!!document.getElementById('hostSame'),kept:sessionStorage.getItem('ddHostCode'),err:document.getElementById('coopMsg').textContent}:null; },null,60000,'room code');
 const endScreen=p=>p.evaluate(()=>{ const r=document.getElementById('rejoinbtn'), a=document.getElementById('againbtn');
   return {shown:!document.getElementById('dead').classList.contains('hide'),h1:document.getElementById('deadh1').textContent,p:document.getElementById('deadp').textContent,
-    rejoin:!!r&&getComputedStyle(r).display!=='none'&&r.getClientRects().length>0,rejoinText:r?r.textContent:null,again:a.textContent,againClick:a.getAttribute('onclick'),to:window.__net.rejoinTo(),role:window.__net.role()}; });
+    rejoin:!!r&&getComputedStyle(r).display!=='none'&&r.getClientRects().length>0,rejoinText:r?r.textContent:null,tvRejoin:(document.getElementById('tv-rejoin')||{}).textContent||null,tally:window.__tavern.state().open&&window.__tavern.state().sum,   /* build 508: a guest's run end shows solo's tally over the card, ⟲ REJOIN heading its buttons */again:a.textContent,againClick:a.getAttribute('onclick'),to:window.__net.rejoinTo(),role:window.__net.role()}; });
 const startOpen=(p,label,ms)=>until(p,()=>{ const s=window.__lobby.state(); return !s.startDisabled&&/2\/2 ready/.test(s.startLabel)?s:null; },null,ms||240000,label);
 
 // ==== A: the host on map two, the guest from map one ====
@@ -72,11 +72,11 @@ stamp("in the hall");
 await H.evaluate(()=>window.__dd.hurtCrystal(999999));
 for(let i=0;i<15;i++) await H.evaluate(()=>window.__dd.step(1/60,10));
 const hEnd=await until(H,()=>window.__dd.S.phase==='dead'?{broker:window.__net.onBroker(),peers:window.__net.peers().length,role:window.__net.role()}:null,null,30000,'host run over');
-const gShown=await until(G,()=>!document.getElementById('dead').classList.contains('hide')?true:null,null,30000,"guest's end screen");
+const gShown=await until(G,()=>(window.__tavern.state().open&&window.__tavern.state().sum)||!document.getElementById('dead').classList.contains('hide')?true:null,null,30000,"guest's end screen");
 const gEnd=await endScreen(G);
 check("the run over, the host leaves the matchmaking server -- and keeps its link to the guest (it needs no server)",!!hEnd&&hEnd.v.broker===false&&hEnd.v.peers===1&&hEnd.v.role==='host',JSON.stringify(hEnd));
-check("the guest's THE GATE HAS OPENED offers ⟲ REJOIN "+code1+" beside TRY AGAIN, which is unchanged (TRY AGAIN, a plain reload: solo), and says what REJOIN does",
-  !!gShown&&gEnd.h1==='THE GATE HAS OPENED'&&gEnd.rejoin&&gEnd.rejoinText==='⟲ REJOIN '+code1&&gEnd.again==='TRY AGAIN'&&gEnd.againClick==='location.reload()'&&/REJOIN/.test(gEnd.p),JSON.stringify(gEnd));
+check("the guest's THE GATE HAS OPENED offers ⟲ REJOIN "+code1+" beside TRY AGAIN, which is unchanged (TRY AGAIN, a plain reload: solo), and says what REJOIN does (build 508: the tally over it heads its buttons with the same REJOIN)",
+  !!gShown&&gEnd.h1==='THE GATE HAS OPENED'&&(gEnd.tally?gEnd.tvRejoin==='⟲ REJOIN '+code1:gEnd.rejoin)&&gEnd.rejoinText==='⟲ REJOIN '+code1&&gEnd.again==='TRY AGAIN'&&gEnd.againClick==='location.reload()'&&/REJOIN/.test(gEnd.p),JSON.stringify(gEnd));
 check("...and REJOIN would take this guest HOME (map two is past its own unlock): the rejoin link carries the code but no map",
   !!gEnd.to&&/coopjoin=/.test(gEnd.to)&&gEnd.to.includes('coopjoin='+code1)&&!/coopmap=/.test(gEnd.to),gEnd.to);
 const Xctx=await newCtx({w:400,h:760}); const X=await newPage(Xctx);
@@ -85,7 +85,8 @@ await X.evaluate(()=>window.__net.leave());
 check("nobody walks into the finished hall: a join on its code finds no such room ('peer-unavailable')",xj.err==='peer-unavailable',JSON.stringify(xj));
 
 // ==== the guest's REJOIN, with the host still on its run summary ====
-await reloadVia(G,()=>G.click('#rejoinbtn'));
+const rejoinSel=await G.evaluate(()=>document.getElementById('tv-rejoin')?'#tv-rejoin':'#rejoinbtn');   // build 508: the tally's REJOIN, when the tally is up
+await reloadVia(G,()=>G.click(rejoinSel));
 const g0=Date.now();   // about when the rejoin's first ask went out (the page joins the moment it has loaded)
 const gWait=await until(G,()=>{ const m=document.getElementById('joinMsg').textContent; return /Waiting for the host's next game/.test(m)?{map:window.__dd.map().index,gated:window.__lobby.state().gated,lobby:window.__lobby.state().phase,mp:window.__mp.isOpen(),joinPanel:!document.getElementById('joinPanel').classList.contains('hide'),url:location.search,role:window.__net.role(),msg:m,err:document.getElementById('joinMsg').classList.contains('err'),box:document.getElementById('joinCode').value}:null; },null,60000,'guest waiting');
 check("REJOIN reloads the guest onto its OWN map one (not past its unlock), the multiplayer screen open on the join, 'Waiting for the host's next game' (not an error), the link gone from the address bar",

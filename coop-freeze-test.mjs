@@ -144,7 +144,7 @@ stamp("the crystal falls under the tavern");
 await H.p.evaluate(()=>{ window.__dd.Meta.open(); const d=window.__dd; d.S.crystal=1; const g=d.spawn('goblin','N'); g.x=0; g.z=-2.6; window.__killer=g; });
 await G.p.evaluate(()=>window.__pause.open());
 const fell=await until(H.p,()=>{ const s=window.__tavern.state(); return window.__dd.S.phase==='dead'&&s.open&&s.sum?true:null; },null,30000,"host's run summary");
-const gEnd=await until(G.p,()=>!document.getElementById('dead').classList.contains('hide')?{h1:document.getElementById('deadh1').textContent,pause:window.__pause.isOpen(),phase:window.__dd.S.phase}:null,null,15000,"guest's end screen");
+const gEnd=await until(G.p,()=>{ const s=window.__tavern.state(); return ((s.open&&s.sum)||!document.getElementById('dead').classList.contains('hide'))&&!window.__pause.isOpen()?{h1:document.getElementById('deadh1').textContent,tally:s.open&&s.sum,pause:window.__pause.isOpen(),phase:window.__dd.S.phase}:null; },null,15000,"guest's end screen");   // build 508: a guest's run end shows solo's tally over the card
 check("a goblin walks in under the host's tavern and the crystal falls: the host gets the run summary over its tavern",!!fell,JSON.stringify(fell));
 check("...and the guest, in its own pause menu, gets THE GATE HAS OPENED with the pause stepped aside",!!gEnd&&gEnd.v.h1==='THE GATE HAS OPENED'&&!gEnd.v.pause&&gEnd.v.phase==='dead',JSON.stringify(gEnd&&gEnd.v));
 

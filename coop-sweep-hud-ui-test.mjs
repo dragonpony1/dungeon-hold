@@ -107,8 +107,8 @@ await guestPage.evaluate(()=>window.__dd.step(1/60,150));   // the guest's own c
 const hold=await guestPage.evaluate(()=>({ ph:window.__dd.S.phase, gold:window.__dd.Meta.gold?window.__dd.Meta.gold():null, dead:!document.getElementById('dead').classList.contains('hide') }));
 check("the guest's cut ends on its own without paying or showing the card (it waits for the host)",hold.ph==='deathcut'&&!hold.dead&&hold.gold===gold0,JSON.stringify({gold0,hold}));
 await tickBoth(30,5);
-const end=await guestPage.evaluate(()=>({ ph:window.__dd.S.phase, cut:window.__dd.deathCut(), dead:!document.getElementById('dead').classList.contains('hide'), h1:document.getElementById('deadh1').textContent }));
-check("then the host's end card arrives: THE GATE HAS OPENED",end.ph==='dead'&&end.dead&&!end.cut&&/GATE/.test(end.h1),JSON.stringify(end));
+const end=await guestPage.evaluate(()=>({ ph:window.__dd.S.phase, cut:window.__dd.deathCut(), dead:!document.getElementById('dead').classList.contains('hide'), tally:window.__tavern.state().open&&window.__tavern.state().sum, h1:document.getElementById('deadh1').textContent }));
+check("then the host's end card arrives: THE GATE HAS OPENED (build 508: under solo's tally)",end.ph==='dead'&&(end.dead||end.tally)&&!end.cut&&/GATE/.test(end.h1),JSON.stringify(end));
 
 check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); sig.close&&sig.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);

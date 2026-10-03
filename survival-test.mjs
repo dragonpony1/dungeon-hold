@@ -162,7 +162,7 @@ else {
   const gl=await hud(G);
   check("guest: the host's wave 50 held reaches it as SURVIVAL COMPLETE (banner and HUD) -- and its own campaign stays unopened (no ddMapsCleared)",lap&&/SURVIVAL COMPLETE/.test(gl.banner)&&/SURVIVAL COMPLETE/.test(gl.wavet)&&gl.cleared===null&&gl.phase==='build'&&!gl.tally,JSON.stringify(gl));
   await H.evaluate(()=>window.__dd.moveOn());
-  const ended=await tickUntil([H,G],G,()=>!document.getElementById('dead').classList.contains('hide'),null,60);
+  const ended=await tickUntil([H,G],G,()=>(window.__tavern.state().open&&window.__tavern.state().sum)||!document.getElementById('dead').classList.contains('hide'),null,60);   // build 508: solo's tally over the card
   const ge=await G.evaluate(()=>({h1:document.getElementById('deadh1').textContent,h2:document.getElementById('deadh2').textContent,next:document.getElementById('nextmapbtn').style.display,cleared:localStorage.getItem('ddMapsCleared'),best:localStorage.getItem('dd_survivalBest')}));
   check("guest: the host's MOVE ON ends it on SURVIVAL COMPLETE · ALL 50 WAVES HELD, no NEXT MAP, its best recorded (50), its campaign still unopened",ended&&ge.h1==='SURVIVAL COMPLETE'&&/ALL 50 WAVES HELD/.test(ge.h2)&&ge.next==='none'&&ge.cleared===null&&JSON.parse(ge.best||'{}').hall===50,JSON.stringify(ge));
   try{ sig.close&&sig.close(); }catch(e){}

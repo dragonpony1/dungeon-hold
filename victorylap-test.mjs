@@ -142,7 +142,7 @@ else {
     return {phase:window.__dd.S.phase,tally:window.__tavern.isOpen(),title:sum?(sum.querySelector('h1')||{}).textContent:'',next:!!document.getElementById('tv-nextmap'),paid:M.gold()-g0,payout:M.summary().payout,broker:window.__net.onBroker(),peers:window.__net.peers().length}; });
   check("host: ▶ MOVE ON (the button) ends the run -- phase won, the HALL HELD tally with NEXT MAP, nothing paid twice -- and only now leaves the matchmaking server (its guests' links kept)",
     hm.phase==='won'&&hm.tally&&hm.title==='HALL HELD'&&hm.next&&hm.paid===0&&hm.payout===want&&hm.broker===false&&hm.peers===2,JSON.stringify(hm));
-  const ended=await tickUntil([G,L],G,()=>!document.getElementById('dead').classList.contains('hide')&&!window.__hideout.isOpen(),null,60);
+  const ended=await tickUntil([G,L],G,()=>((window.__tavern.state().open&&window.__tavern.state().sum)||!document.getElementById('dead').classList.contains('hide'))&&!window.__hideout.isOpen(),null,60);   // build 508: solo's tally over the card
   await sleep(400);
   const ge=await G.evaluate(()=>{ const r=document.getElementById('rejoinbtn'); return {phase:window.__dd.S.phase,h1:document.getElementById('deadh1').textContent,p:document.getElementById('deadp').textContent,rejoin:!!r&&getComputedStyle(r).display!=='none',hideout:window.__hideout.isOpen(),gold:window.__meta.gold()}; });
   check("guest: the host's MOVE ON pulls it out of the hideout onto its end screen -- HALL HELD, with ⟲ REJOIN",ended&&ge.phase==='won'&&ge.h1==='HALL HELD'&&ge.rejoin&&!ge.hideout,JSON.stringify(ge));

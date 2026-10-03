@@ -120,6 +120,9 @@ function onRunEnd(w,o){ if(run.ended) return true; run.ended=true; const early=r
   if(stockTierFor(st.best)>st.stockTier){ st.stockTier=stockTierFor(st.best); rollStock(); } saveMeta(); const data=summary(); if(o) Object.assign(data,o); data.paidEarly=early; let shown=false;   // paidEarly: the payout went out at HALL HELD and has been on the HUD all lap -- TO THE TAVERN doesn't count it up again (20-tavern.js)
   if(typeof Tavern!=='undefined'&&Tavern&&Tavern.summary){ try{ Tavern.summary(data); shown=true; }catch(e){ console.error(e); } }
   if(!shown) toast('The Heartroot fell on wave '+w+' — +'+(25*w)+' gold'); return shown; }
+// build 508 (Matt approved, co-op): a co-op GUEST's own best wave and shop tier move with the runs it plays in the host's hall (99-network.js 'mapHeld' and guestShowRunEnd) -- the books settleRun and
+// onRunEnd keep, paying nothing (a guest's pay comes with the host's messages). tier=false: the best only (at HALL HELD: the tier waits for the run's end there, as solo's does)
+function noteBest(w,tier){ w=w|0; const nb=w>st.best; if(nb) st.best=w; if(tier!==false&&stockTierFor(st.best)>st.stockTier){ st.stockTier=stockTierFor(st.best); rollStock(); } saveMeta(); return nb; }
 // the reroll happens when a run actually starts (first in-play frame), never on a page load: TRY AGAIN / a refresh is not a free Restock
 function metaUpdate(dt){ if(!run.started&&S.phase!=='start'){ run.started=true; rollStock(); } }
 function metaOpen(){ if(typeof Tavern!=='undefined'&&Tavern&&Tavern.open) Tavern.open(); else toast('The tavern is being built'); }
@@ -135,7 +138,7 @@ function metaHud(){ const g=fmtG(st.gold), el=$('gold'); if(el&&mhud.gold!==g){ 
 function metaReset(){ try{ localStorage.removeItem('ddMeta'); }catch(e){} st=freshMeta(); run={xp:0,gold:0,spent:0,payout:0,levels:0,drops:0,items:[],ended:false,settled:false,newBest:false,started:run.started}; resetGear(); st.stockTier=1; rollStock(); saveMeta(); }
 { const prevU=Meta.update; Meta.update=dt=>{ prevU(dt); metaUpdate(dt); }; }
 Object.assign(Meta,{
-  mult:skillMult, onPickup, onKill, onWaveHeld, onRunEnd, onMapHeld, open:metaOpen, hud:metaHud,
+  mult:skillMult, onPickup, onKill, onWaveHeld, onRunEnd, onMapHeld, noteBest, open:metaOpen, hud:metaHud,
   BAG_CAP, XP, SKILLS, SKILL_MAX, xpToNext, fmtG, isJunk, bagKey,
   gold:()=>st.gold, addGold, level:()=>st.level, setLevel, xp:()=>st.xp, points, spentPoints, canRespec, respecCost, respec, spend,
   skill:id=>st.skills[id]||0, skills:()=>Object.assign({},st.skills), skillValue:id=>{ const s=SKILLS.find(s=>s.id===id); return s?s.fmt(s.per*st.skills[id]):''; },

@@ -92,8 +92,8 @@ async function tickBoth(hostPage,guestPage,batches=6,size=5){
 
   const guestPhaseAfter=await guestPage.evaluate(()=>window.__dd.S.phase);
   check("the guest's own S.phase now ALSO moves to 'dead' -- not stuck in a frozen hall",guestPhaseAfter==='dead',guestPhaseAfter);
-  const guestDeadVisible=await guestPage.evaluate(()=>!document.getElementById('dead').classList.contains('hide'));
-  check("the guest's own screen shows the real dead overlay, not just updated HUD text",guestDeadVisible);
+  const guestDeadVisible=await guestPage.evaluate(()=>{ const s=window.__tavern.state(); return s.open&&s.sum&&!document.getElementById('tv-sum').classList.contains('hide'); });   // build 508: the run's tally, solo's, over the dead overlay (99-network guestTally)
+  check("the guest's own screen shows the real end of the run (the tally over the dead overlay), not just updated HUD text",guestDeadVisible);
   const guestDeadTitle=await guestPage.evaluate(()=>document.getElementById('deadh1').textContent);
   check("it's titled THE GATE HAS OPENED for a guest too",guestDeadTitle==='THE GATE HAS OPENED',guestDeadTitle);
   const guestPlayClass=await guestPage.evaluate(()=>document.body.classList.contains('play'));

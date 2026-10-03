@@ -3,7 +3,7 @@
 //  * boss entrances on the guest: banner, camera shake, the pig march once a pig puppet is up ('bossFx': 95c/95d/95f/95p) -- 99-network.js
 //  * the Cyclops's Eye Glare, beam and Stomp drawn on the guest, and the stomp pushes the guest's own hero back ('cycFx') -- 95c-cyclops.js
 //  * the boss model pre-fetch follows the hall's wave on a guest (its own S.wave never moves) -- 99-network.js
-//  * a held hall gives the guest its difficulty medal for the map (the best wave / shop tier stays the host's, coop-rewards-test) -- 95r-difficulty.js / 99-network.js
+//  * a held hall gives the guest its difficulty medal for the map, and (build 508) its own best wave -- 95r-difficulty.js / 99-network.js / 10-meta.js noteBest
 //  * the Deep Prison's mortar-room walls: a guest's sword breaks them, the guest sees each blow and the break, and the host's mortar is a Hex Mortar on the guest; the glow follows the host's losses -- 56g / 95n / 99-network.js
 //    (build 508: locked on both pages until they wake, as in single player -- the wall's scene runs in co-op now, coop-finale-test)
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
@@ -91,12 +91,13 @@ await pair(1,'the Throne Room');
     try{ w.wave=4; w.survival=false; window.__dd.step(1/60,2); const at4=n; w.wave=5; window.__dd.step(1/60,2); return { at4, at5:n-at4, own:window.__dd.S.wave }; } finally { w.wave=w0; w.survival=sv; P.ensure=real; } });
   check("the guest starts the pig trio's download at the hall's wave 5, not before (its own S.wave stays put)",r.at4===0&&r.at5>=1,JSON.stringify(r)); }
 
-// ---- 5. progress: HALL HELD gives the guest its difficulty medal (its best wave stays put: phase 13's rule, coop-rewards-test)
-{ const b0=await guestPage.evaluate(()=>({ best:window.__meta.best(), medal:window.__difficulty.best() }));
+// ---- 5. progress: HALL HELD gives the guest its difficulty medal -- and (build 508, Matt approved, reversing phase 13's rule) its own best wave; the shop tier waits for the run's end (coop-rewards-test)
+{ const b0=await guestPage.evaluate(()=>({ best:window.__meta.best(), tier:window.__meta.stockTier(), medal:window.__difficulty.best() }));
   await hostPage.evaluate(()=>window.__net.send('mapHeld',{wave:7,mapName:'x',pay:0,survival:false}));
   await tickBoth(4,5);
-  const b1=await guestPage.evaluate(()=>({ best:window.__meta.best(), medal:window.__difficulty.best(), want:window.__dd.map().wbase+7, id:window.__dd.map().id, saved:JSON.parse(localStorage.getItem('ddMeta')||'{}').best }));
-  check("and the difficulty medal for this map is the guest's too",b1.id in b1.medal&&!(b1.id in b0.medal),JSON.stringify({b0:b0.medal,b1:b1.medal})); }
+  const b1=await guestPage.evaluate(()=>({ best:window.__meta.best(), tier:window.__meta.stockTier(), medal:window.__difficulty.best(), want:window.__dd.map().wbase+7, id:window.__dd.map().id, saved:JSON.parse(localStorage.getItem('ddMeta')||'{}').best }));
+  check("and the difficulty medal for this map is the guest's too",b1.id in b1.medal&&!(b1.id in b0.medal),JSON.stringify({b0:b0.medal,b1:b1.medal}));
+  check("and its own best wave: the hall's (wbase + 7), saved -- the shop tier not yet (it moves at the run's end, as solo's)",b1.best===Math.max(b0.best,b1.want)&&b1.saved===b1.best&&b1.tier===b0.tier,JSON.stringify({b0,b1})); }
 
 // ---- 6. the Deep Prison: a guest's sword breaks a mortar-room wall; the guest sees the blows, the break, and a Hex Mortar
 await pair(5,'the Deep Prison');
