@@ -16,7 +16,7 @@ const A=await page.evaluate(()=>{ const d=window.__dd, W=window.__moatwalk; cons
 check('the cut scene starts with the spotlights up and Avery out',A.cut&&A.beams>0&&A.spawned===1,JSON.stringify(A)); await shot('1-glide');
 await page.evaluate(()=>window.__dd.step(1/30,90)); await shot('2-bust');
 await page.evaluate(()=>window.__dd.step(1/30,88)); await shot('3-stamp');
-const B=await page.evaluate(()=>{ window.__dd.step(1/30,80); return { info:window.__avery.info(), st:window.__avery.state()[0] }; });
+const B=await page.evaluate(()=>{ window.__dd.step(1/30,80+150); return { info:window.__avery.info(), st:window.__avery.state()[0] }; });
 check('the cut scene ends and gives the hall back, Avery cruising the roofs',!B.info.cut&&B.st&&B.st.st==='cruise'&&B.st.y>18,JSON.stringify(B));
 const C=await page.evaluate(()=>{ const d=window.__dd; const t0=d.defs.reduce((s,x)=>s+x.hp,0); for(let i=0;i<60*24;i++){ d.step(1/60,1); for(const x of d.defs) x.hp=Math.max(x.hp,1); } return { info:window.__avery.info(), st:window.__avery.state()[0] }; });
 check('she swoops and her feathers land on a tower',C.info.swoops>=2&&C.info.towerHits>0,JSON.stringify(C)); await shot('4-fight');
@@ -25,7 +25,7 @@ check('below half she is furious, and she lands on the hall roof to preen',D.pha
 const E=await page.evaluate(()=>{ const d=window.__dd; const j0=window.__jars.list().length, l0=d.loot.length; const e=d.enemies.find(x=>x.kind==='avery'&&!x.dead); d.kill(e); d.step(1/60,30);
   const wind=d.loot.slice(l0).filter(l=>l.it&&l.it.setId==='wind').map(l=>l.it.slot); return { jars:window.__jars.list().length-j0, wind, deaths:window.__avery.info().deaths }; });
 check('her fall drops all five Wind pieces and 40 Legendary jars',E.deaths===1&&E.wind.length===5&&new Set(E.wind).size===5&&E.jars>=40,JSON.stringify(E)); await shot('6-fall');
-const F=await page.evaluate(()=>{ const d=window.__dd; d.step(1/60,120); const n0=window.__avery.info().intro; d.spawn('avery','S'); const i=window.__avery.info(); d.step(1/30,320); return { started:i.intro-n0, cut:i.cut, after:window.__avery.info().cut, st:window.__avery.state()[0] }; });
+const F=await page.evaluate(()=>{ const d=window.__dd; d.step(1/60,120); const n0=window.__avery.info().intro; d.spawn('avery','S'); const i=window.__avery.info(); d.step(1/30,320+150); return { started:i.intro-n0, cut:i.cut, after:window.__avery.info().cut, st:window.__avery.state()[0] }; });
 check('the dev panel spawn (avery) brings her in with her whole cut scene, then the fight',F.started===1&&F.cut&&!F.after&&F.st&&F.st.st==='cruise',JSON.stringify(F));
 const G=await page.evaluate(()=>{ const d=window.__dd; const e=d.enemies.find(x=>x.kind==='avery'&&!x.dead); if(e) d.kill(e); d.step(1/60,90); d.spawn('avery','S'); d.step(1/30,45); return window.__avery.info().cutT; });
 await page.mouse.click(500,300); await page.keyboard.down('KeyW'); for(let i=0;i<8;i++) await page.keyboard.down('KeyW'); await page.keyboard.up('KeyW');

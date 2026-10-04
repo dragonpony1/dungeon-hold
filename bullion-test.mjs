@@ -23,7 +23,7 @@ const W=await page.evaluate(()=>{ const d=window.__dd; d.addMana(1e7); d.setHero
   let t=0; for(;t<60&&!window.__bullion.info().cut;t+=1/30) d.step(1/30,1); return { wave:d.S.wave, q0, t:+t.toFixed(1), info:window.__bullion.info(), st:window.__bullion.state()[0] }; });
 check('the Feast Hall\'s wave 7 brings him in with the roll-out, a quarter of the way through',W.wave===7&&W.info.cut&&W.info.spawned===1&&W.st&&W.st.hp>0,JSON.stringify({ wave:W.wave, q0:W.q0, t:W.t, cut:W.info.cut }));
 const TL=await page.evaluate(()=>window.__bullion.timeline());
-check('the roll-out runs 20 to 25 seconds',TL.END>=20&&TL.END<=25,JSON.stringify({ END:+TL.END.toFixed(2), STAMP:+TL.STAMP.toFixed(2) }));
+check('the roll-out runs 25 to 30 seconds (build 530: the stamp holds 5 s longer to read)',TL.END>=25&&TL.END<=30,JSON.stringify({ END:+TL.END.toFixed(2), STAMP:+TL.STAMP.toFixed(2) }));
 const M1=await page.evaluate(async T=>{ const d=window.__dd; d.step(1/30,Math.round(2.5*30)); return { asks:window.__bullion.info().musicAsks, off:window.__bullion.musOffset(), tracks:window.__mus.state().tracks }; },TL);
 check('his music is asked for, starting so the stamp lands on the track\'s hit',M1.asks>=1&&M1.tracks.includes('bullion')&&Math.abs(M1.off-(TL.MUS_HIT-(TL.STAMP-2.5)))<.2,JSON.stringify(M1));
 await page.evaluate(()=>window.__dd.step(1/30,Math.round(2.5*30))); await shot('1-hearth');
@@ -33,7 +33,7 @@ check('mid-roll-out he slams: soup everywhere',SL.puddles>=3&&SL.fx>10,JSON.stri
 await page.evaluate(T=>{ const d=window.__dd, now=window.__bullion.info().cutT; d.step(1/30,Math.round((T.STAMP+.6-now)*30)); },TL);
 const ST=await page.evaluate(()=>window.__bullion.stamp()); await shot('4-stamp');
 check('the freeze-frame stamp: SIR BULLION over Matt\'s line, word for word',ST.shown&&ST.title==='SIR BULLION'&&ST.line==="Just when you thought you couldn't screw up miso soup",JSON.stringify(ST));
-const E1=await page.evaluate(()=>{ const d=window.__dd; d.step(1/30,30*7); return { info:window.__bullion.info(), st:window.__bullion.state()[0], cls:document.body.classList.contains('bullion-cut'), cam:d.camPos(), hero:{ x:d.hero.x, z:d.hero.z } }; });
+const E1=await page.evaluate(()=>{ const d=window.__dd; d.step(1/30,30*12); return { info:window.__bullion.info(), st:window.__bullion.state()[0], cls:document.body.classList.contains('bullion-cut'), cam:d.camPos(), hero:{ x:d.hero.x, z:d.hero.z } }; });
 check('the roll-out ends and gives the hall back, him out of the doors',!E1.info.cut&&!E1.cls&&E1.st&&E1.st.x<85&&Math.hypot(E1.cam.x-E1.hero.x,E1.cam.z-E1.hero.z)<14,JSON.stringify({ st:E1.st, cam:E1.cam }));
 // ---- the fight, on its own: the rest of wave 7 is sent home (as the dev panel's jump does), the Heartroot can't fall
 await page.evaluate(()=>{ const d=window.__dd; window.__clr=()=>{ d.S.crystal=Math.max(d.S.crystal,1e9); for(const e of d.enemies) if(e.kind!=='bullion'&&!e.dead&&!e.keep){ e.through=true; e.dead=.001; } }; const st=d.step; d.step=(dt,n)=>{ for(let i=0;i<(n||1);i++){ window.__clr(); st(dt,1); } }; });

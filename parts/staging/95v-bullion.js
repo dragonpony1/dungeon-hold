@@ -142,7 +142,7 @@ let fallT=0; function fallCard(){ fallEl.classList.add('on'); fallT=5.5; cnt.fal
 const P=(cx,cz,y)=>({ x:cw(cx), y:y||0, z:cwz(cz) });
 const START=P(48.6,13), STOP=P(44.2,13.4), YAW_IN=-PI/2;   // out of the east doors, beside the hearth, facing down the hall
 const MUS_HIT=60.9, T_MUSIC=1.6;   // the track's hush (59.2-60.85 s) and its hit: the stamp lands on it
-const T_HALL=3.2, T_HEARTH=7.0, T_WALK=13.2, HOLD=2.6, SWING=2.3;
+const T_HALL=3.2, T_HEARTH=7.0, T_WALK=13.2, HOLD=7.6, SWING=2.3;   // build 530 (Matt: "just needs a few more seconds maye 5 just stay there and let them read"): the stamp holds 7.6 s (was 2.6)
 let TL=null;
 function timeline(){ const slamDur=CL.Slam?CL.Slam.duration:2.53, boilDur=CL.BoilOver?CL.BoilOver.duration:3.03; const SLAM0=T_WALK+.15, SLAM1=SLAM0+slamDur, STAMP=Math.max(SLAM1+BOIL_PEAK-.15,16.5);
   const BOIL0=STAMP-BOIL_PEAK; TL={ SLAM0, SLAM1, BOIL0, STAMP, SWING0:STAMP+HOLD, END:STAMP+HOLD+SWING, boilDur }; return TL; }

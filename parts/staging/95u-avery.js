@@ -109,7 +109,7 @@ const cutEl=document.createElement('div'); cutEl.id='averycut'; cutEl.innerHTML=
 let waveTotal=0, done=false, cut=null, avery=null;
 { const prev=startWave; startWave=function(){ prev(); if(isMoat()&&S.wave===MAP.waves) waveTotal=spawnQ.length; }; }
 { const prev=updateWave; updateWave=function(dt){ if(isMoat()&&!done&&S.phase==='wave'&&S.wave===MAP.waves&&waveTotal>0&&MOBGLB[K]&&bust&&waveTotal-spawnQ.length>=Math.max(1,Math.floor(waveTotal*.25))) startCut(); prev(dt); }; }
-const SHOT_A=4.2, SHOT_B=3.6, HOLD=2.4, END=SHOT_A+SHOT_B+HOLD;
+const SHOT_A=4.2, SHOT_B=3.6, HOLD=7.4, END=SHOT_A+SHOT_B+HOLD;   // build 530 (Matt: "at the end when your reading, just needs a few more seconds maye 5 just stay there and let them read, same on avery"): the stamp holds 7.4 s (was 2.4)
 const START={ x:cw(47), z:cwz(-7+P), y:ROOF+16 };
 let inSpawn=false;
 function spawnAvery(){ const lk=Object.keys(LANES); inSpawn=true; let e=null; try{ e=spawnEnemy(K,lk[0]); } finally { inSpawn=false; } if(!e) return null; e.noSnare=true; e.atk=1e9; e.ast='cruise'; e.aw=1; e.acd=3; e.aswoops=0; e.at=0; e.phase=1;
