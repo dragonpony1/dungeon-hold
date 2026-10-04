@@ -15,7 +15,7 @@ for(const h of ["knight","witch","fighter","troll"]){
     const w=roll(), p=roll(); p.look="polearm"; const arm=d.rollItem(1,"armor",3);
     const E=window.__emblem; return { card:E.card(w), pole:E.card(p), armor:E.card(arm), icon:E.slotIcon(w), poleIcon:E.slotIcon(p), sicon:E.sicon("weapon") }; },h);
 }
-const has=(s,e)=>s.includes('<span class="ic">'+e+'</span>');
+const has=(s,e)=>s.includes('<span class="ic">'+e+'</span>')||s.includes('<span class="ie">'+e+'</span>');   // build 524: a plain weapon with a picture keeps its emblem under it
 check("the Knight's weapon shows a sword on its bag card, a polearm piece a polearm",has(out.knight.card,"🗡️")&&has(out.knight.pole,"🔱")&&!has(out.knight.card,"⚔"),JSON.stringify({i:out.knight.icon,p:out.knight.poleIcon}));
 check("the Witch's weapons show a staff (a polearm piece too: she holds it as a staff)",has(out.witch.card,"🪄")&&has(out.witch.pole,"🪄"),JSON.stringify({w:out.witch.icon,wp:out.witch.poleIcon}));
 check("the Fighter's weapons show a polearm, whatever the piece (build 510 prep: he holds only polearms)",has(out.fighter.card,"🔱")&&has(out.fighter.pole,"🔱")&&out.fighter.icon==="🔱"&&out.fighter.sicon==="🔱",JSON.stringify({f:out.fighter.icon,fp:out.fighter.poleIcon,s:out.fighter.sicon}));

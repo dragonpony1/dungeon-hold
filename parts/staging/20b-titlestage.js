@@ -10,7 +10,7 @@
 (function(){
 const want=window.__titleWant?window.__titleWant():'portal';
 window.__titlestage={want,running:()=>false,loaded:()=>false,canvas:()=>null,snapshot:()=>null};
-if(!HAS_ASSETS||want==='portal') return;
+if(!HAS_ASSETS||want==='portal'||/^pic-/.test(want)) return;   // build 524: a pic-* background is a painting (20-titleart.js), not a model
 const st=document.getElementById('start'); if(!st) return;
 const FILES={firebow:'bow-fire.glb',wisp:'fam-wisp-projectile.glb',imp:'fam-imp.glb',drake:'fam-drake.glb',trimaw:'named-trimaw.glb',sixseven:'named-sixseven.glb',mousetrap:'title-mousetrap.glb',firework:'title-firework.glb'};
 const SPIN={firebow:.32,wisp:.4,imp:.36,drake:.34,trimaw:.3,sixseven:.3,mousetrap:.3,firework:.32};

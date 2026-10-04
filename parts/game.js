@@ -155,7 +155,7 @@ const MAPS=[
   roofs:[[2,41,2,4],[2,41,39,41],[2,4,5,38],[39,41,5,38],[16,26,42,51]],trees:[],
   lights:[[0,4.2,0,0xb494ff,1.3,15],{cx:11,cz:28,y:4.2,c:0xb494ff,i:1.3,d:15},{cx:21,cz:21,y:7,c:0xfff0c8,i:1.1,d:24},{cx:6,cz:3,y:4,c:0xff8a2a,i:1.4,d:13},{cx:22,cz:3,y:4,c:0xff8a2a,i:1.4,d:13},{cx:38,cz:3,y:4,c:0xff8a2a,i:1.4,d:13},{cx:6,cz:40,y:4,c:0xff8a2a,i:1.4,d:13},{cx:38,cz:40,y:4,c:0xff8a2a,i:1.4,d:13},{cx:3,cz:14,y:4,c:0xff8a2a,i:1.4,d:13},{cx:3,cz:30,y:4,c:0xff8a2a,i:1.4,d:13},{cx:40,cz:14,y:4,c:0xff8a2a,i:1.4,d:13},{cx:40,cz:30,y:4,c:0xff8a2a,i:1.4,d:13},
    {cx:3,cz:1,y:4,c:0xc040ff,i:.9,d:10},{cx:40,cz:1,y:4,c:0xc040ff,i:.9,d:10},{cx:1,cz:40,y:4,c:0xc040ff,i:.9,d:10},{cx:21,cz:43,y:4.2,c:0xffb05a,i:1.3,d:13},{cx:19,cz:45,y:3.8,c:0xff8a2a,i:1.2,d:12},{cx:23,cz:49,y:3.8,c:0xff8a2a,i:1.2,d:12},{cx:21,cz:50,y:2.2,c:0xff7a1a,i:1.6,d:9,oz:.4}]},
- {id:'feast',name:'THE GREAT FEAST HALL',sub:'three long tables, three doors, the Heartroot at the high table · seven waves',gw:52,gh:35,crystal:[5,13],waves:7,wallH:10,du:60,mana:360,fog:[30,100],style:{windows:true},
+ {id:'feast',name:'THE GREAT FEAST HALL',sub:'three long tables, three doors, the Heartroot at the high table · seven waves',gw:52,gh:35,crystal:[5,13],waves:7,wallH:10,du:60,mana:800 /* build 524, Matt: "the dining hall only starts with 360 mana it could use more like 800 maybe" */,fog:[30,100],style:{windows:true},
   build(f,g,h,ramp){ f(3,46,3,24,T.FLOOR); f(3,8,10,17,T.FLOOR); h(3,8,10,17,1); f(9,10,10,17,T.FLOOR); ramp(9,10,10,17,4,0,1); f(4,6,12,14,T.DAIS); g(5,13,T.CRYSTAL); f(11,46,13,14,T.CARPET);   // the hall, the high table's dais a step up at the west end, a runner down the middle
     /* build 468 (Matt: "the dining hall is my least favorite map ... ugly, straight paths" -- picked a mix of plans A and B): the three straight tables are gone. THE MINSTRELS' GALLERY: a raised walk 5 up along the
        north wall, broken where the north door comes in, a stair down from each half; THE FEAST GONE WRONG: long tables shoved askew and two knocked over into barricades (MAP.wreck), the boar roasting on a fire pit
@@ -819,7 +819,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=523;
+const BUILD=524;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;

@@ -9,7 +9,7 @@ const open=async(q)=>{ const ctx=await browser.newContext({viewport:{width:1280,
   await p.goto("http://127.0.0.1:8895/?silent"+q,{timeout:120000}); await p.waitForFunction(()=>window.__titlestage&&window.__dd,null,{timeout:120000}); return {ctx,p,reqs}; };
 { const {ctx,p,reqs}=await open(""); const r=await p.evaluate(()=>({want:window.__titlestage.want,list:window.__titleList,canvas:!!document.getElementById("titleStage"),art:window.__titleart&&window.__titleart.on()}));
   await p.waitForTimeout(1500);
-  check("a browser a test drives gets the painting (no 3D canvas), and the list holds all nine names (build 417: the firework rig -- named the Sky Wrecker in 419)",r.want==="portal"&&!r.canvas&&r.list.join()==="portal,firebow,wisp,imp,drake,trimaw,sixseven,mousetrap,firework",JSON.stringify(r)); await ctx.close(); }
+  check("a browser a test drives gets the painting (no 3D canvas), and the list holds all nine names (build 417: the firework rig -- named the Sky Wrecker in 419)",r.want==="portal"&&!r.canvas&&r.list.slice(0,9).join()==="portal,firebow,wisp,imp,drake,trimaw,sixseven,mousetrap,firework"&&r.list.length>=9,JSON.stringify(r)); await ctx.close(); }
 const NAMES={firebow:"DRACONIC FIRE BOW",wisp:"WISP PROJECTILE",imp:"FIRE IMP",drake:"STORM DRAKE",trimaw:"TRIMAW",sixseven:"6/7",mousetrap:"THE IRON MOUSE TRAP",firework:"THE SKY WRECKER"};
 for(const n of ["firebow","wisp","imp","drake","trimaw","sixseven","mousetrap","firework"]){
   const {ctx,p,reqs}=await open("&titlebg="+n); await p.waitForFunction(()=>window.__titlestage.loaded(),null,{timeout:120000}).catch(()=>{}); await p.waitForTimeout(400);
