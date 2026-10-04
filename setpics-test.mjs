@@ -30,6 +30,6 @@ check("the Ranger: Storm and Forest set bows show Matt's bow pictures, and a myt
 const PT=await page.evaluate(async()=>{ const P=window.__meta.packs; const mk=n=>({ id:'p'+Math.random(), slot:'familiar', rarity:2, lvl:5, name:n, stats:{fdmg:1} });
   const names=['Keen Wisp','Old Cave Bat','Fine Moss Sprite','Runed Fire Imp','Ancient Storm Drake of the Void','Crystal Owl']; const srcs=names.map(n=>P.art(mk(n)));
   const ok=await Promise.all(srcs.map(src=>src?new Promise(r=>{ const i=new Image(); i.onload=()=>r(true); i.onerror=()=>r(false); i.src=src; }):Promise.resolve(null))); return { srcs, ok }; });
-check("pet cards: Wisp, Bat, Sprite, Imp, Drake (a set Drake too) show their pictures and they load; the Owl has none yet",PT.ok.slice(0,5).every(Boolean)&&PT.srcs[5]===null&&(PT.srcs[4]||'').endsWith('pets/drake.jpg'),JSON.stringify(PT));
+check("pet cards: Wisp, Bat, Sprite, Imp, Drake (a set Drake too) show their pictures and they load; the Owl too (build 521)",PT.ok.slice(0,5).every(Boolean)&&(PT.srcs[5]||'').endsWith('pets/owl.jpg')&&PT.ok[5]&&(PT.srcs[4]||'').endsWith('pets/drake.jpg'),JSON.stringify(PT));
 check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
