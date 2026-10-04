@@ -34,7 +34,15 @@ if(MAP.pit){ const [pcx,pcz,pr]=MAP.pit, X=cx2w(pcx), Z=cz2w(pcz), R=(pr-.45)*CE
   const coal=M(G.cyl(R-.4,R-.2,.25,20),basic(0x5a1606),0,.12,0); coal.userData.noOL=true; g.add(coal);
   const flames=[]; for(let k=0;k<9;k++){ const a=k/9*TAU, r=k?1.1+(k%3)*.5:0, f=M(G.cone(.45+(k%2)*.2,1.8+(k%3)*.6,7),basic(k%2?0xffa040:0xff6a1a),Math.cos(a)*r,1,Math.sin(a)*r); f.userData.noOL=true; f.material=f.material.clone(); f.material.transparent=true; f.material.opacity=.85; g.add(f); flames.push({ f, p:k*1.7, h:f.scale.y }); }
   const gl=glow(0xff8a2a,9,.85); gl.position.set(0,1.6,0); g.add(gl);
-  for(const sx of [-1,1]){ const post=M(G.cyl(.12,.14,3,7),iron,sx*(R+.2),1.5,0); g.add(post); const fork=M(G.box(.1,.6,.5),iron,sx*(R+.2),3,0); g.add(fork); }
+  const posts=[]; for(const sx of [-1,1]){ const post=M(G.cyl(.12,.14,3,7),iron,sx*(R+.2),1.5,0); g.add(post); const fork=M(G.box(.1,.6,.5),iron,sx*(R+.2),3,0); g.add(fork); posts.push(post,fork); }
+  // build 525 (Matt sent "roast_beast_spit": his roast on a turning spit with glowing coals and floating embers, a 10 s loop): once it lands it replaces the code boar, spit and posts; the stone ring,
+  // the code flames and the glow stay under it. feast-roast.glb (glb-compact 1024). Sized to span the ring (ROAST_W of the pit's width), its own Roast_Spit_Loop playing. Hook: window.__feastRoast
+  { const ROAST_W=1.02; let mixer=null, root=null; fetchBytes(ASSET('feast-roast.glb'),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(gl2=>{
+      root=gl2.scene||gl2.scenes[0]; root.updateMatrixWorld(true); const b0=new THREE.Box3().setFromObject(root), s0=new THREE.Vector3(); b0.getSize(s0); const k=(2*(R+.2))*ROAST_W/Math.max(.01,s0.x,s0.z);
+      root.scale.setScalar(k); root.updateMatrixWorld(true); const b1=new THREE.Box3().setFromObject(root); root.position.y=-b1.min.y; toonify(root,k);
+      g.add(root); for(const o of posts) o.visible=false; spit.visible=false; if(gl2.animations&&gl2.animations.length){ mixer=new THREE.AnimationMixer(root); const a=mixer.clipAction(gl2.animations[0]); a.play(); }
+      WORLDANIM.push(dt=>{ if(mixer) mixer.update(dt); }); cnt.roast=true; }).catch(e=>console.warn('feast roast',e));
+    window.__feastRoast={ loaded:()=>!!root, playing:()=>!!mixer, root:()=>root }; }
   const spit=new THREE.Group(); spit.position.set(0,2.9,0); g.add(spit); const bar=M(G.cyl(.07,.07,2*R+.8,7),iron,0,0,0); bar.rotation.z=PI/2; spit.add(bar);
   const hide=mat(0x7a3c1a), dark=mat(0x4a2210);
   const body=M(G.sphere?G.sphere(1,14,10):new THREE.SphereGeometry(1,14,10),hide,0,0,0); body.scale.set(2.1,1.05,1.15); spit.add(body);

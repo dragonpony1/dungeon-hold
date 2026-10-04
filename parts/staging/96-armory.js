@@ -17,7 +17,10 @@ const canWear=it=>!GATE||MAPI===0||!it||!it.req||Meta.level()>=it.req;   // map 
 // build 314 (Matt: "i dont understand it and it just keeps coming up"): the big card comes once per piece a session (after that a trying hand just gets the one-line toast), and it reads as
 // pictures -- you, the piece's level, how you get there, where it waits
 const lvlCardSeen=new Set();
-{ const prev=Meta.equip; Meta.equip=id=>{ const it=Meta.bag().find(b=>b.id===id); if(it&&!canWear(it)){ const msg='🔒 Needs level '+it.req+' — you are level '+Meta.level(); toast(msg); if(lvlCardSeen.has(it.id)) return false; lvlCardSeen.add(it.id);
+// build 525 (Matt: "the infographic that shows what to do when i have a level gear thats hire then me only needs to come up twice ever"): the picture card shows on just the first TWO tries ever (saved: dd_lvlcard_n);
+// every try after that is only the short toast
+const LVLCARD_MAX=2; const lvlCardN=()=>{ try{ return parseInt(localStorage.getItem('dd_lvlcard_n'))||0; }catch(e){ return 0; } };
+{ const prev=Meta.equip; Meta.equip=id=>{ const it=Meta.bag().find(b=>b.id===id); if(it&&!canWear(it)){ const msg='🔒 Needs level '+it.req+' — you are level '+Meta.level(); toast(msg); if(lvlCardSeen.has(it.id)||lvlCardN()>=LVLCARD_MAX) return false; lvlCardSeen.add(it.id); try{ localStorage.setItem('dd_lvlcard_n',String(lvlCardN()+1)); }catch(e){}
     if(window.__lesson&&window.__lesson.flow) window.__lesson.flow({ic:'🔒',title:'LEVEL '+it.req+' GEAR',css:'#ffd27a',steps:[{ic:'🧍',t:'You · Lv '+Meta.level()},{ic:'🔒',t:'This · Lv '+it.req},{ic:'⚔',t:'Kills level you up'},{ic:'🎒',t:'Waits in your bag'}]},6); else if(window.__lesson) window.__lesson.show(msg+'. Kills and waves held level you up; the piece keeps in your bag until then.',6); return false; }   /* build 284: a card */ return prev(id); }; }
 if(typeof tvTier==='function'){ const prev=tvTier; tvTier=function(it){ return prev(it)+(it.req?'<span class="tb'+(canWear(it)?'':' no')+'">Lv '+it.req+'</span>':''); }; }
 // --- the store ---
