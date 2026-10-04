@@ -88,9 +88,11 @@ const GR={r:{knight:CLEAVE_R,witch:STARFALL_R,fighter:HALO_RING_R,troll:VOLLEY_R
 const grGeo=new THREE.RingGeometry(.93,1,72), grDisc=new THREE.CircleGeometry(1,56);
 const grRing=new THREE.Mesh(grGeo,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.8,side:THREE.DoubleSide,depthWrite:false})), grBack=new THREE.Mesh(grDisc,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.14,side:THREE.DoubleSide,depthWrite:false})), grFill=new THREE.Mesh(grDisc,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.3,side:THREE.DoubleSide,depthWrite:false}));
 const grGroup=new THREE.Group(); for(const m of [grBack,grFill,grRing]){ m.userData.noOL=true; m.frustumCulled=false; grGroup.add(m); } grGroup.rotation.x=-PI/2; grGroup.visible=false; scene.add(grGroup);
-function tickGroundRing(){ if(!SP.charging){ if(GR.on){ GR.on=false; grGroup.visible=false; } return; }
+const VFX=()=>window.__volleyfx||null;   // build 533 prep: the Volley's looks (73b-volleyfx.js, loaded after this file)
+function tickGroundRing(){ if(!SP.charging){ if(GR.on){ GR.on=false; grGroup.visible=false; } const V=VFX(); if(V) V.localCharge(false); return; }
   const hid=heroId(), R=GR.r[hid]||3, k=Math.min(1,SP.t/CHARGE_TIME); const spot=(hid==='witch')?aimSpot(STARFALL_MAXR):(hid==='troll')?aimSpot(VOLLEY_MAXR):{x:hero.x,z:hero.z};
-  GR.on=true; GR.x=spot.x; GR.z=spot.z; GR.R=R; GR.k=k; const col=C(CHARGE_COLOR[hid]||0xffe9a8); for(const m of [grRing,grBack,grFill]) m.material.color.copy(col);
+  GR.on=true; GR.x=spot.x; GR.z=spot.z; GR.R=R; GR.k=k; const V=VFX(); if(V) V.localCharge(hid==='troll',spot.x,spot.z,R,k);   /* build 533 prep: the ring of arrows over the spot and the rune circle under it, told to the partners */
+  const col=C(hid==='troll'&&V?V.col():CHARGE_COLOR[hid]||0xffe9a8);   /* the Ranger's ring in his bow's colour */ for(const m of [grRing,grBack,grFill]) m.material.color.copy(col);
   grGroup.position.set(spot.x,baseFloor(spot.x,spot.z)+.09,spot.z); grRing.scale.setScalar(R); grBack.scale.setScalar(R); grFill.scale.setScalar(Math.max(.001,R*k)); grRing.material.opacity=k>=.95?.6+.4*Math.sin(S.t*30)**2:.8; grGroup.visible=true; }
 // ---- the halo buff: a flat multiplier stat() (game.js) applies for every halo tower kind while HALO_SURGE_T is
 // still counting down, whoever's page is actually simulating the real hall (host or solo -- a guest's own local defs
@@ -115,7 +117,7 @@ function tickRing(dt){ if(!RING_FX) return; const f=RING_FX; f.t+=dt; const k=Ma
 // volley (the crystal falls mid-rain) simply stops delivering its remaining waves, same as everything else pausing ----
 let VOLLEY_Q=[];
 function tickVolley(){ for(let i=VOLLEY_Q.length-1;i>=0;i--){ const w=VOLLEY_Q[i]; if(S.t<w.at) continue; VOLLEY_Q.splice(i,1);
-    let n=0; for(const e of enemies){ if(e.dead) continue; const d=Math.hypot(e.x-w.x,e.z-w.z); if(d<VOLLEY_R+e.r*.5){ hurt(e,w.dmg,0,0); n++; } } if(n) SFX.hit(); fallImpact(w.x,w.z); } }
+    let n=0; for(const e of enemies){ if(e.dead) continue; const d=Math.hypot(e.x-w.x,e.z-w.z); if(d<VOLLEY_R+e.r*.5){ hurt(e,w.dmg,0,0); n++; } } if(n) SFX.hit(); const V=VFX(); if(!(V&&V.ready())) fallImpact(w.x,w.z); } }   // build 533 prep: Matt's rain has its own impacts (73b-volleyfx.js); the old per-wave splat only until it has loaded
 
 // ---- falling bolts/arrows: a cheap one-shot visual per special that "rains" (Starfall, Volley) -- small meshes
 // built per cast (a handful at most, at most once every ten seconds per player: the same allocation budget
@@ -149,7 +151,7 @@ function playFlourish(hid,p){
   if(hid==='knight'){ if(window.__whirl) window.__whirl.vortex(p.x,p.z); shockRing(p.x,fl,p.z,CLEAVE_R); const g=glow(0xcfd8ff,3.2,.85); g.position.set(p.x,fl+1,p.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); floatText(p.x,fl+2.4,p.z,'WHIRLWIND CLEAVE','#dfe8ff'); noise(.25,.15,500); beep(120,.3,'sawtooth',.09,-40); }
   else if(hid==='witch'){ spawnRain(p.x,p.z,0x8a5cff,6,'bolt'); shockRing(p.x,fl,p.z,STARFALL_R); floatText(p.x,fl+2.4,p.z,'STARFALL','#c9a8ff'); beep(880,.22,'sine',.07,-260); beep(660,.28,'triangle',.055,-180); }
   else if(hid==='fighter'){ shockRing(p.x,fl,p.z,HALO_RING_R); const g=glow(0xffd27a,2.6,.8); g.position.set(p.x,fl+1,p.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); floatText(p.x,fl+2.4,p.z,'HALO SURGE','#ffd27a'); beep(140,.4,'sawtooth',.1,60); noise(.3,.12,900); }
-  else if(hid==='troll'){ spawnRain(p.x,p.z,0x8ef05a,VOLLEY_WAVES,'arrow'); floatText(p.x,fl+2.4,p.z,'VOLLEY','#bfe89a'); beep(300,.15,'square',.05,-140); }
+  else if(hid==='troll'){ const V=VFX(); if(!(V&&V.rain(p.x,p.z,p.col!=null?p.col:CHARGE_COLOR.troll,p.hx,p.hz,VOLLEY_R))) spawnRain(p.x,p.z,0x8ef05a,VOLLEY_WAVES,'arrow');   /* build 533 prep: Matt's arrow rain in the bow's colour, coming in from the caster's side (73b-volleyfx.js) */ floatText(p.x,fl+2.4,p.z,'VOLLEY','#bfe89a'); beep(300,.15,'square',.05,-140); }
 }
 
 // ---- the real effect: mutates the REAL enemies/defs/RING_FX/HALO_SURGE_T -- only ever correct to call on the page
@@ -165,16 +167,18 @@ function applyReal(hid,p){ if(hid==='knight') realCleave(p); else if(hid==='witc
 // called from inside the Meta.update tick below instead, whose first real tick only ever happens once the whole
 // page's synchronous script (every module) has already run, by which point it always does ----
 function clampNum(v,lo,hi){ v=+v; return Number.isFinite(v)?Math.max(lo,Math.min(hi,v)):lo; }
-function broadcastFx(hid,p,exceptId){ const n=NET(); if(!n||!n.peers) return; n.peers().forEach(id=>{ if(id!==exceptId) n.send('specialFx',{hero:hid,x:p.x,z:p.z},id); }); }
+function broadcastFx(hid,p,exceptId){ const n=NET(); if(!n||!n.peers) return; n.peers().forEach(id=>{ if(id!==exceptId) n.send('specialFx',{hero:hid,x:p.x,z:p.z,col:p.col,hx:p.hx,hz:p.hz},id); }); }
+// build 533 prep: a cast's looks off the wire -- its colour (a 24-bit colour or none) and the caster's spot (or none)
+function fxLooks(p,data){ if(data.col!=null&&Number.isFinite(+data.col)) p.col=(+data.col>>>0)&0xffffff; if(data.hx!=null&&data.hz!=null){ p.hx=clampNum(data.hx,-1e4,1e4); p.hz=clampNum(data.hz,-1e4,1e4); } return p; }
 let netWired=false;
 function wireNet(){ if(netWired) return; const n=NET(); if(!n||!n.onMessage) return; netWired=true;
   n.onMessage('specialCast',(data,fromId)=>{ if(n.role()!=='host'||!data||!SPEC_NAME[data.hero]) return;
-    const p={x:clampNum(data.x,-1e4,1e4),z:clampNum(data.z,-1e4,1e4),dmg:clampNum(data.dmg,0,1e5)};
+    const p=fxLooks({x:clampNum(data.x,-1e4,1e4),z:clampNum(data.z,-1e4,1e4),dmg:clampNum(data.dmg,0,1e5)},data);
     // co-op sweep 2026-10-02: the caster's capstone ranks ride the cast (doFire), so the host runs THAT guest's Tempest / Cyclone / Arrow Storm / Pinning Volley / Crown / Nova
     // and Surge Master, not its own (window.__talents.onSpecial, 96l-talents.js)
     const t=(data.tal&&typeof data.tal==='object')?data.tal:{}, R={}; for(const k of ['tempest','kcyclone','rstorm','rpin','fcrown','fnova']) R[k]=Math.max(0,Math.min(1,t[k]|0)); R.fsurge=Math.max(0,Math.min(3,t.fsurge|0)); p.surge=2*R.fsurge;
     applyReal(data.hero,p); playFlourish(data.hero,p); broadcastFx(data.hero,p,fromId); if(window.__talents&&window.__talents.onSpecial) window.__talents.onSpecial(data.hero,p,{ranks:R,from:fromId}); });
-  n.onMessage('specialFx',(data)=>{ if(n.role()!=='guest'||!data||!SPEC_NAME[data.hero]) return; playFlourish(data.hero,{x:clampNum(data.x,-1e4,1e4),z:clampNum(data.z,-1e4,1e4)}); });
+  n.onMessage('specialFx',(data)=>{ if(n.role()!=='guest'||!data||!SPEC_NAME[data.hero]) return; playFlourish(data.hero,fxLooks({x:clampNum(data.x,-1e4,1e4),z:clampNum(data.z,-1e4,1e4)},data)); });
 }
 
 // ---- fire: called the instant a charge completes (or window.__specials.fire() forces one early, for probes/tests) ----
@@ -183,11 +187,12 @@ function doFire(){
   const spot=(hid==='witch')?aimSpot(STARFALL_MAXR):(hid==='troll')?aimSpot(VOLLEY_MAXR):{x:hero.x,z:hero.z};
   const dmg=Math.round(heroDmg()*(hid==='fighter'?2:3)*10)/10;
   const p={x:+spot.x.toFixed(2),z:+spot.z.toFixed(2),dmg};
+  if(hid==='troll'){ const V=VFX(); p.col=V?V.col():CHARGE_COLOR.troll; p.hx=+hero.x.toFixed(2); p.hz=+hero.z.toFixed(2); if(V) V.localCharge(false,0,0,VOLLEY_R,1,true); }   // build 533 prep: the volley's colour and the caster's spot (the rain comes in from his side); the charge ring launches
   if(hid==='knight'&&window.__whirl) window.__whirl.spin();   // build 260 (99f-whirl.js): the Knight's own body spins three turns, on the caster's screen
   playFlourish(hid,p);   // always shown at once on the caster's own screen, win or lose the round trip
   const n=NET(), role=n?n.role():null;
   if(role==='guest'){ const TL=window.__talents, tal=TL&&TL.rank?{tempest:TL.rank('tempest'),kcyclone:TL.rank('kcyclone'),rstorm:TL.rank('rstorm'),rpin:TL.rank('rpin'),fcrown:TL.rank('fcrown'),fnova:TL.rank('fnova'),fsurge:TL.rank('fsurge')}:null;
-    n.send('specialCast',{hero:hid,x:p.x,z:p.z,dmg:p.dmg,tal}); if(TL&&TL.onSpecial) TL.onSpecial(hid,p); }   // co-op sweep 2026-10-02: the ranks go with the cast; the local call is looks only (a guest's own enemies and defs are empty): its TEMPEST, CYCLONE, ARROW STORM, NOVA
+    n.send('specialCast',{hero:hid,x:p.x,z:p.z,dmg:p.dmg,tal,col:p.col,hx:p.hx,hz:p.hz}); if(TL&&TL.onSpecial) TL.onSpecial(hid,p); }   // co-op sweep 2026-10-02: the ranks go with the cast; the local call is looks only (a guest's own enemies and defs are empty): its TEMPEST, CYCLONE, ARROW STORM, NOVA
   else { applyReal(hid,p); if(role==='host') broadcastFx(hid,p,null); if(window.__talents&&window.__talents.onSpecial) window.__talents.onSpecial(hid,p); }   // build 336: the Witch's Tempest
 }
 
