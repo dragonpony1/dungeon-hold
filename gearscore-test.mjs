@@ -54,6 +54,9 @@ check("the off-hand card shows its GS, and the total counts the 2nd weapon while
 // ---- the pickup card
 const PC=await page.evaluate(async()=>{ const d=window.__dd, h=d.hero; const it=d.rollItem(2,'armor',8); d.dropLoot(it,h.x+.3,h.z+.3,true); for(let i=0;i<120;i++){ d.step(1/60,1); const c=document.querySelector('#pickcard.show .gs-b'); if(c) return c.textContent; await new Promise(r=>setTimeout(r,10)); } return null; });
 check("the pickup card shows the found piece's GS",/^GS \d/.test(PC||''),String(PC));
+// build 526 (Matt: "could we squees a gs score into the loadout box"): a saved loadout's card shows its gear score
+const LD=await page.evaluate(()=>{ const Dl=window.__doll; Dl.saveLoadout(0); Dl.open(); const html=Dl.html(); Dl.close(); const i=html.indexOf('title="Gear score of this loadout"'); const m=i<0?null:html.slice(i).match(/GS ([0-9,]+)/); return { found:!!m, gs:m?m[1]:null, total:window.__gearscore.total() }; });
+check("a saved loadout's card shows GS = the pieces it saved",LD.found&&parseInt(String(LD.gs).replace(/,/g,''))>0,JSON.stringify(LD));
 check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,4)));
 await page.screenshot({path:(process.env.SP||'.')+'/parts/shots/gearscore-test.png'}).catch(()=>{});
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);

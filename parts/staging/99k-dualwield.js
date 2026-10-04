@@ -32,7 +32,7 @@ const RING_OF={}; for(const k in RING_HERO) RING_OF[RING_HERO[k]]=k;
 const RINGS=Object.keys(RING_HERO), DROP=.10, STORE_KEY='dd_heroWeapon2';
 // per hero: the ring card's picture, the 2nd weapon's icon and word, the chips, the hero's colour (the ring's column on the floor, the stand-in's gem)
 const LOOK={
-  knight: { card:'⚔️', ic:'🗡️', word:'sword', two:'2 SWORDS', who:'🛡️ KNIGHT', col:0x8ab8ff, css:'#8ab8ff', mini:'sword' },
+  knight: { card:'⚔️', ic:'🗡️', word:'weapon', two:'2 WEAPONS', who:'🛡️ KNIGHT', col:0x8ab8ff, css:'#8ab8ff', mini:'sword' },
   witch:  { card:'🧙', ic:'🪄', word:'staff', two:'2 STAFFS', who:'🧙 WITCH',  col:0xc070ff, css:'#c070ff', mini:'staff' },
   fighter:{ card:'🥢', ic:'🔱', word:'polearm', two:'2 POLEARMS', who:'🥋 FIGHTER', col:0xffa040, css:'#ffa040', mini:'polearm' },   // build 510 prep: the Fighter holds only polearms (86v-fighterpole.js)
   troll:  { card:'🏹', ic:'🏹', word:'bow',   two:'2 BOWS',   who:'🌲 RANGER', col:0x6ad86a, css:'#6ad86a', mini:'bow' } };
@@ -47,8 +47,8 @@ function isPolearm(it){ if(!it||typeof it!=='object') return false; if(it.slot==
   v=it.look==='polearm'||/\b(polearm|halberd|spear|scythe|glaive)\b/i.test(it.name||'')||it.named==='sixseven'||it.named==='last_lantern';
   if(!v) try{ v=POLE_MODEL.test(window.__weapons.swordFor(it)||''); }catch(e){ v=false; }
   POLE.set(it,v); return v; }
-const mainBlocks=()=>heroId()==='knight'&&isPolearm(gear.weapon);   // a Knight with a polearm in his hands has no hand free
-function fits(it){ return !!(it&&it.slot==='weapon'&&it.stats&&(typeof canWield!=='function'||canWield(it))&&!(heroId()==='knight'&&isPolearm(it))); }   // build 525 prep: the 2nd must be a type this hero uses (the Knight's a sword)
+const mainBlocks=()=>false;   // build 526 (Matt: "allow any two knight weapons"): a polearm no longer takes both hands -- was heroId()==='knight'&&isPolearm(gear.weapon)   // a Knight with a polearm in his hands has no hand free
+function fits(it){ return !!(it&&it.slot==='weapon'&&it.stats&&(typeof canWield!=='function'||canWield(it))); }   // build 526: any weapon type this hero uses -- the Knight's 2nd may be a sword or a polearm   // build 525 prep: the 2nd must be a type this hero uses (the Knight's a sword)
 function dual(){ const w=gear.weapon2; return !!(w&&w.stats&&ringMine()&&!mainBlocks()); }
 const asleep=()=>!!(gear.weapon2&&!dual());
 function canEquip2(it){ return !!(it&&ringMine()&&!mainBlocks()&&fits(it)&&(!Meta.canWear||Meta.canWear(it))); }

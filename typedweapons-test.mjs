@@ -127,7 +127,7 @@ const W2=await page.evaluate(async()=>{ const T=window.__typed, d=window.__dd, M
   out.pole=D.equip2(mk('polearm').id); out.bow=D.equip2(mk('bow').id); out.sword=D.equip2(mk('sword').id); out.w2=d.gear().weapon2&&d.gear().weapon2.wtype;
   await window.__heroes.select('witch'); const ring2=N.normalize({tier:'named',named:'toil_n_trouble',lvl:20}); M.giveItem(ring2); M.equip(ring2.id);
   out.wSword=D.equip2(mk('sword').id); out.wStaff=D.equip2(mk('staff').id); return out; });
-check("Equip as 2nd: the Knight's 2nd is a sword only (polearm and bow refused)",W2.pole===false&&W2.bow===false&&W2.sword===true&&W2.w2==='sword',JSON.stringify(W2));
+check("Equip as 2nd: the Knight's 2nd is any Knight weapon -- build 526, Matt: allow any two knight weapons (a polearm goes in, a bow is refused)",W2.pole===true&&W2.bow===false&&W2.sword===true&&W2.w2==='sword',JSON.stringify(W2));
 check("Equip as 2nd: the Witch's 2nd must be a staff",W2.wSword===false&&W2.wStaff===true,JSON.stringify(W2));
 // ---- the dev panel gives every type
 const DV=await page.evaluate(()=>{ const P=window.__devpanel, M=window.__meta, out={}; for(const t of ['sword','polearm','staff','bow']){ const it=P.givePlain(t,1,false); out[t]=M.bag().some(b=>b.id===it.id)&&it.wtype===t; }
