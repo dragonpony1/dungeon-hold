@@ -13,7 +13,8 @@ function swap(e){ const old=e.mdl, g0=old.g; const m=makeMob(e.kind); if(!m.glb)
 // from wave 10) -- one met anywhere else (the Throne Room campaign, a dev-panel spawn) never started its download, so there was nothing to swap to. A stand-in now asks its own kind's loader.
 const LOADERS={ wraith:()=>window.__wraith&&window.__wraith.load, moth:()=>window.__moth&&window.__moth.load, direwolf:()=>window.__direwolf&&window.__direwolf.load,
   cyclops:()=>window.__cyclops&&window.__cyclops.ensure, archhag:()=>window.__archhag&&window.__archhag.ensure, stickman:()=>window.__archhag&&window.__archhag.loadSticks,
-  pigflail:()=>window.__pigbosses&&window.__pigbosses.ensure, pigdagger:()=>window.__pigbosses&&window.__pigbosses.ensure, pigsling:()=>window.__pigbosses&&window.__pigbosses.ensure };
+  pigflail:()=>window.__pigbosses&&window.__pigbosses.ensure, pigdagger:()=>window.__pigbosses&&window.__pigbosses.ensure, pigsling:()=>window.__pigbosses&&window.__pigbosses.ensure,
+  bullion:()=>window.__bullion&&window.__bullion.load };   /* build 529 prep: Sir Bullion (95v-bullion.js) */
 const asked={}; function fetchFor(k){ if(asked[k]) return; const f=LOADERS[k]&&LOADERS[k](); if(typeof f!=='function') return; asked[k]=true; try{ const p=f(); if(p&&p.catch) p.catch(()=>{ asked[k]=false; }); }catch(x){ asked[k]=false; } }
 window.__mobswap={ info:()=>Object.assign({},cnt), withoutModel:(k,fn)=>{ const T=MOBGLB[k]; delete MOBGLB[k]; try{ return fn(); } finally{ if(T) MOBGLB[k]=T; } }, stand:()=>enemies.filter(e=>!e.dead&&e.mdl&&!e.mdl.glb).map(e=>e.kind) };
 })();

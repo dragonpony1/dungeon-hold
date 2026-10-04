@@ -296,7 +296,7 @@ function loadWispProjectile(){ if(wispProjGLB||wispProjP) return; wispProjP=fetc
 // group in range (my call, so it always hits something and needs no aiming), hitting every mob it passes once for SC.mult pet shots and
 // throwing it back SC.knock/2 units; bosses take the full damage but only a nudge. Runs where the mobs are real (solo, or the host).
 const SC={every:8,speed:8,hitR:1.4,mult:6,knock:9,bossKnock:.12,pink:0xff3fae,t:3,ghosts:[],pops:[],count:0,hits:0};
-const SC_BOSS=new Set(['cyclops','pigflail','pigdagger','pigsling','trollboss','archhag','avery']);
+const SC_BOSS=new Set(['cyclops','pigflail','pigdagger','pigsling','trollboss','archhag','avery','bullion']);   /* build 529 prep: Sir Bullion (95v) too */
 const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
 function gladeWorn(){ return !!fam&&namedPet(gear.familiar)==='gladehart'; }
 function thickest(){ const fx0=fam?fam.x:hero.x, fz0=fam?fam.z:hero.z; let best=null, bn=0, bd=1e9; const live=enemies.filter(e=>!e.dead&&!e.puppet&&Math.hypot(e.x-hero.x,e.z-hero.z)<18);

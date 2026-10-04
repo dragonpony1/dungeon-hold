@@ -975,6 +975,7 @@ window.__world={ host:()=>hostWorld };
       try{ if(!sv&&MAP.id==='throne'&&wv>=5&&window.__pigbosses&&window.__pigbosses.ensure) window.__pigbosses.ensure();
         if(!sv&&MAP.id==='court'&&wv>=5&&window.__archhag&&window.__archhag.ensure) window.__archhag.ensure();
         if(!sv&&MAP.id==='moat'&&wv>=5&&window.__avery&&window.__avery.load) window.__avery.load();
+        if(!sv&&MAP.id==='feast'&&wv>=5&&window.__bullion&&window.__bullion.load) window.__bullion.load();   /* build 529 prep: Sir Bullion (95v-bullion.js) */
         if((sv?wv>=10:(wv>=2&&/^(feast|moat|prison)$/.test(MAP.id)))&&window.__wraith&&window.__wraith.load) window.__wraith.load();
         if(sv&&wv>=4&&window.__moth&&window.__moth.load) window.__moth.load(); }catch(er){} }
     return r; }; }
@@ -1154,7 +1155,7 @@ const MOBDIE=new Map();   // co-op sweep 2026-10-02: puppets of mobs the host sa
 // build 375 (Matt: a guest "sees wooden doll for pig bosses"): the bosses and a few other kinds load their models only when the HOST's game spawns one (each module's own spawnEnemy wrapper), so on a guest makeMob(kind) fell back to the plain wooden mannequin and stayed one. A guest now asks for the model the first time it sees such a kind, and a puppet built as the stand-in is rebuilt the moment the model lands (mobPuppetsTick)
 const KIND_LOAD={ pigflail:()=>window.__pigbosses&&window.__pigbosses.ensure(), pigdagger:()=>window.__pigbosses&&window.__pigbosses.ensure(), pigsling:()=>window.__pigbosses&&window.__pigbosses.ensure(),
   cyclops:()=>window.__cyclops&&window.__cyclops.ensure(), wraith:()=>window.__wraith&&window.__wraith.load(), moth:()=>window.__moth&&window.__moth.load(), archhag:()=>window.__archhag&&window.__archhag.ensure&&window.__archhag.ensure(), stickman:()=>window.__archhag&&window.__archhag.ensure&&window.__archhag.ensure(), direwolf:()=>window.__direwolf&&window.__direwolf.load&&window.__direwolf.load(),
-  corruptor:()=>window.__corruptor&&window.__corruptor.load(), kegcart:()=>window.__carts&&window.__carts.load('kegcart'), topiary:()=>{ const A=window.__archhag; if(A){ if(A.ensure) A.ensure(); if(A.ensureTopi) A.ensureTopi(); } }, firecart:()=>window.__carts&&window.__carts.load('firecart'), avery:()=>window.__avery&&window.__avery.load&&window.__avery.load() };   /* build 504: Avery too (95u-avery.js) */
+  corruptor:()=>window.__corruptor&&window.__corruptor.load(), kegcart:()=>window.__carts&&window.__carts.load('kegcart'), topiary:()=>{ const A=window.__archhag; if(A){ if(A.ensure) A.ensure(); if(A.ensureTopi) A.ensureTopi(); } }, firecart:()=>window.__carts&&window.__carts.load('firecart'), avery:()=>window.__avery&&window.__avery.load&&window.__avery.load(), bullion:()=>window.__bullion&&window.__bullion.load&&window.__bullion.load() };   /* build 529 prep: Sir Bullion (95v-bullion.js) */   /* build 504: Avery too (95u-avery.js) */
 const KIND_ASKED=new Set();
 const loaderOf=kind=>KIND_LOAD[kind]||(/^topiary-/.test(kind)?KIND_LOAD.topiary:null);   // the Archhag's animated topiaries: a stand-in made from the court's own garden figures (95f-archhag.js ensureTopiKinds), Bob's rig when it lands
 function askKindModel(kind){ const f=loaderOf(kind); if(MOBGLB[kind]||KIND_ASKED.has(kind)||!f) return; KIND_ASKED.add(kind); try{ f(); }catch(e){ console.warn('mob model '+kind,e); } }
@@ -1168,7 +1169,7 @@ function mobPuppetRemove(id){ const p=MOBPUP.get(id); if(!p) return; scene.remov
 let mobHitFeedback=0;   // how many times a guest's own screen has shown "something just hit this" -- a test hook, not gameplay state
 // build 150 ("guest bat not fighting at all"): a guest's pet aims at the host's mobs through these proxies of the mob puppets
 // (30-familiar.js famFoes), stable per id so a chain-lightning hit list keeps working; a hit on one goes to the host as famHit
-const MOBPROX=new Map(); const PROX_SIZE={ogre:[.95,2.3],trollboss:[.8,2.1],orc:[.6,1.6],archer:[.5,1.4],drake:[.6,1.2]};
+const MOBPROX=new Map(); const PROX_SIZE={bullion:[1.25,5],ogre:[.95,2.3],trollboss:[.8,2.1],orc:[.6,1.6],archer:[.5,1.4],drake:[.6,1.2]};
 function mobProxies(){ if(role!=='guest') return enemies; const out=[]; MOBPUP.forEach((p,id)=>{ let q=MOBPROX.get(id); if(!q){ const sz=PROX_SIZE[p.kind]||[.5,1.3]; q={puppet:true,__coopId:id,kind:p.kind,r:sz[0],h:sz[1],dead:0,slowT:0,fly:p.kind==='drake'}; MOBPROX.set(id,q); } q.x=p.x; q.y=p.y; q.z=p.z; q.hp=p.hp; q.max=p.max||p.maxSeen||p.hp; q.squash=p.squash||0; q.dead=(p.hp<=0)?1:0; if(!q.dead) out.push(q); }); MOBPROX.forEach((q,id)=>{ if(!MOBPUP.has(id)) MOBPROX.delete(id); }); return out; }   // squash (build 159, 5/7): "just hit", as hurt() marks a real mob -- Old Lamplight's pet fires at whatever is being hit (97-mythics.js), and on a guest nothing ever was
 // build 507: a guest's F9 dev panel (74-devpanel.js) -- jump wave / spawn run the host's own panel functions; +mana goes into that guest's own pool
 onMessage('dev',(d,fromId)=>{ if(role!=='host'||!d||!window.__devpanel) return; if(d.a==='wave'&&Number.isFinite(+d.n)) window.__devpanel.jumpWave(+d.n); else if(d.a==='spawn'&&typeof d.kind==='string'&&MOBS[d.kind]) window.__devpanel.spawnNow(d.kind);
@@ -1208,7 +1209,7 @@ function mobDyingTick(dt){ MOBDIE.forEach((p,id)=>{ p.dieT+=dt; const m=p.mdl, g
     else { const k=Math.max(0,1-p.dieT/.3)*sc; g.scale.set(k*1.3,k*.6,k*1.3); if(p.dieT>.3){ scene.remove(g); MOBDIE.delete(id); } } }); }
 // co-op sweep 2026-10-02: what a death sets off on the host's kill(), drawn on a guest at the puppet: Avery's fall (95u), a keg cart's blast + cloud and a fire cart's flare (95i -> 95h explode;
 // 95h deals no damage and ticks no cloud on a guest), a stickman's poof (95f). Looks only.
-function guestDeathFx(p){ const B=window.__blight, A=window.__archhag, V=window.__avery; try{ if(p.kind==='avery'&&V&&V.guestDie) V.guestDie(p); else if(p.kind==='kegcart'&&B&&B.explode) B.explode(p.x,p.z,{ crystalDmg:45 }); else if(p.kind==='firecart'&&B&&B.explode) B.explode(p.x,p.z,{ noDamage:true, noCloud:true, scale:.55, shell:true, quiet:true }); else if(p.kind==='stickman'&&A&&A.poof) A.poof(p); }catch(er){ console.warn('death fx '+p.kind,er); } }
+function guestDeathFx(p){ const B=window.__blight, A=window.__archhag, V=window.__avery; try{ if(p.kind==='bullion'&&window.__bullion&&window.__bullion.guestDie) window.__bullion.guestDie(p); else if(p.kind==='avery'&&V&&V.guestDie) V.guestDie(p); else if(p.kind==='kegcart'&&B&&B.explode) B.explode(p.x,p.z,{ crystalDmg:45 }); else if(p.kind==='firecart'&&B&&B.explode) B.explode(p.x,p.z,{ noDamage:true, noCloud:true, scale:.55, shell:true, quiet:true }); else if(p.kind==='stickman'&&A&&A.poof) A.poof(p); }catch(er){ console.warn('death fx '+p.kind,er); } }
 function mobDyingClear(){ MOBDIE.forEach(p=>scene.remove(p.mdl.g)); MOBDIE.clear(); }
 window.__mobdie=()=>[...MOBDIE.values()].map(p=>({kind:p.kind,t:+p.dieT.toFixed(2),y:+p.y.toFixed(2)}));   // a test hook
 let nextEnemyId=1, syncTE=0;

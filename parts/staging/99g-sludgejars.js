@@ -21,7 +21,7 @@ const VAL=[1/27,1/9,1/3,1];   // what a jar is worth in Legendary Sludge, refine
 const KIND={goblin:{w:1,r:[.85,.15,0,0]},archer:{w:2,r:[0,.8,.2,0]},orc:{w:3,r:[0,.7,.3,0]},drake:{w:6,r:[0,0,.85,.15]},troll:{w:6,r:[0,0,.8,.2]}};
 const VK={}; for(const k in KIND) VK[k]=KIND[k].r.reduce((a,x,i)=>a+x*VAL[i],0);
 // build 324 (Matt: "we need to have each pig boss drop 8 legendary sludges, the reward for killing bosses should be profound"): the Throne Room's pig trio, 8 each (24 for the three)
-const BOSS={ogre:1,trollboss:2,cyclops:2,pigflail:8,pigdagger:8,pigsling:8,archhag:30,avery:40};   /* build 473 (Matt: "when this boss dies it will drop the entire wind set and 40 legendary sludge jars"): the Drawbridge's boss */   // build 308 (Matt: "more legendary jars, like 30"): the Cloister Court's boss   // Legendary jars, always
+const BOSS={ogre:1,trollboss:2,cyclops:2,pigflail:8,pigdagger:8,pigsling:8,archhag:30,avery:40,bullion:30};   /* build 529 prep: Sir Bullion, the Feast Hall's boss (95v-bullion.js): 30 */   /* build 473 (Matt: "when this boss dies it will drop the entire wind set and 40 legendary sludge jars"): the Drawbridge's boss */   // build 308 (Matt: "more legendary jars, like 30"): the Cloister Court's boss   // Legendary jars, always
 const BUDGET=.6;   // Legendary-sludge worth a wave's ordinary mobs share
 const HOOK=typeof LOOT_HOOK!=='undefined'?LOOT_HOOK:3.2;
 const JARS=[], RUN=[0,0,0,0];

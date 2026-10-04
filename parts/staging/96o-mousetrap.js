@@ -9,7 +9,7 @@
 'use strict';
 if(TUTORIAL) return;
 const K='trap', HALF_L=2.8, HALF_W=2.45, BOSS_K=.25, ARM_WAIT=5;   // ARM_WAIT (build 391, Matt: "once the mouse trap resets make it wait 5 seconds"): its bar back up, it waits five more seconds before it can spring again -- then a click and a glint: set
-const BOSSES=new Set(['corruptor','trollboss','pigflail','pigdagger','pigsling','cyclops','archhag','avery']);
+const BOSSES=new Set(['corruptor','trollboss','pigflail','pigdagger','pigsling','cyclops','archhag','avery','bullion']);   /* build 529 prep: Sir Bullion (95v): a trap bites him, never kills him outright */
 DEFS[K]={ name:'Mouse Trap', ic:'🪤', du:2, mana:25, hp:999999, top:2.2, range:3, arc:360, cd:15, dmg:0 };
 NOWALK_DEF[K]=1;
 DEF_W[K]=5.6;   // build 394: Matt's model fitted by its width (5.6 along the board, 4.9 across, about 4 tall with the jaw open)

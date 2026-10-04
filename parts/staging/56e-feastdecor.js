@@ -64,8 +64,13 @@ use('throne-sconce.glb',1.5,p=>{ warmGlow(p); let sk=0; for(const s of TORCH){ s
 // ---------------- WALLS: the stone panel on every wall face of the hall (instanced), the painted windows hidden
 (world.userData.windowParts||[]).forEach(o=>{ o.visible=false; });
 const HALLF=wallFaces.filter(f=>inHall(f.cx,f.cz));
-use('throne-panel2.glb',WALLH,p=>{ p.children[0].scale.z*=.25; p.updateMatrixWorld(true);
-  instance(p,HALLF.map(f=>mtx(f.x+f.nx*.16,hgt[idx(f.cx,f.cz)]||0,f.z+f.nz*.16,Q(0,Math.atan2(f.nx,f.nz)))),true); counts.panels=HALLF.length; });
+// build 529 prep: a panel is wider than its square (about two squares either side), so the ones beside a doorway hung half across it -- the east doors read as a solid wall with a slit, and a mob
+// (and Sir Bullion's roll-out, 95v) walked out through stone. Each panel is now cut back to the wall it stands on: never past the last wall square before an opening.
+use('throne-panel2.glb',WALLH,p=>{ p.children[0].scale.z*=.25; p.updateMatrixWorld(true); const pw=new THREE.Box3().setFromObject(p).getSize(new THREE.Vector3()).x||CELL*3.8;
+  const isW=(x,z)=>gat(x,z)===T.WALL; let clipped=0;
+  instance(p,HALLF.map(f=>{ const wx=f.cx-f.nx, wz=f.cz-f.nz, ax=f.nz, az=-f.nx; const run=s=>{ let n=0; while(n<3&&isW(wx+ax*s*(n+1),wz+az*s*(n+1))) n++; return (n+.5)*CELL; };   // the panel's own x runs along (ax, az)
+    const lo=Math.max(-pw/2,-run(-1)), hi=Math.min(pw/2,run(1)), w=hi-lo, c=(lo+hi)/2; if(w<pw-.01) clipped++;
+    return mtx(f.x+f.nx*.16+ax*c,hgt[idx(f.cx,f.cz)]||0,f.z+f.nz*.16+az*c,Q(0,Math.atan2(f.nx,f.nz)),w/pw,1,1); }),true); counts.panels=HALLF.length; counts.panelsClipped=clipped; });
 // (build 304: the warm glow stays on the sconces and chandeliers only -- on the furniture it washed the lit room orange -- and the lights are a notch softer and less orange)
 // the long walls' rhythm (the throne room's pieces and sizes): a spot every few cells, kept a cell clear of every sconce and away from the hearths and doors
 const HEARTHX=(MAP.hearths||[]).map(h=>h[0]);
@@ -92,6 +97,9 @@ for(const kind of Object.keys(ART)){ const [file,H0]=ART[kind];
 { const PICS=['avery','family','hug','bunny','witchogre'], spots=plan.filter(p=>p.kind==='portrait').sort((a,b)=>(a.f.nx===1?0:1)-(b.f.nx===1?0:1)), hung=[];
   const gold=new THREE.MeshStandardMaterial({color:0xc9962f,metalness:.7,roughness:.35,emissive:0x3a2208,emissiveIntensity:.4}), dark=new THREE.MeshStandardMaterial({color:0x2a1608,roughness:.8});
   spots.forEach((p,i)=>{ const name=PICS[i%PICS.length], H=Math.min(5.4,p.span*.36), g=new THREE.Group(); g.position.set(p.f.x+p.f.nx*.5,p.base+p.span*.47,p.f.z+p.f.nz*.5); g.rotation.y=p.yaw; world.add(g);
+    // build 529: Matt's OFFICIAL Avery portrait arrived in its own rose-and-gold frame -- hung as it is (feast-pic-avery-framed.png, background cut away), a little larger, no second frame round it
+    if(name==='avery'){ new THREE.TextureLoader().load(ASSET('feast-pic-avery-framed.png'),tex=>{ tex.encoding=THREE.sRGBEncoding; const HH=H*1.3, WW=HH*tex.image.width/tex.image.height;
+        const pic=new THREE.Mesh(new THREE.PlaneGeometry(WW,HH),new THREE.MeshBasicMaterial({map:tex,color:0xd8d0c4,transparent:true,alphaTest:.5})); pic.position.z=.06; pic.userData.noOL=true; g.add(pic); hung.push(name); bump('painting'); }); return; }
     new THREE.TextureLoader().load(ASSET('feast-pic-'+name+'.jpg'),tex=>{ tex.encoding=THREE.sRGBEncoding; const asp=tex.image.width/tex.image.height, W=H*asp, B=.28;
       const pic=new THREE.Mesh(new THREE.PlaneGeometry(W,H),new THREE.MeshBasicMaterial({map:tex,color:0xd8d0c4})); pic.position.z=.06; pic.userData.noOL=true; g.add(pic);
       const back=new THREE.Mesh(new THREE.BoxGeometry(W+B*2,H+B*2,.1),dark); back.userData.noOL=true; g.add(back);
