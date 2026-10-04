@@ -204,13 +204,8 @@ function ringModel(id){ const h=RING_HERO[id]||'knight', K=LOOK[h], g=new THREE.
   return g; }
 // ---- the bag (the tavern): the 2nd weapon's card under the equipped row; its panel (the forge, Take off); "Equip as 2nd" on a spare weapon that fits
 { const st=document.createElement('style'); st.textContent='.tv-bag2.cols .tv-eq>#tv-wpn2{grid-column:1/-1}.tvp-c.dw-who{font-weight:800;background:#16121e!important}'; document.head.appendChild(st); }
-function bagCard(){ const on=ringMine(), w=gear.weapon2, K=kind();
-  if(!w&&!on) return '';   // build 513 (Matt: "it was clasifying them as weapons in the bag, or maybe had the worng icon"): the locked "2nd sword · wear Twotimer" hint row (its two swords overlapping its words) made an unworn ring read as a weapon -- the row now shows only while the ring is on or a 2nd weapon is filed
-  const head='<div class="tv-sub" style="margin-top:4px">2ND WEAPON '+K.ic+K.ic+(w&&!dual()?' · 💤 '+(on?'🔱 ✋✋':'💍'):'')+'</div>';
-  if(w) return head+tvCard(w,'wpn2');
-  return head+'<div class="tv-card" style="opacity:'+(mainBlocks()?'.45':'.9')+'"><span class="ic">'+K.ic+'</span><span class="nm">'+(mainBlocks()?'💤 🔱 ✋✋':'2nd '+K.word+' · pick one in your bag 🎒')+'</span></div>'; }
-if(typeof tvRenderBag==='function'){ const prev=tvRenderBag; tvRenderBag=function(){ prev.apply(this,arguments); const eq=document.querySelector('#tv-bag .tv-eq'); if(!eq) return; const h=bagCard(); if(!h) return;
-    const d=document.createElement('div'); d.id='tv-wpn2'; d.innerHTML=h; eq.appendChild(d); }; }
+// build 524 prep: the 2nd weapon's card is the sixth EQUIPPED card now (99l-bagstyle.js, the OFF-HAND / 2ND PET slot of Matt's mockup) -- the separate 2ND WEAPON row that sat here is gone; its card
+// still opens through tvClick as from 'wpn2' (below), with the same 💤 / 🔱 ✋✋ states.
 if(typeof tvRenderDetail==='function'){ const prev=tvRenderDetail; tvRenderDetail=function(){ const s0=TV.sel; if(s0&&s0.from==='wpn2'){ const w=gear.weapon2; if(!w||w.id!==s0.id){ TV.sel=null; return prev.apply(this,arguments); }
       TV.sel={ id:w.id, from:'eq', slot:'weapon2' }; try{ prev.apply(this,arguments); } finally { if(TV.sel) TV.sel=s0; }   // the worn-piece panel with gear.weapon2 standing in for the slot: the forge (96f) and the pictures draw it
       const db=document.querySelector('#tv-detail .db'); if(db) db.innerHTML='<button class="tv-btn" data-act="unequipw2"'+(Meta.bagFull&&Meta.bagFull()?' disabled':'')+'>'+kind().ic+' Take off 2nd</button>';

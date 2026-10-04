@@ -17,17 +17,17 @@ check("over 100 waves held, the two rings drop about one wave in ten each (5 to 
 const C=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta, R=window.__tworings, T=window.__tavern; for(const l of d.loot.slice()){ try{ d.scene.remove(l.mesh); }catch(e){} } d.loot.length=0;
   const ring=window.__mythic.normalize({ tier:'named', named:'beast_mode', lvl:10 }); M.giveItem(ring); M.equip(ring.id);
   const f1=d.rollItem(2,'familiar',8), f2=d.rollItem(3,'familiar',8); M.giveItem(f1); M.giveItem(f2); M.equip(f1.id); const fd0=d.heroStat('fdmg'); const ok=R.equip2(f2.id);
-  T.open(); T.tab('bag'); const card=document.querySelector('#tv-fam2'); const cardText=card?card.textContent:''; T.close();
+  T.open(); T.tab('bag'); const card=document.querySelector('#bs-off[data-from="fam2"]'); const cardText=card?card.textContent:'';   /* build 524 prep: the 6th EQUIPPED card (99l-bagstyle.js) replaced the 2ND FAMILIAR row */ T.close();
   d.S.phase='wave'; for(let i=0;i<60;i++) d.step(1/60,1); const h=d.hero, fx=Math.sin(h.yaw), fz=Math.cos(h.yaw), rx=-fz, rz=fx;   /* the hero's right */
   const F1=R.fam1(), F2=R.fam2(); const side=p=>p?Math.sign((p.x-h.x)*rx+(p.z-h.z)*rz):0;
   return { ringOn:R.ringOn(), ok, cardText, fdmg:{ before:fd0, after:d.heroStat('fdmg'), f2:f2.stats.fdmg||0 }, fam2:!!F2, side2:side(F2), side1:F1?side(F1):'n/a', second:R.info().second }; });
-check("worn, the second slot opens: a spare familiar goes in, and its card shows under your familiar in the bag",C.ringOn&&C.ok&&/2ND FAMILIAR/.test(C.cardText)&&!!C.second,JSON.stringify(C));
+check("worn, the second slot opens: a spare familiar goes in, and its card is the sixth EQUIPPED card (2ND PET)",C.ringOn&&C.ok&&/2ND PET/.test(C.cardText)&&!!C.second,JSON.stringify(C));
 check("both pets' stats count",C.fdmg.after===C.fdmg.before+C.fdmg.f2,JSON.stringify(C.fdmg));
 check("the second pet flies at the other shoulder",C.fam2&&C.side2!==0&&C.side1===-C.side2,JSON.stringify({side1:C.side1,side2:C.side2}));
 const D=await page.evaluate(()=>{ const d=window.__dd, R=window.__tworings; d.spawn('goblin','N'); const g=d.enemies[d.enemies.length-1]; g.hp=g.max=9999; g.spd=0; g.atk=1e9; const F2=R.fam2(); g.x=d.hero.x+3; g.z=d.hero.z+3; for(let i=0;i<60*4;i++){ d.step(1/60,1); g.x=d.hero.x+3; g.z=d.hero.z+3; } return { hurt:g.hp<9999, t2:!!(F2&&F2.target), kick:F2?F2.kick:null }; });
 check("the second pet fights too (it picks a target)",D.t2&&D.hurt,JSON.stringify(D));
 // build 505 (Matt: "how to upgrade 2nd pet"): a click on the 2nd card opens its panel with the forge; +1 there upgrades the 2nd pet (not the first) and there's a Take off button
-const UP=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta, T=window.__tavern; M.addGold(1e6); T.open(); T.tab('bag'); const c=document.querySelector('#tv-fam2 .tv-card'); if(c) c.click();
+const UP=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta, T=window.__tavern; M.addGold(1e6); T.open(); T.tab('bag'); const c=document.querySelector('#bs-off[data-from="fam2"]'); if(c) c.click();
   const det=document.getElementById('tv-detail'), forge=det&&det.querySelector('#tv-forge'), b=forge&&forge.querySelector('[data-act="tvup"][data-n="1"]:not([disabled])'); const g=d.gear(), id=g.familiar2&&g.familiar2.id, k=b&&b.dataset.key;
   const v2=k?(g.familiar2.stats[k]||0):null, v1=k?(g.familiar.stats[k]||0):null, u0=g.familiar2.up|0; if(b) b.click(); const g2=d.gear();
   const r={ opened:!!(det&&!det.classList.contains('hide')), forge:!!forge, takeOff:!!document.querySelector('#tv-detail [data-act="unequip2"]'), key:k, v2, v2a:k?g2.familiar2.stats[k]:null, v1, v1a:k?g2.familiar.stats[k]:null, up:(g2.familiar2.up|0)-u0, stillSel:!!document.querySelector('#tv-detail #tv-forge') }; T.close(); return r; });

@@ -42,7 +42,7 @@ await page.evaluate(id=>{ if(window.__meta.isLocked(id)) window.__meta.toggleLoc
 await page.evaluate(()=>window.__tavern.close());
 // 3c. the bag says so
 await page.evaluate(()=>{ window.__tavern.open(); window.__tavern.tab('bag'); }); await sleep(250);
-const hint=await page.evaluate(()=>{ const h=document.querySelector('#tv-bag .lk-hint'); return h&&{ text:h.textContent, title:h.title, inHeader:!!h.closest('.tv-sub') }; }); await page.evaluate(()=>window.__tavern.close());
+const hint=await page.evaluate(()=>{ const h=document.querySelector('#tavern .lk-hint')   /* build 524 prep: the bag's header row sits beside the tabs now (99l-bagstyle.js #bs-tools) */; return h&&{ text:h.textContent, title:h.title, inHeader:!!h.closest('.tv-sub') }; }); await page.evaluate(()=>window.__tavern.close());
 check("the bag's header row carries a 'L lock' chip whose tooltip explains it (point at a piece, press L; locked pieces are never scrapped or sold)",hint&&/L/.test(hint.text)&&/lock/i.test(hint.text)&&/press L/.test(hint.title)&&hint.inHeader,JSON.stringify(hint));
 // 4. the character sheet
 await page.evaluate(id=>{ window.__doll.open(); window.__doll.select(id,'bag'); },ids.b); await sleep(300);

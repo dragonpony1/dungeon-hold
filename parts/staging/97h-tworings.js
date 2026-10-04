@@ -33,12 +33,8 @@ function tick(){ fillArt(); const f=gear.familiar2; if(!f||ringOn()) return; if(
 function equip2(id){ if(!ringOn()) return false; const bag=Meta.bag(); const i=bag.findIndex(b=>b.id===id); if(i<0||bag[i].slot!=='familiar') return false; const it=bag.splice(i,1)[0]; const old=gear.familiar2; gear.familiar2=it; if(old) bag.push(old);
   saveGear(); Meta.save&&Meta.save(); try{ applyGear(); }catch(e){} return true; }
 function unequip2(){ const f=gear.familiar2; if(!f) return false; if(Meta.bagFull&&Meta.bagFull()){ toast('Bag is full'); return false; } gear.familiar2=null; Meta.bag().push(f); saveGear(); Meta.save&&Meta.save(); try{ applyGear(); }catch(e){} return true; }
-// ---- the bag screen: the 2nd card under your familiar; "Equip as 2nd" on a spare familiar's card
-if(typeof tvRenderBag==='function'){ const prev=tvRenderBag; tvRenderBag=function(){ prev.apply(this,arguments); const eq=document.querySelector('#tv-bag .tv-eq'); if(!eq) return; const on=ringOn(), f=gear.familiar2;
-    const d=document.createElement('div'); d.id='tv-fam2';
-    d.innerHTML=f?'<div class="tv-sub" style="margin-top:4px">2ND FAMILIAR'+(on?'':' · 💤 put a ring back on')+'</div>'+tvCard(f,'fam2')
-      :'<div class="tv-card" style="opacity:'+(on?'.9':'.45')+'"><span class="ic">🦉</span><span class="nm">'+(on?'2nd familiar — pick a pet in your bag':'🔒 2nd familiar — wear Beast Mode or Malamute')+'</span></div>';
-    eq.appendChild(d); }; }
+// ---- the bag screen: "Equip as 2nd" on a spare familiar's card. The 2nd pet's own card is the sixth EQUIPPED card now (build 524 prep, 99l-bagstyle.js: Matt's mockup's OFF-HAND / 2ND PET slot), which
+// replaced the separate 2ND FAMILIAR row that used to sit here under your familiar; a click on it still comes through tvClick as from 'fam2'.
 // build 505 (Matt: "how to upgrade 2nd pet" / "yes fix that"): a click on the 2nd card opens its panel -- the forge (🔨 +1 / +5, 96f) and a Take off button -- the same as your first pet's.
 // The panel is the worn-piece panel with gear.familiar2 standing in for the slot, so every wrap (the forge, the pictures) draws it; its Unequip/Lock buttons become one Take off.
 if(typeof tvRenderDetail==='function'){ const prev=tvRenderDetail; tvRenderDetail=function(){ const s0=TV.sel; if(s0&&s0.from==='fam2'){ const f=gear.familiar2; if(!f||f.id!==s0.id){ TV.sel=null; return prev.apply(this,arguments); }
