@@ -159,7 +159,7 @@ function beginCut(e){ timeline(); bull=e; bull.cutPh=-1; stampAt=0; cut={ t:0, c
   try{ setMusic('none'); }catch(er){} const m=bull.mdl; m.mixer.stopAllAction(); m.cur=null; m.bullHoldT=0; }
 function startCut(){ if(isGuest()) return guestCut(); if(cut) return; done=true; cnt.intro++; const e=spawnBull(); if(!e) return; try{ if(isHost()) NET().send('bullCut',{}); }catch(er){} beginCut(e); }
 function endCut(){ cutReal=0; if(!cut) return; const c=cut; camera.position.copy(c.cam); camera.quaternion.copy(c.q); cut=null; try{ if(isHost()) NET().send('bullCutEnd',{}); }catch(er){}
-  cutEl.style.display='none'; cutEl.classList.remove('on'); document.body.classList.remove('bullion-cut'); const H=window.__feastHearth; if(H&&H.flare) H.flare(0);
+  cutEl.style.display='none'; cutEl.classList.remove('on'); document.body.classList.remove('bullion-cut'); toBattle(); const H=window.__feastHearth; if(H&&H.flare) H.flare(0);
   if(bull){ const m=bull.mdl; if(m&&m.mixer){ m.mixer.stopAllAction(); m.cur=null; m.bullHoldT=0; }
     if(bull.guestFake){ scene.remove(m.g); } else if(!bull.dead){ bull.x=STOP.x; bull.z=STOP.z; bull.yaw=YAW_IN; bull.atk=1; bull.slamCd=SLAM_FIRST; } }
   if(bull&&bull.mdl&&!bull.guestFake) bull.mdl.g.visible=true; bull=null; if(window.__mobsync&&window.__mobsync.each) window.__mobsync.each(p=>{ if(p.kind===K&&p.mdl) p.mdl.g.visible=true; });
@@ -247,6 +247,9 @@ function fireSet(){ const look=typeof heroWtypes==='function'?heroWtypes()[0]:'s
     { slot:'armor', name:'Armor of Fire', setId:'lava', rarity:5, lvl:20, stats:ST.armor }, { slot:'amulet', name:'Amulet of Fire', setId:'lava', rarity:5, lvl:20, stats:ST.amulet },
     { slot:'familiar', name:'Fire Imp of Fire', setId:'lava', rarity:5, lvl:20, stats:ST.familiar }, { slot:'charm', name:'Charm of Fire', setId:'lava', rarity:5, lvl:20, stats:ST.charm }]; }
 function dropFire(){ const N=window.__mythic&&window.__mythic.normalize; fireSet().forEach((rec,i)=>{ const it=N?N(rec):null; if(!it) return; const a=i/5*TAU; dropLoot(it,hero.x+Math.cos(a)*3.5,hero.z+Math.sin(a)*3.5,true); }); }
+// build 531 (Matt: "i think the music should end and go back to battle music about 10 seconds after his cut scene"): his cafe track plays on for BATTLE_AFTER s after the roll-out, then the hall's own
+// battle music takes over for the rest of the fight (a guest too: its endCut runs off the host's bullCutEnd)
+const BATTLE_AFTER=10; let battleT=0; function toBattle(){ clearTimeout(battleT); battleT=setTimeout(()=>{ if(typeof musicMode!=='undefined'&&musicMode==='bullion'&&!cut){ const ph=isGuest()?(typeof hallPhase==='function'?hallPhase():'wave'):S.phase; setMusic(ph==='build'?'build':'wave'); cnt.toBattle=(cnt.toBattle|0)+1; } },BATTLE_AFTER*1000); }
 function musicBack(){ setTimeout(()=>{ const alive=isGuest()?!!gLive:enemies.some(x=>x.kind===K&&!x.dead); if(!alive&&typeof musicMode!=='undefined'&&musicMode==='bullion') setMusic((isGuest()?(typeof hallPhase==='function'?hallPhase():'wave'):S.phase)==='wave'?'wave':'build'); },2500); }
 { const prev=kill; kill=function(e){ const was=e&&!e.dead&&e.kind===K; const r=prev.apply(this,arguments);
     if(was){ cnt.deaths++; const m=e.mdl; e.mdl=standIn(); e.special=null; corpse(m,e.x,e.y,e.z,e.yaw);   // his body is the corpse's now (the game's own dead branch takes away an empty stand-in)
@@ -257,7 +260,7 @@ function musicBack(){ setTimeout(()=>{ const alive=isGuest()?!!gLive:enemies.som
 // the puddles (looks only -- the host's burn reaches the guest's hero through Meta.heroes), his fall on the puppet, and its own Fire set
 let gLate=false, gLive=null, gSeen=false, gGone=0;
 function guestCut(){ if(cut) return; gLate=false; const at=performance.now(); load().then(()=>{ if(cut||!MOBGLB[K]) return; done=true; cnt.intro++;
-    if(gLate){ gLate=false; if(!stampAt) stampAt=performance.now(); musicOn(true); banner('🍲 SIR BULLION 🍲','♨️ 🥣 ♨️'); return; }
+    if(gLate){ gLate=false; if(!stampAt) stampAt=performance.now(); musicOn(true); toBattle(); banner('🍲 SIR BULLION 🍲','♨️ 🥣 ♨️'); return; }
     const m=makeMob(K); scene.add(m.g); beginCut({ mdl:m, x:START.x, z:START.z, y:baseFloor(START.x,START.z), yaw:YAW_IN, sc:m.g.scale.x, guestFake:true, phase:1 });
     const late=Math.min(TL.END-.01,Math.max(0,(performance.now()-at)/1000)); if(late>.05) cut.t=late; }); }
 let fellT=-1e9;

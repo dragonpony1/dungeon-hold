@@ -75,4 +75,7 @@ const V2=await page.evaluate(()=>window.__bullion.info());
 await page.keyboard.press('Space'); const V3=await page.evaluate(()=>{ window.__dd.step(1/30,20); return { info:window.__bullion.info(), st:window.__bullion.state()[0] }; });
 check('the dev panel spawn brings him in with the whole roll-out',V.started===1&&V.cut&&V.alive===1,JSON.stringify(V));
 check('a click and a held W do not skip it; SPACE does, and the fight starts',V2.cut&&V2.cutT>=V.t-.01&&!V3.info.cut&&V3.info.skipped>=1&&V3.st&&V3.st.x<85,JSON.stringify({ before:V.t, held:V2.cutT, after:V3.info.cut, st:V3.st }));
+// build 531 (Matt: "the music should end and go back to battle music about 10 seconds after his cut scene")
+const MB=await page.evaluate(async()=>{ const d=window.__dd; const m0=d.music().mode; await new Promise(r=>setTimeout(r,10600)); return { m0, m1:d.music().mode, n:window.__bullion.info().toBattle|0 }; });
+check("about 10 s after his roll-out the cafe music hands back to the battle music",MB.m0!=="bullion"||(MB.m1!=="bullion"&&MB.n>=1),JSON.stringify(MB));
 check('no page errors',errors.length===0,JSON.stringify(errors.slice(0,3))); await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
