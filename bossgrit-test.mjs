@@ -11,7 +11,7 @@ const r=await page.evaluate(()=>{ const d=window.__dd, B=window.__bossgrit; d.st
   const g=mk("goblin",0,14), t=mk("trollboss",4,14); const gx=g.x, gz=g.z, tx=t.x, tz=t.z;
   B.hurt(g,1,0,3); B.hurt(t,1,0,3);   // the same shove, straight back, on both
   return { kinds:B.kinds(), goblinMoved:+Math.hypot(g.x-gx,g.z-gz).toFixed(2), bossMoved:+Math.hypot(t.x-tx,t.z-tz).toFixed(2), bossHpLost:99999-t.hp, shoved:B.shoved() }; });
-check("the bosses are covered (the five, since build 308 the Archhag, Avery, and since build 529 Sir Bullion)",r.kinds.length===8&&["cyclops","pigflail","pigdagger","pigsling","trollboss","archhag","avery","bullion"].every(k=>r.kinds.includes(k)),JSON.stringify(r.kinds));
+check("the bosses are covered (the five, since build 308 the Archhag, Avery, since build 529 Sir Bullion, since build 532 the Corruptor)",r.kinds.length===9&&["cyclops","pigflail","pigdagger","pigsling","trollboss","archhag","avery","bullion","corruptor"].every(k=>r.kinds.includes(k)),JSON.stringify(r.kinds));
 check("a goblin is shoved back by a knockback hit as before; a boss is not moved at all but still takes the damage",r.goblinMoved>.5&&r.bossMoved===0&&r.bossHpLost>=1,JSON.stringify(r));
 const r2=await page.evaluate(()=>{ const d=window.__dd, B=window.__bossgrit; for(const e of d.enemies) d.kill(e); d.step(1/60,5);
   const t=d.spawn("trollboss","N"); t.hp=t.max=99999; t.atk=999; const z0=t.z; let moved=0;   // let him walk his own route; hit him every frame with the biggest knockback the game has (the whirlwind's)

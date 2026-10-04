@@ -765,7 +765,7 @@ function guestHitCone(id,yaw,dmg,reach,at){
   const go=()=>P&&P.guestSwing?P.guestSwing(s&&s.five,d,cone,g):(cone(),[]);
   const fired=M&&M.asHero?M.asHero(go):go();
   try{ const PWk=window.__prisonwalls; if(PWk&&PWk.meleeFrom) PWk.meleeFrom(gx,gz,yaw,r0); }catch(er){}   // co-op sweep 2026-10-02: the Deep Prison's mortar-room walls take a guest's sword too (56g meleeFrom, the host's own reach rule)
-  if(wind) for(const [e,h] of before) if(e.hp<h||e.dead){ for(let i=0;i<3;i++) moveCircle(e,fx*.9,fz*.9,e.r*.8,false); const gl=glow(0xd8f0b0,1.2,.85); gl.position.set(e.x,(e.y||0)+.4,e.z); scene.add(gl); projs.push({kind:'splat',t:0,mesh:gl}); }
+  if(wind) for(const [e,h] of before) if(e.hp<h||e.dead){ if(!(window.__bossgrit&&window.__bossgrit.is(e))) for(let i=0;i<3;i++) moveCircle(e,fx*.9,fz*.9,e.r*.8,false);   /* build 532 prep: never a boss (99e-bossgrit.js) */ const gl=glow(0xd8f0b0,1.2,.85); gl.position.set(e.x,(e.y||0)+.4,e.z); scene.add(gl); projs.push({kind:'splat',t:0,mesh:gl}); }
   const TL=window.__talents; if(T&&TL&&TL.coopSwing){ const run=()=>TL.coopSwing({g,gx,gz,fx,fz,r0,d,T,before}); const o=M&&M.asHero?M.asHero(run):run();
     if(o.bash) send('powerFx',{k:'tal',t:'bash'},id); if(o.bleed) send('powerFx',{k:'tal',t:'bleed'},id); if(o.kill&&T.fury) send('powerFx',{k:'tal',t:'fury'},id); }
   if(g.hp>hp0&&!(g.dead>0)) send('hp',{hp:g.hp,max:g.max,dead:g.dead,x:g.x,y:g.y,z:g.z},id);   // Radiance healed him: his own bar fills
