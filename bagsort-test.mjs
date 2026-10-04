@@ -11,7 +11,7 @@ const PORT=8902, BASE="http://127.0.0.1:"+PORT;
 const server=await serve(PORT,{dist:DIST});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const ctx=await browser.newContext(); const errors=[];
-async function newPage(){ const p=await ctx.newPage(); p.on("pageerror",e=>errors.push(String(e))); await p.goto(BASE+"/?silent&nogate",{timeout:90000});
+async function newPage(){ const p=await ctx.newPage(); p.on("pageerror",e=>errors.push(String(e))); await p.goto(BASE+"/?silent&ownweapons&nogate",{timeout:90000});
   await p.waitForFunction(()=>window.__dd&&window.__meta&&window.__tavern&&window.__doll,null,{timeout:60000}); await p.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); }); return p; }
 const SLOTS=['weapon','armor','charm','amulet','familiar'];
 const cardOrder=p=>p.evaluate(()=>{ const bag=window.__meta.bag(); return [...document.querySelectorAll('#tv-bag .tv-card[data-from="bag"]')].map(c=>{ const it=bag.find(b=>b.id===c.dataset.id); return {id:it.id,slot:it.slot,r:it.rarity}; }); });

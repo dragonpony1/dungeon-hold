@@ -12,7 +12,7 @@ const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftsh
 const ctx=await browser.newContext({viewport:{width:1280,height:800}}); await ctx.route(/\/api\//,r=>r.fulfill({status:200,contentType:"application/json",body:"{}"}));
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
-const boot=async()=>{ await page.goto("http://127.0.0.1:"+PORT+"/?silent&nogate",{timeout:180000}); await page.waitForFunction(()=>window.__dd&&window.__dualwield&&window.__mythic&&window.__meta&&window.__dd.heroModel(),null,{timeout:180000});
+const boot=async()=>{ await page.goto("http://127.0.0.1:"+PORT+"/?silent&ownweapons&nogate",{timeout:180000}); await page.waitForFunction(()=>window.__dd&&window.__dualwield&&window.__mythic&&window.__meta&&window.__dd.heroModel(),null,{timeout:180000});
   await page.evaluate(()=>{ try{ window.__trainer.skip(); }catch(e){} const d=window.__dd; d.start(); d.step(1/60,3); window.__freeze=true; window.__meta.setLevel&&window.__meta.setLevel(40); d.S.phase='build'; }); };
 await boot();
 // pick a hero and wait for its own model (the free hand's mount is made from it)
@@ -67,14 +67,14 @@ check("Gnome Ranger: Subterfuge as the MAIN bow wedges on every shot, either han
 await pick('knight');
 const P=await page.evaluate(async()=>{ const d=window.__dd, M=window.__meta, D=window.__dualwield, N=window.__mythic; M.reset(); d.resetGear(); M.setLevel&&M.setLevel(40); d.S.phase='build';
   const ring=N.normalize({tier:'named',named:'twotimer',lvl:20}); M.giveItem(ring); M.equip(ring.id);
-  const pole=d.rollItem(3,'weapon',20); pole.name='Iron Halberd'; M.giveItem(pole); const pole2=d.rollItem(3,'weapon',20); pole2.name='Mythic Relic'; pole2.look='polearm'; M.giveItem(pole2);
+  const pole=d.rollItem(3,'weapon',20); pole.name='Iron Halberd'; pole.wtype=pole.look='polearm'; M.giveItem(pole); const pole2=d.rollItem(3,'weapon',20); pole2.name='Mythic Relic'; pole2.wtype=pole2.look='polearm'; M.giveItem(pole2);
   const sw=d.rollItem(3,'weapon',20); sw.name='Plain Shortsword'; delete sw.look; sw.stats={dmg:9}; M.giveItem(sw);
   const r={ halberd:D.equip2(pole.id), lookPole:D.equip2(pole2.id), sword:D.equip2(sw.id) }; const adds=()=>{ const wz=d.gear().weapon2, a=d.heroStat('dmg'); d.gear().weapon2=null; const n=d.heroStat('dmg'); d.gear().weapon2=wz; return +(a-n).toFixed(2); }; r.awakeAdds=adds();
-  const main=d.rollItem(3,'weapon',20); main.name='Iron Spear'; M.giveItem(main); M.equip(main.id); for(let i=0;i<5;i++) d.step(1/60,1);
+  const main=d.rollItem(3,'weapon',20); main.name='Iron Spear'; main.wtype=main.look='polearm'; M.giveItem(main); M.equip(main.id); for(let i=0;i<5;i++) d.step(1/60,1);
   window.__tavern.open(); window.__tavern.tab('bag'); const card=(document.querySelector('#bs-off')||{}).textContent||'';   /* build 524 prep: the 6th EQUIPPED card (99l-bagstyle.js) */ window.__tavern.close();
   Object.assign(r,{ asleep:D.asleep(), dual:D.dual(), sleepAdds:adds(), card, offShown:!!D.off(), still:!!d.gear().weapon2 });
   const sword2=d.rollItem(3,'weapon',20); sword2.name='Plain Broadsword'; delete sword2.look; M.giveItem(sword2); M.equip(sword2.id); for(let i=0;i<5;i++) d.step(1/60,1); r.wakes=D.dual(); return r; });
-check("the Knight never takes a polearm as his 2nd (a halberd by name, a polearm by look); a sword goes in",!P.halberd&&!P.lookPole&&P.sword,JSON.stringify(P));
+check("the Knight never takes a polearm as his 2nd (build 525 prep: polearm-TYPED pieces, a halberd and a relic); a sword goes in",!P.halberd&&!P.lookPole&&P.sword,JSON.stringify(P));
 check("with a polearm as his MAIN weapon his 2nd sword sleeps (💤 on its card, no stats, not in his hand) and wakes with a sword back in his main hand",P.awakeAdds===9&&P.asleep&&!P.dual&&P.sleepAdds===0&&/💤/.test(P.card)&&!P.offShown&&P.still&&P.wakes,JSON.stringify(P));
 // ---- stats count in full; never toward a set
 const ST=await page.evaluate(async()=>{ const d=window.__dd, M=window.__meta, D=window.__dualwield, N=window.__mythic; M.reset(); d.resetGear(); M.setLevel&&M.setLevel(40); d.S.phase='build';

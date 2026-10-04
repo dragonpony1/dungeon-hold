@@ -24,7 +24,7 @@ check("a stale level saved on a Forest piece (from before this build) is recompu
 await ctx.close();
 // a later map: the gate holds for ordinary gear and explains itself; a Forest piece still passes
 const ctx2=await browser.newContext(); const p2=await fresh(ctx2,"?silent"); await p2.evaluate(()=>{ try{ localStorage.setItem('ddMapsCleared','1'); }catch(e){} });
-await p2.goto(BASE+"/?silent&map=1",{timeout:90000}); await p2.waitForFunction(()=>window.__dd&&window.__meta&&window.__lesson&&window.__meta.canWear,null,{timeout:60000});
+await p2.goto(BASE+"/?silent&ownweapons&map=1",{timeout:90000}); await p2.waitForFunction(()=>window.__dd&&window.__meta&&window.__lesson&&window.__meta.canWear,null,{timeout:60000});
 const two=await p2.evaluate(()=>{ const d=window.__dd, M=window.__meta; window.__freeze=true; d.start(); d.step(1/60,3);
   let rare; for(let i=0;i<80;i++){ rare=d.rollItem(2,'charm',8); if(!/ of the (Forest|Void)$/.test(rare.name||'')&&!rare.named&&!rare.mythic) break; }   /* a roll can come out a set piece, which asks for level 1 -- the gate is tested on plain gear (as armory-test.mjs does) */ rare.rarity=2; rare.req=M.reqFor(rare); M.giveItem(rare);
   const green=d.rollItem(1,'amulet',8); green.rarity=1; green.name=green.name.replace(/ of (the )?[A-Z]\w*( [A-Z]\w*)?$/,'')+' of the Forest'; green.req=M.reqFor(green); M.giveItem(green);

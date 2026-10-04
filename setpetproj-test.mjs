@@ -7,7 +7,7 @@ const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PAS
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
 const page=await (await browser.newContext({viewport:{width:1100,height:700}})).newPage(); page.on("pageerror",e=>errors.push(String(e)));
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
-await page.goto("http://127.0.0.1:8997/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__forge&&window.__meta&&window.__familiar&&window.__dd.heroModel(),null,{timeout:120000});
+await page.goto("http://127.0.0.1:8997/?silent&ownweapons&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__forge&&window.__meta&&window.__familiar&&window.__dd.heroModel(),null,{timeout:120000});
 await page.evaluate(()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} d.start(); d.step(1/60,3); window.__meta.setLevel&&window.__meta.setLevel(40); });
 const A=await page.evaluate(()=>{ const d=window.__dd, F=window.__forge, M=window.__meta; M.addGold(1e8);
   const mk=name=>{ const it=d.rollItem(4,'familiar',15); it.rarity=5; it.name=name; it.stats.fproj=0; delete it.ups; it.up=0; M.giveItem(it); return it; };

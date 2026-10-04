@@ -10,7 +10,7 @@ const server=await serve(PORT);
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const errors=[]; const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function newPage(ctx){ const p=await (ctx||browser).newPage(); p.on("pageerror",e=>errors.push(String(e)));
-  await p.goto(BASE+"/?silent&nogate",{timeout:90000}); await p.waitForFunction(()=>window.__dd&&window.__meta&&window.__weapons&&window.__voidset&&window.__heroes&&window.__net,null,{timeout:60000});
+  await p.goto(BASE+"/?silent&ownweapons&nogate",{timeout:90000}); await p.waitForFunction(()=>window.__dd&&window.__meta&&window.__weapons&&window.__voidset&&window.__heroes&&window.__net,null,{timeout:60000});
   await p.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); }); return p; }
 // five pieces of the Void, one per slot: an ordinary rare roll renamed the way 93-gearsets' makeSet does
 const wearVoid=p=>p.evaluate(()=>{ const d=window.__dd, M=window.__meta; const ids=[]; for(const slot of d.SLOTS){ const it=d.rollItem(2,slot); it.rarity=2; it.name=it.name.replace(/ of (the )?[A-Z]\w*( [A-Z]\w*)?$/,'')+' of the Void'; M.onPickup(it); M.equip(it.id); ids.push(it.id); } d.step(1/60,2); return {ids,active:M.sets.active().map(a=>({name:a.name,tier:a.tier}))}; });

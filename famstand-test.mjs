@@ -5,7 +5,7 @@ const server=await serve(8876);
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
 const ctx=await browser.newContext(); const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
-await page.goto("http://127.0.0.1:8876/?silent&nogate"); await page.waitForFunction(()=>window.__dd&&window.__weaponStand&&window.__loadctr,null,{timeout:60000});
+await page.goto("http://127.0.0.1:8876/?silent&ownweapons&nogate"); await page.waitForFunction(()=>window.__dd&&window.__weaponStand&&window.__loadctr,null,{timeout:60000});
 await page.evaluate(()=>{ window.__dd.start(); window.__dd.step(1/60,20); window.__mythicDrops.set(0,0); });   // a drop has a 7% chance to turn into a renamed mythic set piece, which would map to the Wisp: keep the test deterministic
 const KINDS=[["Wisp","fam_wisp"],["Cave Bat","fam_bat"],["Moss Sprite","fam_sprite"],["Fire Imp","fam_imp"],["Crystal Owl","fam_owl"],["Storm Drake","fam_drake"]];
 const r=await page.evaluate(async KINDS=>{ const d=window.__dd; const out={}; let i=0;

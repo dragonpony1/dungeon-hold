@@ -38,12 +38,12 @@ check("armor keeps its picture card and gets no stand",f.armCard&&!f.armStand&&f
 const pk=await P.evaluate(()=>{ const d=window.__dd; for(const l of d.loot.slice()){ d.hero.x=l.x; d.hero.z=l.z; d.step(1/60,30); } let inScene=0; d.scene.traverse(o=>{ if(o.name==="weaponStand") inScene++; }); const bag=window.__meta.bag().map(b=>b&&b.name); return {loot:d.loot.length,stands:window.__weaponStand.count(),inScene,bag}; });
 check("picking up takes the weapons as ever (into the bag) and the stands leave the scene with them",pk.loot===0&&pk.stands===0&&pk.inScene===0&&pk.bag.includes("Rootsplitter")&&pk.bag.includes("Mythic Sword of Chaos"),JSON.stringify(pk));
 await K.ctx.close();
-// a staff hero: the floor shows what the Witch would hold -- the Chaos staff for the set piece, the battle staff for Rootsplitter
+// a staff hero: build 525 prep (typed weapons) -- the floor shows each weapon as its own type, and the Witch cannot equip a sword-type named weapon
 const Wt=await open(9711,"witch");
 const w=await Wt.page.evaluate(async()=>{ const d=window.__dd, h=d.hero, M=window.__mythic; const rs=M.normalize({tier:"named",named:"rootsplitter"}); d.dropLoot({name:"Mythic Staff of Chaos",slot:"weapon",rarity:5,lvl:10,stats:{dmg:5},setId:"crimson",look:"staff",mythic:true},h.x+5,h.z,true); d.dropLoot(rs,h.x-5,h.z,true); d.step(1/60,30);
   for(let i=0;i<240&&window.__weaponStand.list().length<2;i++){ d.step(1/60,1); await new Promise(r=>setTimeout(r,25)); }   // build 270: the Chaos staff is Matt's real model (build 268), which loads on its first drop; its stand waits for it and stands when it lands
-  const names=window.__weaponStand.list().map(s=>s.name).sort(); window.__meta.giveItem(rs); window.__meta.equip(rs.id); for(let i=0;i<120;i++){ d.step(1/60,1); const s=window.__weapons.state(); if(s.mounted&&/^staff-battle\|/.test(s.key)) break; await new Promise(r=>setTimeout(r,25)); } return {names,hand:window.__weapons.state().key.split("|")[0]}; });
-check("the Witch: the floor shows the staff she'd hold (staff-chaos for the set piece, staff-battle for Rootsplitter) and she holds staff-battle for a named weapon",w.names.join()==="staff-battle,staff-chaos"&&w.hand==="staff-battle",JSON.stringify(w));
+  const names=window.__weaponStand.list().map(s=>s.name).sort(); window.__meta.giveItem(rs); const eq=window.__meta.equip(rs.id); d.step(1/60,5); return {names,eq,worn:(d.gear().weapon||{}).name||null}; });
+check("the Witch (build 525 prep, typed weapons): the floor shows each weapon as its own type -- the Chaos staff, Rootsplitter as itself -- and Rootsplitter, a sword, is not hers to equip",w.names.join()==="named-rootsplitter,staff-chaos"&&w.eq===false&&w.worn!=="Rootsplitter",JSON.stringify(w));
 await Wt.ctx.close();
 check("no page errors",errors.length===0,errors.slice(0,3).join(" | "));
 await browser.close(); s1.close(); s2.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);

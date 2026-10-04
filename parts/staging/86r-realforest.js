@@ -13,7 +13,7 @@ window.__weapons.registerReal('polearm-forest','polearm-forest.glb',{gripF:.3,le
 window.__weapons.registerReal('sword-forest','sword-forest.glb'); window.__weapons.registerReal('bow-forest','bow-forest.glb',{gripF:.5,lenScale:.72});
 const isForest=it=>{ const pk=it&&Meta.packs&&Meta.packs.of&&Meta.packs.of(it); return !!(pk&&/Forest/.test(pk.name||'')); };
 { const prev=window.__weapons.setModel; window.__weapons.setModel=function(it,mount){ const r=prev?prev.apply(this,arguments):null; if(r||!isForest(it)) return r;
-    if(mount==='staff') return 'staff-forest'; if(mount==='bow') return 'bow-forest'; if(mount==='pole') return 'polearm-forest';   /* build 510 prep: the Fighter's hand */ return (it.look==='polearm'||/\b(polearm|halberd|spear)\b/i.test(it.name||''))?'polearm-forest':'sword-forest'; }; }   // build 491: his bow and sword
+    if(mount==='staff') return 'staff-forest'; if(mount==='bow') return 'bow-forest'; if(mount==='pole') return 'polearm-forest';   /* build 510 prep: the Fighter's hand */ return (it.wtype?it.wtype==='polearm':(it.look==='polearm'||/\b(polearm|halberd|spear)\b/i.test(it.name||'')))?'polearm-forest':'sword-forest'; }; }   // build 491: his bow and sword
 let warmed=false; function warm(){ if(warmed) return; warmed=true; window.__weapons.model('staff-forest',()=>{}); window.__weapons.model('polearm-forest',()=>{}); window.__weapons.model('sword-forest',()=>{}); window.__weapons.model('bow-forest',()=>{}); }
 { const prev=dropLoot; dropLoot=function(it){ try{ if(it&&it.slot==='weapon'&&isForest(it)) warm(); }catch(e){} return prev.apply(this,arguments); }; }
 window.__realforest={warm,warmed:()=>warmed,isForest};

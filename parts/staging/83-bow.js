@@ -10,9 +10,9 @@
 const BOW_KINDS={
   ash:  {name:'Ash Shortbow',    tier:1,len:.82, wood:0x7a5a3a,dark:0x3a2716,band:0x8a6a3a,glow:null,    tips:'horn'},
   yew:  {name:'Yew Longbow',     tier:2,len:1.02,wood:0x5a3f28,dark:0x2c1c10,band:0xb87333,glow:null,    tips:'horn',wraps:true},
-  horn: {name:'Horn Recurve',    tier:3,len:.92, wood:0x4a3a30,dark:0x2a2018,band:0xd8d0c0,glow:0x8dffa8,tips:'horn',recurve:true,plates:true,runes:true},
+  horn: {name:'Runed Recurve',   tier:3,len:.92, wood:0x2e2418,dark:0x16100a,band:0x4a7a34,glow:0x6dff7a,tips:'horn',recurve:true,plates:true,runes:true},
   storm:{name:'Stormwood Bow',   tier:4,len:1.0, wood:0x2e2a3a,dark:0x1a1722,band:0xc0c8d8,glow:0x3d8bff,tips:'gold',gem:0x7fbbff,motes:3,runes:true,litString:true},
-  war:  {name:'Troll War Bow',   tier:5,len:1.06,wood:0x3a2416,dark:0x22150c,band:0xe0b040,glow:0xffd060,tips:'gold',gem:0xfff2c0,motes:4,halo:true,recurve:true,litString:true},
+  war:  {name:'Gnome Battle Bow',tier:5,len:1.06,wood:0xe8e2d4,dark:0xa8987a,band:0xe0b040,glow:0xffd060,tips:'gold',gem:0xfff2c0,motes:4,halo:true,recurve:true,litString:true},
   void: {name:'Bow of the Void', tier:5,len:1.0, wood:0x1a1226,dark:0x0d0914,band:0x8a3cff,glow:0x9a30ff,tips:'crystal',gem:0xd070ff,motes:3,shards:3,litString:true}};
 // the stave's line: a plain bow is one arc bowing forward (+z, away from the archer); a recurve comes back to the string near
 // the tips and its tips curl forward again, the way a real recurve's do

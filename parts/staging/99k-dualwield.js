@@ -43,12 +43,12 @@ const kind=()=>LOOK[heroId()]||LOOK.knight;
 function ringMine(){ const c=gear.charm; return !!(c&&c.named&&RING_HERO[c.named]===heroId()); }
 // ---- a polearm takes both hands (the Knight's rule). Cached per item: heroStat asks every frame, many times
 const POLE=new WeakMap(), POLE_MODEL=/^(polearm-|named-last_lantern$|named-sixseven$)/;
-function isPolearm(it){ if(!it||typeof it!=='object') return false; let v=POLE.get(it); if(v!==undefined) return v;
+function isPolearm(it){ if(!it||typeof it!=='object') return false; if(it.slot==='weapon'&&typeof wtypeOf==='function') return wtypeOf(it)==='polearm';   /* build 525 prep: its type says */ let v=POLE.get(it); if(v!==undefined) return v;
   v=it.look==='polearm'||/\b(polearm|halberd|spear|scythe|glaive)\b/i.test(it.name||'')||it.named==='sixseven'||it.named==='last_lantern';
   if(!v) try{ v=POLE_MODEL.test(window.__weapons.swordFor(it)||''); }catch(e){ v=false; }
   POLE.set(it,v); return v; }
 const mainBlocks=()=>heroId()==='knight'&&isPolearm(gear.weapon);   // a Knight with a polearm in his hands has no hand free
-function fits(it){ return !!(it&&it.slot==='weapon'&&it.stats&&!(heroId()==='knight'&&isPolearm(it))); }
+function fits(it){ return !!(it&&it.slot==='weapon'&&it.stats&&(typeof canWield!=='function'||canWield(it))&&!(heroId()==='knight'&&isPolearm(it))); }   // build 525 prep: the 2nd must be a type this hero uses (the Knight's a sword)
 function dual(){ const w=gear.weapon2; return !!(w&&w.stats&&ringMine()&&!mainBlocks()); }
 const asleep=()=>!!(gear.weapon2&&!dual());
 function canEquip2(it){ return !!(it&&ringMine()&&!mainBlocks()&&fits(it)&&(!Meta.canWear||Meta.canWear(it))); }
@@ -76,7 +76,7 @@ function persist(){ const h=heroId(); if(gear.weapon2) STORE[h]=gear.weapon2; el
 if(typeof applyGear==='function') try{ applyGear(); }catch(e){}
 // ---- equip / take off the 2nd
 function equip2(id){ const bag=Meta.bag(), i=bag.findIndex(b=>b.id===id); if(i<0) return false; const it=bag[i];
-  if(!canEquip2(it)){ if(it.slot==='weapon'&&heroId()==='knight'&&(isPolearm(it)||mainBlocks())) toast('🔱 = ✋✋'); return false; }   // a polearm takes both hands
+  if(!canEquip2(it)){ if(it.slot==='weapon'&&typeof canWield==='function'&&!canWield(it)) toast('🚫 '+WEAPON_EMBLEM[wtypeOf(it)]+' ➜ '+wieldersHtml(it)); else if(it.slot==='weapon'&&heroId()==='knight'&&(isPolearm(it)||mainBlocks())) toast('🔱 = ✋✋'); return false; }   // a polearm takes both hands
   bag.splice(i,1); const old=gear.weapon2; gear.weapon2=it; if(old) bag.push(old); cnt.equipped++;
   saveGear(); if(Meta.save) Meta.save(); try{ applyGear(); }catch(e){} return true; }
 function unequip2(){ const w=gear.weapon2; if(!w) return false; if(Meta.bagFull&&Meta.bagFull()){ toast('Bag is full'); return false; } gear.weapon2=null; Meta.bag().push(w); saveGear(); if(Meta.save) Meta.save(); try{ applyGear(); }catch(e){} return true; }
@@ -218,7 +218,7 @@ document.addEventListener('click',e=>{ const t=e.target.closest&&e.target.closes
   if(typeof tvRenderTab==='function') tvRenderTab(true); },true);
 // ---- for a co-op partner's screen (99-network.js lookOf): the 2nd weapon's model, tier and set, as this page's own hand shows it
 function look(){ const o=OFF.obj; if(!dual()||!o||!o.parent||!o.userData.sword) return null; return { w:o.userData.sword.name, t:o.userData.sword.tier||1, s:(/\|set:([^|]+)/.exec(OFF.key)||[])[1]||null }; }
-window.__dualwield={ RINGS:RINGS.slice(), RING_HERO, RING_OF, LOOK, ringMine, dual, asleep, mainBlocks, fits, canEquip2, isPolearm, equip2, unequip2, giveBack, dropRing, owned, chip, colours, ringModel,
+window.__dualwield={ store:()=>STORE, RINGS:RINGS.slice(), RING_HERO, RING_OF, LOOK, ringMine, dual, asleep, mainBlocks, fits, canEquip2, isPolearm, equip2, unequip2, giveBack, dropRing, owned, chip, colours, ringModel,
   prep, mirror, look, holdStaff, off:()=>(OFF.obj&&OFF.obj.parent)?OFF.obj:null, offSwing, hand:()=>HAND.cur, kindIcon:()=>kind().ic, kindWord:()=>kind().word,
   stored:()=>JSON.parse(JSON.stringify(STORE)), log:()=>LOG.slice(), clearLog:()=>{ LOG.length=0; },
   info:()=>{ const o=OFF.obj, dw=GLBH&&GLBH.root&&GLBH.root.userData.dw; return Object.assign({ hero:heroId(), ring:gear.charm&&gear.charm.named||null, mine:ringMine(), dual:dual(), asleep:asleep(), second:gear.weapon2?gear.weapon2.name:null,

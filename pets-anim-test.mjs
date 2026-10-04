@@ -14,7 +14,7 @@ const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftsh
 const page=await (await browser.newContext({viewport:{width:960,height:600}})).newPage(); page.on("pageerror",e=>errors.push(String(e)));
 await page.route("**/api/**",r=>r.fulfill({status:200,contentType:"application/json",body:"{}"}));
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
-await page.goto("http://127.0.0.1:8958/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__familiar&&window.__foxfrost&&window.__tworings,null,{timeout:120000});
+await page.goto("http://127.0.0.1:8958/?silent&ownweapons&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__familiar&&window.__foxfrost&&window.__tworings,null,{timeout:120000});
 const K=["Bat","Fire Imp","Frost Fox"];
 await page.evaluate(K=>{ for(const k of K) window.__familiar.build({name:"Fine "+k,rarity:2,slot:"familiar"}); },K);
 await page.waitForFunction(K=>K.every(k=>window.__familiar.glb().includes(k)),K,{timeout:120000});
@@ -88,7 +88,7 @@ if(PeerServer){
   const b2=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errs=[];
   const hostPage=await (await b2.newContext()).newPage(), guestPage=await (await b2.newContext()).newPage();
   for(const p of [hostPage,guestPage]){ p.on("pageerror",e=>errs.push(String(e))); await p.route("**/api/**",r=>r.fulfill({status:200,contentType:"application/json",body:"{}"})); await p.addInitScript(()=>{ try{ localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} }); }
-  for(const p of [hostPage,guestPage]){ await p.goto("http://127.0.0.1:8958/?silent&nogate",{timeout:120000}); await p.waitForFunction(()=>window.__dd&&window.__net&&window.__familiar&&window.__party,null,{timeout:120000}); }
+  for(const p of [hostPage,guestPage]){ await p.goto("http://127.0.0.1:8958/?silent&ownweapons&nogate",{timeout:120000}); await p.waitForFunction(()=>window.__dd&&window.__net&&window.__familiar&&window.__party,null,{timeout:120000}); }
   for(const p of [hostPage,guestPage]) await p.evaluate(()=>{ window.__freeze=true; try{ window.__trainer.skip(); }catch(e){} window.__dd.start(); window.__dd.step(1/60,30); });
   const tickBoth=async(batches=6,size=5)=>{ for(let b=0;b<batches;b++){ for(let i=0;i<size;i++){ await hostPage.evaluate(()=>window.__dd.step(1/60,1)); await guestPage.evaluate(()=>window.__dd.step(1/60,1)); } await sleep(20); } };
   const rc="petanim-"+Math.random().toString(36).slice(2,8);

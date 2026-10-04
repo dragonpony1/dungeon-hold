@@ -8,7 +8,7 @@ const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PAS
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
 const page=await (await browser.newContext({viewport:{width:1280,height:800}})).newPage(); page.on("pageerror",e=>errors.push(String(e))); const reqs=[]; page.on("request",r=>reqs.push(r.url()));
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
-await page.goto("http://127.0.0.1:9010/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__tworings&&window.__mythic&&window.__meta&&window.__dd.heroModel(),null,{timeout:120000});
+await page.goto("http://127.0.0.1:9010/?silent&ownweapons&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__tworings&&window.__mythic&&window.__meta&&window.__dd.heroModel(),null,{timeout:120000});
 await page.evaluate(async()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} await window.__heroes.select('knight'); d.start(); d.step(1/60,3); window.__freeze=true; window.__meta.setLevel&&window.__meta.setLevel(40); });
 const A=await page.evaluate(()=>{ const N=window.__mythic.NAMED; return { bm:N.beast_mode&&[N.beast_mode.name,N.beast_mode.slot], mm:N.malamute&&[N.malamute.name,N.malamute.slot] }; });
 check("Beast Mode and Malamute are named charms",A.bm&&A.bm.join()==='Beast Mode,charm'&&A.mm&&A.mm.join()==='Malamute,charm',JSON.stringify(A));

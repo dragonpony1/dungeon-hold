@@ -8,7 +8,7 @@ const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PAS
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
 const page=await (await browser.newContext({viewport:{width:1280,height:800}})).newPage(); page.on("pageerror",e=>errors.push(String(e)));
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
-await page.goto("http://127.0.0.1:9011/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__towerHero&&window.__meta&&window.__heroes&&window.__dd.heroModel(),null,{timeout:120000});
+await page.goto("http://127.0.0.1:9011/?silent&ownweapons&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__towerHero&&window.__meta&&window.__heroes&&window.__dd.heroModel(),null,{timeout:120000});
 await page.evaluate(async()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} await window.__heroes.select('fighter'); d.start(); d.step(1/60,3); window.__freeze=true; window.__meta.setLevel&&window.__meta.setLevel(40); });
 const nums=d=>{ const D=window.__dd; return { dmg:D.stat(d,'dmg'), cd:+D.stat(d,'cd').toFixed(3), range:+D.stat(d,'range').toFixed(2), max:d.max }; };
 const A=await page.evaluate(async(nf)=>{ const nums=eval(nf); const d=window.__dd, M=window.__meta; d.addMana(9000);

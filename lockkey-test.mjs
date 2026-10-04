@@ -8,7 +8,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
 const ctx=await browser.newContext({viewport:{width:1280,height:860}}); await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_bagcols_v1","1"); localStorage.setItem("ddBagSort","type");   /* build 441: these check the card grid (now the "by type" sort; the bag opens on columns) */ }catch(e){} });
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
-await page.goto("http://127.0.0.1:8996/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__tavern&&window.__doll&&window.__lockkey,null,{timeout:120000});
+await page.goto("http://127.0.0.1:8996/?silent&ownweapons&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__tavern&&window.__doll&&window.__lockkey,null,{timeout:120000});
 const ids=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; try{ window.__trainer.skip(); }catch(e){} M.reset(); d.resetGear(); d.start(); d.step(1/60,5);
   const mk=(r,n)=>{ const it=d.rollItem(r,'weapon',4); it.rarity=r; it.name=n; it.locked=false; delete it.locked; M.giveItem(it); return it.id; }; const worn=d.rollItem(2,'armor',3); worn.name='Worn Mail'; M.giveItem(worn); M.equip(worn.id);
   return { a:mk(2,'Sword A'), b:mk(3,'Sword B'), worn:worn.id }; });

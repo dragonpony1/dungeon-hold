@@ -6,7 +6,7 @@ const SP=process.env.SP||process.cwd(); const results=[]; const check=(n,ok,d)=>
 const PORT=8893; const server=await serve(PORT);
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const page=await browser.newPage({viewport:{width:960,height:600}});
 const errors=[]; page.on("pageerror",e=>errors.push(String(e)));
-await page.goto("http://127.0.0.1:"+PORT+"/?silent&nogate&nosetgate&map=0",{timeout:240000}); await page.waitForFunction(()=>window.__dd&&window.__sets8&&window.__meta&&window.__sets&&window.__packs,null,{timeout:180000});
+await page.goto("http://127.0.0.1:"+PORT+"/?silent&ownweapons&nogate&nosetgate&map=0",{timeout:240000}); await page.waitForFunction(()=>window.__dd&&window.__sets8&&window.__meta&&window.__sets&&window.__packs,null,{timeout:180000});
 const EIGHT=['of Chaos','of the Earth','of Fire','of Radiance','of the Storm','of Shadow','of Ice','of the Wind'];
 // registered, on the same frame as the Void and the Forest
 const reg=await page.evaluate(()=>{ const P=window.__packs; const names=P.list(); const rows={}; for(const n of window.__sets8.EIGHT){ const d=P.get(n); rows[n]=d&&{minR:d.minR,vm:d.valueMul,c3:d.chance(3),c4:+d.chance(4).toFixed(3),c10:+d.chance(10).toFixed(3),c40:+d.chance(40).toFixed(3),three:Object.keys(d.three).length,five:Object.keys(d.five).length,text:d.text.length,unlock:d.unlock&&d.unlock.model,art:d.art&&d.art.sword,stand:d.models&&d.models.armor,sfx:typeof d.sfx}; } return {names,rows,setsNames:window.__sets.names.length}; });

@@ -13,7 +13,7 @@ const server=await serve(PORT);
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const errors=[];
 async function newPage(ctx){ const p=await (ctx||browser).newPage(); p.on("pageerror",e=>errors.push(String(e)));
-  await p.goto(BASE+"/?silent&nogate",{timeout:90000}); await p.waitForFunction(()=>window.__dd&&window.__meta&&window.__armorlook&&window.__heroes&&window.__sets&&window.__packs&&window.__mythic&&window.__net,null,{timeout:60000});
+  await p.goto(BASE+"/?silent&ownweapons&nogate",{timeout:90000}); await p.waitForFunction(()=>window.__dd&&window.__meta&&window.__armorlook&&window.__heroes&&window.__sets&&window.__packs&&window.__mythic&&window.__net,null,{timeout:60000});
   await p.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); }); return p; }
 // one item, forced onto a slot and a set by renaming (the same trick 93-gearsets.js's own makeSet uses)
 const setItem=(p,slot,setName)=>p.evaluate(({slot,setName})=>{ const d=window.__dd, M=window.__meta; const it=d.rollItem(2,slot,10); it.rarity=Math.max(it.rarity,2); it.name=it.name.replace(/ of (the )?[A-Z]\w*( [A-Z]\w*)?$/,'')+' '+setName; M.giveItem(it); const ok=M.equip(it.id); return {ok,id:it.id,name:it.name}; },{slot,setName});

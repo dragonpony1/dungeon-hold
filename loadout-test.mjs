@@ -9,7 +9,7 @@ const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PAS
 const PORT=8934, BASE="http://127.0.0.1:"+PORT; const server=await serve(PORT,{dist:DIST});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const errors=[]; const ctx=await browser.newContext({viewport:{width:1600,height:900}}); const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
-await page.goto(BASE+"/?silent&nogate",{timeout:90000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__doll&&window.__sets&&window.__forest,null,{timeout:60000});
+await page.goto(BASE+"/?silent&ownweapons&nogate",{timeout:90000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__doll&&window.__sets&&window.__forest,null,{timeout:60000});
 await page.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); });
 // a Forest kit: three pieces worn, one in the bag, one in the armory
 const kit=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; const P=window.__meta.packs.get('of the Forest'); const out={};

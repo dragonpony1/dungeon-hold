@@ -10,7 +10,7 @@ const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftsh
 const page=await (await browser.newContext({viewport:{width:1280,height:800}})).newPage(); page.on("pageerror",e=>errors.push(String(e)));
 await page.route("**/api/**",r=>r.fulfill({status:200,contentType:"application/json",body:"{}"}));
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
-await page.goto("http://127.0.0.1:9047/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__ringlook&&window.__tworings&&window.__mythic&&window.__meta&&window.__dd.heroModel(),null,{timeout:120000});
+await page.goto("http://127.0.0.1:9047/?silent&ownweapons&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__ringlook&&window.__tworings&&window.__mythic&&window.__meta&&window.__dd.heroModel(),null,{timeout:120000});
 await page.evaluate(async()=>{ const d=window.__dd, M=window.__meta; try{ window.__trainer.skip(); }catch(e){} await window.__heroes.select('knight'); d.start(); d.step(1/60,3); window.__freeze=true; M.setLevel&&M.setLevel(40);
   for(const l of d.loot.slice()){ try{ d.scene.remove(l.mesh); }catch(e){} } d.loot.length=0;
   const f1=d.rollItem(3,'familiar',8); f1.name='Wisp of Embers'; const f2=d.rollItem(3,'familiar',8); f2.name='Crystal Owl Egg'; M.giveItem(f1); M.giveItem(f2); M.equip(f1.id); window.__f2=f2.id; d.S.phase='build'; d.step(1/60,5); });
@@ -82,7 +82,7 @@ if(PeerServer){
   const server2=await serve(8957,{dist:process.env.DIST||"./dist"});
   const b2=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const hostPage=await (await b2.newContext()).newPage(), guestPage=await (await b2.newContext()).newPage(); const errs=[];
   for(const p of [hostPage,guestPage]){ p.on("pageerror",e=>errs.push(String(e))); await p.route("**/api/**",r=>r.fulfill({status:200,contentType:"application/json",body:"{}"})); await p.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
-    await p.goto("http://127.0.0.1:8957/?silent&nogate",{timeout:180000}); await p.waitForFunction(()=>window.__dd&&window.__net&&window.__party&&window.__familiar&&window.__ringlook&&window.__meta,null,{timeout:180000}); }
+    await p.goto("http://127.0.0.1:8957/?silent&ownweapons&nogate",{timeout:180000}); await p.waitForFunction(()=>window.__dd&&window.__net&&window.__party&&window.__familiar&&window.__ringlook&&window.__meta,null,{timeout:180000}); }
   await guestPage.evaluate(()=>{ const d=window.__dd, M=window.__meta; M.reset(); d.resetGear(); M.setLevel&&M.setLevel(40); const f=d.rollItem(3,"familiar",6); f.name="Storm Drake Egg"; M.giveItem(f); M.equip(f.id); const f2=d.rollItem(3,"familiar",6); f2.name="Crystal Owl Egg"; M.giveItem(f2);
     const ring=window.__mythic.normalize({tier:'named',named:'malamute',lvl:10}); M.giveItem(ring); M.equip(ring.id); window.__tworings.equip2(f2.id); d.start(); d.step(1/60,30); });
   await hostPage.evaluate(()=>{ const d=window.__dd, M=window.__meta; M.reset(); d.resetGear(); d.start(); d.setHero(0,10,0); d.step(1/60,30); });

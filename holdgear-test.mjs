@@ -10,7 +10,7 @@ const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftsh
 const ctx=await browser.newContext({viewport:{width:1280,height:800}}); await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); }catch(e){} });
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
 const posts=[]; await page.route("**/api/hideout/gear",async r=>{ const req=r.request(); const H={"access-control-allow-origin":"*"}; if(req.method()==="POST"){ const b=JSON.parse(req.postData()||"{}"); posts.push(b); await r.fulfill({status:200,contentType:"application/json",headers:H,body:JSON.stringify({item:Object.assign({id:"t"+posts.length,at:Date.now()},b)})}); } else await r.fulfill({status:200,contentType:"application/json",headers:H,body:JSON.stringify({items:[]})}); });
-await page.goto("http://127.0.0.1:8991/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__hideout,null,{timeout:120000});
+await page.goto("http://127.0.0.1:8991/?silent&ownweapons&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__hideout,null,{timeout:120000});
 const made=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; try{ window.__trainer.skip(); }catch(e){} M.reset(); d.resetGear(); d.start(); d.step(1/60,5);
   const mk=(r)=>{ const it=d.rollItem(r,'weapon',6); it.rarity=r; it.name='Sweet Sword '+r; return it; }; const bagSword=mk(3), wornSword=mk(2); M.giveItem(wornSword); M.equip(wornSword.id); M.giveItem(bagSword); window.__hideout.open();
   return { bagId:bagSword.id, wornId:wornSword.id, worn:!!(d.gear().weapon&&d.gear().weapon.id===wornSword.id) }; });

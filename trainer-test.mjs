@@ -82,10 +82,10 @@ await ctx2.close();
 // never on a later map; still on map one after it has been held
 const ctx3=await browser.newContext(); const p3=await fresh(ctx3);
 await p3.evaluate(()=>{ try{ localStorage.setItem('ddMapsCleared','1'); }catch(e){} });
-await p3.goto(BASE+"/?silent&nogate&map=1",{timeout:240000}); await p3.waitForFunction(()=>window.__dd&&window.__trainer,null,{timeout:180000});
+await p3.goto(BASE+"/?silent&ownweapons&nogate&map=1",{timeout:240000}); await p3.waitForFunction(()=>window.__dd&&window.__trainer,null,{timeout:180000});
 const later=await p3.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); return {map:window.__dd.map().id,on:document.getElementById('trainer').classList.contains('on'),training:window.__trainer.training()}; });
 check("on map two the guide never shows",!later.on&&!later.training,JSON.stringify(later));
-await p3.goto(BASE+"/?silent&nogate&map=0",{timeout:240000}); await p3.waitForFunction(()=>window.__dd&&window.__trainer,null,{timeout:180000});
+await p3.goto(BASE+"/?silent&ownweapons&nogate&map=0",{timeout:240000}); await p3.waitForFunction(()=>window.__dd&&window.__trainer,null,{timeout:180000});
 const held=await p3.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); return {on:document.getElementById('trainer').classList.contains('on'),training:window.__trainer.training()}; });
 check("back on map one after it has been held the guide still shows (map one is the training ground whoever plays it)",held.on&&held.training,JSON.stringify(held));
 await ctx3.close();

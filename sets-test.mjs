@@ -2,7 +2,7 @@ import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 const SP=process.env.SP; const server=await serve(8880);
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const ctx=await browser.newContext({viewport:{width:1100,height:700}}); const page=await ctx.newPage(); const errors=[]; page.on("pageerror",e=>errors.push(String(e))); page.on("console",m=>{ if(m.type()==="error") errors.push(m.text().slice(0,200)); });
-await page.goto("http://127.0.0.1:8880/?silent&nogate"); await page.waitForFunction(()=>window.__dd&&window.__sets&&window.__void&&window.__doll&&window.__dd.heroModel(),null,{timeout:90000});
+await page.goto("http://127.0.0.1:8880/?silent&ownweapons&nogate"); await page.waitForFunction(()=>window.__dd&&window.__sets&&window.__void&&window.__doll&&window.__dd.heroModel(),null,{timeout:90000});
 // only the great sets are sets: no ordinary drop carries an "of the …" name; the registry holds the Void set alone for now
 const r1=await page.evaluate(()=>{ const d=window.__dd; d.start(); d.S.wave=0; let ofThe=0; for(let i=0;i<600;i++){ const it=d.rollItem(1,undefined,3); if(/ of the /.test(it.name)) ofThe++; } return {names:window.__sets.names,sets:Object.keys(window.__sets.SETS),ofThe,packs:window.__packs.list()}; });   /* wave 0: before the first horn neither set drops (the Forest from wave 1, the Void from wave 4) */
 const TEN="of the Void,of the Forest,of Chaos,of the Earth,of Fire,of Radiance,of the Storm,of Shadow,of Ice,of the Wind";   /* build 167: the other eight joined the frame */

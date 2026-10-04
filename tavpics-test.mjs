@@ -7,7 +7,7 @@ const server=await serve(8945,{dist:process.env.DIST||"./dist"});
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
 async function setup(vp){ const page=await (await browser.newContext({viewport:vp,hasTouch:vp.width<500,isMobile:vp.width<500})).newPage(); page.on("pageerror",e=>errors.push(String(e)));
-  await page.goto("http://127.0.0.1:8945/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__sets&&window.__mythic&&window.__tavern&&window.__tavpics,null,{timeout:120000});
+  await page.goto("http://127.0.0.1:8945/?silent&ownweapons&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__sets&&window.__mythic&&window.__tavern&&window.__tavpics,null,{timeout:120000});
   const ids=await page.evaluate(()=>{ window.__freeze=true; const d=window.__dd, M=window.__meta; try{ window.__trainer.skip(); }catch(e){} M.reset(); d.start(); d.step(1/60,3); const ids={};
     for(const s of ['armor','charm','amulet']){ const it=d.rollItem(1,s,2); it.rarity=2; it.name=it.name.replace(/ of (the )?[A-Z]\w*( [A-Z]\w*)?$/,'')+' of the Forest'; M.giveItem(it); ids[s]=it.id; }
     const rs=window.__mythic.normalize({tier:"named",named:"rootsplitter"}); M.giveItem(rs); ids.weapon=rs.id; for(const k of ['armor','charm','amulet','weapon']) M.equip(ids[k]);

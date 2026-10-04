@@ -8,7 +8,7 @@ const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PAS
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
 const page=await (await browser.newContext({viewport:{width:1280,height:800}})).newPage(); page.on("pageerror",e=>errors.push(String(e)));
-await page.goto("http://127.0.0.1:8954/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__hideout&&window.__hideoutbag&&window.__tavern,null,{timeout:120000});
+await page.goto("http://127.0.0.1:8954/?silent&ownweapons&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__hideout&&window.__hideoutbag&&window.__tavern,null,{timeout:120000});
 const ids=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; try{ window.__trainer.skip(); }catch(e){} M.reset(); d.start(); d.step(1/60,10); const ids={junk:[]};
   const va=d.rollItem(2,'armor',2); va.name=va.name.replace(/ of (the )?[A-Z]\w*( [A-Z]\w*)?$/,'')+' of the Void'; M.giveItem(va); M.equip(va.id); ids.voidArmor=va.id;
   const vm=d.rollItem(2,'amulet',2); vm.name=vm.name.replace(/ of (the )?[A-Z]\w*( [A-Z]\w*)?$/,'')+' of the Void'; M.giveItem(vm); vm.locked=true; ids.voidAmulet=vm.id;

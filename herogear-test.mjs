@@ -6,7 +6,7 @@
 // the tutorial's forced Knight. Two pages: a co-op guest switching hero re-dresses its puppet and its stats on the host.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
-const PORT=8815, SIG=9715, URL="http://127.0.0.1:"+PORT+"/?silent&nogate";
+const PORT=8815, SIG=9715, URL="http://127.0.0.1:"+PORT+"/?silent&ownweapons&nogate";
 const server=await serve(PORT);
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const ctx=await browser.newContext(); const page=await ctx.newPage();
@@ -22,7 +22,7 @@ await page.goto(URL,{timeout:120000}); await ready(page);
 await page.evaluate(()=>{ Object.keys(localStorage).filter(k=>/^dd/.test(k)).forEach(k=>localStorage.removeItem(k)); localStorage.setItem('ddMapsCleared','1'); localStorage.setItem('ddHero','knight'); });
 await load(page);
 await page.evaluate(()=>{ window.__meta.reset(); window.__dd.resetGear(); });
-const A=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; const mk=(slot,name,st)=>{ const it=d.rollItem(2,slot,5); it.name=name; if(st) it.stats=st; M.giveItem(it); return it; };
+const A=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; const mk=(slot,name,st)=>{ const it=d.rollItem(2,slot,5); it.name=name; if(slot==='weapon') window.__typed.type(it,/Staff/.test(name)?'staff':'sword');   /* build 525 prep: typed weapons */ if(st) it.stats=st; M.giveItem(it); return it; };
   const sword=mk('weapon','Ember Broadsword of Testing',{dmg:11}), staff=mk('weapon','Runed Staff of Testing',{dmg:5}), armor=mk('armor','Chainmail of Testing',{hp:40}), charm=mk('charm','Charm of Testing',{tow:9});
   const ok=M.equip(sword.id); return {ok,sword:{id:sword.id,kind:window.__weapons.swordFor(sword)},staff:{id:staff.id,kind:window.__staff.staffFor(staff)},armor:armor.id,charm:charm.id,pick:window.__heroes.pick()}; });
 check("setup: the Knight is picked and wears the sword",A.ok&&A.pick==='knight',JSON.stringify(A));
@@ -112,7 +112,7 @@ if(PeerServer){
   const gctx=await browser.newContext(); const guest=await gctx.newPage(); guest.on("pageerror",e=>errors.push("guest: "+e));
   await guest.goto(URL,{timeout:120000}); await ready(guest); await guest.evaluate(()=>{ Object.keys(localStorage).filter(k=>/^dd/.test(k)).forEach(k=>localStorage.removeItem(k)); localStorage.setItem('ddMapsCleared','1'); localStorage.setItem('ddHero','knight'); });
   await load(guest); await load(page);
-  const G=await guest.evaluate(async()=>{ const d=window.__dd, M=window.__meta; M.reset(); d.resetGear(); const mk=(slot,name,st)=>{ const it=d.rollItem(2,slot,5); it.name=name; it.stats=st; M.giveItem(it); return it; };
+  const G=await guest.evaluate(async()=>{ const d=window.__dd, M=window.__meta; M.reset(); d.resetGear(); const mk=(slot,name,st)=>{ const it=d.rollItem(2,slot,5); it.name=name; if(slot==='weapon') window.__typed.type(it,/Staff/.test(name)?'staff':'sword');   /* build 525 prep: typed weapons */ it.stats=st; M.giveItem(it); return it; };
     const sword=mk('weapon','Ember Broadsword of the Guest',{dmg:6}); M.equip(sword.id);
     await window.__heroes.select('witch'); const staff=mk('weapon','Runed Staff of the Guest',{dmg:4}), coat=mk('armor','Jerkin of the Guest',{hp:60}); M.equip(staff.id); M.equip(coat.id);
     await window.__heroes.select('knight'); return {sword:window.__weapons.swordFor(sword),staff:window.__staff.staffFor(staff)}; });

@@ -5,7 +5,7 @@ const server=await serve(8877);
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
 const ctx=await browser.newContext(); const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
-await page.goto("http://127.0.0.1:8877/?silent&nogate"); await page.waitForFunction(()=>window.__dd&&window.__familiar&&window.__lava&&window.__trimaw,null,{timeout:60000});
+await page.goto("http://127.0.0.1:8877/?silent&ownweapons&nogate"); await page.waitForFunction(()=>window.__dd&&window.__familiar&&window.__lava&&window.__trimaw,null,{timeout:60000});
 await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; d.start(); d.step(1/60,20); const it=d.rollItem(3,"familiar",10); it.name="Fire Imp of Testing"; it.stats={fdmg:40,frate:40}; M.giveItem(it); M.equip(it.id); d.step(1/60,10); });
 for(let i=0;i<120;i++){ await page.evaluate(()=>window.__dd.step(1/60,3)); await page.waitForTimeout(70); if(await page.evaluate(()=>{ const g=window.__familiar.model(); return !!g&&g.userData.glb&&g.userData.kind==="Fire Imp"; })&&i>10) break; }
 const r=await page.evaluate(async()=>{ const d=window.__dd, L=window.__lava, T=window.__trimaw; d.enemies.slice().forEach(e=>{ e.dead=1; }); d.enemies.length=0; d.setHero(0,5,0); d.step(1/60,8); L.clear();

@@ -30,7 +30,10 @@ const SLOT_BASE={weapon:'Weapon',armor:'Armor',amulet:'Amulet',familiar:'Familia
 const SET_STAT={weapon:['dmg','spd','tow'],armor:['hp','def','regen'],amulet:['mana','tow','hp'],familiar:['fdmg','frate','move'],charm:['move','trate','tarea']};
 const MYTHIC_STAT={dmg:24,spd:45,hp:156,def:24,regen:4.5,tow:41,mana:65,move:20,fdmg:35,frate:63,trate:20,tarea:18};
 const FAM_KINDS=['Wisp','Bat','Sprite','Fire Imp','Crystal Owl','Storm Drake','Frost Fox'];
-function weaponLook(){ const hm=window.__weapons.mount&&window.__weapons.mount(); return hm&&hm.pole?'polearm':hm&&hm.staff?'staff':hm&&hm.bow?'bow':'sword'; }   // build 510 prep: the Fighter's hand is a polearm
+function weaponLook(){ return typeof heroWtypes==='function'?heroWtypes()[0]:'sword'; }   // build 525 prep: the hero's own first type (still overridable below)
+// build 525 prep: a PLAIN weapon of any type, to try typed weapons on demand (rarity is the least it rolls)
+function plainWeapon(t,r){ const was=WTYPE_FORCE; WTYPE_FORCE=t; try{ return rollItem(Math.max(0,Math.min(4,r|0)),'weapon',Math.max(1,effWave())); } finally{ WTYPE_FORCE=was; } }
+function givePlain(t,r,drop){ const it=plainWeapon(t,r); if(drop&&!(window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen())){ const a=Math.random()*6.283; dropLoot(it,hero.x+Math.cos(a)*4.5,hero.z+Math.sin(a)*4.5,true); toast('Dropped: '+it.name); } else { Meta.onPickup(it,{x:hero.x,y:hero.y+1,z:hero.z}); toast('Gave: '+it.name); } return it; }   // build 510 prep: the Fighter's hand is a polearm
 function setRec(slot,setId,famKind,lookOverride){ const tail=(SETS.find(s=>s[0]===setId)||[,'of a set'])[1]; const stats={}; for(const k of SET_STAT[slot]) stats[k]=MYTHIC_STAT[k];
   if(slot==='weapon'){ const look=lookOverride||weaponLook(); const it={slot,name:'Mythic '+look[0].toUpperCase()+look.slice(1)+' '+tail,setId,look,rarity:5,lvl:20,stats};
     if(lookOverride) it.forceLook=lookOverride;   // build 208 (Matt: "theres not an option to drop a bow it just says weapon"): weaponLook() only ever follows the CURRENT hero's own mount (a Knight always gets a sword no matter what set you pick), and the floor stand itself (93c-weaponstand.js) re-derives the same way, ignoring it.look entirely -- forceLook is a dev-panel-only field real drops never carry, so this never changes how a normal weapon's stand tracks whichever hero you're currently playing
@@ -61,6 +64,7 @@ function ensure(){ if(el) return; css();
       <div class="row" id="dp-famrow"><select id="dp-fam">${famOpts}</select></div>
       <div class="row" id="dp-lookrow"><select id="dp-look"><option value="sword">Sword</option><option value="staff">Staff</option><option value="polearm">Polearm</option><option value="bow">Bow</option></select></div>
       <div class="row"><button id="dp-set-give">Give</button><button id="dp-set-drop">Drop here</button></div></div>
+    <div class="sect"><label>plain weapon</label><div class="row"><select id="dp-pw"><option value="sword">🗡️ Sword</option><option value="polearm">🔱 Polearm</option><option value="staff">🪄 Staff</option><option value="bow">🏹 Bow</option></select><select id="dp-pwr"><option value="0">Common</option><option value="1">Uncommon</option><option value="2">Rare</option><option value="3">Epic</option><option value="4">Legendary</option></select></div><div class="row"><button id="dp-pw-give">Give</button><button id="dp-pw-drop">Drop here</button></div></div>
     <div class="sect"><label>named mythic</label><div class="row"><select id="dp-named">${namedOpts}</select></div><div class="row"><button id="dp-named-give">Give</button><button id="dp-named-drop">Drop here</button></div></div>
     <div class="sect"><label>unlock</label><div class="row"><button id="dp-unlock">All maps + heroes (reloads)</button></div></div>
     <div class="note">F9 to hide · a real player never sees this</div>`;
@@ -84,6 +88,7 @@ function ensure(){ if(el) return; css();
   const withWeaponReady=(rec,fn)=>{ if(rec.slot!=='weapon'){ fn(); return; } const key=window.__weaponStand&&window.__weaponStand.modelFor(rec); if(!key){ fn(); return; } window.__weapons.model(key,()=>fn()); };
   $('dp-set-give').onclick=()=>{ const rec=setRec($('dp-slot').value,$('dp-set').value,$('dp-fam').value,lookVal()); withWeaponReady(rec,()=>giveIt(rec)); };
   $('dp-set-drop').onclick=()=>{ const rec=setRec($('dp-slot').value,$('dp-set').value,$('dp-fam').value,lookVal()); withWeaponReady(rec,()=>dropIt(rec)); };
+  $('dp-pw-give').onclick=()=>givePlain($('dp-pw').value,+$('dp-pwr').value,false); $('dp-pw-drop').onclick=()=>givePlain($('dp-pw').value,+$('dp-pwr').value,true);
   $('dp-named-give').onclick=()=>giveIt({tier:'named',named:$('dp-named').value,lvl:20});
   $('dp-named-drop').onclick=()=>dropIt({tier:'named',named:$('dp-named').value,lvl:20});
   $('dp-unlock').onclick=()=>{ try{ localStorage.setItem('ddMapsCleared',String(MAPS.length)); }catch(e){} location.reload(); }; }
@@ -119,5 +124,5 @@ function spawnNow(kind){ if(guest()){ window.__net.send('dev',{a:'spawn',kind});
   spawnEnemy(kind,k); toast('spawned a '+kind); }
 function toggle(v){ ensure(); open=v===undefined?!open:v; el.classList.toggle('hide',!open); if(open&&$('dp-lv')) $('dp-lv').value=Meta.level(); }
 addEventListener('keydown',e=>{ if(e.code==='F9'){ e.preventDefault(); toggle(); } });
-window.__devpanel={toggle,isOpen:()=>open,jumpWave,spawnNow};
+window.__devpanel={toggle,isOpen:()=>open,jumpWave,spawnNow,givePlain,plainWeapon,giveSet:(slot,setId,look,drop)=>{ const rec=setRec(slot,setId,null,look); if(drop) dropIt(rec); else giveIt(rec); }};
 })();

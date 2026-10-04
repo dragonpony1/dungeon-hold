@@ -11,7 +11,7 @@ const hostCtx=await browser.newContext(), guestCtx=await browser.newContext(); f
 const hostPage=await hostCtx.newPage(), guestPage=await guestCtx.newPage();
 const errors=[]; for(const p of [hostPage,guestPage]) p.on("pageerror",e=>errors.push(String(e)));
 for(const p of [hostPage,guestPage]){ await p.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
-  await p.goto("http://127.0.0.1:"+PORT+"/?silent&nogate",{timeout:240000}); await p.waitForFunction(()=>window.__dd&&window.__net&&window.__party&&window.__weapons&&window.__dualwield&&window.__meta&&window.__dd.heroModel(),null,{timeout:180000}); }
+  await p.goto("http://127.0.0.1:"+PORT+"/?silent&ownweapons&nogate",{timeout:240000}); await p.waitForFunction(()=>window.__dd&&window.__net&&window.__party&&window.__weapons&&window.__dualwield&&window.__meta&&window.__dd.heroModel(),null,{timeout:180000}); }
 const knight=p=>p.evaluate(async()=>{ try{ window.__trainer.skip(); }catch(e){} await window.__heroes.select('knight'); for(let i=0;i<600;i++){ const m=window.__dd.heroModel(); if(m&&m.label.includes('Knight')&&window.__weapons.state().mounted) return true; await new Promise(r=>setTimeout(r,50)); } return false; });
 await knight(guestPage); await knight(hostPage);
 const G0=await guestPage.evaluate(async()=>{ const d=window.__dd, M=window.__meta, D=window.__dualwield, N=window.__mythic; M.reset(); d.resetGear(); M.setLevel&&M.setLevel(40); d.start();

@@ -5,7 +5,7 @@ const server=await serve(8889);
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
 const page=await (await browser.newContext()).newPage(); page.on("pageerror",e=>errors.push(String(e)));
-await page.goto("http://127.0.0.1:8889/?silent&nogate",{timeout:90000}); await page.waitForFunction(()=>window.__dd&&window.__familiar&&window.__owllaser&&window.__mythicDrops,null,{timeout:90000});
+await page.goto("http://127.0.0.1:8889/?silent&ownweapons&nogate",{timeout:90000}); await page.waitForFunction(()=>window.__dd&&window.__familiar&&window.__owllaser&&window.__mythicDrops,null,{timeout:90000});
 await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; window.__mythicDrops.set(0,0,0); d.start(); d.step(1/60,20); const it=d.rollItem(3,"familiar",10); it.name="Crystal Owl of Testing"; it.stats={fdmg:40,frate:40}; M.giveItem(it); M.equip(it.id); d.step(1/60,10); });
 for(let i=0;i<200;i++){ await page.evaluate(()=>window.__dd.step(1/60,3)); await page.waitForTimeout(60); if(i>10&&await page.evaluate(()=>{ const g=window.__familiar.model(); return !!g&&g.userData.glb&&g.userData.kind==="Crystal Owl"&&window.__owllaser.loaded(); })) break; }
 check("the Crystal Owl is out and its laser model has loaded",await page.evaluate(()=>{ const g=window.__familiar.model(); return !!g&&g.userData.kind==="Crystal Owl"&&g.userData.glb&&window.__owllaser.loaded(); }));

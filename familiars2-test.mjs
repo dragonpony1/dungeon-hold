@@ -2,7 +2,7 @@ import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 const SP=process.env.SP; const server=await serve(8860);
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const page=await browser.newPage({viewport:{width:960,height:600}}); const errors=[]; page.on("pageerror",e=>errors.push(String(e))); page.on("console",m=>{ if(m.type()==="error"||m.type()==="warning") errors.push(m.text().slice(0,200)); });
-await page.goto("http://127.0.0.1:8860/?silent&nogate",{timeout:240000}); await page.waitForFunction(()=>window.__dd&&window.__familiar&&window.__familiar.glb&&window.__familiar.build,null,{timeout:180000});
+await page.goto("http://127.0.0.1:8860/?silent&ownweapons&nogate",{timeout:240000}); await page.waitForFunction(()=>window.__dd&&window.__familiar&&window.__familiar.glb&&window.__familiar.build,null,{timeout:180000});
 // since build 123 the pet models load on first need (ensureFam): ask for all six by building one of each, then wait for them
 await page.evaluate(()=>{ for(const k of ["Storm Drake","Crystal Owl","Fire Imp","Sprite","Bat","Wisp"]) try{ window.__familiar.build({name:k+" Egg",rarity:1,slot:"familiar"}); }catch(e){} });
 await page.waitForFunction(()=>window.__familiar.glb().length===6&&window.__dd.heroModel()&&window.__dd.mobModel("goblin"),null,{timeout:180000});

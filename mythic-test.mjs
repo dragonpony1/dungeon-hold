@@ -5,7 +5,7 @@ const SP=process.env.SP||process.cwd(); const results=[]; const check=(n,ok,d)=>
 const PORT=8881; const server=await serve(PORT);
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const page=await browser.newPage({viewport:{width:960,height:600}});
 const errors=[]; page.on("pageerror",e=>errors.push(String(e)));
-await page.goto("http://127.0.0.1:"+PORT+"/?silent&nogate&map=0",{timeout:240000}); await page.waitForFunction(()=>window.__dd&&window.__mythic&&window.__meta&&window.__sets&&window.__familiar,null,{timeout:180000});
+await page.goto("http://127.0.0.1:"+PORT+"/?silent&ownweapons&nogate&map=0",{timeout:240000}); await page.waitForFunction(()=>window.__dd&&window.__mythic&&window.__meta&&window.__sets&&window.__familiar,null,{timeout:180000});
 // the tier
 const tier=await page.evaluate(()=>({name:window.__dd.RNAME[5],css:window.__dd.RCSS[5],valid:window.__meta.state?true:true}));
 check("rarity 5 is Mythic with its own colour",tier.name==="Mythic"&&/^#/.test(tier.css),JSON.stringify(tier));

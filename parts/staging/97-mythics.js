@@ -54,7 +54,8 @@ function normalize(rec){ if(!rec||typeof rec!=='object') return null; const it={
   // and look, and its art is already a picture path
   { const sid=rec.set||rec.setId, lk=[rec.look,rec.art].find(v=>/^(sword|staff|polearm|bow)$/.test(v));
     if(sid&&typeof sid==='string') it.setId=sid.slice(0,24); if(lk) it.look=lk; }
-  if(rec.forceLook&&/^(sword|staff|bow)$/.test(rec.forceLook)) it.forceLook=rec.forceLook;   // build 208 (74-devpanel.js): normalize only ever copies fields it already knows about, so this dev-panel-only override needs its own explicit pass-through or it's silently dropped here, same as it would be for any other unrecognized field
+  if(rec.forceLook&&/^(sword|staff|bow|polearm)$/.test(rec.forceLook)) it.forceLook=rec.forceLook;
+  if(it.slot==='weapon'&&typeof typeWeapon==='function') typeWeapon(it,WTYPES.includes(rec.wtype)?rec.wtype:(guessWtype(it)||guessWtype(rec)||heroWtypes()[0]));   // build 525 prep: a record keeps its type (wtype, or what its look / art / name says), else the hero now played   // build 208 (74-devpanel.js): normalize only ever copies fields it already knows about, so this dev-panel-only override needs its own explicit pass-through or it's silently dropped here, same as it would be for any other unrecognized field
   it.mythicTier=typeof rec.tier==='string'?rec.tier:(it.rarity>=5?'mythic':''); it.tier=tierOf(it.lvl); it.value=it.named?400:it.rarity>=5?250:[10,25,60,150,300][Math.max(0,Math.min(4,it.rarity|0))]; it.req=1;
   { const A=window.__mythicDrops&&window.__mythicDrops.art, pic=A&&A(it); if(pic) it.art=pic; else if(typeof rec.art==='string'&&/\.(jpe?g|png|webp)$/i.test(rec.art)) it.art=rec.art.slice(0,200); }   // build 157: Matt's picture on its card (87-mythicdrops.js)
   return it; }

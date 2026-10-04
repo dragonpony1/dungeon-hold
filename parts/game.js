@@ -1313,11 +1313,60 @@ const SLOTS=['weapon','armor','charm','amulet','familiar'], SICON={weapon:'⚔',
 // build 314 (Matt: "on the bag, on the card, weapons are represented by crossing swords i need that to show bow, sword, staff or stave" -- "just that little emblem"): a weapon becomes whatever the hand
 // holding it uses (80-weapons.js), so its emblem is the current hero's: the Ranger's bow, the Witch's staff, the Fighter's polearm (build 510 prep), the Knight's sword -- or, on the Knight, a polearm piece's polearm (slotIcon)
 const WEAPON_EMBLEM={sword:'🗡️',bow:'🏹',staff:'🪄',polearm:'🔱'};
-function weaponKind(it){ const h=window.__heroes?window.__heroes.pick():'knight'; if(h==='troll') return 'bow'; if(h==='witch') return 'staff'; if(h==='fighter') return 'polearm';   /* build 510 prep: the Fighter holds only polearms (86v-fighterpole.js) */ return it&&(it.look==='polearm'||/\bpolearm\b/i.test(it.name||''))?'polearm':'sword'; }
+// build 525 prep (Matt: "yeah we really need typed weapons" / "if were serious about putting this on steam"): TYPED WEAPONS. Every weapon carries a permanent it.wtype -- sword, polearm, staff or bow --
+// and its model, picture, emblem and name follow THAT, never the hero holding it (the build-314 rule, "a weapon becomes whatever the hand uses", is retired). Who can wear what: the Knight swords and
+// polearms, the Fighter polearms, the Witch staffs, the Ranger (id 'troll') bows. A drop is 70% the dropping player's own type(s) and 30% one of the others (rollWtype). it.look is kept equal to the
+// type, so everything that already reads it.look (the sets' setModel, the hideout page's display stands) agrees. Old saves are typed once by 99m-typedweapons.js (the migration); until it has run
+// (WTYPE_READY) fixItem leaves an untyped weapon alone so the migration can tell a worn piece from a bagged one.
+const WTYPES=['sword','polearm','staff','bow'];
+const HERO_WTYPES={knight:['sword','polearm'],fighter:['polearm'],witch:['staff'],troll:['bow']};
+const WTYPE_HEROES={sword:['knight'],polearm:['knight','fighter'],staff:['witch'],bow:['troll']};
+const HERO_ICON={knight:'🛡️',witch:'🧙',fighter:'🥋',troll:'🌲'};
+const WTYPE_WORD={sword:'Sword',polearm:'Polearm',staff:'Staff',bow:'Bow'};
+// each type's base names, one per quality step (rollItem: rarity + 0 or 1, capped at the top): the swords as they were (the Halberd moved to the polearms), the staffs, the plain polearms (86v), the plain bows (83-bow)
+const WTYPE_BASES={sword:['Shortsword','Broadsword','Cleaver','Warhammer','Gnome Blade'],staff:['Hazel Staff','Copper Staff','Runed Staff','Storm Staff','Battle Staff'],
+  polearm:['Hazel Spear','Copper-bound Spear','Runed Ash Glaive','Stormwood Halberd','Gnome Battle Halberd'],bow:['Ash Shortbow','Yew Longbow','Runed Recurve','Stormwood Bow','Gnome Battle Bow']};   // build 525 prep: the bows named after Matt's plain bow pictures (steps 3 and 5 were Horn Recurve / Troll War Bow)
+const NAMED_WTYPE={rootsplitter:'sword',last_lantern:'polearm',sixseven:'polearm',subterfuge:'bow'};   // the axe is held like a sword; the Lantern and 6/7 are halberds; Subterfuge is a bow
+let WTYPE_READY=(()=>{ try{ return localStorage.getItem('dd_wtype_v1')==='1'; }catch(e){ return false; } })();
+let WTYPE_FORCE=null;   // a type every weapon rolled right now must take (the dev panel, tests); null = the 70/30 roll
+const curHeroId=()=>{ try{ return window.__heroes?window.__heroes.pick():'knight'; }catch(e){ return 'knight'; } };
+function heroWtypes(h){ return HERO_WTYPES[h||curHeroId()]||HERO_WTYPES.knight; }
+// a type read off the item itself: its own wtype, a named weapon's, its look / the hideout's art word, else a word in its name; null when nothing says
+function guessWtype(it){ if(!it) return null; if(WTYPES.includes(it.wtype)) return it.wtype; if(it.named&&NAMED_WTYPE[it.named]) return NAMED_WTYPE[it.named];
+  for(const v of [it.forceLook,it.look,it.art]) if(WTYPES.includes(v)) return v;
+  const n=String(it.name||''); if(/\b(staff|wand|sceptre|scepter|rod)\b/i.test(n)) return 'staff'; if(/(\bbow\b|shortbow|longbow|recurve|crossbow)/i.test(n)) return 'bow';
+  if(/\b(polearm|spear|halberd|glaive|scythe|pike|lance|trident)\b/i.test(n)) return 'polearm'; if(/(sword|\bblade\b|cleaver|warhammer|\baxe\b)/i.test(n)) return 'sword'; return null; }
+function wtypeOf(it){ if(!it||(it.slot&&it.slot!=='weapon')) return null; return guessWtype(it)||heroWtypes()[0]; }
+function canWield(it,h){ if(!it||it.slot!=='weapon') return true; return heroWtypes(h).includes(wtypeOf(it)); }
+function wieldersHtml(it){ const t=wtypeOf(it); return t?(WTYPE_HEROES[t]||[]).map(h=>HERO_ICON[h]).join(''):''; }
+// the drop roll: 70% this page's hero's own type (the Knight's: a sword three times in four, else a polearm), 30% one of the others. The training ground (the tutorial, and map one until it is
+// first held) drops only the hero's own, so its "equip it" lesson can always be done
+function rollWtype(h){ if(WTYPE_FORCE&&WTYPES.includes(WTYPE_FORCE)) return WTYPE_FORCE; const own=heroWtypes(h); if(Q.has('ownweapons')) return own[0];   /* ?ownweapons (the older test suites): every weapon is the hero's own first type, as weapons all were before typing */ const pickOwn=()=>own.length>1?(LR()<.75?own[0]:own[1]):own[0];
+  let train=false; try{ train=TUTORIAL||(MAPI===0&&!((parseInt(localStorage.getItem('ddMapsCleared'))||0)>=1)); }catch(e){}
+  if(train||LR()<.7) return pickOwn(); const others=WTYPES.filter(t=>!own.includes(t)); return others[(LR()*others.length)|0]; }
+// the base word a name carries, and its quality step: longest first, so "Stormwood Halberd" is not read as an old "Halberd"; the old long staff names (82-staff) are read too
+const WTYPE_LADDER=(()=>{ const out=[]; for(const t of WTYPES) WTYPE_BASES[t].forEach((w,i)=>out.push({w,t,i}));
+  out.push({w:'Halberd',t:'polearm',i:4,old:true},{w:'Copper-bound Staff',t:'staff',i:1,old:true},{w:'Runed Ash Staff',t:'staff',i:2,old:true},{w:'Stormwood Staff',t:'staff',i:3,old:true},{w:'Gnome Battle Staff',t:'staff',i:4,old:true},{w:'Horn Recurve',t:'bow',i:2,old:true},{w:'Troll War Bow',t:'bow',i:4,old:true});
+  return out.sort((a,b)=>b.w.length-a.w.length); })();
+// rename a weapon's base word (or a mythic's type word, "Mythic Staff of Chaos") to its type's ladder at the same step; named weapons keep their names
+function wtypeRename(it,t){ if(!it||it.named||typeof it.name!=='string') return false; const n=it.name;
+  for(const L of WTYPE_LADDER){ const k=n.indexOf(L.w); if(k<0) continue; const pre=n[k-1], post=n[k+L.w.length]; if((pre&&/[A-Za-z-]/.test(pre))||(post&&/[a-z-]/.test(post))) continue;
+    if(L.t===t&&!L.old) return false; it.name=n.slice(0,k)+WTYPE_BASES[t][Math.min(4,L.i)]+n.slice(k+L.w.length); return it.name!==n; }
+  const m=n.match(/\b(Sword|Staff|Polearm|Bow)\b/); if(m&&m[1]!==WTYPE_WORD[t]){ it.name=n.replace(/\b(Sword|Staff|Polearm|Bow)\b/,WTYPE_WORD[t]); return true; } return false; }
+// give a weapon its type for good: the type, the matching look, the name, and a set picture path pointing at that type's picture
+function typeWeapon(it,t){ if(!it||it.slot!=='weapon') return it; t=WTYPES.includes(t)?t:(guessWtype(it)||heroWtypes()[0]); if(it.named&&NAMED_WTYPE[it.named]) t=NAMED_WTYPE[it.named];
+  it.wtype=t; it.look=t; if(it.forceLook) it.forceLook=t; wtypeRename(it,t);
+  if(typeof it.art==='string'&&/\/items\/sets\/[a-z]+-(sword|staff|polearm|bow)\.jpg$/.test(it.art)) it.art=it.art.replace(/-(sword|staff|polearm|bow)\.jpg$/,'-'+t+'.jpg'); else if(WTYPES.includes(it.art)) it.art=t;
+  return it; }
+// what fixItem asks of every item it sees (10-meta.js): an untyped weapon is typed by what it says, else as the hero now played -- once the migration has typed the saves
+function ensureWtype(it){ if(!it||it.slot!=='weapon'||!WTYPE_READY) return it; if(WTYPES.includes(it.wtype)){ if(it.look!==it.wtype) it.look=it.wtype; return it; } return typeWeapon(it,guessWtype(it)||heroWtypes()[0]); }
+function weaponKind(it){ if(it&&it.slot==='weapon') return wtypeOf(it); return heroWtypes()[0]; }
+// the card's type chip: the weapon's emblem and the heroes who can use it (red when the hero now played cannot)
+function wtypeChip(it){ if(!it||it.slot!=='weapon') return ''; const t=wtypeOf(it), ok=canWield(it); return '<span class="wt-chip'+(ok?'':' no')+'" data-wt="'+t+'" title="'+WTYPE_WORD[t]+' -- '+(WTYPE_HEROES[t]||[]).join(', ')+'">'+WEAPON_EMBLEM[t]+' '+(ok?'':'🚫 ')+wieldersHtml(it)+'</span>'; }   // build 525 prep: an item's own type; with no item, the hero's first
 Object.defineProperty(SICON,'weapon',{get:()=>WEAPON_EMBLEM[weaponKind(null)],enumerable:true});
 function slotIcon(it,slot){ const s=(it&&it.slot)||slot; return s==='weapon'?WEAPON_EMBLEM[weaponKind(it)]:SICON[s]; }
-window.__emblem={slotIcon,kind:weaponKind,sicon:s=>SICON[s],card:(it,from)=>typeof tvCard==='function'?tvCard(it,from||'bag'):''};   // emblem-test.mjs
-const BASES={weapon:['Shortsword','Broadsword','Cleaver','Warhammer','Halberd','Gnome Blade'],armor:['Jerkin','Chainmail','Breastplate','Plate Harness','Tower Plate','Warden Mail'],charm:['Charm','Talisman','Idol','Sigil','Lantern','Relic'],amulet:['Pendant','Amulet','Locket','Torc','Medallion','Heartstone'],familiar:['Wisp','Cave Bat','Moss Sprite','Fire Imp','Crystal Owl','Storm Drake','Frost Fox']};
+window.__emblem={slotIcon,kind:weaponKind,wtypeOf,canWield,sicon:s=>SICON[s],card:(it,from)=>typeof tvCard==='function'?tvCard(it,from||'bag'):''};   // emblem-test.mjs
+const BASES={weapon:['Shortsword','Broadsword','Cleaver','Warhammer','Gnome Blade'],armor:['Jerkin','Chainmail','Breastplate','Plate Harness','Tower Plate','Warden Mail'],charm:['Charm','Talisman','Idol','Sigil','Lantern','Relic'],amulet:['Pendant','Amulet','Locket','Torc','Medallion','Heartstone'],familiar:['Wisp','Cave Bat','Moss Sprite','Fire Imp','Crystal Owl','Storm Drake','Frost Fox']};
 const PREFIX=[['Rusty','Plain','Worn','Sturdy','Old'],['Fine','Hardened','Keen','Polished'],['Gleaming','Runed','Tempered','Silvered'],['Ancient','Stormforged','Dragonbone','Moonlit'],['Mythic','Eternal','Goblinbane','Crystalheart']];
 const DROP={goblin:.075,archer:.15,orc:.33,ogre:1,drake:.45,troll:.42,trollboss:1}, OGRE2=.75;   // build 270 (Matt: "we just need more loot drops cuz we use gold for the upgrades too"): every ordinary gear drop 25% more likely again (goblin .06, archer .12, orc .264, drake .36, troll .336, the ogre's second piece .6), beside the new sludge jars (99g-sludgejars.js). Build 246 (Matt: "we made the fancy loot more rare now increase the trash loot, the random loot gen by 20%"): every ordinary gear drop 20% more likely than before (goblin .05, archer .10, orc .22, drake .30, troll .28; the ogre's second piece .5); the ogre's first piece and the troll boss's were already certain
  const LOOT_HOOK=3.2;   // how close a landed piece has to be before it flies to you
@@ -1328,6 +1377,15 @@ function heroMult(k){ return 1+(Meta.mult(k)||0); }
 function swingBase(){ return (useGLB&&GLBH&&GLBH.attackDur)?GLBH.attackDur:.38; }
 function heroDmg(){ return Math.round((8+heroStat('dmg'))*heroMult('dmg')*(swingBase()/.38)*10)/10; }   // one decimal, like stat(d,'dmg'): a single Blade point (+8%) is visible on an 8-damage swing
 function gearScore(){ let v=0; for(const s of SLOTS){ if(gear[s]) v+=gear[s].score; } return v; }
+// build 525 prep (Matt: "show gear score on items equipped as wel as in bag, and a small like showing total gear score on equipped"): GEAR SCORE. An item's score is the forge's own sum (90-forge.js rescore:
+// every stat times STATW); gsOf reads it, and works it out (and keeps it) for a piece that has none or a broken one. gsBadge is the small gold "GS n" chip every tile and card wears; gearScoreTotal
+// is what is worn: the five slots, plus the 2nd weapon while its stats count (its ring on, 99k-dualwield.js) and the 2nd pet while its ring is on (97h-tworings.js).
+function gsCalc(it){ let v=0; for(const k in it.stats) v+=(+it.stats[k]||0)*(STATW[k]||1); return Math.round(v*10)/10; }
+function gsOf(it){ if(!it||!it.stats) return 0; let v=+it.score; if(!Number.isFinite(v)||v<0||(v===0&&gsCalc(it)>0)){ v=gsCalc(it); it.score=v; } return v; }
+const gsFmt=v=>Math.round(+v||0).toLocaleString('en-US');
+function gsBadge(it,cls){ return it&&it.stats?'<b class="gs-b'+(cls?' '+cls:'')+'" title="Gear score">GS '+gsFmt(gsOf(it))+'</b>':''; }
+function gearScoreParts(){ const out=[]; for(const s of SLOTS) if(gear[s]) out.push(gear[s]); try{ const D=window.__dualwield; if(gear.weapon2&&D&&D.dual&&D.dual()) out.push(gear.weapon2); const R=window.__tworings; if(gear.familiar2&&R&&R.ringOn&&R.ringOn()) out.push(gear.familiar2); }catch(e){} return out; }
+function gearScoreTotal(){ let v=0; for(const it of gearScoreParts()) v+=gsOf(it); return Math.round(v); }
 function swingDur(){ return swingBase()/((1+heroStat('spd')/100)*heroMult('spd')); }
 function hitFrac(){ return (useGLB&&GLBH&&GLBH.hitFrac)||.32; }
 function rollRarity(minR){ const w=Math.max(1,effWave()); const wt=[Math.max(25,64-1.2*w),25,8.5+.7*w,w>=3?2+.35*w:0,w>=6?.5+.12*w:0]; const tot=wt.reduce((a,b)=>a+b,0); let r=LR()*tot, i=0; while(i<4&&r>=wt[i]){ r-=wt[i]; i++; } return Math.max(minR||0,i); }
@@ -1339,10 +1397,11 @@ function rollItem(minR,slot,lvl){ slot=slot||SLOTS[(LR()*SLOTS.length)|0]; const
   const pools={weapon:['dmg','spd'],armor:['hp','def','regen'],charm:['tow','mana','move'],amulet:['hp','regen','def','spd'],familiar:['fdmg','frate']}; const keys=pools[slot].slice(0,1+Math.min(r,pools[slot].length-1));
   if(r===4){ const others=ROLLABLE.filter(k=>!keys.includes(k)); keys.push(others[(LR()*others.length)|0]); }   /* a legendary's bonus stat comes from the stats a drop can roll; the forge-only ones (defense speed/range, pet projectiles) are bought, never rolled */
   const stats={}; keys.forEach(k=>{ stats[k]=rollStat(k,L,r); });
-  const name=PREFIX[r][(LR()*PREFIX[r].length)|0]+' '+BASES[slot][Math.min(BASES[slot].length-1,(r+((LR()*2)|0)))]+(r>=1&&honestSuffix(stats,L,r)?' '+honestSuffix(stats,L,r):'');   /* build 400: its strongest stat names it (STAT_SUFFIX, top of file) */
+  const wt=slot==='weapon'?rollWtype():null, base=wt?WTYPE_BASES[wt]:BASES[slot];   /* build 525 prep: a weapon rolls its type first (70/30) and takes that type's base name */
+  const name=PREFIX[r][(LR()*PREFIX[r].length)|0]+' '+base[Math.min(base.length-1,(r+((LR()*2)|0)))]+(r>=1&&honestSuffix(stats,L,r)?' '+honestSuffix(stats,L,r):'');   /* build 400: its strongest stat names it (STAT_SUFFIX, top of file) */
   let score=0; for(const k in stats) score+=stats[k]*STATW[k];
   const value=Math.round(10*(1+L*.5)*[1,2,4,8,16][r]);
-  return {slot,rarity:r,lvl:L,tier:tierOf(L),name,stats,score:Math.round(score*10)/10,value,id:Math.floor(LR()*1e9).toString(36)+L.toString(36)}; }
+  const it={slot,rarity:r,lvl:L,tier:tierOf(L),name,stats,score:Math.round(score*10)/10,value,id:Math.floor(LR()*1e9).toString(36)+L.toString(36)}; if(wt){ it.wtype=wt; it.look=wt; } return it; }
 function statStr(it){ return Object.keys(it.stats).map(k=>STATL[k](it.stats[k])).join(' · '); }
 function lootMesh(it){ const g=new THREE.Group(); const col=RCOL[it.rarity]; const m=mat(col), steel=mat(0xc4ced9); const item=new THREE.Group(); item.position.y=.55;
   if(it.slot==='weapon'){ item.add(M(G.box(.1,.8,.04),steel,0,.15,0)); item.add(M(G.box(.34,.06,.08),m,0,-.25,0)); item.add(M(G.cyl(.035,.035,.22,6),mat(0x2b2540),0,-.39,0)); item.add(M(G.sph(.06,6,5),m,0,-.52,0)); }

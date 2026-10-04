@@ -13,7 +13,7 @@ const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftsh
 const newPage=async()=>{ const ctx=await browser.newContext({viewport:{width:1280,height:800}}); await ctx.route(/\/api\//,r=>r.fulfill({status:200,contentType:"application/json",body:"{}"}));
   const p=await ctx.newPage(); p.on("pageerror",e=>errors.push(String(e)));
   await p.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
-  await p.goto("http://127.0.0.1:"+PORT+"/?silent&nogate",{timeout:240000}); await p.waitForFunction(()=>window.__dd&&window.__rshots&&window.__dualwield&&window.__mythic&&window.__meta&&window.__tavern&&window.__doll&&window.__dd.heroModel(),null,{timeout:240000});
+  await p.goto("http://127.0.0.1:"+PORT+"/?silent&ownweapons&nogate",{timeout:240000}); await p.waitForFunction(()=>window.__dd&&window.__rshots&&window.__dualwield&&window.__mythic&&window.__meta&&window.__tavern&&window.__doll&&window.__dd.heroModel(),null,{timeout:240000});
   await p.evaluate(()=>{ try{ window.__trainer.skip(); }catch(e){} const d=window.__dd; d.start(); d.step(1/60,3); window.__freeze=true; window.__meta.setLevel&&window.__meta.setLevel(40); d.S.phase='build'; });
   return p; };
 const page=await newPage();

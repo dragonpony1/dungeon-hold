@@ -7,8 +7,8 @@ const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PAS
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
 const ctx=await browser.newContext({viewport:{width:1100,height:700}}); await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); }catch(e){} });
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
-await page.goto("http://127.0.0.1:8970/?silent&map=1",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__meta.reqFor&&window.__feel&&window.__lesson&&window.__devpanel,null,{timeout:120000});
-const a=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; try{ window.__trainer.skip(); }catch(e){} M.reset(); d.resetGear(); d.start(); d.step(1/60,3); if(window.__lesson.on()) window.__lesson.close();
+await page.goto("http://127.0.0.1:8970/?silent&ownweapons&map=1",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__meta.reqFor&&window.__feel&&window.__lesson&&window.__devpanel,null,{timeout:120000});
+const a=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; window.__heroes.select("fighter");   /* build 525 prep (typed weapons): the Fighter throughout, so the polearms rolled here are his and the dev-panel step below (also the Fighter) can wear one */ try{ window.__trainer.skip(); }catch(e){} M.reset(); d.resetGear(); d.start(); d.step(1/60,3); if(window.__lesson.on()) window.__lesson.close();
   const roll=(r,s,l)=>{ let it; for(let i=0;i<80;i++){ it=d.rollItem(r,s,l); if(!/ of the (Forest|Void)$/.test(it.name||"")&&!it.named&&!it.mythic) break; } it.rarity=r; it.req=M.reqFor(it); return it; };
   const old=roll(0,"weapon",1); old.score=1; M.giveItem(old); const wore=M.equip(old.id);
   const leg=roll(4,"weapon",12); leg.score=9999; window.__legId=leg.id;

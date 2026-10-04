@@ -9,7 +9,7 @@ const ctx=await browser.newContext({viewport:{width:1280,height:800}});
 await ctx.addInitScript(()=>{ try{ if(!sessionStorage.getItem('__ll')){ sessionStorage.setItem('__ll','1'); for(const k of ['ddMeta','ddGear','dd_heroGear','dd_heroLoadouts','dd_loadouts','ddArmory']) localStorage.removeItem(k); } localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
 const boot=async()=>{ await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__doll&&window.__tavern&&window.__dd.heroModel(),null,{timeout:120000}); await page.evaluate(async()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} await window.__heroes.select('knight'); d.start(); d.step(1/60,3); }); };
-await page.goto("http://127.0.0.1:8995/?silent&nogate",{timeout:120000}); await boot();
+await page.goto("http://127.0.0.1:8995/?silent&ownweapons&nogate",{timeout:120000}); await boot();
 const A=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; M.setLevel&&M.setLevel(40); const give=slot=>{ const it=d.rollItem(2,slot,5); it.locked=false; delete it.locked; M.giveItem(it); return it; };
   const w=give('weapon'), a=give('armor'), c=give('charm'); M.equip(w.id); M.equip(a.id); M.equip(c.id); const before=[w,a,c].map(x=>!!x.locked);
   window.__doll.saveLoadout(0); const after=[w,a,c].map(x=>!!x.locked); const stay=M.toggleLock(w.id); const msg=document.getElementById('toast').textContent; window.__A={w,a,c};

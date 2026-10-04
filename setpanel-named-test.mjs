@@ -7,7 +7,7 @@ const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PAS
 const PORT=8935; const server=await serve(PORT,{dist:DIST});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
 const ctx=await browser.newContext({viewport:{width:1600,height:900}}); const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
-await page.goto("http://127.0.0.1:"+PORT+"/?silent&nogate",{timeout:90000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__doll&&window.__sets&&window.__mythic,null,{timeout:60000});
+await page.goto("http://127.0.0.1:"+PORT+"/?silent&ownweapons&nogate",{timeout:90000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__doll&&window.__sets&&window.__mythic,null,{timeout:60000});
 await page.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); });
 const kit=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; const out={};
   for(const s of ['armor','charm','amulet','familiar']){ const it=d.rollItem(1,s,2); it.rarity=1; it.name=it.name.replace(/ of (the )?[A-Z]\w*( [A-Z]\w*)?$/,'')+' of the Forest'; M.giveItem(it); out[s]=it.id; }

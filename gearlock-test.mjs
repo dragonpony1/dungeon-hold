@@ -13,7 +13,7 @@ const server=await serve(PORT,{dist:DIST});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const ctx=await browser.newContext(); const errors=[]; const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function frameOf(page,part){ for(let i=0;i<200;i++){ const f=page.frames().find(f=>f.url().includes(part)); if(f) return f; await sleep(50); } return null; }
-async function newPage(){ const p=await ctx.newPage(); p.on("pageerror",e=>errors.push(String(e))); await p.goto(BASE+"/?silent&nogate",{timeout:90000});
+async function newPage(){ const p=await ctx.newPage(); p.on("pageerror",e=>errors.push(String(e))); await p.goto(BASE+"/?silent&ownweapons&nogate",{timeout:90000});
   await p.waitForFunction(()=>window.__dd&&window.__meta&&window.__tavern&&window.__doll&&window.__hideout&&window.__portal,null,{timeout:60000});
   await p.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); }); return p; }
 const page=await newPage();

@@ -16,7 +16,7 @@ const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftsh
 const ctx=await browser.newContext();   // one context: localStorage is shared across its pages, which is exactly what the return trip relies on
 const errors=[], responses=[];
 async function newGamePage(){ const p=await ctx.newPage(); p.on("pageerror",e=>errors.push(String(e))); p.on("response",r=>responses.push({url:r.url(),status:r.status()}));
-  await p.goto(BASE+"/?silent&nogate",{timeout:90000}); await p.waitForFunction(()=>window.__dd&&window.__portal&&window.__hideout&&window.__meta,null,{timeout:60000}); await p.evaluate(()=>window.__hideout.scrapAtDoor&&window.__hideout.scrapAtDoor(true)); return p; }   /* build 325: the door no longer scraps (one bag, onebag-test.mjs); this suite checks the Cart's scrap arithmetic, so it switches the old door-scrap back on */
+  await p.goto(BASE+"/?silent&ownweapons&nogate",{timeout:90000}); await p.waitForFunction(()=>window.__dd&&window.__portal&&window.__hideout&&window.__meta,null,{timeout:60000}); await p.evaluate(()=>window.__hideout.scrapAtDoor&&window.__hideout.scrapAtDoor(true)); return p; }   /* build 325: the door no longer scraps (one bag, onebag-test.mjs); this suite checks the Cart's scrap arithmetic, so it switches the old door-scrap back on */
 async function frameOf(page,part){ for(let i=0;i<200;i++){ const f=page.frames().find(f=>f.url().includes(part)); if(f) return f; await new Promise(r=>setTimeout(r,50)); } return null; }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
@@ -146,7 +146,7 @@ await page3.close();
 
 // preload (build 140): four seconds into a run's first build phase the frame is made hidden, unasked, so the download and
 // the room build happen behind the hall and the first trip through the portal is instant
-{ const c=await browser.newContext(); const pp=await c.newPage(); await pp.goto(BASE+"/?silent",{timeout:90000}); await pp.waitForFunction(()=>window.__dd&&window.__hideout&&window.__meta,null,{timeout:60000});
+{ const c=await browser.newContext(); const pp=await c.newPage(); await pp.goto(BASE+"/?silent&ownweapons",{timeout:90000}); await pp.waitForFunction(()=>window.__dd&&window.__hideout&&window.__meta,null,{timeout:60000});
   await pp.evaluate(()=>{ window.__freeze=true; window.__dd.start(); window.__dd.step(1/60,3); });
   const early=await pp.evaluate(()=>({frame:!!document.getElementById('hideoutFrame'),open:window.__hideout.isOpen()}));
   const pre=await pp.waitForFunction(()=>window.__hideout.preloaded(),null,{timeout:90000}).then(()=>true).catch(()=>false); const order=await pp.evaluate(()=>({all:window.__loadtime().all,now:Math.round(performance.now())}));

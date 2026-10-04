@@ -190,7 +190,7 @@ addSet('necrotic',{ids:['shadow','necrotic'],tail:/ of shadow$/i,sword:necroticS
 addSet('fire',{ids:['lava','fire'],tail:/ of fire$/i,sword:fireSword,polearm:firePolearm,staff:[FI_K,fireStaff],bow:FI_BOW});
 function setOf(it){ if(!it) return null; const id=String(it.setId||'').toLowerCase(); for(const k in SETS) if(SETS[k].ids.includes(id)) return k; const n=String(it.name||''); for(const k in SETS) if(SETS[k].tail.test(n)) return k; return null; }
 function setModel(it,mount){ const k=setOf(it); if(!k) return null; if(mount==='staff') return 'staff-'+k; if(mount==='bow') return 'bow-'+k; if(mount==='pole') return 'polearm-'+k;   /* build 510 prep: the Fighter's hand */
-  return (it.look==='polearm'||/\bpolearm\b/i.test(it.name||'')?'polearm-':'sword-')+k; }   // the Knight: a polearm item stays a polearm, anything else is the set's sword (it.look = the weapon's kind; it.art is the game's picture override)
+  return ((it.wtype?it.wtype==='polearm':(it.look==='polearm'||/\bpolearm\b/i.test(it.name||'')))?'polearm-':'sword-')+k; }   // build 525 prep: a typed weapon's own type first   // the Knight: a polearm item stays a polearm, anything else is the set's sword (it.look = the weapon's kind; it.art is the game's picture override)
 window.__weapons.setModel=setModel;
 // the swords' and polearms' glows breathe (a staff's and a bow's own animators already move theirs)
 const PULSES=new WeakMap(); let T=0;

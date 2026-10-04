@@ -11,7 +11,7 @@ const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftsh
 const page=await (await browser.newContext({viewport:{width:1500,height:950}})).newPage(); page.on("pageerror",e=>errors.push(String(e)));
 await page.route(/\/api\//,r=>r.fulfill({status:200,contentType:'application/json',body:'{}'}));
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
-await page.goto("http://127.0.0.1:"+PORT+"/?silent&nogate",{timeout:120000});
+await page.goto("http://127.0.0.1:"+PORT+"/?silent&ownweapons&nogate",{timeout:120000});
 await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__meta.packs&&window.__tavern&&window.__bagstyle&&window.__dualwield&&window.__tworings,null,{timeout:120000});
 await page.evaluate(async()=>{ await window.__heroes.select('knight'); }); await page.waitForTimeout(500);
 await page.evaluate(()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} d.start(); d.step(1/60,5); window.__freeze=true; d.S.phase='build'; });

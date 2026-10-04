@@ -37,12 +37,12 @@ const PICS='hideout/assets/hideout/items/', NAMED_PIC={hourglass_of_hollow_sand:
   };   /* build 510: Matt's four dual-wield ring thumbnails are in (parts/hideout/assets/hideout/items/named/<id>.jpg; ALSO belong on hideout-wip public/assets/hideout/items/named/). Was, build 509 prep: the four dual-wield rings (99k-dualwield.js) have no thumbnail yet -- their cards show a picture emoji instead. When Matt's
   thumbnails land (hideout-wip branch: public/assets/hideout/items/named/twotimer.jpg, toil_n_trouble.jpg, tootsie.jpg, bifurcation.jpg, then node sync-hideout.mjs), delete these four nulls; rings already dropped pick theirs up (99k fillArt) */   /* build 430: the two familiar rings have their pictures now (named/beast_mode.jpg, named/malamute.jpg -- Matt's thumbnails) */   // null: no picture yet (build 170's Subterfuge) -- its card keeps the weapon emoji, its floor shows the bow
 function mythicArt(it){ if(!it) return null; if(it.named){ const f=NAMED_PIC[it.named]; return f===null?null:PICS+'named/'+(f||it.named)+'.jpg'; } if(!it.setId) return null;
-  const piece=it.slot==='weapon'?(it.look==='bow'?(window.__setBows&&window.__setBows.has(it.setId)?'bow':null):(it.look||'sword')):{armor:'armor',amulet:'amulet',charm:'trinket'}[it.slot];
+  const wk=it.wtype||it.look, piece=it.slot==='weapon'?(wk==='bow'?(window.__setBows&&window.__setBows.has(it.setId)?'bow':null):(wk||'sword')):{armor:'armor',amulet:'amulet',charm:'trinket'}[it.slot];
   return piece?PICS+'sets/'+it.setId+'-'+piece+'.jpg':null; }
 function eligible(it){ return !!(it&&typeof it==='object'&&SLOTS.includes(it.slot)&&!it.mythic&&!it.named&&(it.rarity|0)<5&&it.stats&&!(Meta.packs&&Meta.packs.of(it))&&SETS.some(s=>gateOk(s[0]))); }
 function weaponKind(){ const hm=window.__weapons&&window.__weapons.mount&&window.__weapons.mount(); if(hm&&hm.pole) return 'polearm'; if(hm&&hm.staff) return 'staff';   /* build 510 prep: the Fighter's is a polearm (the Witch still shows it as her staff: the hand decides the model) */ if(hm&&hm.bow) return 'bow'; return LR()<.3?'polearm':'sword'; }
 function mythicize(it){ const pool=SETS.filter(s=>gateOk(s[0])); if(!pool.length) return it; const [id,tail]=pool[Math.floor(LR()*pool.length)]; const L=Math.max(1,it.lvl|0); let kind=null;
-  if(it.slot==='weapon'){ kind=weaponKind(); it.look=kind; }
+  if(it.slot==='weapon'){ kind=typeof wtypeOf==='function'?wtypeOf(it):weaponKind(); it.look=kind; it.wtype=kind; }   /* build 525 prep: the type it rolled (game.js rollWtype, 70/30), not the hand that found it */
   it.name='Mythic '+(kind?kind[0].toUpperCase()+kind.slice(1):(BASE[it.slot]||'Relic'))+' '+tail;
   it.setId=id; it.rarity=5; it.mythic=true; it.mythicTier='mythic'; const pic=mythicArt(it); if(pic) it.art=pic;
   for(const k in it.stats){ const v=rollStat(k,L,5); it.stats[k]=Number.isFinite(v)?v:Math.round((+it.stats[k]||0)*1.6*10)/10; }   // rarity 5 on its own level

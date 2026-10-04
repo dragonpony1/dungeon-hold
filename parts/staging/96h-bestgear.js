@@ -22,7 +22,7 @@ document.head.appendChild(css);
 // the worn piece in this slot is holding a set bonus (3+ of its set on) that a piece from elsewhere would break -- the loot card's own rule (60-lootfeel.js keepsSet)
 function breaksSet(it){ const w=gear[it.slot]; if(!w||!Meta.sets) return false; const n=Meta.sets.setOf(w); if(!n||Meta.sets.setOf(it)===n) return false; return !!Meta.sets.active().find(x=>x.name===n); }
 // a bag piece against what is worn in its slot: 'up' (wear it now), 'lvl' / 'set' (better, with a catch), 'dn' (worse), 'eq' (the same score), or null (it is the worn piece)
-function verdict(it){ if(!it||!it.slot) return null; const w=gear[it.slot]; if(w&&w.id===it.id) return null;
+function verdict(it){ if(!it||!it.slot) return null; const w=gear[it.slot]; if(w&&w.id===it.id) return null; if(it.slot==='weapon'&&typeof canWield==='function'&&!canWield(it)) return 'dn';   /* build 525 prep: another hero's weapon type is never an upgrade here */
   if(w&&!(it.score>w.score)) return it.score<w.score?'dn':'eq';
   if(Meta.canWear&&!Meta.canWear(it)) return 'lvl'; if(breaksSet(it)) return 'set'; return 'up'; }
 const ups=slot=>Meta.bag().filter(it=>it.slot===slot&&verdict(it)==='up');

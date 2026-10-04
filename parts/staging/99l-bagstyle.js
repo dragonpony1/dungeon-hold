@@ -202,7 +202,7 @@ function eqCard(it,o){ // o: {from, slot, label, extra classes, sel}
   return '<div class="tv-card bs-eq'+best+(o.cls||'')+(sel?' sel':'')+'" data-act="sel" data-id="'+it.id+'" data-from="'+o.from+'"'+(o.from==='eq'?' data-slot="'+o.slot+'"':'')+' style="--rc:'+RCSS[it.rarity]+'" title="'+tvEsc(it.name)+'">'
     +badge+(u?'<b class="bs-up" title="'+u+' forge upgrade'+(u===1?'':'s')+' bought on it">+'+u+'</b>':'')
     +'<div class="bs-pic'+(it.named?' nmd':'')+(it.procd?' prc':'')+'"><span class="ic">'+art+'</span>'+(it.locked?'<i class="lk" title="Locked">🔒</i>':'')+'</div>'
-    +'<div class="bs-inf"><div class="bs-sl">'+o.label+'</div><div class="nm" style="color:'+RCSS[it.rarity]+'">'+tvEsc(it.name)+'</div><div class="bs-lv">Lv. '+(it.lvl|0)+'</div><div class="bs-rar" style="color:'+RCSS[it.rarity]+'">'+(it.named?'✦ ':'')+RNAME[it.rarity]+'</div></div></div>'; }
+    +'<div class="bs-inf"><div class="bs-sl">'+o.label+'</div><div class="nm" style="color:'+RCSS[it.rarity]+'">'+tvEsc(it.name)+'</div><div class="bs-lv">Lv. '+(it.lvl|0)+'</div><div class="bs-rar" style="color:'+RCSS[it.rarity]+'">'+(it.named?'✦ ':'')+RNAME[it.rarity]+'</div>'+(typeof gsBadge==='function'?'<div class="bs-gs">'+gsBadge(it,'gs-eq')+(it.slot==='weapon'?'<span class="wt" data-wt="'+wtypeOf(it)+'">'+WEAPON_EMBLEM[wtypeOf(it)]+'</span>':'')+'</div>':'')+'</div></div>'; }   // build 525 prep: GS on every worn card
 function emptyCard(slot){ const B=window.__best, up=B&&B.slotState&&Meta.bag().some(it=>it.slot===slot&&B.verdict(it)==='up');
   return '<div class="tv-card bs-eq bs-none'+(up?' bg-up':'')+'" data-act="sel" data-id="" data-from="eq" data-slot="'+slot+'" style="--rc:#4a6a4a">'+(up?'<i class="bg-b" title="Your bag has one to put here">▲</i>':'')
     +'<div class="bs-pic"><span class="ic">'+SICON[slot]+'</span></div><div class="bs-inf"><div class="bs-sl">'+SLOT_WORD[slot]+'</div><div class="bs-lv">empty</div></div></div>'; }
@@ -227,7 +227,7 @@ function offCard(){ const s=offState(), D=window.__dualwield, kic=(D&&D.kindIcon
 function renderEq(){ const eq=document.querySelector('#tv-bag .tv-eq'); if(!eq) return; const sub=eq.querySelector(':scope > .tv-sub'), head=eq.querySelector(':scope > .bg-head');
   const title=sub?sub.textContent.replace(/\s*·\s*/,' — '):'EQUIPPED'; const s=offState(), pet=s.kind==='pet2'||s.kind==='open-pet';
   const cards=SLOTS.map(sl=>gear[sl]?eqCard(gear[sl],{ from:'eq', slot:sl, label:SLOT_WORD[sl] }):emptyCard(sl)); cards.splice(pet?5:1,0,offCard());
-  eq.innerHTML='<div class="bs-eqh"><div class="tv-sub">'+tvEsc(title)+'</div><i class="bs-orn"></i></div><div class="bs-eqrow">'+cards.join('')+'</div>';
+  eq.innerHTML='<div class="bs-eqh"><div class="tv-sub">'+tvEsc(title)+'</div>'+(typeof gearScoreTotal==='function'?'<b class="gs-total" id="bs-gstotal" data-gs="'+gearScoreTotal()+'" title="Gear score of everything you wear">⚔ GEAR SCORE '+gsFmt(gearScoreTotal())+'</b>':'')+'<i class="bs-orn"></i></div><div class="bs-eqrow">'+cards.join('')+'</div>';
   if(head) eq.querySelector('.bs-eqh').appendChild(head); }
 // the bag's buttons go up beside the tabs ("BAG" becomes the 🎒 count)
 function moveTools(){ const tools=$('bs-tools'); if(!tools) return; const sub=document.querySelector('#tv-bag .tv-bag2 > div:nth-child(2) > .tv-sub'); if(!sub) return;
