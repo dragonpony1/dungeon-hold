@@ -8,7 +8,7 @@
 (function(){
 const HOLD={on:false,t:0,src:'',kind:null,paused:null,fullRung:false}; let ATK_TOUCH=false, API_HOLD=false, LAST_C=0;
 const LAST={x:0,y:0,locked:false,shown:false,charge:0};
-const FULL_BASE=.5, TAP_MUL=.6, FULL_MUL=1.3;
+const FULL_BASE=.5, TAP_MUL=1, FULL_MUL=1.3;   // build 528 (Matt chose "A": hold left click = keep firing, every shot full damage, no charging): a shot is 100% (was a 60% tap .. 130% full charge)
 function rangedKind(){ const w=window.__weapons&&window.__weapons.mounted(); if(!w||!w.parent) return null; return /^bow-/.test(w.name)?'bow':window.__weapons.caster(w)?'staff':null; }   // 'staff' = a caster's weapon: a staff, or (build 510 prep) the Gnome Fighter's polearm
 function fullT(){ return FULL_BASE*swingDur()/swingBase(); }
 function charge(){ return HOLD.on?clamp(HOLD.t/fullT(),0,1):0; }
@@ -37,7 +37,7 @@ function pick(yaw){ const el=aimElev(), ce=Math.cos(el); const fx=Math.sin(yaw)*
 function shot(){ const c=LAST_C; return {c,mul:TAP_MUL+(FULL_MUL-TAP_MUL)*c,full:c>=.999}; }
 // ---- press: a ranged hero's swing starts a draw that holds until the button comes up ----
 { const prev=swing; swing=function(){ const k=rangedKind(); if(!k){ LAST_C=0; return prev(); }   /* build 159 (4/7): no bow in hand yet (just switched to the archer: the model is still loading) -- if the bow is there by the time the swing lands, it looses a tap, not the last full draw's charge left over */ if(hero.swingT>=0) return; prev(); if(hero.swingT!==0) return;   // not allowed now (dead, between runs)
-    hero.yaw=aimYaw(); LAST_C=0; const src=mouseDown?'mouse':ATK_TOUCH?'touch':API_HOLD?'api':''; if(!src) return;   // a swing with nothing held (a test's tap) looses at once, uncharged
+    hero.yaw=aimYaw(); LAST_C=0; const src=API_HOLD?'api':''; if(!src) return;   // build 528: no draw / charge from the mouse or the touch button -- a press looses at once (API_HOLD kept for the old charge tests)   // a swing with nothing held (a test's tap) looses at once, uncharged
     HOLD.on=true; HOLD.t=0; HOLD.src=src; HOLD.kind=k; HOLD.paused=null; HOLD.fullRung=false; }; }
 // while held the shot never lands: the swing waits just short of its release point
 { const prev=hitCone; hitCone=function(){ if(HOLD.on&&rangedKind()){ hero.hitDone=false; hero.swingT=swingDur()*hitFrac()-1e-4; return; } return prev(); }; }
@@ -70,6 +70,12 @@ function pointStaff(dt,k){ const main=window.__weapons&&window.__weapons.mounted
         const up=HOLD.src==='mouse'?!mouseDown:HOLD.src==='touch'?!ATK_TOUCH:!API_HOLD; if(up) release(); } }
     else if(k&&hero.swingT>=0) hero.yaw=aimYaw();   // a shot on its way out keeps facing the aim
     hero.aimSlow=HOLD.on?.5:1; cam.shoulder=lerp(cam.shoulder||0,k?1:0,1-Math.exp(-5*dt)); pointStaff(dt,k); }; }   // a ranged hero gets the over-the-shoulder camera
+// ---- build 528 (Matt: "When we hold the Q button the hero fires continuously. I want to make that be the default on the left click" -> option A): holding the LEFT mouse button keeps attacking for
+// every hero -- the Knight swings again the moment a swing ends, a ranged hero looses the next shot -- the same as holding Q (whose key-repeat did it). A press that confirmed a tower placement
+// doesn't count. The touch attack button repeats the same way while held.
+let LEFT=false; canvas.addEventListener('mousedown',e=>{ if(e.button===0) LEFT=!placing; },true); addEventListener('mouseup',e=>{ if(e.button===0) LEFT=false; }); addEventListener('blur',()=>{ LEFT=false; });
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(!(LEFT&&mouseDown)&&!ATK_TOUCH) return; if(placing||Meta.isOpen()||hero.dead>0||!(S.phase==='build'||S.phase==='wave')) return; if(hero.swingT<0) swing(); }; }
+window.__autofire={ left:()=>LEFT, setLeft:v=>{ LEFT=!!v; } };
 // ---- the reticle, drawn over the hall ----
 function colFor(k){ if(k==='staff'&&window.__staff){ const w=window.__weapons.mounted(); const inf=window.__staff.info(w.userData.kind); if(inf&&inf.glow!==undefined) return '#'+inf.glow.toString(16).padStart(6,'0'); } return '#ffd060'; }
 function stroke2(g,col,w,path){ g.strokeStyle='#120c1a'; g.lineWidth=w+2.5; g.beginPath(); path(); g.stroke(); g.strokeStyle=col; g.lineWidth=w; g.beginPath(); path(); g.stroke(); }

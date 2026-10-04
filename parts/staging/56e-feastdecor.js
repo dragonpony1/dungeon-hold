@@ -74,19 +74,30 @@ const sconceAt=(f)=>TORCH.some(s=>Math.hypot(s.x-f.x,s.z-f.z)<CELL*1.4);
 const SIZE={ window:s=>Math.min(10.5,s*.6), banner:s=>Math.min(9,s*.5), beast:s=>Math.min(7,s*.42), rack:s=>Math.min(6.4,s*.38), portrait:s=>Math.min(5,s*.34) };
 const BOTTOM={ window:(b,s,h)=>b+s*.22, banner:(b,s,h)=>b+s*.92-h, beast:(b,s,h)=>b+s*.44-h/2, rack:(b,s,h)=>b+s*.44-h/2, portrait:(b,s,h)=>b+s*.46-h/2 };
 const FLAT={ window:.55, banner:1, beast:.6, rack:.8, portrait:.6 };
-const ART={ window:['throne-window-v2.glb',8], banner:['throne-banner2.glb',6], beast:['throne-beast.glb',3.6], rack:['throne-scepter.glb',4.4], portrait:['throne-portrait.glb',2.2] };
+const ART={ window:['throne-window-v2.glb',8], banner:['throne-banner2.glb',6], beast:['throne-beast.glb',3.6], rack:['throne-scepter.glb',4.4] };   // build 528: the portraits are Matt's own paintings now (below), not throne-portrait.glb
 const plan=[];
-{ const walls=[{nz:1,cz:HZ0,doors:DOORX.N,cycle:['window','banner','beast','window','portrait','rack']},{nz:-1,cz:HZ1,doors:DOORX.S,cycle:['window','rack','portrait','window','banner','beast']}];
+{ const walls=[{nz:1,cz:HZ0,doors:DOORX.N,cycle:['window','banner','portrait','window','beast','portrait']},{nz:-1,cz:HZ1,doors:DOORX.S,cycle:['window','portrait','beast','window','banner','portrait']}];
   for(const W of walls){ const faces=HALLF.filter(f=>f.nz===W.nz&&f.nx===0&&f.cz===W.cz).sort((a,b)=>a.cx-b.cx); let last=-99, k=0;
     for(const f of faces){ if(f.cx<HX0+5||f.cx>HX1-4) continue; if(f.cx-last<4) continue; if(HEARTHX.some(hx=>Math.abs(hx-f.cx)<=3)) continue; if(W.doors.some(dx=>Math.abs(dx-f.cx)<=2)) continue; if(sconceAt(f)) continue;
       const base=hgt[idx(f.cx,f.cz)]||0; plan.push({kind:W.cycle[k++%W.cycle.length],f,base,span:WALLH-base,yaw:Math.atan2(f.nx,f.nz)}); last=f.cx; } } }
 // the west wall behind the high table: the crest over the seat, a banner either side, a portrait at each end
 const westFace=cz=>HALLF.find(f=>f.nx===1&&f.cx===HX0&&f.cz===cz);
-for(const [kind,cz] of [['banner',11],['banner',15],['portrait',6],['portrait',20]]){ const f=westFace(cz); if(!f) continue; const base=hgt[idx(f.cx,f.cz)]||0; plan.push({kind,f,base,span:WALLH-base,yaw:Math.atan2(f.nx,f.nz)}); }
+for(const [kind,cz] of [['banner',11],['banner',15],['portrait',6],['portrait',20],['portrait',2],['portrait',24]]){ const f=westFace(cz); if(!f) continue; const base=hgt[idx(f.cx,f.cz)]||0; plan.push({kind,f,base,span:WALLH-base,yaw:Math.atan2(f.nx,f.nz)}); }
 for(const kind of Object.keys(ART)){ const [file,H0]=ART[kind];
   use(file,H0,wrap=>{ if(kind==='window') windowGlow(wrap); wrap.children[0].scale.z*=FLAT[kind];
     for(const p of plan){ if(p.kind!==kind) continue; const h=SIZE[kind](p.span), t=wrap.clone(); t.scale.setScalar(h/H0); t.updateMatrixWorld(true);
       const back=Math.max(0,-new THREE.Box3().setFromObject(t).min.z); t.position.set(p.f.x+p.f.nx*(.42+back),BOTTOM[kind](p.base,p.span,h),p.f.z+p.f.nz*(.42+back)); t.rotation.y=p.yaw; world.add(t); bump(kind); } }); }
+// build 528 (Matt: "we need to put some of our portraits around in the dinning hall" / "and the avery portrait"): his paintings in gilded frames where the portraits hang -- the two behind the high table
+// first (Avery, the hero family), then down the long walls (the group hug, the bunny ears, the Witch vs. the Ogre). assets/feast-pic-<name>.jpg, each framed at its own shape. Hook: window.__feastPics
+{ const PICS=['avery','family','hug','bunny','witchogre'], spots=plan.filter(p=>p.kind==='portrait').sort((a,b)=>(a.f.nx===1?0:1)-(b.f.nx===1?0:1)), hung=[];
+  const gold=new THREE.MeshStandardMaterial({color:0xc9962f,metalness:.7,roughness:.35,emissive:0x3a2208,emissiveIntensity:.4}), dark=new THREE.MeshStandardMaterial({color:0x2a1608,roughness:.8});
+  spots.forEach((p,i)=>{ const name=PICS[i%PICS.length], H=Math.min(5.4,p.span*.36), g=new THREE.Group(); g.position.set(p.f.x+p.f.nx*.5,p.base+p.span*.47,p.f.z+p.f.nz*.5); g.rotation.y=p.yaw; world.add(g);
+    new THREE.TextureLoader().load(ASSET('feast-pic-'+name+'.jpg'),tex=>{ tex.encoding=THREE.sRGBEncoding; const asp=tex.image.width/tex.image.height, W=H*asp, B=.28;
+      const pic=new THREE.Mesh(new THREE.PlaneGeometry(W,H),new THREE.MeshBasicMaterial({map:tex,color:0xd8d0c4})); pic.position.z=.06; pic.userData.noOL=true; g.add(pic);
+      const back=new THREE.Mesh(new THREE.BoxGeometry(W+B*2,H+B*2,.1),dark); back.userData.noOL=true; g.add(back);
+      for(const [w,h,x,y] of [[W+B*2,B,0,H/2+B/2],[W+B*2,B,0,-H/2-B/2],[B,H,-W/2-B/2,0],[B,H,W/2+B/2,0]]){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,.22),gold); m.position.set(x,y,.08); g.add(m); }
+      hung.push(name); bump('painting'); }); });
+  window.__feastPics={ spots:()=>spots.length, hung:()=>hung.slice() }; }
 // ---------------- THE HIGH TABLE: the seat behind the Heartroot, a statue at each end of the dais, the crest above the seat
 { const [kx,kz]=MAP.crystal, wx=cw(HX0)-CELL/2, dy=hgt[idx(HX0,kz)]||0;
   solid(HX0,kz); use('throne-seat.glb',3.2,p=>{ put(p,wx+1.05,dy,cwz(kz),PI/2); bump('seat'); });

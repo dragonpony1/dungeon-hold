@@ -63,7 +63,7 @@ const stage=(p,L,mobs)=>p.evaluate(([L,mobs])=>{ const d=window.__dd; for(const 
 const volley=(p,w)=>p.evaluate(async w=>{ const d=window.__dd, keep=()=>(window.__mobs||[]).forEach((e,i)=>{ e.x=window.__mobsAt[i][0]; e.z=window.__mobsAt[i][1]; }); const list=()=>w==='arrow'?window.__bow.flying():window.__staff.boltList();
   const hp0=(window.__mobs||[]).map(e=>e.hp); d.hero.swingT=-1; d.step(1/60,2); const ev=[]; const prev=window.__shotEvent; window.__shotEvent=function(t,k,from,dir,spd,opts){ ev.push({t,k,from:[from.x,from.y,from.z],dir:[dir.x,dir.y,dir.z],spd,dmg:opts&&opts.dmg,life:opts&&opts.life}); if(prev) return prev.apply(this,arguments); };
   let first=null, track=[]; try{ d.swing(); for(let i=0;i<240;i++){ d.step(1/60,1); keep(); const l=list(); if(!first&&l.length) first=l; if(first&&l.length) track.push(l.map(b=>({x:b.x,y:b.y,z:b.z,go:b.go,spd:b.spd,life:b.life}))); if(first&&!l.length) break; } } finally { window.__shotEvent=prev; }
-  const tap=Math.round(d.heroDmg()*.6*10)/10; return { ev, first, track:track.slice(0,60), lost:(window.__mobs||[]).map((e,i)=>+(hp0[i]-e.hp).toFixed(1)), tap, aim:window.__aim.pick()?true:false }; },w);
+  const tap=Math.round(d.heroDmg()*1*10)/10; return { ev, first, track:track.slice(0,60), lost:(window.__mobs||[]).map((e,i)=>+(hp0[i]-e.hp).toFixed(1)), tap, aim:window.__aim.pick()?true:false }; },w);
 const ang=(a,b)=>{ const la=Math.hypot(a[0],a[2]), lb=Math.hypot(b[0],b[2]); return Math.acos(Math.max(-1,Math.min(1,(a[0]*b[0]+a[2]*b[2])/(la*lb))))*180/Math.PI; };
 const sgn=(a,b)=>Math.sign(a[0]*b[2]-a[2]*b[0]);
 const L30=await lane(page,40);
@@ -142,7 +142,7 @@ else {
   await host.evaluate(()=>window.__dd.setHero(0,-25,0)); await guest.evaluate(()=>{ window.__dd.setHero(0,6,0); window.__dd.setCam(0,.42,8); }); await tickBoth(60);
   const gid=gj.id; await host.evaluate(()=>{ const d=window.__dd; const e=d.spawn('goblin','N'); e.x=0; e.z=10; e.y=0; e.spd=0; e.hp=e.max=50000; e.dmg=0; e.atk=999; e.__coopId='rsvol'; window.__mobs=[e]; window.__mobsAt=[[0,10]]; });
   await tickBoth(40);   // the goblin reaches the guest's page (its puppet, for the guest's lock-on)
-  const G=await guest.evaluate(()=>({ shots:window.__rshots.shots(), tap:Math.round(window.__dd.heroDmg()*.6*10)/10, kind:window.__aim.kind() }));
+  const G=await guest.evaluate(()=>({ shots:window.__rshots.shots(), tap:Math.round(window.__dd.heroDmg()*1*10)/10, kind:window.__aim.kind() }));
   const hp0=await host.evaluate(()=>window.__mobs[0].hp);
   await host.evaluate(gid=>{ window.__seenBolts=0; const prev=window.__staff.fireBolt; window.__staff.fireBolt=function(k,from,dir,spd,o){ if(o&&o.owner===gid) window.__seenBolts++; return prev.apply(this,arguments); }; window.__liveMax=0; },gid);
   await guest.evaluate(()=>window.__dd.swing());

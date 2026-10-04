@@ -146,7 +146,7 @@ const race=await A.evaluate(()=>{ window.__heroes.select('troll'); const k=windo
 await tick(ALL,14,5);
 const sent=await A.evaluate(()=>window.__sent), lastC=await A.evaluate(()=>window.__aim.lastCharge());
 const hp5=await hpOf('r5'), hp8=await hpOf('r8'), hp12=await hpOf('r12');
-const tapMax=await A.evaluate(()=>Math.round(window.__dd.heroDmg()*.6*10)/10+.15);
+const tapMax=await A.evaluate(()=>Math.round(window.__dd.heroDmg()*1*10)/10+.15);
 check("a click between switching to the archer and the bow appearing sends no sword swing (it used to carry the bow's reach, 24)",
   !!bow&&drawn>=.99&&!!sword&&race.kindAtClick===null&&race.reach===24&&race.swingT===0&&!sent.some(m=>m.t==='swing'),JSON.stringify({drawn,race,sent}));
 check("...and whatever it looses is a tap, not the last full draw's charge (no pierce)",lastC===0&&sent.filter(m=>m.t==='shot').every(m=>!m.d.pierce),JSON.stringify({lastC,sent}));
