@@ -1181,7 +1181,9 @@ onMessage('famHit',(data,fromId)=>{ if(role!=='host'||!data) return; const e=ene
   if(sl>0) e.slowT=Math.max(e.slowT||0,Math.min(5,sl));
   if(bu>0){ e.burnT=Math.min(5,bu); e.burnDmg=Math.max(0,Math.min(50,+data.burnDmg||0)); e.burnTick=e.burnTick||0; }
   // co-op sweep 2026-10-02: the Trimaw's venom head poisons and every head marks (+25%), as its hits do for the host's own pet (85-familiars.js trimawFire)
-  const po=+data.poison, mk=+data.mark; if(po>0){ e.poisonT=Math.min(5,po); e.poisonDmg=Math.max(0,Math.min(50,+data.poisonDmg||0)); } if(mk>0) e.markT=Math.min(4,mk); });
+  const po=+data.poison, mk=+data.mark; if(po>0){ e.poisonT=Math.min(5,po); e.poisonDmg=Math.max(0,Math.min(50,+data.poisonDmg||0)); } if(mk>0) e.markT=Math.min(4,mk);
+  // build 523 prep: the Frost Fox's bite freezes the host's mob as the host's own fox does (85-familiars.js foxChill: 60% for 2 s, a boss 85%; capped at 3 s there)
+  const ch=+data.chill; if(ch>0&&window.__familiar&&window.__familiar.chill) window.__familiar.chill(e,Math.min(3,ch)); });
 window.__mobsync={ each:fn=>MOBPUP.forEach((p,id)=>fn(p,id)),   /* build 504: a module can drive its own kind's puppets (95u-avery.js: Avery's layered flight) */ foes:mobProxies, list:()=>[...MOBPUP.keys()], get:id=>{ const p=MOBPUP.get(id); if(!p) return null; return {id,kind:p.kind,scale:p.mdl&&p.sc0?+(p.mdl.g.scale.x/p.sc0).toFixed(2):1,wing:(p.mdl&&p.mdl.parts&&p.mdl.parts.wingL)?+p.mdl.parts.wingL.rotation.z.toFixed(3):null,glb:!!(p.mdl&&p.mdl.glb),stand:!!p.stand,max:p.max||0,x:+p.x.toFixed(2),y:+p.y.toFixed(2),z:+p.z.toFixed(2),yaw:+p.yaw.toFixed(2),walking:p.walking,atk:!!p.atk,hp:p.hp}; }, hitFeedback:()=>mobHitFeedback,
   unpack:d=>unpackMobs(d) };   // build 159 (6/7), a test hook: a packed 'mobs' message back into the old list (coop-tests-test.mjs)
 function mobPuppetsTick(dt){

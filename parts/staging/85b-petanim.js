@@ -41,7 +41,9 @@ function patch(mat,glsl,key){ if(!mat||mat.__petAnim) return; mat.__petAnim=true
 function animate(root){ const u=root.userData; const cfg=u.named?NAMED_CFG[u.named]:KIND_CFG[u.kind]; if(!cfg) return; const key=u.named||u.kind;
   root.traverse(m=>{ if(!m.isMesh||!m.geometry) return; const g=glslFor(cfg,m.geometry); for(const mt of Array.isArray(m.material)?m.material:[m.material]) patch(mt,g,key); });
   u.animated=true; }
-{ const prev=famModel; famModel=function(it){ const root=prev.apply(this,arguments); if(root&&root.userData&&root.userData.glb&&!root.userData.animated) animate(root); return root; }; }
+// build 523 prep: a pet whose model carries its own rigged loop (userData.clip: Matt's flight pack -- the Bat, the Fire Imp, the Frost Fox) is left alone: its clip beats the wings, swings the tail and hovers,
+// and a vertex-shader beat on top would fight it (the breath swell is in the same shader, so it goes too; the whole-pet bob in 30-familiar.js famUpdate stays)
+{ const prev=famModel; famModel=function(it){ const root=prev.apply(this,arguments); if(root&&root.userData&&root.userData.glb&&!root.userData.animated&&!root.userData.clip) animate(root); return root; }; }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(!HOLD) PET_T.value=performance.now()/1000; }; }
 window.__petanim={glsl:(k,geo)=>glslFor(KIND_CFG[k],geo),time:()=>PET_T.value,hold:t=>{ HOLD=true; PET_T.value=t; },release:()=>{ HOLD=false; },cfg:KIND_CFG,named:NAMED_CFG};
 })();

@@ -29,7 +29,7 @@ const SETS=[['void','of the Void'],['crimson','of Chaos'],['rock','of the Earth'
 const SLOT_BASE={weapon:'Weapon',armor:'Armor',amulet:'Amulet',familiar:'Familiar',charm:'Charm'};
 const SET_STAT={weapon:['dmg','spd','tow'],armor:['hp','def','regen'],amulet:['mana','tow','hp'],familiar:['fdmg','frate','move'],charm:['move','trate','tarea']};
 const MYTHIC_STAT={dmg:24,spd:45,hp:156,def:24,regen:4.5,tow:41,mana:65,move:20,fdmg:35,frate:63,trate:20,tarea:18};
-const FAM_KINDS=['Wisp','Bat','Sprite','Fire Imp','Crystal Owl','Storm Drake'];
+const FAM_KINDS=['Wisp','Bat','Sprite','Fire Imp','Crystal Owl','Storm Drake','Frost Fox'];
 function weaponLook(){ const hm=window.__weapons.mount&&window.__weapons.mount(); return hm&&hm.pole?'polearm':hm&&hm.staff?'staff':hm&&hm.bow?'bow':'sword'; }   // build 510 prep: the Fighter's hand is a polearm
 function setRec(slot,setId,famKind,lookOverride){ const tail=(SETS.find(s=>s[0]===setId)||[,'of a set'])[1]; const stats={}; for(const k of SET_STAT[slot]) stats[k]=MYTHIC_STAT[k];
   if(slot==='weapon'){ const look=lookOverride||weaponLook(); const it={slot,name:'Mythic '+look[0].toUpperCase()+look.slice(1)+' '+tail,setId,look,rarity:5,lvl:20,stats};

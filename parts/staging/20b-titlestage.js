@@ -23,7 +23,7 @@ const NAMES={firebow:['DRACONIC FIRE BOW',''],wisp:['WISP PROJECTILE',''],imp:['
   +'#titleMoniker i{display:block;margin-top:5px;font:italic 13px Georgia,serif;letter-spacing:.14em;color:#b9a77c;text-shadow:0 0 8px #000,0 1px 0 #000}@media (max-width:759px){#titleMoniker{display:none}}';
   document.head.appendChild(css); }
 st.classList.add('art','stage');   // the painting's text shadows and card backing (.art) with this file's black-and-spotlight background on top of it: no flash of a flat screen, no painting
-let R=null, scene=null, cam=null, root=null, cv=null, mk=null, raf=0, loaded=false, model=null, RAD=1, T0=0, LOADING=false;
+let R=null, scene=null, cam=null, root=null, cv=null, mk=null, raf=0, loaded=false, model=null, RAD=1, T0=0, LOADING=false, MIX=null, TL=0;   // MIX (build 523 prep): a model with its own loop plays it here (the Fire Imp now flies Matt's Magic_Flight_Loop)
 function ensure(){ if(R) return true; cv=document.createElement('canvas'); cv.id='titleStage'; st.insertBefore(cv,st.firstChild);
   try{ R=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true}); }catch(e){ cv.remove(); cv=null; R=null; return false; }
   R.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5)); R.outputEncoding=THREE.sRGBEncoding; R.setClearColor(0x000000,0);
@@ -38,8 +38,8 @@ function place(){ if(!R) return; const w=Math.max(2,st.clientWidth||innerWidth),
 function load(){ if(LOADING||loaded) return; LOADING=true;
   fetchBytes(ASSET(FILES[want]),'soon').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej))).then(g=>{ model=g.scene||g.scenes[0]; model.updateMatrixWorld(true);
     const box=new THREE.Box3().setFromObject(model), sz=box.getSize(new THREE.Vector3()), c=box.getCenter(new THREE.Vector3()); model.position.sub(c); RAD=Math.max(sz.x,sz.y,sz.z)/2*1.02;
-    root=new THREE.Group(); root.add(model); if(scene) scene.add(root); loaded=true; place(); if(cv) cv.classList.add('on'); }).catch(e=>console.warn('title background',e)); }
-function frame(now){ raf=requestAnimationFrame(frame); if(!loaded||!R||!root) return; if(!T0) T0=now; const t=(now-T0)/1000; root.rotation.y=t*SPIN[want]; model.position.y=Math.sin(t*.9)*RAD*.03; R.render(scene,cam); }
+    root=new THREE.Group(); root.add(model); if(scene) scene.add(root); if(g.animations&&g.animations.length){ try{ MIX=new THREE.AnimationMixer(model); MIX.clipAction(g.animations[0]).play(); }catch(e){ MIX=null; } } loaded=true; place(); if(cv) cv.classList.add('on'); }).catch(e=>console.warn('title background',e)); }
+function frame(now){ raf=requestAnimationFrame(frame); if(!loaded||!R||!root) return; if(!T0) T0=now; const t=(now-T0)/1000; if(MIX){ MIX.update(Math.min(.1,Math.max(0,t-TL))); TL=t; } root.rotation.y=t*SPIN[want]; model.position.y=Math.sin(t*.9)*RAD*.03; R.render(scene,cam); }
 function start(){ if(raf||!ensure()) return; T0=0; raf=requestAnimationFrame(frame); load(); }
 function stop(){ if(raf){ cancelAnimationFrame(raf); raf=0; } if(R){ if(root&&scene) scene.remove(root); R.dispose(); try{ R.forceContextLoss(); }catch(e){} R=null; } if(cv){ cv.remove(); cv=null; } if(mk){ mk.remove(); mk=null; } scene=null; cam=null; }
 window.addEventListener('resize',()=>{ if(R) place(); });

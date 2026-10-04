@@ -1767,7 +1767,9 @@ function pieceFromCarried(c) {
 }
 // build 43 (Matt: the new Cave Bat "doesn't show up on the floor or in the hideout"): an ordinary familiar carried in from the hall shows as its own 3D pet, by the kind its name spells
 // (the game's famKind rule: Storm Drake / Crystal Owl / Fire Imp / Sprite / Bat, otherwise the Wisp). named3d/fam_<kind>.glb are the game's own pet files -- when a pet is re-made, copy the new file over its fam_ one
-const FAM_3D = [['Storm Drake','fam_drake'],['Crystal Owl','fam_owl'],['Fire Imp','fam_imp'],['Sprite','fam_sprite'],['Bat','fam_bat'],['Wisp','fam_wisp']];
+const FAM_3D = [['Storm Drake','fam_drake'],['Crystal Owl','fam_owl'],['Fire Imp','fam_imp'],['Sprite','fam_sprite'],['Bat','fam_bat'],['Frost Fox','fam_fox'],['Wisp','fam_wisp']];
+// game build 523 prep: the Frost Fox is new, and the Fire Imp is Matt's new flame-crest imp. The game's copies are rigged and fly a loop; these two are the same models with the rig taken out
+// (a plain clone of a rigged model would bend the cached original's bones, not the copy's), so they stand still and turn like the others
 function famModelId(c) { const n = String((c && c.name) || ''); for (const [k, id] of FAM_3D) if (n.includes(k)) return id; return 'fam_wisp'; }
 const pieceFromCarriedBase = pieceFromCarried;
 pieceFromCarried = function(c) { const p = pieceFromCarriedBase(c); if (p && p.kind === 'carried' && c && c.slot === 'familiar' && !c.named && !p.named3d) p.named3d = famModelId(c); return p; };

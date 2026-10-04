@@ -5,8 +5,9 @@
 //   Crystal Owl — a beam that chains through up to three mobs.   Storm Drake — lightning that forks into the pack.
 // Models come from assets/ (fam-*.glb); until one arrives (or in a single-file build) the procedural pet stands in.
 (function(){
-const FAM_FILES={'Wisp':'fam-wisp.glb','Bat':'fam-bat.glb','Sprite':'fam-sprite.glb','Fire Imp':'fam-imp.glb','Crystal Owl':'fam-owl.glb','Storm Drake':'fam-drake.glb'};
-const FAM_H={'Wisp':.8,'Bat':.7,'Sprite':.8,'Fire Imp':.85,'Crystal Owl':.8,'Storm Drake':1.2};   // build 248: the new drake is 2.0 tall with its tail hanging, 1.8 across the wings: 1.2 tall keeps a wingspan a little over the old one's   // world height of the pet
+const FAM_FILES={'Wisp':'fam-wisp.glb','Bat':'fam-bat.glb','Sprite':'fam-sprite.glb','Fire Imp':'fam-imp.glb','Crystal Owl':'fam-owl.glb','Storm Drake':'fam-drake.glb','Frost Fox':'fam-fox.glb'};   // build 523 prep: Matt's flight pack -- the Bat (same body) and the Fire Imp (the wingless flame-crest imp of his card picture) are rigged now and fly their own loop, and the Frost Fox is new
+const FOXH=.62;   // the fox is long, not tall: .62 high is about 1.1 nose to tail-tip
+const FAM_H={'Wisp':.8,'Bat':.7,'Sprite':.8,'Fire Imp':.85,'Crystal Owl':.8,'Storm Drake':1.2,'Frost Fox':FOXH};   // build 248: the new drake is 2.0 tall with its tail hanging, 1.8 across the wings: 1.2 tall keeps a wingspan a little over the old one's   // world height of the pet
 // per-kind tuning: fire-rate and damage multipliers on the item's stats, plus what the attack does
 const FAM_KIND={
   'Wisp':        {rate:1.0,dmg:1.0,desc:'spark bolts'},
@@ -14,32 +15,41 @@ const FAM_KIND={
   'Sprite':      {rate:.8, dmg:.5, desc:'dual thorn darts · each slows',slow:1.2,r:1.0},   // build 242 (Matt: "the sprite will be shooting dual thorn darts"): two thorns a shot, each hitting for .5 pet damage in a 1-unit puff (was one seed pod, .6 in a 1.6 spore cloud)
   'Fire Imp':    {rate:.7, dmg:.9, desc:'dives and drops molten lava · burning pools',splash:1.3,burn:3,burnDmg:.25},
   'Crystal Owl': {rate:.9, dmg:.8, desc:'beam chains to 3 mobs',hops:2,chain:.7,reach:4},
-  'Storm Drake': {rate:.5, dmg:1.4,desc:'lightning forks into the pack',fork:.8,r:1.8}};
+  'Storm Drake': {rate:.5, dmg:1.4,desc:'lightning forks into the pack',fork:.8,r:1.8},
+  'Frost Fox':   {rate:.55,dmg:1.5,desc:'swoops and bites · freezes',chillT:2,chillK:.6,bossK:.85}};   // build 523 prep: the Bat's swoop-and-bite, a touch less bite for the freeze: each bite slows the mob to 60% for 2 s (the Frost Spire's chill -- the deepest cold wins, it never stacks), a boss only to 85%
 const FAM_GLB={}; const famFx=[]; const famShots=[]; let swoop=null; const burnFx=new Map();
 function kindOf(){ return fam?fam.g.userData.kind:'Wisp'; }
 function K(){ return FAM_KIND[kindOf()]||FAM_KIND.Wisp; }
 function dmgOf(m){ return Math.max(.1,Math.round(famDmg()*m*10)/10); }
 // ---- models ----
 // a familiar's model is fetched the first time one of that kind is called for (the pet stands in procedurally until it lands), not all six at start
-const FAM_ASKED={};
-function ensureFam(k){ if(!FAM_FILES[k]||FAM_ASKED[k]) return; FAM_ASKED[k]=true; fetchBytes(ASSET(FAM_FILES[k]),'first').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,FAM_H[k]); toonify(root,fit.scale); const w=fit.wrap; w.children[0].position.y-=FAM_H[k]*.5; FAM_GLB[k]=w;
+const FAM_ASKED={}, FAM_CLIP={}, FAM_YAW={'Frost Fox':-PI/2};   // the fox was modelled looking down +X; every pet faces +Z
+// build 523 prep: a RIGGED pet (Matt's flight pack: the Bat, the Fire Imp, the Frost Fox) is cloned with its own skeleton (game.js cloneSkinned -- a plain clone would bend
+// the template's bones, not this copy's), gets its own AnimationMixer playing its flight loop from a random point, and is ticked every frame wherever it is in the scene: your pet,
+// the 2nd pet (97h), a partner's puppet pet (98-party). 85b-petanim leaves its vertex-shader wing beat off (userData.clip).
+const PET_MIX=new Set();
+function petClone(T,clip,root){ const g=cloneSkinned(T); if(!clip) return g; const mixer=new THREE.AnimationMixer(g); const a=mixer.clipAction(clip); a.setLoop(THREE.LoopRepeat,Infinity); a.play(); a.time=rnd()*clip.duration; mixer.update(0);
+  Object.assign(root.userData,{mixer,action:a,clip:clip.name}); root.userData.off=0; PET_MIX.add(root); return g; }
+function petMixTick(dt){ for(const r of PET_MIX){ const u=r.userData; if(!r.parent){ u.off=(u.off||0)+dt; if(u.off>5) petDispose(r); continue; } u.off=0; u.mixer.update(Math.min(dt,.1)); } }   // a model taken out of the scene (gear change, a partner's look rebuilt) drops off after 5 s
+function petDispose(r){ if(!r) return; PET_MIX.delete(r); if(r.userData&&r.userData.mixer) r.userData.mixer.stopAllAction(); r.traverse(o=>{ if(o.isSkinnedMesh&&o.skeleton&&o.skeleton.boneTexture) o.skeleton.dispose(); }); }
+function ensureFam(k){ if(!FAM_FILES[k]||FAM_ASKED[k]) return; FAM_ASKED[k]=true; fetchBytes(ASSET(FAM_FILES[k]),'first').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; if(FAM_YAW[k]) root.rotation.y=FAM_YAW[k]; const fit=fitModel(root,FAM_H[k]); toonify(root,fit.scale); const w=fit.wrap; w.children[0].position.y-=FAM_H[k]*.5; FAM_GLB[k]=w; const clip=(gltf.animations||[]).find(c=>/loop/i.test(c.name))||(gltf.animations||[])[0]; if(clip) FAM_CLIP[k]=clip;
     if(fam&&fam.g.userData.kind===k&&!fam.g.userData.glb) famRemove(); }catch(e){ console.warn('familiar model '+k,e); } },e=>console.warn('familiar model '+k,e))).catch(e=>console.warn('familiar model '+k,e)); }   // the pet respawns next frame with the real model
 // build 215 (Matt: "the wisp in game has been named bramblewhisk when we have an all new model and thumbs for bramblewhisk"): a named pet wears its
 // own body -- the same real model its floor stand shows (93c-weaponstand.js NAMED_REAL) -- instead of the Wisp's it used to borrow (famKind reads
 // words in the name, and neither name has one, so both fell back to 'Wisp'). How it fights doesn't change: kind stays what famKind says
 const NAMED_PET={bramblewhisk:{file:'named-bramblewhisk.glb',h:.8,desc:'thorn shots'},old_lamplight:{file:'named-old_lamplight.glb',h:.85,desc:'lantern sparks'},gladehart:{file:'named-gladehart.glb',h:.9,desc:'spirit stag charge'},trimaw:{file:'named-trimaw.glb',h:.85,desc:'fire, frost and venom breaths'}};
-const NP_GLB={}, NP_ASKED={};
+const NP_GLB={}, NP_ASKED={}, NP_CLIP={};
 function namedPet(it){ return it&&typeof it.named==='string'&&Object.prototype.hasOwnProperty.call(NAMED_PET,it.named)?it.named:null; }   // own keys only: a partner's look names it over the wire (co-op sweep 2026-10-02)
-function ensureNamedPet(k){ if(NP_ASKED[k]) return; NP_ASKED[k]=true; const c=NAMED_PET[k]; fetchBytes(ASSET(c.file),'soon').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,c.h); toonify(root,fit.scale); const w=fit.wrap; w.children[0].position.y-=c.h*.5; NP_GLB[k]=w;
+function ensureNamedPet(k){ if(NP_ASKED[k]) return; NP_ASKED[k]=true; const c=NAMED_PET[k]; fetchBytes(ASSET(c.file),'soon').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const fit=fitModel(root,c.h); toonify(root,fit.scale); const w=fit.wrap; w.children[0].position.y-=c.h*.5; NP_GLB[k]=w; const clip=(gltf.animations||[])[0]; if(clip) NP_CLIP[k]=clip;
     if(fam&&fam.g.userData.named!==k&&namedPet(gear.familiar)===k) famRemove(); }catch(e){ console.warn('named pet '+k,e); } },e=>console.warn('named pet '+k,e))).catch(e=>console.warn('named pet '+k,e)); }   // the pet respawns next frame in its own body
 // the Wisp's own look (its Celestial Projectile and burst, below) is for the Wisp itself, not a named pet that happens to fight like one
 function trueWisp(){ return !!(fam&&fam.g.userData.kind==='Wisp'&&!namedPet(gear.familiar)); }
 const famModelProc=famModel;
-famModel=function(it){ const nk=namedPet(it); if(nk){ ensureNamedPet(nk); const N=NP_GLB[nk]; if(N){ const g=N.clone(); const col=RCOL[it.rarity]||0xcfcfcf; const gl=glow(col,1.0,.4); gl.position.y=-.05; g.add(gl); const root=new THREE.Group(); root.add(g); root.userData={wings:[],motes:[],kind:famKind(it),glb:true,named:nk}; return root; } }   // until its own body lands it wears the stand-in below
-  const kind=famKind(it); ensureFam(kind); const T=FAM_GLB[kind]; if(!T) return famModelProc(it); const g=T.clone(); const col=RCOL[it.rarity]||0xcfcfcf; const gl=glow(col,1.0,.4); gl.position.y=-.05; g.add(gl);   // rarity shows as the halo under the pet
-  const root=new THREE.Group(); root.add(g); root.userData={wings:[],motes:[],kind,glb:true}; return root; };
+famModel=function(it){ const nk=namedPet(it); if(nk){ ensureNamedPet(nk); const N=NP_GLB[nk]; if(N){ const root=new THREE.Group(); root.userData={wings:[],motes:[],kind:famKind(it),glb:true,named:nk}; const g=petClone(N,NP_CLIP[nk],root); const col=RCOL[it.rarity]||0xcfcfcf; const gl=glow(col,1.0,.4); gl.position.y=-.05; g.add(gl); root.add(g); return root; } }   // until its own body lands it wears the stand-in below
+  const kind=famKind(it); ensureFam(kind); const T=FAM_GLB[kind]; if(!T) return famModelProc(it); const root=new THREE.Group(); root.userData={wings:[],motes:[],kind,glb:true}; const g=petClone(T,FAM_CLIP[kind],root); const col=RCOL[it.rarity]||0xcfcfcf; const gl=glow(col,1.0,.4); gl.position.y=-.05; g.add(gl);   // rarity shows as the halo under the pet
+  root.add(g); return root; };
 const famRemoveProc=famRemove;
-famRemove=function(){ if(fam&&fam.g.userData.glb){ scene.remove(fam.g); fam.g.traverse(m=>{ if(m.isSprite&&m.material) m.material.dispose(); }); fam=null; famClearBolts(); } else famRemoveProc(); swoop=null; };   // shared model geometry stays
+famRemove=function(){ if(fam&&fam.g.userData.glb){ scene.remove(fam.g); petDispose(fam.g); fam.g.traverse(m=>{ if(m.isSprite&&m.material) m.material.dispose(); }); fam=null; famClearBolts(); } else famRemoveProc(); swoop=null; };   // shared model geometry stays
 const famRateProc=famRate; famRate=function(){ return famRateProc()/K().rate; };
 // ---- effects: short-lived glowing segments (beams, lightning) that fade out ----
 const SEG_GEO=new THREE.CylinderGeometry(1,1,1,5); const UP=new THREE.Vector3(0,1,0);
@@ -116,7 +126,7 @@ const famFireProc=famFire;
 function extraTargets(e,n){ const out=[]; const cands=famFoes().filter(m=>!m.dead&&m!==e&&Math.hypot(m.x-fam.x,m.z-fam.z)<FAM_RANGE+2&&los(fam.x,fam.z,m.x,m.z)).sort((a,b)=>Math.hypot(a.x-e.x,a.z-e.z)-Math.hypot(b.x-e.x,b.z-e.z)); for(let i=0;i<n;i++) out.push(cands[i]||e); return out; }
 famFire=function(e){ const n=heroStat('fproj')|0; fireOne(e,n); const k=kindOf(); if(n>0&&(k==='Wisp'||k==='Sprite'||k==='Fire Imp')) for(const t of extraTargets(e,n)) fireOne(t,0); };
 function fireOne(e,extra){ const k=kindOf(), C=FAM_KIND[k]; fam.kick=1;
-  if(k==='Bat'){ const [x,y,z]=[fam.x,fam.y,fam.z]; swoop={e,t:0,dur:.6,bit:false,x0:x,y0:y,z0:z}; return; }
+  if(k==='Bat'||k==='Frost Fox'){ const [x,y,z]=[fam.x,fam.y,fam.z]; swoop={e,t:0,dur:.6,bit:false,x0:x,y0:y,z0:z,frost:k==='Frost Fox'}; return; }   // the Frost Fox darts out and bites like the Bat, and its bite freezes (swoopUpdate)
   if(k==='Sprite'){ const [x,y,z]=muzzle(); const T=.62/THORN.speed, g=9;   // DUAL THORN DARTS (build 242): two thorns leave side by side and skim to the mob (thorn flight: under half the time, light gravity), each a small puff that slows
     const tx0=e.x+(e.walking?Math.sin(e.yaw)*mobSpd(e)*T*.6:0), tz0=e.z+(e.walking?Math.cos(e.yaw)*mobSpd(e)*T*.6:0); const dx=tx0-x, dz=tz0-z, dl=Math.hypot(dx,dz)||1, px=-dz/dl, pz=dx/dl;
     for(const sd of [-1,1]){ const mesh=dartMesh(); const sx=x+px*sd*.16, sz=z+pz*sd*.16; mesh.position.set(sx,y,sz); scene.add(mesh); const tx=tx0+px*sd*.22, tz=tz0+pz*sd*.22;
@@ -164,18 +174,40 @@ window.__owllaser={model:()=>LASER,loaded:()=>!!LASER,count:()=>LZ_N,live:()=>LA
 window.__drakebolt={model:()=>LIGHT,loaded:()=>!!LIGHT,count:()=>LB_N,live:()=>LBOLTS.length,ages:()=>LBOLTS.map(b=>+b.t.toFixed(2)),width:()=>LIGHT_W};
 window.__bite={loaded:()=>!!BITE,count:()=>BITE_N,live:()=>BITES.length,ages:()=>BITES.map(b=>+b.t.toFixed(2))};
 window.__lava={pools:()=>LAVA.length,drops:()=>LDROP.length,models:()=>!!(LFX.drop&&LFX.pool),cfg:LV,drop:(x,z)=>lavaPool(x,z,0),clear:()=>{ while(LAVA.length){ const o=LAVA.pop(); scene.remove(o.g); } }};
+// ---------------------------------------------------------------- the FROST FOX's freeze (build 523 prep)
+// A bite chills the mob as the Frost Spire does (game.js mobSpd: chillT/chillK -- the deepest cold wins, nothing stacks past it): 60% speed for 2 s, a boss (the Gladehart's list) only to 85%.
+// Bosses that shrug off every slow (the Archhag, Avery, the slinger pig) still do. On a co-op guest the bite's {chill} rides famHit up to the host, which calls this on its real mob (99-network.js).
+const FOX_N={chills:0,bursts:0};
+function foxChill(e,t){ if(!e||e.dead||e.puppet) return false; const C=FAM_KIND['Frost Fox'], boss=SC_BOSS.has(e.kind); e.chillT=Math.max(e.chillT||0,Math.min(3,+t||C.chillT)); e.chillK=Math.min(e.chillK||1,boss?C.bossK:C.chillK); FOX_N.chills++; return true; }
+// a small frost burst where the fox bit: an icy flash, a ring of frost spreading on the floor and a few ice shards thrown up -- pooled (8), shared geometry, one set of materials per pooled burst
+const FB={pool:[],live:[],ring:null,shard:null};
+function frostBurstMake(){ if(!FB.ring){ FB.ring=new THREE.RingGeometry(.36,.5,32); FB.shard=new THREE.OctahedronGeometry(.1,0); }
+  const g=new THREE.Group(); g.name='fox-frost'; const ringM=new THREE.MeshBasicMaterial({color:C(0x5cbfff),transparent:true,depthWrite:false,side:THREE.DoubleSide}); const ring=new THREE.Mesh(FB.ring,ringM); ring.rotation.x=-PI/2;
+  const flashM=new THREE.SpriteMaterial({map:GLOWT,color:C(0x4cb8ff),blending:THREE.AdditiveBlending,transparent:true,depthWrite:false}); const flash=new THREE.Sprite(flashM); const shardM=new THREE.MeshBasicMaterial({color:C(0xc4ecff),transparent:true});
+  const shards=[]; for(let i=0;i<6;i++){ const s=new THREE.Mesh(FB.shard,shardM); s.userData.a=i*TAU/6+rnd()*.5; s.userData.v=1.2+rnd()*.8; s.userData.u=1.6+rnd()*1.2; s.scale.set(.75,1.9,.75); g.add(s); shards.push(s); }
+  g.add(ring); g.add(flash); g.traverse(o=>{ o.userData.noOL=true; o.frustumCulled=false; }); return {g,ring,flash,shards,mats:[ringM,flashM,shardM],t:0,life:.5,h:1.2}; }
+function frostBurst(x,y,z,h){ if(![x,y,z].every(Number.isFinite)) return; let b=FB.pool.pop(); if(!b){ if(FB.live.length>=8) b=FB.live.shift(); else b=frostBurstMake(); } b.t=0; b.h=h||1.2; b.g.position.set(x,y+.06,z); b.g.rotation.y=rnd()*TAU; if(!b.g.parent) scene.add(b.g); FB.live.push(b); FOX_N.bursts++; frostTick(b,0); }
+function frostTick(b,dt){ b.t+=dt; const k=b.t/b.life; if(k>=1) return false; const e=1-Math.pow(1-k,3), fade=1-k;
+  const rs=.6+e*2.2; b.ring.scale.set(rs,rs,rs); b.mats[0].opacity=.9*fade; b.flash.position.y=b.h*.55; const fs=(.9+e*1.6)*b.h; b.flash.scale.set(fs,fs,1); b.mats[1].opacity=.95*(k<.25?1:1-(k-.25)/.75); b.mats[2].opacity=fade;
+  for(const s of b.shards){ const d=s.userData, tt=b.t; s.position.set(Math.cos(d.a)*d.v*tt*1.4,b.h*.45+d.u*tt-4.5*tt*tt,Math.sin(d.a)*d.v*tt*1.4); s.rotation.set(tt*9,d.a,tt*5); } return true; }
+function frostUpdate(dt){ for(let i=FB.live.length-1;i>=0;i--){ const b=FB.live[i]; if(!frostTick(b,dt)){ FB.live.splice(i,1); scene.remove(b.g); FB.pool.push(b); } } }
+window.__foxfrost={chill:foxChill,burst:frostBurst,roll:function(){ return rollItem.apply(null,arguments); },bases:()=>BASES.familiar.slice(),kindOf:it=>famKind(it),count:()=>Object.assign({},FOX_N),live:()=>FB.live.length,pooled:()=>FB.pool.length+FB.live.length,cfg:()=>FAM_KIND['Frost Fox']};
 function swoopUpdate(dt){ if(!swoop||!fam) return; const w=swoop; w.t+=dt/w.dur; const e=w.e; if(e.dead&&w.t<.5){ w.t=.5; }
   const k=Math.sin(Math.min(1,w.t)*PI);   // 0 → 1 (at the mob) → 0 (back on the shoulder)
   const tx=e.dead?w.x0:e.x, ty=e.dead?w.y0:(w.lava?e.y+e.h+.85:e.y+e.h*.7), tz=e.dead?w.z0:e.z; const px=lerp(fam.x,tx,k), py=lerp(fam.y,ty,k)+Math.sin(w.t*PI)*.3, pz=lerp(fam.z,tz,k);
   fam.g.position.set(px,py,pz); fam.g.rotation.y=Math.atan2((w.t<.5?tx:fam.x)-px,(w.t<.5?tz:fam.z)-pz); fam.g.rotation.x=(w.t<.5?.5:-.35)*k;
   if(w.lava&&!w.bit&&w.t>=.5){ w.bit=true; if(!e.dead) lavaDrop(fam.g.position.x,fam.g.position.y-.1,fam.g.position.z,e.x,e.z,e.y||0); }
-  else if(!w.bit&&w.t>=.5&&!e.dead){ w.bit=true; famHurt(e,dmgOf(K().dmg),Math.sin(fam.g.rotation.y)*.6,Math.cos(fam.g.rotation.y)*.6); famLand(e.x,e.z,dmgOf(K().dmg)); biteFx(e.x,(e.y||0)+(e.h||1.2)*.55,e.z); const nb=heroStat('fproj')|0; if(nb>0) for(const m of nearMobs(e.x,e.z,1.6,e).slice(0,nb)) famHurt(m,dmgOf(K().dmg*.7),0,0); SFX.hit(); fx((g,mt)=>{ const p=glow(0xffe0a0,1.2,.8); p.position.set(e.x,e.y+e.h*.7,e.z); g.add(p); },.2); }
+  else if(!w.bit&&w.t>=.5&&!e.dead){ w.bit=true; const C=K(), ice=w.frost?{chill:C.chillT||2}:undefined; famHurt(e,dmgOf(C.dmg),Math.sin(fam.g.rotation.y)*.6,Math.cos(fam.g.rotation.y)*.6,ice); if(ice) foxChill(e,ice.chill); famLand(e.x,e.z,dmgOf(C.dmg)); if(ice) frostBurst(e.x,e.y||0,e.z,e.h||1.2); else biteFx(e.x,(e.y||0)+(e.h||1.2)*.55,e.z); const nb=heroStat('fproj')|0; if(nb>0) for(const m of nearMobs(e.x,e.z,1.6,e).slice(0,nb)){ famHurt(m,dmgOf(C.dmg*.7),0,0,ice); if(ice) foxChill(m,ice.chill); } if(ice){ if(SFX.frost) SFX.frost(); else SFX.hit(); } else { SFX.hit(); fx((g,mt)=>{ const p=glow(0xffe0a0,1.2,.8); p.position.set(e.x,e.y+e.h*.7,e.z); g.add(p); },.2); } }
   if(w.t>=1){ swoop=null; fam.g.rotation.x=0; } }
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(fam&&kindOf()==='Sprite') dartLoad(); if(fam&&kindOf()==='Bat') biteLoad(); biteUpdate(dt); if(fam&&kindOf()==='Storm Drake') lightLoad(); lightUpdate(dt); if(fam&&kindOf()==='Crystal Owl') laserLoad(); laserUpdate(dt); if(fam){ swoopUpdate(dt); } lavaUpdate(dt); famShotsUpdate(dt); famFxUpdate(dt); burnUpdate(dt); }; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(fam&&kindOf()==='Sprite') dartLoad(); if(fam&&kindOf()==='Bat') biteLoad(); biteUpdate(dt); if(fam&&kindOf()==='Storm Drake') lightLoad(); lightUpdate(dt); if(fam&&kindOf()==='Crystal Owl') laserLoad(); laserUpdate(dt); if(fam){ swoopUpdate(dt); } frostUpdate(dt); petMixTick(dt); lavaUpdate(dt); famShotsUpdate(dt); famFxUpdate(dt); burnUpdate(dt); }; }
 const famClearProc=famClearBolts; famClearBolts=function(){ famClearProc(); for(const s of famShots){ scene.remove(s.mesh); } famShots.length=0; };
+// build 523 prep: the Frost Fox DROPS like the other pets. A pet's species follows its rarity (game.js rollItem: BASES.familiar[rarity + 0 or 1]), and every band is taken -- the fox
+// shares the Cave Bat's (Common / Uncommon, the band its bite matches): half the pets that would have rolled as a Cave Bat roll as a Frost Fox. Picked from the item's own id, so it
+// draws nothing extra from the seeded roll (LR) and every other roll comes out exactly as before.
+{ const prev=rollItem; rollItem=function(){ const it=prev.apply(this,arguments); if(it&&it.slot==='familiar'&&typeof it.name==='string'&&it.name.includes('Cave Bat')){ let h=0; for(const ch of String(it.id)) h=(h*31+ch.charCodeAt(0))|0; if(h&1) it.name=it.name.replace('Cave Bat','Frost Fox'); } return it; }; }
 // the bag / sheet says what each familiar does
 const statStrProc=statStr; statStr=function(it){ const s=statStrProc(it); if(it&&it.slot==='familiar'){ const nk=namedPet(it); if(nk) return s+' · '+NAMED_PET[nk].desc; const C=FAM_KIND[famKind(it)]; if(C) return s+' · '+C.desc; } return s; };
-Object.assign(window.__familiar,{build:it=>famModel(it),stale:()=>{ if(!fam) return false; const it=gear.familiar, ud=fam.g.userData||{}, nk=namedPet(it); if(nk) return !!NP_GLB[nk]&&ud.named!==nk; return !ud.glb&&!!FAM_GLB[famKind(it)]; },   /* build 508: the pet out now wears a stand-in though its real model has landed (97h asks for the 2nd pet; ensureFam/ensureNamedPet only swap the first) */ thornsOn:()=>thornsOn(),   /* late-bound (build 150): 30-familiar.js exported the procedural famModel before this module replaced it, so builds through the hook (a party puppet's pet, the suites) never asked for the Meshy model */ rate:()=>famRate(),dmg:()=>famDmg(),kinds:FAM_KIND,kindMul:()=>K(),glb:()=>Object.keys(FAM_GLB),namedGlb:()=>Object.keys(NP_GLB),   /* co-op sweep 2026-10-02: the named pets' loaded models, for a party puppet's look key (98-party.js) */fx:()=>famFx.length,shots:()=>famShots.length,swoop:()=>swoop?{t:+swoop.t.toFixed(2),bit:swoop.bit}:null,burning:()=>enemies.filter(e=>e.burnT>0&&!e.dead).length,pos:()=>fam?fam.g.position.toArray().map(v=>+v.toFixed(2)):null});
+Object.assign(window.__familiar,{build:it=>famModel(it),stale:()=>{ if(!fam) return false; const it=gear.familiar, ud=fam.g.userData||{}, nk=namedPet(it); if(nk) return !!NP_GLB[nk]&&ud.named!==nk; return !ud.glb&&!!FAM_GLB[famKind(it)]; },   /* build 508: the pet out now wears a stand-in though its real model has landed (97h asks for the 2nd pet; ensureFam/ensureNamedPet only swap the first) */ thornsOn:()=>thornsOn(),   /* late-bound (build 150): 30-familiar.js exported the procedural famModel before this module replaced it, so builds through the hook (a party puppet's pet, the suites) never asked for the Meshy model */ rate:()=>famRate(),dmg:()=>famDmg(),kinds:FAM_KIND,kindMul:()=>K(),glb:()=>Object.keys(FAM_GLB),clips:()=>Object.fromEntries(Object.entries(FAM_CLIP).map(([k,c])=>[k,c.name])),mixing:()=>PET_MIX.size,chill:(e,t)=>foxChill(e,t),   /* build 523 prep: the rigged pets' loops, how many are animating, and the Frost Fox's freeze (99-network.js calls it for a guest's bite) */namedGlb:()=>Object.keys(NP_GLB),   /* co-op sweep 2026-10-02: the named pets' loaded models, for a party puppet's look key (98-party.js) */fx:()=>famFx.length,shots:()=>famShots.length,swoop:()=>swoop?{t:+swoop.t.toFixed(2),bit:swoop.bit}:null,burning:()=>enemies.filter(e=>e.burnT>0&&!e.dead).length,pos:()=>fam?fam.g.position.toArray().map(v=>+v.toFixed(2)):null});
 window.__thorns={on:thornsOn,speed:THORN.speed,col:THORN.col,shots:()=>famShots.map(x=>({thorn:!!x.thorn,vx:x.vx,vy:x.vy,vz:x.vz,g:x.g,t:x.t}))};
 // ---- build 178: BRAMBLEWHISK's thorn patches. Its power (97-mythics.js) always read "your pet's shots leave thorn patches that slow
 // and prick enemies", but all it did was dress the shots as thorns. Now wherever the wearer's pet shot lands (famLand: the Wisp's
