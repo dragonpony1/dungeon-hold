@@ -82,7 +82,7 @@ function setMusic(mode){ const want=(musicOn&&!soundOff)?mode:'none'; if(want===
   if(!a) return; if(!mGain){ mGain=a.createGain(); mGain.gain.value=.8; mGain.connect(MUSOUT(a)); } mStep=0; mNext=a.currentTime+.05; if(!musicTimer) musicTimer=setInterval(mtick,100); }
 function musicForPhase(){ setMusic(S.phase==='wave'?'wave':S.phase==='build'?'build':'none'); }
 function musicBtn(){ const b=$('musbtn'); if(b) b.classList.toggle('off',!musicOn); }
-function toggleMusic(){ musicOn=!musicOn; localStorage.setItem('ddMusic',musicOn?'on':'off'); musicForPhase(); musicBtn(); toast(musicOn?'Music on':'Music off (N or the 🎵 button turns it back on)'); }
+function toggleMusic(){ musicOn=!musicOn; localStorage.setItem('ddMusic',musicOn?'on':'off'); musicForPhase(); musicBtn(); toast(musicOn?'Music on':'Music off (the 🎵 button turns it back on)');   /* build 542: N opens the talent tree now (96l-talents.js) */ }
 function sting(){ [[220,0],[207,.25],[196,.5],[185,.8]].forEach(([f,d])=>setTimeout(()=>beep(f,.7,'sawtooth',.06,-20),d*1000)); }
 let droneN=null;
 function droneOn(){ const a=A(); if(!a||droneN) return; const g=a.createGain(); g.gain.setValueAtTime(.0001,a.currentTime); g.gain.exponentialRampToValueAtTime(.028,a.currentTime+1.5); const fl=a.createBiquadFilter(); fl.type='lowpass'; fl.frequency.value=220; const os=[55,82.4,110].map((f,i)=>{ const o=a.createOscillator(); o.type=i?'sawtooth':'triangle'; o.frequency.value=f; o.detune.value=(i-1)*6; o.connect(fl); o.start(); return o; }); fl.connect(g).connect(MUSOUT(a)); droneN={g,os}; }
@@ -819,7 +819,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=541;
+const BUILD=542;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;
