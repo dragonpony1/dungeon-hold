@@ -205,8 +205,14 @@ function stepRun(dt){ const r=run; cnt.frames++; const now=performance.now();
   if(r.t>=r.def.dur||(r.skipAt!==null&&r.t-r.skipAt>=FADE_OUT)) finish(); }
 // ---------------------------------------------------------------- hold the game: the scene replaces the frame; the trigger is looked at after each normal frame
 { const prev=update; update=function(dt){ hookNet(); if(run){ stepRun(dt); return; } const r=prev.apply(this,arguments); autoCheck(); guestPendingCheck(); return r; }; }
+// build 551 (Matt, entering the Throne Room: "I think you put it in there without the sound"): a new map is a new page, and a browser keeps a page's sound shut until the player has clicked or pressed a key
+// on it -- a scene that started by itself the moment the room loaded played silent. A scene that starts by itself now waits for the page's sound to be open (the first click into the room -- the
+// same click that takes the mouse); with the sound turned off it doesn't wait.
+// ...and every tap, click or key press wakes the page's sound (an iPhone only lets it start inside one; the game otherwise woke it only when a press happened to play a sound)
+for(const ev of ['pointerdown','touchend','keydown','click']) addEventListener(ev,()=>{ try{ if(typeof soundOff!=='undefined'&&soundOff) return; const a=A(); if(a&&a.state!=='running'&&a.resume) a.resume(); }catch(e){} },{ capture:true, passive:true });
+function audioOK(){ let a=null; try{ a=A(); }catch(e){} if(!a) return true; if(a.state==='running') return true; try{ a.resume(); }catch(e){} cnt.audioWaits=(cnt.audioWaits|0)+1; return false; }
 function autoCheck(){ if(run||!AUTO||isGuest()) return; for(const id of ORDER){ const def=DEFS[id]; if(autoDone[id]||!def.when) continue; if(def.map&&MAP.id!==def.map){ autoDone[id]=true; continue; }
-    let go=false; try{ go=!!def.when(); }catch(e){} if(!go) continue; autoDone[id]=true; if(isSeen(id)) continue; if(play(id)){ cnt.autos++; return; } } }
+    let go=false; try{ go=!!def.when(); }catch(e){} if(!go) continue; if(!audioOK()) continue; autoDone[id]=true; if(isSeen(id)) continue; if(play(id)){ cnt.autos++; return; } } }
 // the music waits: anything that asks for a track while a scene plays (play()'s own build track 0.4 s in, say) is remembered and put on after
 let setMusicRaw=null; { const prev=setMusic; setMusicRaw=function(){ return prev.apply(this,arguments); }; setMusic=function(mode){ if(run){ pendingMusic=mode; return; } return prev.apply(this,arguments); }; }
 // keys and the mouse belong to the scene while it plays: SPACE / ENTER skip; nothing reaches the game (no horn, no swing, no turning the camera)
