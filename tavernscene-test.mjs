@@ -10,12 +10,12 @@ const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftsh
 const page=await (await browser.newContext({viewport:{width:1100,height:620}})).newPage(); page.on("pageerror",e=>errors.push(String(e)));
 await page.route("**/api/**",r=>r.fulfill({status:200,contentType:"application/json",body:"{}"}));
 await page.addInitScript(()=>{ try{ localStorage.setItem("dd_talent_card","1"); localStorage.setItem("ddMapsCleared","9"); }catch(e){} });
-await page.goto("http://127.0.0.1:8968/?silent&nogate&map=0&cineauto",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.CINE&&window.__tavernscene&&window.__dd.map().id==='hall',null,{timeout:120000});
+await page.goto("http://127.0.0.1:8968/?silent&nogate&map=1&cineauto",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.CINE&&window.__tavernscene&&window.__dd.map().id==='throne',null,{timeout:120000});
 await page.evaluate(()=>{ localStorage.setItem("dd_cine_seen",'["prologue"]'); try{ window.__trainer.skip(); }catch(e){} window.__dd.start(); });   // marked seen here, not in an init script (that runs again in every frame the page opens and would wipe the record)
 const at=async t=>{ for(let i=0;i<450;i++){ const c=await page.evaluate(()=>window.__cine.info()); if(c.active==='tavern'&&!c.wait&&c.t>=t) return c; if(i>60&&!c.active) return c; await sleep(100); } return null; };
 let c=await at(4); await page.screenshot({path:process.env.TEMP+"/tav-mug.png"});
 const a=await page.evaluate(()=>window.__tavernscene.info());
-check("once the prologue is seen, the first Gnome Hall build phase plays GNOME SWEET GNOME; the thuds ring the mug",c&&c.active==='tavern'&&a.thumps>=2,JSON.stringify({c:c&&{active:c.active,t:c.t},thumps:a.thumps}));
+check("once the prologue is seen, the first Throne Room build phase plays GNOME SWEET GNOME; the thuds ring the mug",c&&c.active==='tavern'&&a.thumps>=2,JSON.stringify({c:c&&{active:c.active,t:c.t},thumps:a.thumps}));
 c=await at(8.6); await page.screenshot({path:process.env.TEMP+"/tav-peek.png"}); const b=await page.evaluate(()=>window.__tavernscene.info());
 check("a goblin peeks in at the door",b.gob,JSON.stringify(b));
 c=await at(14.2); await page.screenshot({path:process.env.TEMP+"/tav-arms.png"});

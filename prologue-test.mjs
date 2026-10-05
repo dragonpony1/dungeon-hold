@@ -33,5 +33,14 @@ c=await at(38.5); await page.screenshot({path:process.env.TEMP+"/pro-title.png"}
 await page.keyboard.press("Space"); await sleep(1800);
 const after=await page.evaluate(()=>({ active:window.__cine.info().active, seen:localStorage.getItem('dd_cine_seen'), words:+document.getElementById('cineWords').style.opacity||0, groups:window.__dd&&(()=>{ let n=0; window.__dd.scene&&window.__dd.scene.traverse&&window.__dd.scene.traverse(o=>{ if(/^cine-/.test(o.name||'')) n++; }); return n; })() }));
 check("skipping ends it and takes it all away; it is remembered as seen (GNOME SWEET GNOME may follow straight on)",after.active!=='prologue'&&/prologue/.test(after.seen||'')&&after.words===0,JSON.stringify(after));
+// ---- build 549: the first press of PLAY plays it, over the title, and the game starts when it ends
+{ const p2=await (await browser.newContext({viewport:{width:1100,height:620}})).newPage(); p2.on("pageerror",e=>errors.push(String(e)));
+  await p2.route("**/api/**",r=>r.fulfill({status:200,contentType:"application/json",body:"{}"}));
+  await p2.goto("http://127.0.0.1:8966/?silent&nogate&map=0&prologueplay",{timeout:120000}); await p2.waitForFunction(()=>window.__dd&&window.CINE&&window.__prologue&&document.getElementById('playbtn'),null,{timeout:120000});
+  const ph0=await p2.evaluate(()=>window.__dd.S.phase); await p2.evaluate(()=>{ try{ window.__trainer.skip(); }catch(e){} document.getElementById('playbtn').click(); }); await sleep(600);
+  const mid=await p2.evaluate(()=>({ active:window.CINE.active(), phase:window.__dd.S.phase, from:window.__prologue.info().fromPlay }));
+  for(let i=0;i<120;i++){ const c=await p2.evaluate(()=>window.__cine.info()); if(c.active==='prologue'&&!c.wait&&c.t>1.5) break; await sleep(100); }
+  await p2.keyboard.press("Space"); let fin=null; for(let i=0;i<60;i++){ fin=await p2.evaluate(()=>({ active:window.CINE.active(), phase:window.__dd.S.phase })); if(!fin.active&&fin.phase!=='start') break; await sleep(150); }
+  check("the first PLAY plays the prologue over the title, and the game starts when it ends",ph0==='start'&&mid.active==='prologue'&&mid.phase==='start'&&mid.from===1&&!fin.active&&fin.phase==='build',JSON.stringify({ph0,mid,fin})); await p2.close(); }
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");

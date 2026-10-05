@@ -127,6 +127,17 @@ function teardown(ctx){ cnt.teardowns++; musStop(.8); words.style.opacity='0';
   for(const M of mobs){ try{ M.m.mixer.stopAllAction(); }catch(e){} }
   for(const m of OWN.splice(0)) try{ m.dispose(); }catch(e){}
   heroes=[]; mobs=[]; eyes=[]; SHF=null; }
+// build 549 (Matt: "let's have the prologue be at the front of the game"): it plays on a save's FIRST press of PLAY, over the title, and the press goes on as usual when it ends (the tutorial for a
+// new player, the hall for anyone else) -- a click, so its music is allowed to play. Only when the Gnome Hall is the map behind the title; otherwise the first Gnome Hall build phase still brings it.
+// Not on a co-op join page or for the test suites (?prologueplay lets a suite try it).
+const PLAYGATE=!COOPJOIN_P()&&(!(navigator.webdriver||SILENT)||Q.has('prologueplay'));
+function COOPJOIN_P(){ try{ return !!Q.get('coopjoin'); }catch(e){ return false; } }
+let playHeld=false;
+addEventListener('click',e=>{ if(!PLAYGATE||playHeld||!HALL||S.phase!=='start'||!e.target||!e.target.closest||!e.target.closest('#playbtn')) return; if(window.CINE.seen(ID)||window.CINE.active()) return;
+  const st=document.getElementById('start'); if(st&&(st.classList.contains('inLobby')||st.classList.contains('coopPage'))) return;
+  e.stopImmediatePropagation(); e.preventDefault(); try{ const a=A(); if(a&&a.resume) a.resume(); }catch(x){}
+  if(!window.CINE.play(ID)) return; playHeld=true; cnt.fromPlay=(cnt.fromPlay|0)+1;
+  const wait=setInterval(()=>{ if(window.CINE.active()) return; clearInterval(wait); playHeld=false; const b=document.getElementById('playbtn'); if(b&&S.phase==='start') b.click(); },250); },true);
 CINE.register(ID,{ title:'ROOTGATE', sub:'THE ROOT REMEMBERS', map:'hall', pic:'cine-prologue.jpg', dur:DUR,
   when:()=>HALL&&!TUTORIAL&&S.phase==='build'&&S.wave===0,
   ready:()=>{ prefetch(); warmWeapons(); parseHeroes(); return warmed>=CREW.length&& !!(MOBGLB.goblin&&MOBGLB.orc)&&CREW.every(h=>MODEL[h.id])&&!!(window.__crystal&&window.__crystal.state().model); },

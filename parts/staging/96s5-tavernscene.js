@@ -19,7 +19,39 @@ window.__tavernscene={ info:()=>null };
 if(!window.CINE) return;
 const ID='tavern', DUR=35, PRE='prologue';
 const SH={ mug:0, peek:6.5, arms:11.5, door:19.5, last:26, title:31 };
-const HALL=typeof MAP!=='undefined'&&MAP&&MAP.id==='hall'&&!MAP.noTavern;
+// build 549 (Matt: "gnome sweet gnome upon entering the thrown room"): it plays the first time the THRONE ROOM's build phase begins. The Throne Room has no tavern room (its south wall was
+// closed, MAP.noTavern), so the scene brings its own: a tavern SET built for it out past the map's east edge (buildSet: brick walls, a tiled floor, the bar and its bottles, the hearth, the round
+// table and stools, a locker, a rug, two barrels, the barkeep, and the doorway north onto a dark hall) -- the Gnome Hall's room (65-tavernroom.js) again, every piece the scene's own, gone after.
+const HALL=typeof MAP!=='undefined'&&MAP&&MAP.id==='throne';
+const SX=320, SZ=0;   // where the set stands: well outside any map, beyond the fog
+function canvasTex(w,h,draw){ const c=document.createElement('canvas'); c.width=w; c.height=h; draw(c.getContext('2d'),w,h); const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.encoding=THREE.sRGBEncoding; return t; }
+let setFlames=null, setNpc=null;
+function buildSet(group){ const g=new THREE.Group(); g.position.set(SX,0,SZ); group.add(g); const mk=(geo,m,x,y,z)=>{ const o=own(new THREE.Mesh(geo,m)); o.position.set(x,y,z); g.add(o); return o; };
+  const tm=(col,map,em)=>{ const m=new THREE.MeshToonMaterial({ color:C(col), map:map||null }); m.emissive=map?C(0x2a1c30):C(col); m.emissiveIntensity=em===undefined?.06:em; OWN.push(m); return m; };   /* a faint floor of colour so nothing goes pitch black; the firelight does the rest */
+  const brick=canvasTex(256,256,(x,w,h)=>{ x.fillStyle='#4f4258'; x.fillRect(0,0,w,h); x.strokeStyle='#1c1522'; x.lineWidth=6; for(let r=0;r<8;r++){ const y=r*32; x.beginPath(); x.moveTo(0,y); x.lineTo(w,y); x.stroke(); for(let c=0;c<5;c++){ const bx=c*64+(r%2?32:0); x.beginPath(); x.moveTo(bx,y); x.lineTo(bx,y+32); x.stroke(); } } for(let i=0;i<400;i++){ x.fillStyle='rgba(0,0,0,'+(Math.random()*.12)+')'; x.fillRect(Math.random()*w,Math.random()*h,6,4); } });
+  const tiles=canvasTex(128,128,(x,w,h)=>{ x.fillStyle='#352c40'; x.fillRect(0,0,w,h); x.fillStyle='#2a2233'; x.fillRect(0,0,64,64); x.fillRect(64,64,64,64); x.strokeStyle='#17121e'; x.lineWidth=5; x.strokeRect(0,0,64,64); x.strokeRect(64,0,64,64); x.strokeRect(0,64,64,64); x.strokeRect(64,64,64,64); });
+  OWN.push(brick,tiles);
+  const texM=(tex,ru,rv,em)=>{ const t=tex.clone(); t.repeat.set(ru,rv); t.needsUpdate=true; OWN.push(t); return tm(0xffffff,t,em); };
+  const wood=tm(0x6b4a2a), plank=tm(0x8a5e34), dark=tm(0x2b2540), stone=tm(0x4a4262), cream=tm(0xf1e6d0), gold=tm(0xe0b040);
+  const fl=mk(new THREE.PlaneGeometry(16,12),texM(tiles,4,3,.5),0,0,0); fl.rotation.x=-PI/2;
+  const hf=mk(new THREE.PlaneGeometry(12,34),texM(tiles,3,8.5,.2),0,0,-25); hf.rotation.x=-PI/2;
+  const wall=(w,h,d,x,y,z,ru,rv)=>mk(new THREE.BoxGeometry(w,h,d),texM(brick,ru,rv,.5),x,y,z);
+  wall(16,6,.6,0,3,6.3,4,1.5); wall(.6,6,12,8.3,3,0,3,1.5); wall(.6,6,12,-8.3,3,0,3,1.5);   // south, east, west
+  wall(6.6,6,2,-4.7,3,-7,1.7,1.5); wall(6.6,6,2,4.7,3,-7,1.7,1.5); wall(2.8,1.6,2,0,5.2,-7,.7,.4);   // the north wall either side of the door, its lintel
+  wall(.6,5,34,-6,2.5,-25,8.5,1.2); wall(.6,5,34,6,2.5,-25,8.5,1.2);   // the dark hall's sides, past the door
+  // the bar along the east wall: counter, mugs, a shelf of bottles behind
+  { const bx=6.6; mk(new THREE.BoxGeometry(1,1.05,5.6),wood,bx-1.2,.52,0); mk(new THREE.BoxGeometry(1.2,.12,5.8),plank,bx-1.2,1.1,0); for(const mz of [-2,-.6,1.1,2.2]) mk(new THREE.CylinderGeometry(.13,.11,.26,8),cream,bx-1.3,1.29,mz);
+    mk(new THREE.BoxGeometry(.3,.08,5.4),plank,bx+.9,2.3,0); mk(new THREE.BoxGeometry(.3,.08,5.4),plank,bx+.9,3.1,0); const cols=[0x6a9a3a,0xc8262b,0x2fb8e8,0xe0b040,0x9a5ab8,0xf1e6d0]; for(let k=0;k<11;k++) mk(new THREE.CylinderGeometry(.09,.11,.42,7),tm(cols[k%cols.length]),bx+.9,(k%2?2.55:3.35),-2.4+k*.48); }
+  // the hearth on the south wall, logs and a fire
+  { mk(new THREE.BoxGeometry(3,2.6,.9),stone,0,1.3,5.6); mk(new THREE.BoxGeometry(3.3,.25,1.1),tm(0x5a5276),0,2.7,5.6); mk(new THREE.BoxGeometry(1.6,1.4,.6),tm(0x1a1420,null,0),0,.75,5.3); for(const x of [-.5,.4]){ const lg=mk(new THREE.CylinderGeometry(.09,.09,.8,6),wood,x,.2,5.25); lg.rotation.z=PI/2; }
+    const f1=glow(0xff6a14,1.5,.95), f2=glow(0xffd060,.8,.95); f1.position.set(0,.62,4.86); f2.position.set(0,.46,4.8); g.add(f1); g.add(f2); OWN.push(f1.material,f2.material); setFlames=[f1,f2]; }   /* glowing flames, not cones */
+  // the round table and four stools
+  { mk(new THREE.CylinderGeometry(.9,.9,.1,14),plank,-1,.9,0); mk(new THREE.CylinderGeometry(.12,.16,.9,7),wood,-1,.45,0); for(const [x,z] of [[1.2,0],[-1.2,0],[0,1.2],[0,-1.2]]){ mk(new THREE.CylinderGeometry(.3,.3,.08,9),plank,-1+x,.5,z); mk(new THREE.CylinderGeometry(.06,.08,.5,6),wood,-1+x,.25,z); } }
+  // the locker on the west wall, a rug by the door, two barrels
+  { mk(new THREE.BoxGeometry(.7,2.3,1.4),dark,-7.6,1.15,-3); mk(new THREE.BoxGeometry(.74,.08,1.44),gold,-7.6,2.3,-3); mk(new THREE.BoxGeometry(2.2,.03,3.2),tm(0x8a2030),0,.02,-3.6); for(const [x,z] of [[-7.2,4.8],[-6.2,5.2]]) mk(new THREE.CylinderGeometry(.42,.42,1.1,10),wood,x,.55,z); }
+  // the barkeep behind the bar
+  try{ const n=makeHero(); n.g.position.set(SX+7.5,0,SZ+.6); n.g.rotation.y=-PI/2; n.g.scale.setScalar(.95); group.add(n.g); setNpc=n.g; }catch(e){}
+  return g; }
 const cnt={ setups:0, teardowns:0, thumps:0, eyes:0, heroes:0, weapons:0, music:0, quick:0 };
 const ssm=k=>k<=0?0:k>=1?1:k*k*(3-2*k), L3=(a,b,k)=>[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k,a[2]+(b[2]-a[2])*k];
 const TD=(typeof MAP!=='undefined'&&MAP&&MAP.tavern)||{ dx:0, dz:0 }; const at=(x,z)=>[cw(x+TD.dx),cwz(z+TD.dz)];
@@ -53,8 +85,7 @@ let heroes=[], gob=null, mug=null, rings=[], eyePts=null, eyeMat=null, pinkG=nul
 const SRC=[0,1,2,3,4,5].map(()=>({ x:0, y:-80, z:0, on:false, ph:0, k:1 }));
 function setup(ctx){ if(!HALL) return false; const C2=window.__prologue&&window.__prologue.crew; if(!C2) return false; cnt.setups++; prng=9151; tuneSrc=null; heroes=[]; rings=[]; nThump=0; lastThump=-9; thumpT=1.1;
   // the room's spots (65-tavernroom.js)
-  const [tbx,tbz]=at(15,28), [dox,doz]=at(16,24), [hx,hz]=at(16,31), [bx,bz]=at(19,28), [lx,lz]=at(12,26);
-  R={ table:[tbx+1,tbz], door:[dox,doz], hearth:[hx,hz], bar:[bx,bz], locker:[lx,lz] }; const fy=baseFloor(tbx+1,tbz);  R.fy=fy;
+  buildSet(ctx.group); R={ table:[SX-1,SZ], door:[SX,SZ-6.6], hearth:[SX,SZ+5.4], bar:[SX+6.4,SZ], locker:[SX-7.2,SZ-3] }; const fy=0; R.fy=fy;
   // the mug: on the near edge of the table, foam on top, ale under it, rings that spread on each thud
   mug=new THREE.Group(); mug.position.set(R.table[0]-.45,fy+.95,R.table[1]-.35); ctx.group.add(mug);
   const cream=new THREE.MeshToonMaterial({ color:C(0x7a4a26) }), brass=new THREE.MeshToonMaterial({ color:C(0xd8a84a) }), ale=new THREE.MeshBasicMaterial({ color:C(0xd99a30) }), foam=new THREE.MeshToonMaterial({ color:C(0xfff6e2) }); OWN.push(cream,brass,ale,foam);   /* a wooden tankard, brass bands */
@@ -64,20 +95,20 @@ function setup(ctx){ if(!HALL) return false; const C2=window.__prologue&&window.
   for(let i=0;i<3;i++){ const m=new THREE.MeshBasicMaterial({ color:C(0xffe6a8), transparent:true, opacity:0, depthWrite:false }); OWN.push(m); const rg=own(new THREE.Mesh(new THREE.RingGeometry(.8,1,24),m)); rg.rotation.x=-PI/2; rg.position.y=.29; rg.scale.setScalar(.01); mug.add(rg); rings.push({ rg, m, t:9 }); }
   // the four (the prologue's models), set where each one stands in the tavern
   const P=window.__party&&window.__party.model; const spots={ knight:[R.table[0]-1.25,R.table[1]+.2,PI*.5], witch:[R.hearth[0]-1.4,R.hearth[1]-1.6,PI*.9], fighter:[R.locker[0]+1.6,R.locker[1]+1.2,PI*.65], troll:[R.bar[0]-1.15,R.bar[1]-1.6,-PI*.6] };
-  for(const h of C2.CREW){ const m=C2.MODEL[h.id]; if(!m) continue; const sp=spots[h.id]; m.wrap.position.set(sp[0],baseFloor(sp[0],sp[1]),sp[1]); m.wrap.rotation.y=sp[2]; m.wrap.visible=true; ctx.group.add(m.wrap);
+  for(const h of C2.CREW){ const m=C2.MODEL[h.id]; if(!m) continue; const sp=spots[h.id]; m.wrap.position.set(sp[0],0,sp[1]); m.wrap.rotation.y=sp[2]; m.wrap.visible=true; ctx.group.add(m.wrap);
     if(P&&m.actions.idle) P.play(m,'idle',{fade:0,restart:true}); const mt=P&&P.mount(m.root); if(mt&&window.__weapons&&window.__weapons.attach) window.__weapons.attach(mt,h.w,5,null,obj=>{ m.wobj=obj; try{ m.wglow=window.__heldglow&&window.__heldglow.dress?window.__heldglow.dress(obj):null; }catch(e){} cnt.weapons++; });
     heroes.push({ h, m, yaw0:sp[2], ht:2.3 }); }   /* a puppet hero stands about 2.3 here, head to toe (a skinned rig's box reads short) */
   cnt.heroes=heroes.length;
   // the goblin at the door (outside, just round the frame)
   try{ gob=makeMob('goblin'); }catch(e){ gob=null; } if(gob){ gob.g.visible=false; ctx.group.add(gob.g); const id=gob.actions&&(gob.actions.idle||gob.actions.walk); if(id){ id.reset(); id.play(); } }
   // eyes out in the hall: hundreds, in pairs, in the dark north of the door
-  { const N=260, pos=new Float32Array(N*2*3), col=new Float32Array(N*2*3); for(let i=0;i<N;i++){ const z=R.door[1]-3-rand()*26, x=R.door[0]+(rand()-.5)*(2.4+(R.door[1]-z)*.55), y=baseFloor(x,z)+.9+rand()*1.1, sep=.09+rand()*.05, warm=rand()<.75;
+  { const N=260, pos=new Float32Array(N*2*3), col=new Float32Array(N*2*3); for(let i=0;i<N;i++){ const z=R.door[1]-3-rand()*26, x=R.door[0]+(rand()-.5)*Math.min(10.5,2.4+(R.door[1]-z)*.55), y=.9+rand()*1.1, sep=.09+rand()*.05, warm=rand()<.75;
       for(let s=0;s<2;s++){ const j=(i*2+s)*3; pos[j]=x+(s?sep:-sep); pos[j+1]=y; pos[j+2]=z; const c=warm?[1,.82,.25]:[1,.3,.2]; col[j]=c[0]; col[j+1]=c[1]; col[j+2]=c[2]; } }
     const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3)); geo.setAttribute('color',new THREE.BufferAttribute(col,3));
     eyeMat=new THREE.PointsMaterial({ size:.2, map:GLOWT, vertexColors:true, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, opacity:0 }); OWN.push(eyeMat); eyePts=own(new THREE.Points(geo,eyeMat)); ctx.group.add(eyePts); cnt.eyes=N*2; }
   pinkG=glow(0xff4fc8,9,0); pinkG.position.set(R.door[0]+4,R.fy+4,R.door[1]-24); ctx.group.add(pinkG); OWN.push(pinkG.material);
-  hearthF=glow(0xff8a2a,3.2,.8); hearthF.position.set(R.hearth[0],R.fy+.9,R.hearth[1]+.25); ctx.group.add(hearthF); OWN.push(hearthF.material);
-  ctx.darken({ hemi:.05, emissive:.08, fog:[16,60], flat:.5, keep:[] }); const F=ctx.fireLights(6); F.I=1.6; F.dist=11; F.col=0xffa860;
+  hearthF=glow(0xff8a2a,3.2,.8); hearthF.position.set(R.hearth[0],R.fy+.9,R.hearth[1]-.75); ctx.group.add(hearthF); OWN.push(hearthF.material);
+  ctx.darken({ hemi:.05, emissive:.08, fog:[16,60], flat:.5, keep:[] }); const F=ctx.fireLights(6); cnt.lights=F.slots.length; F.I=1.9; F.dist=11; F.col=0xffa860;
   return true; }
 function camFor(t){ const T=R.table, D=R.door, fy=R.fy;
   if(t<SH.peek){ const k=ssm(t/SH.peek), m=mug.position; return { p:[m.x-.62+.12*k,m.y+.78-.08*k,m.z-.5+.1*k], l:[m.x,m.y+.24,m.z], fov:42, name:'mug', f:{ x:m.x, y:m.y, z:m.z } }; }
@@ -103,7 +134,7 @@ function step(ctx,t,dt){ const U=ctx.audio, F=ctx.fire, P=window.__party&&window
   // the dark beyond the door
   eyeMat.opacity=t>=SH.door?ssm((t-SH.door-.4)/2.5)*(.9+.1*Math.sin(t*3)):0; ctx.once('pink',SH.door+3.6,()=>{ U.swell(.06); });
   pinkG.material.opacity=t>=SH.door+3.6?.75*Math.exp(-(t-SH.door-3.6)*2.2):0;
-  hearthF.material.opacity=.75+.15*Math.sin(t*9)+.08*Math.sin(t*23);
+  hearthF.material.opacity=.75+.15*Math.sin(t*9)+.08*Math.sin(t*23); if(setFlames){ setFlames[0].scale.set(1.5*(1+.1*Math.sin(t*11)),1.9*(1+.15*Math.sin(t*13)),1); setFlames[1].scale.set(.8,1.1*(1+.12*Math.sin(t*17+1)),1); }
   // light: the hearth, the table, the bar, the door
   if(F){ const pts=[[R.hearth[0],R.fy+1.2,R.hearth[1]-.3],[R.table[0],R.fy+2.4,R.table[1]],[R.bar[0]-.8,R.fy+2.4,R.bar[1]-1],[R.locker[0]+1.8,R.fy+2.4,R.locker[1]+1],[R.door[0],R.fy+2.6,R.door[1]+1.4]];
     pts.forEach((p,i)=>{ const o=SRC[i]; o.x=p[0]; o.y=p[1]; o.z=p[2]; o.on=true; o.ph=i*1.7; o.k=i===0?1.25:.8; }); SRC[5].on=false; F.update(SRC,c0||{ x:R.table[0], y:R.fy+1, z:R.table[1] },dt,t); }
@@ -118,9 +149,9 @@ function teardown(ctx){ cnt.teardowns++; if(tuneSrc&&lastT>=DUR-.8){ tuneOn=true
   for(const H of heroes){ try{ H.m.mixer.stopAllAction(); }catch(e){} if(H.m.wobj&&H.m.wobj.parent) H.m.wobj.parent.remove(H.m.wobj); if(H.m.wrap.parent) H.m.wrap.parent.remove(H.m.wrap); H.m.wrap.rotation.y=0; }
   if(gob) try{ gob.mixer.stopAllAction(); }catch(e){}
   for(const m of OWN.splice(0)) try{ m.dispose(); }catch(e){}
-  heroes=[]; gob=null; mug=null; rings=[]; eyePts=null; c0=null; }
-CINE.register(ID,{ title:'GNOME SWEET GNOME', sub:'LAST CALL', map:'hall', pic:'cine-tavern.jpg', dur:DUR,
-  when:()=>HALL&&!TUTORIAL&&S.phase==='build'&&S.wave===0&&!!(window.CINE.seen&&window.CINE.seen(PRE)),
+  heroes=[]; gob=null; mug=null; rings=[]; eyePts=null; c0=null; setFlames=null; setNpc=null; }
+CINE.register(ID,{ title:'GNOME SWEET GNOME', sub:'LAST CALL', map:'throne', pic:'cine-tavern.jpg', dur:DUR,
+  when:()=>HALL&&!TUTORIAL&&S.phase==='build'&&S.wave===0,
   ready:()=>{ tuneFetch(); const C2=window.__prologue&&window.__prologue.crew; return !!(C2&&C2.get())&&!!MOBGLB.goblin; },
   setup, step, teardown });
 window.__tavernscene={ info:()=>Object.assign({ tuneBytes:!!tuneBytes, tuneReady:!!TUNE, playingOn:tuneOn&&!!tuneSrc, heroesLive:heroes.length, gob:!!gob, words:words?words.textContent:'', wordsOp:words?+words.style.opacity||0:0, eyeOp:eyeMat?+eyeMat.opacity.toFixed(2):0 },cnt), cam:t=>camFor(t), SH, DUR };
