@@ -9,7 +9,7 @@ const css=document.createElement('style'); css.textContent='#trailerbtn{position
 document.head.appendChild(css);
 const ov=document.createElement('div'); ov.id='trailerOv'; ov.innerHTML='<video controls playsinline preload="none"></video><button class="tx" aria-label="close">✕</button>'; document.body.appendChild(ov);
 const vid=ov.querySelector('video'); let opens=0;
-function open(){ if(!vid.src) vid.src=(typeof ASSET==='function'?ASSET('trailer.mp4'):'assets/trailer.mp4'); ov.classList.add('on'); opens++; try{ if(document.exitPointerLock) document.exitPointerLock(); }catch(e){} const p=vid.play(); if(p&&p.catch) p.catch(()=>{}); }
+function open(){ if(!vid.src) vid.src=(typeof ASSET==='function'?ASSET('trailer.mp4'):'assets/trailer.mp4')+'?v=1.1';   /* build 538: v1.1 (the co-op shot no longer goes through the floor); the query skips a week-old cached copy */ ov.classList.add('on'); opens++; try{ if(document.exitPointerLock) document.exitPointerLock(); }catch(e){} const p=vid.play(); if(p&&p.catch) p.catch(()=>{}); }
 function close(){ ov.classList.remove('on'); try{ vid.pause(); }catch(e){} }
 ov.addEventListener('click',e=>{ if(e.target===ov||e.target.classList.contains('tx')){ e.stopPropagation(); close(); } });
 addEventListener('keydown',e=>{ if(ov.classList.contains('on')&&(e.key==='Escape'||e.code==='Space'&&e.target!==vid)){ if(e.key==='Escape') close(); e.stopImmediatePropagation(); } },true);
