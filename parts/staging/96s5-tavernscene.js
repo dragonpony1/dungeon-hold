@@ -1,64 +1,23 @@
-// ===== GNOME SWEET GNOME -- the prologue's second half (build 545). Matt: "ready" (after "awesome cinematic"). The plan (memory rootgate-cinematics.md): the tavern, a mug that ripples to the
-// horde's thuds, a goblin peeking in, the gnomes taking up arms, the eyes in the dark beyond the door, "...Last call.", the tavern tune quickening. Filmed in the Gnome Hall's own tavern room
-// (65-tavernroom.js: bar on the east wall, hearth on the south, the table, the door north to the hall). Plays once, straight after THE ROOT REMEMBERS (the first Gnome Hall build phase, once that one
-// is seen); the 🎬 gallery replays it. ~35 s on the wall clock:
-//    0.0  THE MUG -- close on a foaming mug on the table; far-off thuds, each one rings the ale and makes the mug hop, closer and closer.
-//    6.5  THE PEEK -- the tavern door from inside: a goblin leans round the doorframe, looks, ducks back out.
-//   11.5  TO ARMS -- four quick cuts: the Knight's sword rings, the Witch's staff lights, the Fighter's polearm sweeps, the Ranger's bow comes up.
-//   19.5  THE DOOR -- past the four, out through the door into the dark hall: eyes, hundreds, and a pink flash far off (Avery).
-//   26.0  "...Last call." -- the tavern tune quickens; the four turn to the door.
-//   31.0  GNOME SWEET GNOME -- the title.
-// MUSIC (build 547, Matt picked option 2 of three he sent: "option 2 on gnome sweet"): Eyal Talmudi's "Drunken Barrel" -> assets/music-tavernscene.mp3. Build 548 (Matt: "I dont think you need to speed up
-// the music like that just let it end when it ends"): the whole song at its own pace; when the scene ends by itself the song plays on to its own end, the hall's music waiting meanwhile (setMusic held),
-// and fades out if the horn sounds first. Skipping the scene stops it.
-// The heroes are the prologue's own (window.__prologue.crew: the same loaded models and set weapons); the goblin is a stand-in (makeMob); the tune is the hall's (assets/music-build.mp3) on the EFFECTS
-// channel (Matt plays with music off). Everything is taken away after. Test hook: window.__tavernscene.
+// ===== GNOME SWEET GNOME -- the prologue's second half. Built in build 545 (the tavern, the mug that ripples to the horde's thuds, a goblin peeking in, the gnomes taking up arms, the eyes beyond
+// the door, "...Last call.") and filmed live in the Gnome Hall's own tavern room. Build 549 moved it to the Throne Room (Matt: "gnome sweet gnome upon entering the thrown room"), which has no
+// tavern room, and rebuilt it on a set; build 550 (Matt: "You don't have to reshoot it just use the same video but move it to the throne room"): it plays THE SAME FOOTAGE he watched -- the Gnome
+// Hall version recorded frame by frame (assets/cine-tavern.mp4, 1280x720 30 fps, 35 s, its letterbox, "...Last call." and title card already in the picture) -- as a video over the held hall, the
+// first time the Throne Room's build phase begins. Its sound is played live in time with it: Matt's pick, Eyal Talmudi's "Drunken Barrel" (assets/music-tavernscene.mp3; at its own pace, and when the
+// scene ends by itself it plays on to its own end, the hall's music held meanwhile, fading if the horn sounds first), the horde's thuds (harder and quicker as they near) and the four's stings.
+// SPACE skips (96s-cinematics.js); the 🎬 gallery replays it. Test hook: window.__tavernscene.
 (function(){
 'use strict';
 window.__tavernscene={ info:()=>null };
 if(!window.CINE) return;
-const ID='tavern', DUR=35, PRE='prologue';
+const ID='tavern', DUR=34.9;
 const SH={ mug:0, peek:6.5, arms:11.5, door:19.5, last:26, title:31 };
-// build 549 (Matt: "gnome sweet gnome upon entering the thrown room"): it plays the first time the THRONE ROOM's build phase begins. The Throne Room has no tavern room (its south wall was
-// closed, MAP.noTavern), so the scene brings its own: a tavern SET built for it out past the map's east edge (buildSet: brick walls, a tiled floor, the bar and its bottles, the hearth, the round
-// table and stools, a locker, a rug, two barrels, the barkeep, and the doorway north onto a dark hall) -- the Gnome Hall's room (65-tavernroom.js) again, every piece the scene's own, gone after.
 const HALL=typeof MAP!=='undefined'&&MAP&&MAP.id==='throne';
-const SX=320, SZ=0;   // where the set stands: well outside any map, beyond the fog
-function canvasTex(w,h,draw){ const c=document.createElement('canvas'); c.width=w; c.height=h; draw(c.getContext('2d'),w,h); const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.encoding=THREE.sRGBEncoding; return t; }
-let setFlames=null, setNpc=null;
-function buildSet(group){ const g=new THREE.Group(); g.position.set(SX,0,SZ); group.add(g); const mk=(geo,m,x,y,z)=>{ const o=own(new THREE.Mesh(geo,m)); o.position.set(x,y,z); g.add(o); return o; };
-  const tm=(col,map,em)=>{ const m=new THREE.MeshToonMaterial({ color:C(col), map:map||null }); m.emissive=map?C(0x2a1c30):C(col); m.emissiveIntensity=em===undefined?.06:em; OWN.push(m); return m; };   /* a faint floor of colour so nothing goes pitch black; the firelight does the rest */
-  const brick=canvasTex(256,256,(x,w,h)=>{ x.fillStyle='#4f4258'; x.fillRect(0,0,w,h); x.strokeStyle='#1c1522'; x.lineWidth=6; for(let r=0;r<8;r++){ const y=r*32; x.beginPath(); x.moveTo(0,y); x.lineTo(w,y); x.stroke(); for(let c=0;c<5;c++){ const bx=c*64+(r%2?32:0); x.beginPath(); x.moveTo(bx,y); x.lineTo(bx,y+32); x.stroke(); } } for(let i=0;i<400;i++){ x.fillStyle='rgba(0,0,0,'+(Math.random()*.12)+')'; x.fillRect(Math.random()*w,Math.random()*h,6,4); } });
-  const tiles=canvasTex(128,128,(x,w,h)=>{ x.fillStyle='#352c40'; x.fillRect(0,0,w,h); x.fillStyle='#2a2233'; x.fillRect(0,0,64,64); x.fillRect(64,64,64,64); x.strokeStyle='#17121e'; x.lineWidth=5; x.strokeRect(0,0,64,64); x.strokeRect(64,0,64,64); x.strokeRect(0,64,64,64); x.strokeRect(64,64,64,64); });
-  OWN.push(brick,tiles);
-  const texM=(tex,ru,rv,em)=>{ const t=tex.clone(); t.repeat.set(ru,rv); t.needsUpdate=true; OWN.push(t); return tm(0xffffff,t,em); };
-  const wood=tm(0x6b4a2a), plank=tm(0x8a5e34), dark=tm(0x2b2540), stone=tm(0x4a4262), cream=tm(0xf1e6d0), gold=tm(0xe0b040);
-  const fl=mk(new THREE.PlaneGeometry(16,12),texM(tiles,4,3,.5),0,0,0); fl.rotation.x=-PI/2;
-  const hf=mk(new THREE.PlaneGeometry(12,34),texM(tiles,3,8.5,.2),0,0,-25); hf.rotation.x=-PI/2;
-  const wall=(w,h,d,x,y,z,ru,rv)=>mk(new THREE.BoxGeometry(w,h,d),texM(brick,ru,rv,.5),x,y,z);
-  wall(16,6,.6,0,3,6.3,4,1.5); wall(.6,6,12,8.3,3,0,3,1.5); wall(.6,6,12,-8.3,3,0,3,1.5);   // south, east, west
-  wall(6.6,6,2,-4.7,3,-7,1.7,1.5); wall(6.6,6,2,4.7,3,-7,1.7,1.5); wall(2.8,1.6,2,0,5.2,-7,.7,.4);   // the north wall either side of the door, its lintel
-  wall(.6,5,34,-6,2.5,-25,8.5,1.2); wall(.6,5,34,6,2.5,-25,8.5,1.2);   // the dark hall's sides, past the door
-  // the bar along the east wall: counter, mugs, a shelf of bottles behind
-  { const bx=6.6; mk(new THREE.BoxGeometry(1,1.05,5.6),wood,bx-1.2,.52,0); mk(new THREE.BoxGeometry(1.2,.12,5.8),plank,bx-1.2,1.1,0); for(const mz of [-2,-.6,1.1,2.2]) mk(new THREE.CylinderGeometry(.13,.11,.26,8),cream,bx-1.3,1.29,mz);
-    mk(new THREE.BoxGeometry(.3,.08,5.4),plank,bx+.9,2.3,0); mk(new THREE.BoxGeometry(.3,.08,5.4),plank,bx+.9,3.1,0); const cols=[0x6a9a3a,0xc8262b,0x2fb8e8,0xe0b040,0x9a5ab8,0xf1e6d0]; for(let k=0;k<11;k++) mk(new THREE.CylinderGeometry(.09,.11,.42,7),tm(cols[k%cols.length]),bx+.9,(k%2?2.55:3.35),-2.4+k*.48); }
-  // the hearth on the south wall, logs and a fire
-  { mk(new THREE.BoxGeometry(3,2.6,.9),stone,0,1.3,5.6); mk(new THREE.BoxGeometry(3.3,.25,1.1),tm(0x5a5276),0,2.7,5.6); mk(new THREE.BoxGeometry(1.6,1.4,.6),tm(0x1a1420,null,0),0,.75,5.3); for(const x of [-.5,.4]){ const lg=mk(new THREE.CylinderGeometry(.09,.09,.8,6),wood,x,.2,5.25); lg.rotation.z=PI/2; }
-    const f1=glow(0xff6a14,1.5,.95), f2=glow(0xffd060,.8,.95); f1.position.set(0,.62,4.86); f2.position.set(0,.46,4.8); g.add(f1); g.add(f2); OWN.push(f1.material,f2.material); setFlames=[f1,f2]; }   /* glowing flames, not cones */
-  // the round table and four stools
-  { mk(new THREE.CylinderGeometry(.9,.9,.1,14),plank,-1,.9,0); mk(new THREE.CylinderGeometry(.12,.16,.9,7),wood,-1,.45,0); for(const [x,z] of [[1.2,0],[-1.2,0],[0,1.2],[0,-1.2]]){ mk(new THREE.CylinderGeometry(.3,.3,.08,9),plank,-1+x,.5,z); mk(new THREE.CylinderGeometry(.06,.08,.5,6),wood,-1+x,.25,z); } }
-  // the locker on the west wall, a rug by the door, two barrels
-  { mk(new THREE.BoxGeometry(.7,2.3,1.4),dark,-7.6,1.15,-3); mk(new THREE.BoxGeometry(.74,.08,1.44),gold,-7.6,2.3,-3); mk(new THREE.BoxGeometry(2.2,.03,3.2),tm(0x8a2030),0,.02,-3.6); for(const [x,z] of [[-7.2,4.8],[-6.2,5.2]]) mk(new THREE.CylinderGeometry(.42,.42,1.1,10),wood,x,.55,z); }
-  // the barkeep behind the bar
-  try{ const n=makeHero(); n.g.position.set(SX+7.5,0,SZ+.6); n.g.rotation.y=-PI/2; n.g.scale.setScalar(.95); group.add(n.g); setNpc=n.g; }catch(e){}
-  return g; }
-const cnt={ setups:0, teardowns:0, thumps:0, eyes:0, heroes:0, weapons:0, music:0, quick:0 };
-const ssm=k=>k<=0?0:k>=1?1:k*k*(3-2*k), L3=(a,b,k)=>[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k,a[2]+(b[2]-a[2])*k];
-const TD=(typeof MAP!=='undefined'&&MAP&&MAP.tavern)||{ dx:0, dz:0 }; const at=(x,z)=>[cw(x+TD.dx),cwz(z+TD.dz)];
-let prng=1; const rand=()=>{ prng=(prng*16807)%2147483647; return (prng-1)/2147483646; };
-// ---------------------------------------------------------------- the caption ("...Last call."), the same style as the prologue's words, low on the screen
-let words=null; function wordsEl(){ if(words) return words; words=document.createElement('div'); words.id='cineWords2';
-  const st=document.createElement('style'); st.textContent='#cineWords2{position:fixed;left:50%;bottom:17vh;transform:translateX(-50%);z-index:96;pointer-events:none;font:italic clamp(24px,3.4vw,50px) Georgia,serif;color:#f3e2b8;letter-spacing:.05em;text-shadow:0 0 18px #ff9a4a66,0 2px 0 #000;opacity:0;white-space:nowrap}'; document.head.appendChild(st); (document.getElementById('cine')||document.body).appendChild(words); return words; }   // inside #cine (the page's other children are hidden while a scene plays)
+const cnt={ setups:0, teardowns:0, thumps:0, stings:0, music:0, seeks:0 };
+// ---------------------------------------------------------------- the footage
+let vid=null; function video(){ if(vid) return vid; vid=document.createElement('video'); vid.id='cineVideo'; vid.muted=true; vid.playsInline=true; vid.preload='auto';
+  const st=document.createElement('style'); st.textContent='#cineVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:2;display:none;pointer-events:none}'; document.head.appendChild(st);
+  (document.getElementById('cine')||document.body).appendChild(vid); vid.src=(typeof ASSET==='function'?ASSET('cine-tavern.mp4'):'assets/cine-tavern.mp4')+'?v=1'; return vid; }
+const want=()=>HALL&&!(window.CINE.seen&&window.CINE.seen(ID));
 // ---------------------------------------------------------------- the tune
 let TUNE=null, tuneBytes=null, tuneSrc=null, tuneGain=null;
 function tuneFetch(){ if(tuneFetch.on) return; tuneFetch.on=true; try{ (typeof fetchBytesNow==='function'?fetchBytesNow:fetchBytes)(ASSET('music-tavernscene.mp3')).then(b=>{ tuneBytes=b; }).catch(()=>{}); }catch(e){} }
@@ -68,7 +27,6 @@ let tuneOn=false;   // the song playing on after the scene (the hall's own music
 { const prev=setMusic; setMusic=function(m){ if(tuneOn&&tuneSrc&&m!=='none') return prev('none'); return prev.apply(this,arguments); }; }
 if(typeof setMusicRaw==='function'){ const p2=setMusicRaw; setMusicRaw=function(m){ if(tuneOn&&tuneSrc&&m!=='none') return p2('none'); return p2.apply(this,arguments); }; }   // the cinematics' own way back to the hall's music (96s-cinematics.js finish) waits too
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(tuneOn&&tuneSrc&&S.phase==='wave'){ tuneOn=false; tuneStop(2.5); try{ musicForPhase(); }catch(e){} } }; }
-function tuneQuick(U){ if(!tuneSrc) return; try{ const t=U.a.currentTime; tuneSrc.playbackRate.setTargetAtTime(1.32,t,.6); tuneGain.gain.setTargetAtTime(.9,t,.6); cnt.quick++; }catch(e){} }
 function tuneStop(fade){ if(!tuneSrc) return; try{ const g=tuneGain.gain, t=tuneGain.context.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value,t); g.linearRampToValueAtTime(0,t+fade); tuneSrc.stop(t+fade+.05); }catch(e){} tuneSrc=null; }
 // small stings on the scene's own audio (U.a / U.sfx): a blade ringing, a staff igniting, a whoosh, a bowstring
 function sting(U,kind){ if(!U||!U.a) return; const a=U.a, t=a.currentTime, g=a.createGain(); g.connect(U.sfx);
@@ -79,80 +37,25 @@ function sting(U,kind){ if(!U||!U.a) return; const a=U.a, t=a.currentTime, g=a.c
   const n=a.createBufferSource(), len=kind==='string'?.25:.5, b=a.createBuffer(1,(a.sampleRate*len)|0,a.sampleRate), c=b.getChannelData(0); for(let i=0;i<c.length;i++) c[i]=Math.random()*2-1; n.buffer=b;
   const bp=a.createBiquadFilter(); bp.type='bandpass'; bp.Q.value=kind==='string'?6:1.2; bp.frequency.setValueAtTime(kind==='string'?900:400,t); bp.frequency.exponentialRampToValueAtTime(kind==='string'?300:2200,t+len);
   g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(kind==='string'?.25:.2,t+.03); g.gain.exponentialRampToValueAtTime(.0001,t+len); n.connect(bp).connect(g); n.start(t); }
-// ---------------------------------------------------------------- the scene
-const OWN=[]; function own(m){ m.userData.cineOwn=true; m.userData.noOL=true; return m; }
-let heroes=[], gob=null, mug=null, rings=[], eyePts=null, eyeMat=null, pinkG=null, hearthF=null, R={}, thumpT=0, lastThump=-9, nThump=0, lastCut=null;
-const SRC=[0,1,2,3,4,5].map(()=>({ x:0, y:-80, z:0, on:false, ph:0, k:1 }));
-function setup(ctx){ if(!HALL) return false; const C2=window.__prologue&&window.__prologue.crew; if(!C2) return false; cnt.setups++; prng=9151; tuneSrc=null; heroes=[]; rings=[]; nThump=0; lastThump=-9; thumpT=1.1;
-  // the room's spots (65-tavernroom.js)
-  buildSet(ctx.group); R={ table:[SX-1,SZ], door:[SX,SZ-6.6], hearth:[SX,SZ+5.4], bar:[SX+6.4,SZ], locker:[SX-7.2,SZ-3] }; const fy=0; R.fy=fy;
-  // the mug: on the near edge of the table, foam on top, ale under it, rings that spread on each thud
-  mug=new THREE.Group(); mug.position.set(R.table[0]-.45,fy+.95,R.table[1]-.35); ctx.group.add(mug);
-  const cream=new THREE.MeshToonMaterial({ color:C(0x7a4a26) }), brass=new THREE.MeshToonMaterial({ color:C(0xd8a84a) }), ale=new THREE.MeshBasicMaterial({ color:C(0xd99a30) }), foam=new THREE.MeshToonMaterial({ color:C(0xfff6e2) }); OWN.push(cream,brass,ale,foam);   /* a wooden tankard, brass bands */
-  mug.add(own(new THREE.Mesh(new THREE.CylinderGeometry(.15,.135,.3,16),cream))).position.y=.15; for(const y of [.05,.25]){ const b=own(new THREE.Mesh(new THREE.TorusGeometry(.148,.012,5,20),brass)); b.rotation.x=PI/2; b.position.y=y; mug.add(b); } const hd=own(new THREE.Mesh(new THREE.TorusGeometry(.1,.026,6,12),cream)); hd.position.set(.18,.15,0); mug.add(hd);
-  const aleT=own(new THREE.Mesh(new THREE.CircleGeometry(.135,20),ale)); aleT.rotation.x=-PI/2; aleT.position.y=.292; mug.add(aleT);
-  for(let i=0;i<9;i++){ const f=own(new THREE.Mesh(new THREE.SphereGeometry(.045+rand()*.025,8,6),foam)); const a=i/9*TAU+rand()*.3, r=i===0?0:.06+rand()*.06; f.position.set(Math.cos(a)*r,.3+rand()*.025,Math.sin(a)*r); f.scale.y=.55; mug.add(f); }   /* a ring of foam, the ale showing in the middle */
-  for(let i=0;i<3;i++){ const m=new THREE.MeshBasicMaterial({ color:C(0xffe6a8), transparent:true, opacity:0, depthWrite:false }); OWN.push(m); const rg=own(new THREE.Mesh(new THREE.RingGeometry(.8,1,24),m)); rg.rotation.x=-PI/2; rg.position.y=.29; rg.scale.setScalar(.01); mug.add(rg); rings.push({ rg, m, t:9 }); }
-  // the four (the prologue's models), set where each one stands in the tavern
-  const P=window.__party&&window.__party.model; const spots={ knight:[R.table[0]-1.25,R.table[1]+.2,PI*.5], witch:[R.hearth[0]-1.4,R.hearth[1]-1.6,PI*.9], fighter:[R.locker[0]+1.6,R.locker[1]+1.2,PI*.65], troll:[R.bar[0]-1.15,R.bar[1]-1.6,-PI*.6] };
-  for(const h of C2.CREW){ const m=C2.MODEL[h.id]; if(!m) continue; const sp=spots[h.id]; m.wrap.position.set(sp[0],0,sp[1]); m.wrap.rotation.y=sp[2]; m.wrap.visible=true; ctx.group.add(m.wrap);
-    if(P&&m.actions.idle) P.play(m,'idle',{fade:0,restart:true}); const mt=P&&P.mount(m.root); if(mt&&window.__weapons&&window.__weapons.attach) window.__weapons.attach(mt,h.w,5,null,obj=>{ m.wobj=obj; try{ m.wglow=window.__heldglow&&window.__heldglow.dress?window.__heldglow.dress(obj):null; }catch(e){} cnt.weapons++; });
-    heroes.push({ h, m, yaw0:sp[2], ht:2.3 }); }   /* a puppet hero stands about 2.3 here, head to toe (a skinned rig's box reads short) */
-  cnt.heroes=heroes.length;
-  // the goblin at the door (outside, just round the frame)
-  try{ gob=makeMob('goblin'); }catch(e){ gob=null; } if(gob){ gob.g.visible=false; ctx.group.add(gob.g); const id=gob.actions&&(gob.actions.idle||gob.actions.walk); if(id){ id.reset(); id.play(); } }
-  // eyes out in the hall: hundreds, in pairs, in the dark north of the door
-  { const N=260, pos=new Float32Array(N*2*3), col=new Float32Array(N*2*3); for(let i=0;i<N;i++){ const z=R.door[1]-3-rand()*26, x=R.door[0]+(rand()-.5)*Math.min(10.5,2.4+(R.door[1]-z)*.55), y=.9+rand()*1.1, sep=.09+rand()*.05, warm=rand()<.75;
-      for(let s=0;s<2;s++){ const j=(i*2+s)*3; pos[j]=x+(s?sep:-sep); pos[j+1]=y; pos[j+2]=z; const c=warm?[1,.82,.25]:[1,.3,.2]; col[j]=c[0]; col[j+1]=c[1]; col[j+2]=c[2]; } }
-    const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3)); geo.setAttribute('color',new THREE.BufferAttribute(col,3));
-    eyeMat=new THREE.PointsMaterial({ size:.2, map:GLOWT, vertexColors:true, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, opacity:0 }); OWN.push(eyeMat); eyePts=own(new THREE.Points(geo,eyeMat)); ctx.group.add(eyePts); cnt.eyes=N*2; }
-  pinkG=glow(0xff4fc8,9,0); pinkG.position.set(R.door[0]+4,R.fy+4,R.door[1]-24); ctx.group.add(pinkG); OWN.push(pinkG.material);
-  hearthF=glow(0xff8a2a,3.2,.8); hearthF.position.set(R.hearth[0],R.fy+.9,R.hearth[1]-.75); ctx.group.add(hearthF); OWN.push(hearthF.material);
-  ctx.darken({ hemi:.05, emissive:.08, fog:[16,60], flat:.5, keep:[] }); const F=ctx.fireLights(6); cnt.lights=F.slots.length; F.I=1.9; F.dist=11; F.col=0xffa860;
-  return true; }
-function camFor(t){ const T=R.table, D=R.door, fy=R.fy;
-  if(t<SH.peek){ const k=ssm(t/SH.peek), m=mug.position; return { p:[m.x-.62+.12*k,m.y+.78-.08*k,m.z-.5+.1*k], l:[m.x,m.y+.24,m.z], fov:42, name:'mug', f:{ x:m.x, y:m.y, z:m.z } }; }
-  if(t<SH.arms){ const k=ssm((t-SH.peek)/(SH.arms-SH.peek)); return { p:[D[0]+.6,fy+1.45,D[1]+5.2-.6*k], l:[D[0]-.2,fy+1.25,D[1]-.4], fov:46, name:'peek', f:{ x:D[0], y:fy+1, z:D[1]+3 } }; }
-  if(t<SH.door){ const i=Math.min(3,((t-SH.arms)/2)|0), H=heroes[i]; if(!H) return { p:[T[0],fy+2,T[1]+4], l:[T[0],fy+1,T[1]], fov:50, name:'arms'+i, f:{ x:T[0], y:fy+1, z:T[1] } };
-    const p=H.m.wrap.position, y=H.yaw0, k=(t-SH.arms-i*2)/2, d=H.ht*1.55-.3*k, sd=H.ht*.35; return { p:[p.x+Math.sin(y)*d+Math.cos(y)*sd,p.y+H.ht*.82,p.z+Math.cos(y)*d-Math.sin(y)*sd], l:[p.x,p.y+H.ht*.66,p.z], fov:44, name:'arms'+i, f:{ x:p.x, y:p.y+1, z:p.z } }; }
-  if(t<SH.last){ const k=ssm((t-SH.door)/(SH.last-SH.door)); return { p:L3([D[0]+.5,fy+1.5,D[1]+3.4],[D[0]+.1,fy+1.45,D[1]+.6],k), l:[D[0],fy+1.3,D[1]-12], fov:60, name:'door', f:{ x:D[0], y:fy+1, z:D[1]+3 } }; }
-  if(t<SH.title){ const H=heroes.find(x=>x.h.id==='knight')||heroes[0]; const p=H.m.wrap.position, k=ssm((t-SH.last)/(SH.title-SH.last)); const hh=H.ht||2.3, y=H.m.wrap.rotation.y, d=hh*1.5-.25*k, sd=hh*.3; return { p:[p.x+Math.sin(y)*d+Math.cos(y)*sd,p.y+hh*.85,p.z+Math.cos(y)*d-Math.sin(y)*sd], l:[p.x,p.y+hh*.72,p.z], fov:40, name:'last', f:{ x:p.x, y:p.y+1, z:p.z } }; }
-  const k=ssm((t-SH.title)/(DUR-SH.title)); return { p:L3([T[0]+.5,fy+2.4,T[1]+4.6],[T[0]+.5,fy+3.6,T[1]+6.2],k), l:[D[0],fy+1.2,D[1]-2], fov:54, name:'title', f:{ x:T[0], y:fy+1, z:T[1] } }; }
-function step(ctx,t,dt){ const U=ctx.audio, F=ctx.fire, P=window.__party&&window.__party.model; const W=wordsEl();
-  ctx.black(t<1.2?1-ssm(t/1.2):0); ctx.title(ssm((t-(SH.title+.5))/1.2));
-  W.textContent='…Last call.'; W.style.opacity=String(t>=SH.last+1&&t<SH.title+.3?ssm((t-SH.last-1)/.6)*(1-ssm((t-SH.title)/.3)):0);
-  // the thuds: slow and soft at first, closer and harder; each one rings the ale and makes the mug hop
-  thumpT-=dt; if(t<SH.door&&thumpT<=0){ const k=Math.min(1,t/SH.door); thumpT=1.5-.6*k; lastThump=t; nThump++; cnt.thumps++; U.boom(.12+.22*k); const r=rings[nThump%rings.length]; r.t=0; if(window.__cam) {} }
-  const hop=Math.exp(-(t-lastThump)*14); mug.position.y=R.fy+.95+.025*hop*(t<SH.peek?1:.3); mug.rotation.z=.03*hop*Math.sin(t*40);
-  for(const r of rings){ r.t+=dt; const k=r.t/.9; if(k>=1){ r.m.opacity=0; continue; } r.rg.scale.setScalar(.01+.13*ssm(k)); r.m.opacity=.7*(1-k); }
-  // the goblin: round the doorframe, a look, and back out
-  if(gob){ const D=R.door, show=t>=SH.peek+.6&&t<SH.arms; gob.g.visible=show; if(show){ const k=t-SH.peek-.6, lean=k<1?ssm(k):k<3?1:1-ssm((k-3)/.9); gob.g.position.set(D[0]-1.5+.9*lean,R.fy,D[1]-.6); gob.g.rotation.y=Math.atan2(.4,1)+.25*Math.sin(k*2.2)*lean; if(gob.mixer) gob.mixer.update(dt); } }
-  // the four: idle, each takes up arms on its cut, all turn to the door at the end
-  for(const H of heroes){ if(H.m.mixer) H.m.mixer.update(dt); }
-  heroes.forEach((H,i)=>{ ctx.once('arm'+i,SH.arms+i*2+.35,()=>{ if(P&&H.m.actions.attack) P.play(H.m,'attack',{fade:.08,restart:true}); sting(U,['shing','ignite','whoosh','string'][i]); }); ctx.once('back'+i,SH.arms+i*2+1.6,()=>{ if(P&&H.m.actions.idle) P.play(H.m,'idle',{fade:.25}); }); });
-  if(t>=SH.last+1.4){ const k=ssm((t-SH.last-1.4)/1.6); for(const H of heroes){ const p=H.m.wrap.position, to=Math.atan2(R.door[0]-p.x,R.door[1]-p.z); let d=to-H.yaw0; while(d>PI) d-=TAU; while(d<-PI) d+=TAU; H.m.wrap.rotation.y=H.yaw0+d*k; } }
-  // the dark beyond the door
-  eyeMat.opacity=t>=SH.door?ssm((t-SH.door-.4)/2.5)*(.9+.1*Math.sin(t*3)):0; ctx.once('pink',SH.door+3.6,()=>{ U.swell(.06); });
-  pinkG.material.opacity=t>=SH.door+3.6?.75*Math.exp(-(t-SH.door-3.6)*2.2):0;
-  hearthF.material.opacity=.75+.15*Math.sin(t*9)+.08*Math.sin(t*23); if(setFlames){ setFlames[0].scale.set(1.5*(1+.1*Math.sin(t*11)),1.9*(1+.15*Math.sin(t*13)),1); setFlames[1].scale.set(.8,1.1*(1+.12*Math.sin(t*17+1)),1); }
-  // light: the hearth, the table, the bar, the door
-  if(F){ const pts=[[R.hearth[0],R.fy+1.2,R.hearth[1]-.3],[R.table[0],R.fy+2.4,R.table[1]],[R.bar[0]-.8,R.fy+2.4,R.bar[1]-1],[R.locker[0]+1.8,R.fy+2.4,R.locker[1]+1],[R.door[0],R.fy+2.6,R.door[1]+1.4]];
-    pts.forEach((p,i)=>{ const o=SRC[i]; o.x=p[0]; o.y=p[1]; o.z=p[2]; o.on=true; o.ph=i*1.7; o.k=i===0?1.25:.8; }); SRC[5].on=false; F.update(SRC,c0||{ x:R.table[0], y:R.fy+1, z:R.table[1] },dt,t); }
-  const c=camFor(t); c0=c.f; ctx.cam(c.p,c.l,c.fov); if(c.name!==lastCut){ if(lastCut!==null&&F&&F.cut) F.cut(); lastCut=c.name; }
-  // sound
-  tunePrep(U); if(!tuneSrc&&TUNE&&t<DUR-1.5) tunePlay(U);
+// ---------------------------------------------------------------- the scene: the video, held to the scene's clock; the sound on top
+let thumpT=0, nThump=0, lastT=0;
+function setup(ctx){ const v=video(); cnt.setups++; tuneSrc=null; thumpT=1.1; nThump=0; lastT=0; try{ v.currentTime=0; }catch(e){} v.style.display='block'; const p=v.play(); if(p&&p.catch) p.catch(()=>{}); return true; }
+function step(ctx,t,dt){ const U=ctx.audio, v=vid; ctx.black(0); ctx.title(0);
+  if(v){ if(window.__freeze){ if(!v.paused) v.pause(); if(Math.abs(v.currentTime-t)>.02){ v.currentTime=Math.min(t,DUR); } }
+    else { if(v.paused&&t<DUR-.2){ const p=v.play(); if(p&&p.catch) p.catch(()=>{}); } if(Math.abs(v.currentTime-t)>.3){ v.currentTime=Math.min(t,DUR); cnt.seeks++; } } }
+  // the thuds: slow and soft at first, closer and harder
+  thumpT-=dt; if(t<SH.door&&thumpT<=0){ const k=Math.min(1,t/SH.door); thumpT=1.5-.6*k; nThump++; cnt.thumps++; U.boom(.12+.22*k); }
+  // the four take up arms, one cut each
+  ['shing','ignite','whoosh','string'].forEach((s,i)=>ctx.once('arm'+i,SH.arms+i*2+.35,()=>{ sting(U,s); cnt.stings++; }));
   ctx.once('boomTitle',SH.title+.4,()=>{ U.boom(.45); });
+  tunePrep(U); if(!tuneSrc&&TUNE&&t<DUR-1.5) tunePlay(U);
   lastT=t; }
-let lastT=0;
-let c0=null;
-function teardown(ctx){ cnt.teardowns++; if(tuneSrc&&lastT>=DUR-.8){ tuneOn=true; cnt.playOn=(cnt.playOn|0)+1; try{ setMusic('none'); }catch(e){} } else tuneStop(.6);   /* ended by itself: the song plays on; skipped: it stops */ if(words) words.style.opacity='0';
-  for(const H of heroes){ try{ H.m.mixer.stopAllAction(); }catch(e){} if(H.m.wobj&&H.m.wobj.parent) H.m.wobj.parent.remove(H.m.wobj); if(H.m.wrap.parent) H.m.wrap.parent.remove(H.m.wrap); H.m.wrap.rotation.y=0; }
-  if(gob) try{ gob.mixer.stopAllAction(); }catch(e){}
-  for(const m of OWN.splice(0)) try{ m.dispose(); }catch(e){}
-  heroes=[]; gob=null; mug=null; rings=[]; eyePts=null; c0=null; setFlames=null; setNpc=null; }
+function teardown(ctx){ cnt.teardowns++; if(vid){ try{ vid.pause(); }catch(e){} vid.style.display='none'; }
+  if(tuneSrc&&lastT>=DUR-.8){ tuneOn=true; cnt.playOn=(cnt.playOn|0)+1; try{ setMusic('none'); }catch(e){} } else tuneStop(.6);   /* ended by itself: the song plays on; skipped: it stops */ }
+try{ if(want()&&!SILENT){ video(); tuneFetch(); } }catch(e){}
 CINE.register(ID,{ title:'GNOME SWEET GNOME', sub:'LAST CALL', map:'throne', pic:'cine-tavern.jpg', dur:DUR,
   when:()=>HALL&&!TUTORIAL&&S.phase==='build'&&S.wave===0,
-  ready:()=>{ tuneFetch(); const C2=window.__prologue&&window.__prologue.crew; return !!(C2&&C2.get())&&!!MOBGLB.goblin; },
+  ready:()=>{ tuneFetch(); const v=video(); return v.readyState>=3; },
   setup, step, teardown });
-window.__tavernscene={ info:()=>Object.assign({ tuneBytes:!!tuneBytes, tuneReady:!!TUNE, playingOn:tuneOn&&!!tuneSrc, heroesLive:heroes.length, gob:!!gob, words:words?words.textContent:'', wordsOp:words?+words.style.opacity||0:0, eyeOp:eyeMat?+eyeMat.opacity.toFixed(2):0 },cnt), cam:t=>camFor(t), SH, DUR };
+window.__tavernscene={ info:()=>Object.assign({ tuneBytes:!!tuneBytes, tuneReady:!!TUNE, playingOn:tuneOn&&!!tuneSrc, video:vid?{ ready:vid.readyState, t:+vid.currentTime.toFixed(2), shown:vid.style.display==='block', w:vid.videoWidth, src:vid.currentSrc.slice(-24) }:null },cnt), SH, DUR };
 })();
