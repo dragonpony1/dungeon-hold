@@ -81,7 +81,19 @@ function shot(t){ const out={}; let p, l, fov=50, focus=null, name;
     const hd=head(t); at(Math.max(0,hd.s-6),V0); focus={ x:V0.x, y:V0.y, z:V0.z }; }
   out.p=p; out.l=l; out.fov=fov; out.focus=focus; out.name=name; return out; }
 // ---------------------------------------------------------------- the scene
-function setup(ctx){ if(!PRISON) return false; cnt.setups++; prng=7177; P=buildPath(); if(!P) return false;
+// Matt's cave drip (build 535: "can you slow that down and amplify some" / "thats good, slower" / "slow drip is a go"): his water_drip_reverberant_underground at half speed, compressed louder ->
+// assets/drip-cave.mp3 (33 s), played once from the first black frame under the drone and heartbeat, easing out after the first boom. The made-up drips only stand in until it has arrived.
+let DRIP=null, dripBytes=null, dripSrc=null, dripGain=null; try{ if(PRISON&&typeof fetchBytesNow==='function'&&typeof ASSET==='function') fetchBytesNow(ASSET('drip-cave.mp3')).then(b=>{ dripBytes=b; }).catch(()=>{}); }catch(e){}
+function dripPlay(U){ if(dripSrc||!U||!U.a||!U.sfx) return false; if(!DRIP){ if(dripBytes&&!dripBytes.__dec){ dripBytes.__dec=1; U.a.decodeAudioData(dripBytes.slice(0),b=>{ DRIP=b; },()=>{}); } return false; }
+  dripGain=U.a.createGain(); dripGain.gain.value=.9; dripGain.connect(U.sfx); dripSrc=U.a.createBufferSource(); dripSrc.buffer=DRIP; dripSrc.connect(dripGain); dripSrc.start(); cnt.dripSample=(cnt.dripSample|0)+1; return true; }
+function dripStop(fade){ if(!dripSrc) return; try{ const g=dripGain.gain, t=dripGain.context.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value,t); g.linearRampToValueAtTime(0,t+fade); dripSrc.stop(t+fade+.05); }catch(e){} dripSrc=null; }
+// the MARCH (build 535, Matt: "i expected some kind of music or march, start with the drip then hit it"): his Shogun's March (ZapSplat Taiko Fury, the trailer's opener) -- its biggest taiko hit (60.5 s
+// into the track) lands on the cut to the torches pouring down the stairs; a 26 s cut of it, assets/music-torchline.mp3, on the music channel (silent when music is off). Drip alone before it.
+const MARCH_HIT=.5; let MARCH=null, marchBytes=null, marchSrc=null, marchGain=null; try{ if(PRISON&&typeof fetchBytesNow==='function'&&typeof ASSET==='function') fetchBytesNow(ASSET('music-torchline.mp3')).then(b=>{ marchBytes=b; }).catch(()=>{}); }catch(e){}
+function marchPrep(U){ if(!MARCH&&marchBytes&&!marchBytes.__dec&&U&&U.a){ marchBytes.__dec=1; U.a.decodeAudioData(marchBytes.slice(0),b=>{ MARCH=b; },()=>{}); } }
+function marchPlay(U,off){ if(marchSrc||!MARCH||!U||!U.a||!U.mus) return; marchGain=U.a.createGain(); marchGain.gain.value=.95; marchGain.connect(U.mus); marchSrc=U.a.createBufferSource(); marchSrc.buffer=MARCH; marchSrc.connect(marchGain); marchSrc.start(0,Math.max(0,off)); cnt.march=(cnt.march|0)+1; }
+function marchStop(fade){ if(!marchSrc) return; try{ const g=marchGain.gain, t=marchGain.context.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value,t); g.linearRampToValueAtTime(0,t+fade); marchSrc.stop(t+fade+.05); }catch(e){} marchSrc=null; }
+function setup(ctx){ if(!PRISON) return false; cnt.setups++; dripSrc=null; marchSrc=null; prng=7177; P=buildPath(); if(!P) return false;
   A.flightTop=nearestS(-27,66.5); A.lane=nearestS(-4,52); A.pitTop=nearestS(12,22.5); const g0=at(0,{}); A.gate={ x:g0.x, y:g0.y, z:g0.z };
   const fs=nearestS(6,52); const fp=at(fs,{}); A.feet={ x:fp.x, z:fp.z }; A.feetY=fp.y;
   poolGeo=new THREE.CircleGeometry(1,28); marchers=[]; for(let i=0;i<N;i++) marchers.push(makeMarcher(i,ctx.group)); cnt.marchers=marchers.length;
@@ -117,17 +129,19 @@ function step(ctx,t,dt){ const t0=performance.now(); const U=ctx.audio, F=ctx.fi
   ctx.once('boom2',SH.river,()=>{ U.boom(.38); });
   ctx.once('boom3',SH.title+.5,()=>{ U.boom(.55); U.swell(.08); U.droneVol(.03,3); });
   beatT-=dt; if(t>1.6&&t<SH.title+.5&&beatT<=0){ const per=1.35-.4*ssm((t-4)/18); beatT=per; U.heart(.2+.12*ssm((t-4)/18)); }
-  dripT-=dt; if(dripT<=0){ dripT=.9+Math.random()*1.9; U.drip(.03+Math.random()*.035,(Math.random()-.5)*1.6); }
+  if(!dripSrc&&t<SH.flight) dripPlay(U); if(dripSrc&&t>SH.flight+2) dripStop(4);   // Matt's slow cave drip
+  marchPrep(U); if(!marchSrc&&MARCH&&t>=SH.flight-MARCH_HIT&&t<SH.title+4) marchPlay(U,t-(SH.flight-MARCH_HIT));   // ...then the drums hit with the torches
+  dripT-=dt; if(!dripSrc&&!DRIP&&dripT<=0){ dripT=.9+Math.random()*1.9; U.drip(.03+Math.random()*.035,(Math.random()-.5)*1.6); }
   if(t>9&&t<SH.flight){ drumT-=dt; if(drumT<=0){ drumT=2.4; U.boom(.05+.1*ssm((t-9)/7)); } }
   crackT-=dt; if(crackT<=0&&nearD<34){ crackT=.07; U.crackle(.05*Math.max(0,1-nearD/34),Math.max(-.8,Math.min(.8,(nearX-cam.x)/12))); }
   stepSnd-=dt; if(stepSnd<=0&&hd.v>0&&nearD<30){ stepSnd=.42*(2.6/hd.v)*(.85+Math.random()*.3); U.step(.13*Math.max(0,1-nearD/30),(Math.random()-.5)*.6); }
   const ms=performance.now()-t0; cnt.frames++; cnt.frameMs+=(ms-cnt.frameMs)*.1; cnt.maxFrameMs=Math.max(cnt.maxFrameMs,ms); }
-function teardown(ctx){ cnt.teardowns++;
+function teardown(ctx){ cnt.teardowns++; dripStop(.4); marchStop(.8);
   for(const M of marchers){ if(M.t){ M.t.traverse(o=>{ if(o.geometry&&o.geometry.type==='ConeGeometry') o.geometry.dispose(); if(o.material&&(o.material.isSpriteMaterial||o.material.isMeshBasicMaterial)) o.material.dispose(); }); } if(M.pool) M.pool.material.dispose(); try{ M.m.mixer.stopAllAction(); }catch(e){} }
   if(poolGeo){ poolGeo.dispose(); poolGeo=null; } marchers=[]; }
 CINE.register(ID,{ title:'THE DEEP PRISON', sub:'THE TORCH LINE', map:'prison', pic:'cine-torchline.jpg', dur:DUR,
   when:()=>PRISON&&!TUTORIAL&&S.phase==='build'&&S.wave===0,
   ready:()=>!!(MOBGLB.goblin&&MOBGLB.orc)&&!!(window.__prisonkit&&window.__prisonkit.info&&(window.__prisonkit.info()||{}).modules>0),
   setup, step, teardown });
-window.__torchline={ info:()=>Object.assign({ glb:marchers.filter(M=>M.m.glb).length, path:P?{ len:+P.len.toFixed(1), lane:P.lane, n:P.X.length }:null, anchors:Object.assign({},A), alive:marchers.filter(M=>M.m.g.visible).length, face },cnt), shot:t=>{ const s=shot(t); return { name:s.name, p:s.p, l:s.l }; }, head, SH, DUR, N };
+window.__torchline={ info:()=>Object.assign({ marchBytes:!!marchBytes, marchReady:!!MARCH, dripReady:!!DRIP, glb:marchers.filter(M=>M.m.glb).length, path:P?{ len:+P.len.toFixed(1), lane:P.lane, n:P.X.length }:null, anchors:Object.assign({},A), alive:marchers.filter(M=>M.m.g.visible).length, face },cnt), shot:t=>{ const s=shot(t); return { name:s.name, p:s.p, l:s.l }; }, head, SH, DUR, N };
 })();

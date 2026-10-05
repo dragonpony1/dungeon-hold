@@ -14,3 +14,4 @@ node_modules
 tools/test-logs/
 tools/scratch*/
 trailer/
+dist2/
