@@ -131,5 +131,7 @@ CINE.register(ID,{ title:'ROOTGATE', sub:'THE ROOT REMEMBERS', map:'hall', pic:'
   when:()=>HALL&&!TUTORIAL&&S.phase==='build'&&S.wave===0,
   ready:()=>{ prefetch(); warmWeapons(); parseHeroes(); return warmed>=CREW.length&& !!(MOBGLB.goblin&&MOBGLB.orc)&&CREW.every(h=>MODEL[h.id])&&!!(window.__crystal&&window.__crystal.state().model); },
   setup, step, teardown });
-window.__prologue={ info:()=>Object.assign({ buffers:CREW.filter(h=>BUF[h.id]).length, warmed, models:CREW.filter(h=>MODEL[h.id]).length, musBytes:!!musBytes, musReady:!!MUS, heroes:heroes.length, mobsLive:mobs.length, words:words.textContent, wordsOp:+words.style.opacity||0 },cnt), cam:t=>camFor(t), SH, DUR };
+// build 545: the four (models, weapon names, their loading) are shared with part two, the tavern (96s5-tavernscene.js)
+const crew={ CREW, MODEL, get:()=>{ prefetch(); warmWeapons(); parseHeroes(); return CREW.every(h=>MODEL[h.id])&&warmed>=CREW.length; } };
+window.__prologue={ crew, info:()=>Object.assign({ buffers:CREW.filter(h=>BUF[h.id]).length, warmed, models:CREW.filter(h=>MODEL[h.id]).length, musBytes:!!musBytes, musReady:!!MUS, heroes:heroes.length, mobsLive:mobs.length, words:words.textContent, wordsOp:+words.style.opacity||0 },cnt), cam:t=>camFor(t), SH, DUR };
 })();

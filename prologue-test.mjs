@@ -32,6 +32,6 @@ check("its music is fetched (the suites run silent, so it isn't played here)",fo
 c=await at(38.5); await page.screenshot({path:process.env.TEMP+"/pro-title.png"});
 await page.keyboard.press("Space"); await sleep(1800);
 const after=await page.evaluate(()=>({ active:window.__cine.info().active, seen:localStorage.getItem('dd_cine_seen'), words:+document.getElementById('cineWords').style.opacity||0, groups:window.__dd&&(()=>{ let n=0; window.__dd.scene&&window.__dd.scene.traverse&&window.__dd.scene.traverse(o=>{ if(/^cine-/.test(o.name||'')) n++; }); return n; })() }));
-check("skipping ends it and takes it all away; it is remembered as seen",!after.active&&/prologue/.test(after.seen||'')&&after.words===0,JSON.stringify(after));
+check("skipping ends it and takes it all away; it is remembered as seen (GNOME SWEET GNOME may follow straight on)",after.active!=='prologue'&&/prologue/.test(after.seen||'')&&after.words===0,JSON.stringify(after));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");
