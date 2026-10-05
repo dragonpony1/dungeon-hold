@@ -29,7 +29,7 @@ const SETS=[['void','of the Void'],['crimson','of Chaos'],['rock','of the Earth'
 const SLOT_BASE={weapon:'Weapon',armor:'Armor',amulet:'Amulet',familiar:'Familiar',charm:'Charm'};
 const SET_STAT={weapon:['dmg','spd','tow'],armor:['hp','def','regen'],amulet:['mana','tow','hp'],familiar:['fdmg','frate','move'],charm:['move','trate','tarea']};
 const MYTHIC_STAT={dmg:24,spd:45,hp:156,def:24,regen:4.5,tow:41,mana:65,move:20,fdmg:35,frate:63,trate:20,tarea:18};
-const FAM_KINDS=['Wisp','Bat','Sprite','Fire Imp','Crystal Owl','Storm Drake','Frost Fox'];
+const FAM_KINDS=['Wisp','Bat','Sprite','Fire Imp','Crystal Owl','Storm Drake','Frost Fox','Stone Tortoise'];
 function weaponLook(){ return typeof heroWtypes==='function'?heroWtypes()[0]:'sword'; }   // build 525 prep: the hero's own first type (still overridable below)
 // build 525 prep: a PLAIN weapon of any type, to try typed weapons on demand (rarity is the least it rolls)
 function plainWeapon(t,r){ const was=WTYPE_FORCE; WTYPE_FORCE=t; try{ return rollItem(Math.max(0,Math.min(4,r|0)),'weapon',Math.max(1,effWave())); } finally{ WTYPE_FORCE=was; } }

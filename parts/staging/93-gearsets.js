@@ -135,7 +135,7 @@ function setPicOf(it,d){ const key=d&&d.unlock&&String(d.unlock.id||'').replace(
 const SET_BOWS=new Set(['storm','forest','shadow','void','crimson','rock','lava','angelic','ice','wind']); window.__setBows=SET_BOWS;
 // build 520: Matt's pet card pictures (hideout/assets/hideout/items/pets/<kind>.jpg) -- every familiar that isn't a named pet shows its kind's picture, a set pet too, until set pets get their own;
 // add a kind here as its picture lands (the Crystal Owl is still to come)
-const PET_PIC={'Wisp':'wisp','Bat':'bat','Moss Sprite':'sprite','Sprite':'sprite','Fire Imp':'imp','Storm Drake':'drake','Crystal Owl':'owl','Frost Fox':'fox'}; window.__petPics=PET_PIC;   // build 523 prep: the Frost Fox's picture
+const PET_PIC={'Wisp':'wisp','Bat':'bat','Moss Sprite':'sprite','Sprite':'sprite','Fire Imp':'imp','Storm Drake':'drake','Crystal Owl':'owl','Frost Fox':'fox','Stone Tortoise':'tortoise'}; window.__petPics=PET_PIC;   // build 523 prep: the Frost Fox's picture
 // build 524 (Matt: "i need to make soem thumbs for our ordinary gear cuz it just sits in the bag, withthe weapon icon"): an ORDINARY weapon (no set, not named, not mythic) shows the picture for the hand
 // holding it at its quality -- the base word in its name (rollItem: rarity + 0/1 -> Shortsword, Broadsword, Cleaver, Warhammer, Halberd, Gnome Blade) picks the step, hideout/assets/hideout/items/plain/<hand>-<1..5>.jpg.
 // Add a hand to PLAIN_PICS as its five pictures land (the Knight's swords are in; staffs, polearms, bows to come)

@@ -6,7 +6,7 @@ function outlineThin(root){ root.traverse(m=>{ if(m.isMesh&&m.material!==OL&&m.m
 let fam=null; const famBolts=[];
 let FAM_SIDE=1, FAM_PASS2=false;   // build 426: the SECOND familiar (97h-tworings.js) runs this same code with its pet swapped in: on the other shoulder (FAM_SIDE -1), and the shared bolts are moved once a frame, not twice
 function famShade(hex,k){ const c=new THREE.Color(hex); return (k<1?c.multiplyScalar(k):c.lerp(new THREE.Color(0xffffff),k-1)).getHex(); }   // k<1 darkens, k>1 tints toward white
-function famKind(it){ const n=(it&&it.name)||''; for(const k of ['Storm Drake','Crystal Owl','Fire Imp','Sprite','Bat','Frost Fox','Wisp']) if(n.includes(k)) return k; return 'Wisp'; }
+function famKind(it){ const n=(it&&it.name)||''; for(const k of ['Storm Drake','Crystal Owl','Fire Imp','Sprite','Bat','Frost Fox','Stone Tortoise','Wisp']) if(n.includes(k)) return k; return 'Wisp'; }
 function famEye(x,y,z,r){ const e=M(G.sph(r||.035,6,5),basic(0x14101c),x,y,z); e.userData.noOL=true; return e; }
 function famWing(m,side,w,h,y,z){ const p=new THREE.Group(); p.position.set(side*.1,y||.02,z||0); const b=M(G.box(w,.025,h),m,side*w/2,0,0); p.add(b); const tip=M(G.cone(.05,.1,4),m,side*(w+.03),0,0); tip.rotation.z=-side*PI/2; p.add(tip); p.userData.side=side; return p; }
 // procedural model per base name; every variant fits in ~0.5 units, body colour = rarity colour

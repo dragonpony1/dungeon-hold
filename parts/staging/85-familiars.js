@@ -5,9 +5,9 @@
 //   Crystal Owl — a beam that chains through up to three mobs.   Storm Drake — lightning that forks into the pack.
 // Models come from assets/ (fam-*.glb); until one arrives (or in a single-file build) the procedural pet stands in.
 (function(){
-const FAM_FILES={'Wisp':'fam-wisp.glb','Bat':'fam-bat.glb','Sprite':'fam-sprite.glb','Fire Imp':'fam-imp.glb','Crystal Owl':'fam-owl.glb','Storm Drake':'fam-drake.glb','Frost Fox':'fam-fox.glb'};   // build 523 prep: Matt's flight pack -- the Bat (same body) and the Fire Imp (the wingless flame-crest imp of his card picture) are rigged now and fly their own loop, and the Frost Fox is new
+const FAM_FILES={'Wisp':'fam-wisp.glb','Bat':'fam-bat.glb','Sprite':'fam-sprite.glb','Fire Imp':'fam-imp.glb','Crystal Owl':'fam-owl.glb','Storm Drake':'fam-drake.glb','Frost Fox':'fam-fox.glb','Stone Tortoise':'fam-tortoise.glb'};   /* build 539: the Stone Tortoise walks (85c-tortoise.js) */   // build 523 prep: Matt's flight pack -- the Bat (same body) and the Fire Imp (the wingless flame-crest imp of his card picture) are rigged now and fly their own loop, and the Frost Fox is new
 const FOXH=.62;   // the fox is long, not tall: .62 high is about 1.1 nose to tail-tip
-const FAM_H={'Wisp':.8,'Bat':.7,'Sprite':.8,'Fire Imp':.85,'Crystal Owl':.8,'Storm Drake':1.2,'Frost Fox':FOXH};   // build 248: the new drake is 2.0 tall with its tail hanging, 1.8 across the wings: 1.2 tall keeps a wingspan a little over the old one's   // world height of the pet
+const FAM_H={'Wisp':.8,'Bat':.7,'Sprite':.8,'Fire Imp':.85,'Crystal Owl':.8,'Storm Drake':1.2,'Frost Fox':FOXH,'Stone Tortoise':.95};   // build 248: the new drake is 2.0 tall with its tail hanging, 1.8 across the wings: 1.2 tall keeps a wingspan a little over the old one's   // world height of the pet
 // per-kind tuning: fire-rate and damage multipliers on the item's stats, plus what the attack does
 const FAM_KIND={
   'Wisp':        {rate:1.0,dmg:1.0,desc:'spark bolts'},
@@ -16,7 +16,8 @@ const FAM_KIND={
   'Fire Imp':    {rate:.7, dmg:.9, desc:'dives and drops molten lava · burning pools',splash:1.3,burn:3,burnDmg:.25},
   'Crystal Owl': {rate:.9, dmg:.8, desc:'beam chains to 3 mobs',hops:2,chain:.7,reach:4},
   'Storm Drake': {rate:.5, dmg:1.4,desc:'lightning forks into the pack',fork:.8,r:1.8},
-  'Frost Fox':   {rate:.55,dmg:1.5,desc:'swoops and bites · freezes',chillT:2,chillK:.6,bossK:.85}};   // build 523 prep: the Bat's swoop-and-bite, a touch less bite for the freeze: each bite slows the mob to 60% for 2 s (the Frost Spire's chill -- the deepest cold wins, it never stacks), a boss only to 85%
+  'Frost Fox':   {rate:.55,dmg:1.5,desc:'swoops and bites · freezes',chillT:2,chillK:.6,bossK:.85},
+  'Stone Tortoise':{rate:.5,dmg:1,desc:'walks at your side · taunts the pack · shell slam'}};   // build 539: the tank pet -- its taunt and slam live in 85c-tortoise.js (the slam's x1.6 is there)   // build 523 prep: the Bat's swoop-and-bite, a touch less bite for the freeze: each bite slows the mob to 60% for 2 s (the Frost Spire's chill -- the deepest cold wins, it never stacks), a boss only to 85%
 const FAM_GLB={}; const famFx=[]; const famShots=[]; let swoop=null; const burnFx=new Map();
 function kindOf(){ return fam?fam.g.userData.kind:'Wisp'; }
 function K(){ return FAM_KIND[kindOf()]||FAM_KIND.Wisp; }
