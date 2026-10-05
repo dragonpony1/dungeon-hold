@@ -8,7 +8,9 @@
 //   19.5  THE DOOR -- past the four, out through the door into the dark hall: eyes, hundreds, and a pink flash far off (Avery).
 //   26.0  "...Last call." -- the tavern tune quickens; the four turn to the door.
 //   31.0  GNOME SWEET GNOME -- the title.
-// MUSIC (build 547, Matt picked option 2 of three he sent: "option 2 on gnome sweet"): Eyal Talmudi's "Drunken Barrel", its first 40 s -> assets/music-tavernscene.mp3, quickening 1.32x on "...Last call.".
+// MUSIC (build 547, Matt picked option 2 of three he sent: "option 2 on gnome sweet"): Eyal Talmudi's "Drunken Barrel" -> assets/music-tavernscene.mp3. Build 548 (Matt: "I dont think you need to speed up
+// the music like that just let it end when it ends"): the whole song at its own pace; when the scene ends by itself the song plays on to its own end, the hall's music waiting meanwhile (setMusic held),
+// and fades out if the horn sounds first. Skipping the scene stops it.
 // The heroes are the prologue's own (window.__prologue.crew: the same loaded models and set weapons); the goblin is a stand-in (makeMob); the tune is the hall's (assets/music-build.mp3) on the EFFECTS
 // channel (Matt plays with music off). Everything is taken away after. Test hook: window.__tavernscene.
 (function(){
@@ -29,7 +31,11 @@ let words=null; function wordsEl(){ if(words) return words; words=document.creat
 let TUNE=null, tuneBytes=null, tuneSrc=null, tuneGain=null;
 function tuneFetch(){ if(tuneFetch.on) return; tuneFetch.on=true; try{ (typeof fetchBytesNow==='function'?fetchBytesNow:fetchBytes)(ASSET('music-tavernscene.mp3')).then(b=>{ tuneBytes=b; }).catch(()=>{}); }catch(e){} }
 function tunePrep(U){ if(!TUNE&&tuneBytes&&!tuneBytes.__dec&&U&&U.a){ tuneBytes.__dec=1; U.a.decodeAudioData(tuneBytes.slice(0),b=>{ TUNE=b; },()=>{}); } }
-function tunePlay(U){ if(tuneSrc||!TUNE||!U||!U.a||!U.sfx) return; tuneGain=U.a.createGain(); tuneGain.gain.value=.75; tuneGain.connect(U.sfx); tuneSrc=U.a.createBufferSource(); tuneSrc.buffer=TUNE; tuneSrc.loop=false; tuneSrc.connect(tuneGain); tuneSrc.start(); cnt.music++; }
+function tunePlay(U){ if(tuneSrc||!TUNE||!U||!U.a||!U.sfx) return; tuneGain=U.a.createGain(); tuneGain.gain.value=.75; tuneGain.connect(SFXOUT(U.a));   /* the effects channel itself, not the scene's own bus: it may outlive the scene */ tuneSrc=U.a.createBufferSource(); tuneSrc.buffer=TUNE; tuneSrc.loop=false; tuneSrc.connect(tuneGain); const me=tuneSrc; tuneSrc.onended=()=>{ if(tuneSrc===me) tuneSrc=null; if(tuneOn){ tuneOn=false; try{ musicForPhase(); }catch(e){} } }; tuneSrc.start(); cnt.music++; }
+let tuneOn=false;   // the song playing on after the scene (the hall's own music held till it ends)
+{ const prev=setMusic; setMusic=function(m){ if(tuneOn&&tuneSrc&&m!=='none') return prev('none'); return prev.apply(this,arguments); }; }
+if(typeof setMusicRaw==='function'){ const p2=setMusicRaw; setMusicRaw=function(m){ if(tuneOn&&tuneSrc&&m!=='none') return p2('none'); return p2.apply(this,arguments); }; }   // the cinematics' own way back to the hall's music (96s-cinematics.js finish) waits too
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(tuneOn&&tuneSrc&&S.phase==='wave'){ tuneOn=false; tuneStop(2.5); try{ musicForPhase(); }catch(e){} } }; }
 function tuneQuick(U){ if(!tuneSrc) return; try{ const t=U.a.currentTime; tuneSrc.playbackRate.setTargetAtTime(1.32,t,.6); tuneGain.gain.setTargetAtTime(.9,t,.6); cnt.quick++; }catch(e){} }
 function tuneStop(fade){ if(!tuneSrc) return; try{ const g=tuneGain.gain, t=tuneGain.context.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value,t); g.linearRampToValueAtTime(0,t+fade); tuneSrc.stop(t+fade+.05); }catch(e){} tuneSrc=null; }
 // small stings on the scene's own audio (U.a / U.sfx): a blade ringing, a staff igniting, a whoosh, a bowstring
@@ -103,11 +109,12 @@ function step(ctx,t,dt){ const U=ctx.audio, F=ctx.fire, P=window.__party&&window
     pts.forEach((p,i)=>{ const o=SRC[i]; o.x=p[0]; o.y=p[1]; o.z=p[2]; o.on=true; o.ph=i*1.7; o.k=i===0?1.25:.8; }); SRC[5].on=false; F.update(SRC,c0||{ x:R.table[0], y:R.fy+1, z:R.table[1] },dt,t); }
   const c=camFor(t); c0=c.f; ctx.cam(c.p,c.l,c.fov); if(c.name!==lastCut){ if(lastCut!==null&&F&&F.cut) F.cut(); lastCut=c.name; }
   // sound
-  tunePrep(U); if(!tuneSrc&&TUNE&&t<DUR-1.5) tunePlay(U); ctx.once('quick',SH.last+1,()=>{ tuneQuick(U); });
+  tunePrep(U); if(!tuneSrc&&TUNE&&t<DUR-1.5) tunePlay(U);
   ctx.once('boomTitle',SH.title+.4,()=>{ U.boom(.45); });
-  if(t>DUR-2) tuneStop(1.5); }
+  lastT=t; }
+let lastT=0;
 let c0=null;
-function teardown(ctx){ cnt.teardowns++; tuneStop(.6); if(words) words.style.opacity='0';
+function teardown(ctx){ cnt.teardowns++; if(tuneSrc&&lastT>=DUR-.8){ tuneOn=true; cnt.playOn=(cnt.playOn|0)+1; try{ setMusic('none'); }catch(e){} } else tuneStop(.6);   /* ended by itself: the song plays on; skipped: it stops */ if(words) words.style.opacity='0';
   for(const H of heroes){ try{ H.m.mixer.stopAllAction(); }catch(e){} if(H.m.wobj&&H.m.wobj.parent) H.m.wobj.parent.remove(H.m.wobj); if(H.m.wrap.parent) H.m.wrap.parent.remove(H.m.wrap); H.m.wrap.rotation.y=0; }
   if(gob) try{ gob.mixer.stopAllAction(); }catch(e){}
   for(const m of OWN.splice(0)) try{ m.dispose(); }catch(e){}
@@ -116,5 +123,5 @@ CINE.register(ID,{ title:'GNOME SWEET GNOME', sub:'LAST CALL', map:'hall', pic:'
   when:()=>HALL&&!TUTORIAL&&S.phase==='build'&&S.wave===0&&!!(window.CINE.seen&&window.CINE.seen(PRE)),
   ready:()=>{ tuneFetch(); const C2=window.__prologue&&window.__prologue.crew; return !!(C2&&C2.get())&&!!MOBGLB.goblin; },
   setup, step, teardown });
-window.__tavernscene={ info:()=>Object.assign({ tuneBytes:!!tuneBytes, tuneReady:!!TUNE, heroesLive:heroes.length, gob:!!gob, words:words?words.textContent:'', wordsOp:words?+words.style.opacity||0:0, eyeOp:eyeMat?+eyeMat.opacity.toFixed(2):0 },cnt), cam:t=>camFor(t), SH, DUR };
+window.__tavernscene={ info:()=>Object.assign({ tuneBytes:!!tuneBytes, tuneReady:!!TUNE, playingOn:tuneOn&&!!tuneSrc, heroesLive:heroes.length, gob:!!gob, words:words?words.textContent:'', wordsOp:words?+words.style.opacity||0:0, eyeOp:eyeMat?+eyeMat.opacity.toFixed(2):0 },cnt), cam:t=>camFor(t), SH, DUR };
 })();
