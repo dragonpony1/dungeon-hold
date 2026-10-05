@@ -13,3 +13,4 @@ meshy/**/GLTFExporter.js
 node_modules
 tools/test-logs/
 tools/scratch*/
+trailer/

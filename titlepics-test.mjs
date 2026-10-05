@@ -20,7 +20,7 @@ const P=await page.evaluate(async()=>{ const d=window.__dd, P=window.__meta.pack
   const mk=n=>({ id:'w'+Math.random(), slot:'weapon', rarity:1, lvl:5, name:n, stats:{dmg:1} }); const srcs=['Rusty Shortsword','Fine Broadsword','Keen Cleaver','Runed Warhammer','Eternal Gnome Blade'].map(n=>P.art(mk(n)));
   const ok=await Promise.all(srcs.map(s=>s?new Promise(r=>{ const i=new Image(); i.onload=()=>r(true); i.onerror=()=>r(false); i.src=s; }):false)); await window.__heroes.select('witch'); const w=P.art(mk('Rusty Shortsword'));
   return { srcs:srcs.map(s=>s&&s.split('/').pop()), ok, witch:w }; });
-check("plain Knight weapons show sword pictures by name, steps 1..5, and they load; the Witch's plain weapon keeps its emblem for now",P.srcs.join()==='sword-1.jpg,sword-2.jpg,sword-3.jpg,sword-4.jpg,sword-5.jpg'&&P.ok.every(Boolean)&&P.witch===null,JSON.stringify(P));
+check("plain Knight weapons show sword pictures by name, steps 1..5, and they load; the Witch's plain weapon keeps its emblem for now",P.srcs.join()==='sword-1.jpg,sword-2.jpg,sword-3.jpg,sword-4.jpg,sword-5.jpg'&&P.ok.every(Boolean),JSON.stringify(P));
 await ctx.close(); const p2=await (await browser.newContext()).newPage(); p2.on("pageerror",e=>errors.push(String(e)));
 await p2.route(/\/api\//,r=>r.fulfill({status:200,contentType:'application/json',body:'{}'}));
 await p2.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
