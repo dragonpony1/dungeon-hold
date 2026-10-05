@@ -169,7 +169,10 @@ function play(id,opts){ opts=opts||{}; const def=DEFS[id]; if(!def){ cnt.refused
   cnt.plays++; if(opts.replay) cnt.replays++; if(opts.guest) cnt.guestPlays++;
   if(!opts.replay) markSeen(id);
   return true; }
-function begin(){ const r=run, def=r.def; r.wait=false; el.classList.remove('cn-waiting');
+// build 555: the player's own hero steps out of every scene (it stood in the Drawbridge's opening shot) and comes back after
+let heroHid=null; function heroHide(){ if(heroHid) return; heroHid=[]; for(const o of [typeof GLBH!=='undefined'&&GLBH?GLBH.wrap:null, typeof H!=='undefined'&&H?H.g:null, typeof heroShadow!=='undefined'?heroShadow:null]) if(o&&o.visible){ o.visible=false; heroHid.push(o); } }
+function heroShow(){ if(!heroHid) return; for(const o of heroHid) o.visible=true; heroHid=null; }
+function begin(){ const r=run, def=r.def; r.wait=false; el.classList.remove('cn-waiting'); heroHide();
   let ok=true; try{ ok=def.setup?def.setup(r.ctx)!==false:true; }catch(e){ console.warn('cine setup',e); ok=false; }
   if(!ok){ finish(true); return; }
   r.audio.start(); r.t=0; r.real0=0;
@@ -177,7 +180,7 @@ function begin(){ const r=run, def=r.def; r.wait=false; el.classList.remove('cn-
   if(isHost()&&!r.opts.replay){ try{ const n=NET(); if(n.peers().length){ n.send('cinePlay',{ id:r.id, t:+r.t.toFixed(2) }); cnt.sent++; } }catch(e){} } }
 function skip(fromHost){ if(!run||run.wait&&!fromHost) return false; if(run.wait){ finish(); return true; } if(run.t<SKIP_AFTER&&!fromHost) return false; if(run.skipAt!==null) return false;
   run.skipAt=run.t; cnt.skips++; run.audio.stop(FADE_OUT); if(isHost()&&!run.opts.replay){ try{ const n=NET(); if(n.peers().length) n.send('cineSkip',{ id:run.id }); }catch(e){} } return true; }
-function finish(failed){ const r=run; if(!r) return; run=null;
+function finish(failed){ const r=run; if(!r) return; run=null; heroShow();
   try{ if(r.def.teardown&&!r.wait) r.def.teardown(r.ctx); }catch(e){ console.warn('cine teardown',e); }
   r.dark.restore(); r.audio.stop(.3); scene.remove(r.group); r.group.traverse(o=>{ if(o.geometry&&o.geometry.dispose&&!o.isSkinnedMesh&&o.userData.cineOwn) o.geometry.dispose(); }); R0.group=null;
   document.body.classList.remove('cine-on'); el.classList.remove('cn-bars','cn-canskip','cn-waiting'); titleEl.style.opacity='0';
