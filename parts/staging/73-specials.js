@@ -150,7 +150,7 @@ function playFlourish(hid,p){
   const fl=baseFloor(p.x,p.z);
   if(hid==='knight'){ if(window.__whirl) window.__whirl.vortex(p.x,p.z); shockRing(p.x,fl,p.z,CLEAVE_R); const g=glow(0xcfd8ff,3.2,.85); g.position.set(p.x,fl+1,p.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); floatText(p.x,fl+2.4,p.z,'WHIRLWIND CLEAVE','#dfe8ff'); noise(.25,.15,500); beep(120,.3,'sawtooth',.09,-40); }
   else if(hid==='witch'){ spawnRain(p.x,p.z,0x8a5cff,6,'bolt'); shockRing(p.x,fl,p.z,STARFALL_R); floatText(p.x,fl+2.4,p.z,'STARFALL','#c9a8ff'); beep(880,.22,'sine',.07,-260); beep(660,.28,'triangle',.055,-180); }
-  else if(hid==='fighter'){ shockRing(p.x,fl,p.z,HALO_RING_R); const g=glow(0xffd27a,2.6,.8); g.position.set(p.x,fl+1,p.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); floatText(p.x,fl+2.4,p.z,'HALO SURGE','#ffd27a'); beep(140,.4,'sawtooth',.1,60); noise(.3,.12,900); }
+  else if(hid==='fighter'){ shockRing(p.x,fl,p.z,HALO_RING_R); if(window.__halofx) window.__halofx.burst(p.x,fl,p.z,p.col!=null?p.col:null,HALO_RING_R);   /* build 541: Matt's radial shockwave rolls out with the ring (73c-halofx.js) */ const g=glow(0xffd27a,2.6,.8); g.position.set(p.x,fl+1,p.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); floatText(p.x,fl+2.4,p.z,'HALO SURGE','#ffd27a'); beep(140,.4,'sawtooth',.1,60); noise(.3,.12,900); }
   else if(hid==='troll'){ const V=VFX(); if(!(V&&V.rain(p.x,p.z,p.col!=null?p.col:CHARGE_COLOR.troll,p.hx,p.hz,VOLLEY_R))) spawnRain(p.x,p.z,0x8ef05a,VOLLEY_WAVES,'arrow');   /* build 533 prep: Matt's arrow rain in the bow's colour, coming in from the caster's side (73b-volleyfx.js) */ floatText(p.x,fl+2.4,p.z,'VOLLEY','#bfe89a'); beep(300,.15,'square',.05,-140); }
 }
 
@@ -187,6 +187,7 @@ function doFire(){
   const spot=(hid==='witch')?aimSpot(STARFALL_MAXR):(hid==='troll')?aimSpot(VOLLEY_MAXR):{x:hero.x,z:hero.z};
   const dmg=Math.round(heroDmg()*(hid==='fighter'?2:3)*10)/10;
   const p={x:+spot.x.toFixed(2),z:+spot.z.toFixed(2),dmg};
+  if(hid==='fighter'&&window.__halofx) p.col=window.__halofx.col();   // build 541: the shockwave's colour (the polearm's set, else gold) rides with the cast
   if(hid==='troll'){ const V=VFX(); p.col=V?V.col():CHARGE_COLOR.troll; p.hx=+hero.x.toFixed(2); p.hz=+hero.z.toFixed(2); if(V) V.localCharge(false,0,0,VOLLEY_R,1,true); }   // build 533 prep: the volley's colour and the caster's spot (the rain comes in from his side); the charge ring launches
   if(hid==='knight'&&window.__whirl) window.__whirl.spin();   // build 260 (99f-whirl.js): the Knight's own body spins three turns, on the caster's screen
   playFlourish(hid,p);   // always shown at once on the caster's own screen, win or lose the round trip
