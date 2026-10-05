@@ -2,18 +2,22 @@
 // on the ground at your side (its crawl speeds up while it moves and nearly stops while it stands), and every 7 s it TAUNTS: a crystal flash and an amber rune ring roll out across
 // the floor, and every mob inside 4.5 (not a boss) stops dead for 2.2 s, turned toward the tortoise, an amber mark over its head -- no walking, no swinging, no shooting (the same
 // pause an ogre's roar uses: e.shoutT). Its own hit is a slow SHELL SLAM: it lunges, and the stone under its target bursts up (pet damage x1.6, a half-second stagger on a non-boss;
-// extra pet projectiles slam that many mobs beside it). It drops in the Crystal Owl's band (Rare / Epic): half of those roll as a Stone Tortoise. Works as a 2nd pet, with the
+// extra pet projectiles slam that many mobs beside it). It is the Feast Hall's wave-7 reward (build 540, below). Works as a 2nd pet, with the
 // Beast Mode / Malamute ring looks, and on a partner's screen (98-party.js walks it beside their puppet). On a co-op guest the taunt rides up as a slow (famHurt can't pause a host mob).
 // Test hook: window.__tortoise.
 (function(){
-const T={h:.95,side:1.25,back:.35,tauntR:4.5,tauntEvery:7,hold:2.2,slam:1.6,stagger:.5,col:0xff8a10,crystal:0x2fc4ff,taunts:0,held:0,slams:0};
+const T={h:.95,side:1.25,back:.35,tauntR:4.5,tauntEvery:7,hold:2.2,slam:1.6,stagger:.5,col:0xff8a10,crystal:0x2fc4ff,taunts:0,held:0,slams:0,rewards:0};
 const KIND='Stone Tortoise';
 const BOSS=new Set(['cyclops','pigflail','pigdagger','pigsling','trollboss','archhag','avery','bullion','corruptor']);
 function isT(){ return !!(fam&&fam.g&&fam.g.userData.kind===KIND&&!fam.g.userData.named); }
 function dmgOf(m){ return Math.max(.1,Math.round(famDmg()*m*10)/10); }
 function guest(){ return !!(window.__net&&window.__net.role&&window.__net.role()==='guest'); }
-// ---- drops: half the Crystal Owls roll as a Stone Tortoise (picked from the item's own id, nothing drawn from the seeded roll)
-{ const prev=rollItem; rollItem=function(){ const it=prev.apply(this,arguments); if(it&&it.slot==='familiar'&&typeof it.name==='string'&&it.name.includes('Crystal Owl')&&!it.named){ let h=0; for(const ch of String(it.id)) h=(h*31+ch.charCodeAt(0))|0; if((h>>1)&1) it.name=it.name.replace('Crystal Owl',KIND); } return it; }; }
+// ---- where it comes from (Matt, build 540: "I think he is the wave 7 reward in the dinning hall"): beat the Feast Hall's wave 7 -- Sir Bullion's wave -- and the reward that drops by the
+// Heartroot is always a Stone Tortoise, Rare or better. It no longer turns up in the random drops (build 539 had half the Crystal Owls roll as one), so it is earned there. A co-op guest
+// rolls the held wave's reward on their own page (99-network.js, rw) and gets theirs the same way. Ones already in a bag keep working.
+const SPECIES=['Crystal Owl','Storm Drake','Fire Imp','Moss Sprite','Cave Bat','Frost Fox','Wisp'];
+function tortoiseReward(){ const it=rollItem(2,'familiar'); if(!it||it.slot!=='familiar') return it; let done=false; for(const k of SPECIES) if(!done&&it.name.includes(k)){ it.name=it.name.replace(k,KIND); done=true; } if(!done) it.name=it.name+' '+KIND; return it; }
+{ const prev=waveRewardItem; waveRewardItem=function(){ const it=prev.apply(this,arguments); if(!SURVIVAL&&!TUTORIAL&&MAP&&MAP.id==='feast'&&S.wave===7){ T.rewards++; return tortoiseReward(); } return it; }; }
 // ---- a walker: its model's feet sit T.h/2 under its centre (85-familiars centres every pet); the flag tells a partner's puppet (98-party.js) to walk it too
 { const prev=famModel; famModel=function(it){ const g=prev(it); if(g&&it&&!it.named&&famKind(it)===KIND) g.userData.walker=T.h*.5; return g; }; }
 // ---- effects: short-lived floor rings, flashes, rune marks over held mobs, stone shards
@@ -57,5 +61,5 @@ function walk(dt){ const f=fam; if(!f||hero.dead>0||!f.g.visible) return; const 
   f.tcd=(f.tcd===undefined?1.5:f.tcd)-dt; if(f.tcd<=0) f.tcd=taunt()?T.tauntEvery:.4; }
 { const prev=famUpdate; famUpdate=function(dt){ prev(dt); if(isT()) walk(dt); }; }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); fxTick(dt); }; }
-window.__tortoise={cfg:T,info:()=>({taunts:T.taunts,held:T.held,slams:T.slams,fx:FX.length}),isOn:isT,taunt:()=>isT()&&taunt(),state:()=>fam?{x:fam.x,y:fam.y,z:fam.z,gy:fam.gy,walker:fam.g.userData.walker,clip:fam.g.userData.clip||null,glb:!!fam.g.userData.glb,ts:fam.g.userData.action?fam.g.userData.action.timeScale:null}:null};
+window.__tortoise={cfg:T,reward:tortoiseReward,info:()=>({rewards:T.rewards,taunts:T.taunts,held:T.held,slams:T.slams,fx:FX.length}),isOn:isT,taunt:()=>isT()&&taunt(),state:()=>fam?{x:fam.x,y:fam.y,z:fam.z,gy:fam.gy,walker:fam.g.userData.walker,clip:fam.g.userData.clip||null,glb:!!fam.g.userData.glb,ts:fam.g.userData.action?fam.g.userData.action.timeScale:null}:null};
 })();

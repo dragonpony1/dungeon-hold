@@ -1,5 +1,5 @@
 // ===== build 539: THE STONE TORTOISE, the tank pet (85c-tortoise.js).
-//  * it drops (famKind, Crystal Owl band), its card picture loads, the dev panel lists it, its card says what it does
+//  * build 540: it is the Feast Hall's wave-7 reward (Sir Bullion's wave), Rare or better, and no longer a random drop; its card picture loads, the dev panel lists it, its card says what it does
 //  * it loads Matt's rigged model with its crawl clip, and WALKS on the floor beside the hero (not at the shoulder), following as the hero moves
 //  * it taunts: mobs within 4.5 stop (shoutT) for ~2.2 s; a boss doesn't
 //  * its shell slam hurts its target
@@ -13,11 +13,11 @@ await page.route("**/api/**",r=>r.fulfill({status:200,contentType:"application/j
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); localStorage.setItem("ddMapsCleared","9"); }catch(e){} });
 await page.goto("http://127.0.0.1:8961/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__familiar&&window.__tortoise&&window.__tworings,null,{timeout:120000});
 // ---- drops, picture, card, dev panel
-const drop=await page.evaluate(async()=>{ const d=window.__dd; let n=0, owl=0, tort=null; for(let i=0;i<400;i++){ const it=d.rollItem(4,"familiar",8); if(it.name.includes("Stone Tortoise")){ n++; tort=tort||it; } if(it.name.includes("Crystal Owl")) owl++; }
+const drop=await page.evaluate(async()=>{ const d=window.__dd; let n=0, owl=0; for(let i=0;i<400;i++){ const it=d.rollItem(4,"familiar",8); if(it.name.includes("Stone Tortoise")) n++; if(it.name.includes("Crystal Owl")) owl++; } const tort=window.__tortoise.reward();
   const src="hideout/assets/hideout/items/pets/"+window.__petPics["Stone Tortoise"]+".jpg"; const img=await new Promise(r=>{ const im=new Image(); im.onload=()=>r({w:im.naturalWidth}); im.onerror=()=>r(null); im.src=src; });
   window.__devpanel.toggle(); const opt=!!document.querySelector('#dp-fam option[value="Stone Tortoise"]'); window.__devpanel.toggle();
   return {n,owl,name:tort&&tort.name,desc:tort&&d.statStr(tort),img,opt}; });
-check("Stone Tortoises drop (sharing the Crystal Owl's band), the card says what it does",drop.n>10&&drop.owl>10&&/taunts the pack/.test(drop.desc||""),JSON.stringify(drop));
+check("it is NOT a random drop any more (owls stay owls); its card says what it does",drop.n===0&&drop.owl>50&&/Stone Tortoise/.test(drop.name||"")&&/taunts the pack/.test(drop.desc||""),JSON.stringify(drop));
 check("its card picture loads and the dev panel lists it",!!drop.img&&drop.img.w===512&&drop.opt,JSON.stringify(drop));
 // ---- wear it: real model, on the floor at the hero's side, following
 await page.evaluate(()=>{ const d=window.__dd; if(d.start) d.start(); for(const e of d.enemies.slice()) d.kill(e); d.step(1/60,20);
@@ -47,6 +47,10 @@ const two=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; for(co
   const T=window.__tworings, f2=T.fam2(), m2=f2&&f2.g; const h=d.hero; if(!m2) return {none:true,keys:Object.keys(T)}; const p=m2.position; const sx=Math.cos(h.yaw), sz=-Math.sin(h.yaw);
   return {y:+(p.y-h.y).toFixed(2),side:+((p.x-h.x)*sx+(p.z-h.z)*sz).toFixed(2),walker:m2.userData.walker}; });
 check("as the 2nd pet it walks on the floor on the other side",!two.none&&Math.abs(two.y-two.walker)<.3&&Math.abs(two.side)>.8,JSON.stringify(two));
+// ---- the Feast Hall's wave-7 reward
+await page.goto("http://127.0.0.1:8961/?silent&nogate&map=3",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__setGate&&window.__tortoise&&window.__dd.map,null,{timeout:120000});
+const rw=await page.evaluate(()=>{ const d=window.__dd, G=window.__setGate; d.start(); d.step(1/60,2); const out={}; for(const w of [6,7]){ d.S.wave=w; const its=[]; for(let i=0;i<6;i++) its.push(G.reward()); out[w]=its.map(it=>({n:it.name,r:it.rarity,s:it.slot})); } return {map:d.map&&d.map.id,out}; });
+check("in the Feast Hall the wave-7 reward is always a Stone Tortoise, Rare or better (wave 6's is not)",rw.out[7].every(x=>x.s==="familiar"&&/Stone Tortoise/.test(x.n)&&x.r>=2)&&!rw.out[6].some(x=>/Stone Tortoise/.test(x.n)),JSON.stringify(rw));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await page.screenshot({path:process.env.TEMP+"/tortoise-shot.png"});
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed");
