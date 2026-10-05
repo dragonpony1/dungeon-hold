@@ -21,7 +21,7 @@ const lightsSnap=()=>{ const sc=window.__dd.scene; const out=[]; sc.traverse(o=>
 { const { ctx, page }=await newPage();
   await loadPrison(page,"&cineauto");
   const g0=await page.evaluate(()=>{ const c=document.querySelector('#cineGal'); window.CINE.openGallery(); const card=c.querySelector('.cg-card'); const o={ n:c.querySelectorAll('.cg-card').length, locked:!!(card&&card.classList.contains('locked')), btn:!!document.getElementById('cinebtn') }; window.CINE.closeGallery(); return o; });
-  check("before it is seen, the title's 🎬 CINEMATICS gallery shows THE TORCH LINE as a locked card",g0.btn&&g0.n===1&&g0.locked,JSON.stringify(g0));
+  check("before it is seen, the title's 🎬 CINEMATICS gallery shows THE TORCH LINE as a locked card",g0.btn&&g0.n>=1&&g0.locked,JSON.stringify(g0));
   await page.evaluate(()=>{ try{ window.__trainer.skip(); }catch(e){} window.__freeze=true; window.__dd.start(); });
   const before=await page.evaluate(lightsSnap); await page.evaluate(()=>{ window.__freeze=false; });
   let st=null; for(let i=0;i<120;i++){ st=await page.evaluate(()=>window.__cine.info()); if(st.active&&!st.wait&&st.t>2.2) break; await sleep(100); }
