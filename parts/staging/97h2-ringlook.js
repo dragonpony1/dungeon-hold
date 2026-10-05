@@ -109,6 +109,12 @@ function landHit(x,z){ const lk=myLook(); if(!lk||!Number.isFinite(x)||!Number.i
 
 // ---- the howl: Malamute worn, once as each wave starts. Soft: under the hit blip's loudness, through the effects channel (the sound menu's slider), nothing with sound off.
 let lastWave=null;
+// build 547 (Matt sent two howls: "here is some howling"): REAL howls -- the Malamute's is his Yellowstone wolfpack (its first 5.5 s, faded), Beast Mode's (it had none) his Creepy Creatures beast howl
+// (assets/howl-malamute.mp3 / howl-beast.mp3, levelled alike). Fetched the first time the ring is worn; until one has landed the Malamute keeps the made-up howl below and Beast Mode stays quiet.
+const HOWL={ malamute:{ file:'howl-malamute.mp3', buf:null, bytes:null, asked:false }, beast_mode:{ file:'howl-beast.mp3', buf:null, bytes:null, asked:false } };
+function howlFetch(look){ const H=HOWL[look]; if(!H||H.asked||typeof fetchBytes!=='function'||typeof ASSET!=='function') return; H.asked=true; fetchBytes(ASSET(H.file),'soon').then(b=>{ H.bytes=b; const a=A(); if(a) a.decodeAudioData(b.slice(0),d=>{ H.buf=d; },()=>{}); }).catch(()=>{ H.asked=false; }); }
+function howlSample(look){ const H=HOWL[look], a=A(); if(!H||!a) return false; if(!H.buf){ if(H.bytes&&!H.dec){ H.dec=1; a.decodeAudioData(H.bytes.slice(0),d=>{ H.buf=d; },()=>{}); } return false; }
+  try{ const g=a.createGain(); g.gain.value=look==='beast_mode'?.6:.5; g.connect(SFXOUT(a)); const src=a.createBufferSource(); src.buffer=H.buf; src.connect(g); src.start(a.currentTime+.04); cnt.howls++; cnt.samples=(cnt.samples|0)+1; return true; }catch(e){ return false; } }
 function howl(){ const a=A(); if(!a) return false; try{ const t0=a.currentTime+.04, out=SFXOUT(a);
     const g=a.createGain(); g.gain.setValueAtTime(.0001,t0); g.gain.exponentialRampToValueAtTime(.045,t0+.4); g.gain.setValueAtTime(.045,t0+1.15); g.gain.exponentialRampToValueAtTime(.0001,t0+2.4);
     const lp=a.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1500; lp.Q.value=.8;
@@ -120,13 +126,13 @@ function howl(){ const a=A(); if(!a) return false; try{ const t0=a.currentTime+.
     g.connect(lp); lp.connect(out); lp.connect(dl); dl.connect(fb).connect(dl); dl.connect(wet).connect(out);
     lfo.start(t0); lfo.stop(t0+2.5); for(const o of oscs){ o.start(t0); o.stop(t0+2.5); } cnt.howls++; return true; }catch(e){ return false; } }
 // a wave number not howled for yet; a lost or won run, or a new one (the wave count back down), starts the count over
-function waveWatch(){ const w=S.wave|0; if(S.phase!=='wave'){ if(lastWave!==null&&(S.phase==='dead'||S.phase==='won'||S.phase==='deathcut'||w<lastWave)) lastWave=null; return; } if(lastWave===w) return; lastWave=w; if(myLook()==='malamute') howl(); }
+function waveWatch(){ const w=S.wave|0; if(S.phase!=='wave'){ if(lastWave!==null&&(S.phase==='dead'||S.phase==='won'||S.phase==='deathcut'||w<lastWave)) lastWave=null; return; } if(lastWave===w) return; lastWave=w; const lk=myLook(); if(lk) howlFetch(lk); if(lk==='malamute'){ if(!howlSample('malamute')) howl(); } else if(lk==='beast_mode') howlSample('beast_mode'); }
 
 // ---- every frame
-{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); try{ syncLocal(); for(const h of ACTIVE) animate(h,dt); fxUpdate(dt); waveWatch(); }catch(e){ console.warn('ring look',e); } }; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); try{ syncLocal(); { const lk=myLook(); if(lk) howlFetch(lk); } for(const h of ACTIVE) animate(h,dt); fxUpdate(dt); waveWatch(); }catch(e){ console.warn('ring look',e); } }; }
 
 // ---- the card chips: pictures, beside 2 PETS
-const CHIPS={ beast_mode:{cls:'rl-feral',tip:'Looks only: both pets grow bigger, glow deep red-orange with a red rim, and every pet hit flashes a claw slash',items:['🔥 FERAL','🐾 bigger','💢 claw hits']},
+const CHIPS={ beast_mode:{cls:'rl-feral',tip:'Looks only: both pets grow bigger, glow deep red-orange with a red rim, and every pet hit flashes a claw slash, and a beast howls as each wave starts',items:['🔥 FERAL','🐾 bigger','💢 claw hits','🐺 howl']},
   malamute:{cls:'rl-frost',tip:'Looks only: both pets glow icy blue with drifting snowflakes and a frosty rim, every pet hit leaves a frost burst, and a wolf howls as each wave starts',items:['❄️ FROST','✨ snow glow','🐺 howl']} };
 { const st=document.createElement('style'); st.textContent='.tvp-c.rl-feral{border-color:#ff5a24!important;color:#ffd0b8!important;background:#3a0d05!important}.tvp-c.rl-feral.main{color:#ff8a4a!important;font-weight:800;box-shadow:0 0 6px #ff3a0088}'+
   '.tvp-c.rl-frost{border-color:#8fdcff!important;color:#e6f9ff!important;background:#0b2436!important}.tvp-c.rl-frost.main{color:#bff0ff!important;font-weight:800;box-shadow:0 0 6px #5fc8ff88}'+

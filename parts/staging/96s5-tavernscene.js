@@ -8,6 +8,7 @@
 //   19.5  THE DOOR -- past the four, out through the door into the dark hall: eyes, hundreds, and a pink flash far off (Avery).
 //   26.0  "...Last call." -- the tavern tune quickens; the four turn to the door.
 //   31.0  GNOME SWEET GNOME -- the title.
+// MUSIC (build 547, Matt picked option 2 of three he sent: "option 2 on gnome sweet"): Eyal Talmudi's "Drunken Barrel", its first 40 s -> assets/music-tavernscene.mp3, quickening 1.32x on "...Last call.".
 // The heroes are the prologue's own (window.__prologue.crew: the same loaded models and set weapons); the goblin is a stand-in (makeMob); the tune is the hall's (assets/music-build.mp3) on the EFFECTS
 // channel (Matt plays with music off). Everything is taken away after. Test hook: window.__tavernscene.
 (function(){
@@ -26,10 +27,10 @@ let words=null; function wordsEl(){ if(words) return words; words=document.creat
   const st=document.createElement('style'); st.textContent='#cineWords2{position:fixed;left:50%;bottom:17vh;transform:translateX(-50%);z-index:96;pointer-events:none;font:italic clamp(24px,3.4vw,50px) Georgia,serif;color:#f3e2b8;letter-spacing:.05em;text-shadow:0 0 18px #ff9a4a66,0 2px 0 #000;opacity:0;white-space:nowrap}'; document.head.appendChild(st); (document.getElementById('cine')||document.body).appendChild(words); return words; }   // inside #cine (the page's other children are hidden while a scene plays)
 // ---------------------------------------------------------------- the tune
 let TUNE=null, tuneBytes=null, tuneSrc=null, tuneGain=null;
-function tuneFetch(){ if(tuneFetch.on) return; tuneFetch.on=true; try{ (typeof fetchBytesNow==='function'?fetchBytesNow:fetchBytes)(ASSET('music-build.mp3')).then(b=>{ tuneBytes=b; }).catch(()=>{}); }catch(e){} }
+function tuneFetch(){ if(tuneFetch.on) return; tuneFetch.on=true; try{ (typeof fetchBytesNow==='function'?fetchBytesNow:fetchBytes)(ASSET('music-tavernscene.mp3')).then(b=>{ tuneBytes=b; }).catch(()=>{}); }catch(e){} }
 function tunePrep(U){ if(!TUNE&&tuneBytes&&!tuneBytes.__dec&&U&&U.a){ tuneBytes.__dec=1; U.a.decodeAudioData(tuneBytes.slice(0),b=>{ TUNE=b; },()=>{}); } }
-function tunePlay(U){ if(tuneSrc||!TUNE||!U||!U.a||!U.sfx) return; tuneGain=U.a.createGain(); tuneGain.gain.value=.55; tuneGain.connect(U.sfx); tuneSrc=U.a.createBufferSource(); tuneSrc.buffer=TUNE; tuneSrc.loop=true; tuneSrc.connect(tuneGain); tuneSrc.start(); cnt.music++; }
-function tuneQuick(U){ if(!tuneSrc) return; try{ const t=U.a.currentTime; tuneSrc.playbackRate.setTargetAtTime(1.32,t,.6); tuneGain.gain.setTargetAtTime(.8,t,.6); cnt.quick++; }catch(e){} }
+function tunePlay(U){ if(tuneSrc||!TUNE||!U||!U.a||!U.sfx) return; tuneGain=U.a.createGain(); tuneGain.gain.value=.75; tuneGain.connect(U.sfx); tuneSrc=U.a.createBufferSource(); tuneSrc.buffer=TUNE; tuneSrc.loop=false; tuneSrc.connect(tuneGain); tuneSrc.start(); cnt.music++; }
+function tuneQuick(U){ if(!tuneSrc) return; try{ const t=U.a.currentTime; tuneSrc.playbackRate.setTargetAtTime(1.32,t,.6); tuneGain.gain.setTargetAtTime(.9,t,.6); cnt.quick++; }catch(e){} }
 function tuneStop(fade){ if(!tuneSrc) return; try{ const g=tuneGain.gain, t=tuneGain.context.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value,t); g.linearRampToValueAtTime(0,t+fade); tuneSrc.stop(t+fade+.05); }catch(e){} tuneSrc=null; }
 // small stings on the scene's own audio (U.a / U.sfx): a blade ringing, a staff igniting, a whoosh, a bowstring
 function sting(U,kind){ if(!U||!U.a) return; const a=U.a, t=a.currentTime, g=a.createGain(); g.connect(U.sfx);
