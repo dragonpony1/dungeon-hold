@@ -24,7 +24,7 @@ let prng=1; const rand=()=>{ prng=(prng*16807)%2147483647; return (prng-1)/21474
 // ---------------------------------------------------------------- the words (a line at a time, over black)
 const words=document.createElement('div'); words.id='cineWords';
 { const st=document.createElement('style'); st.textContent='#cineWords{position:fixed;left:50%;top:46%;transform:translate(-50%,-50%);z-index:96;pointer-events:none;font:italic clamp(22px,3.2vw,46px) Georgia,serif;color:#f3e2b8;letter-spacing:.04em;text-align:center;text-shadow:0 0 22px #b8ff8a55,0 2px 0 #000;opacity:0;white-space:nowrap}'; document.head.appendChild(st); }
-document.body.appendChild(words);
+(document.getElementById('cine')||document.body).appendChild(words);   // inside #cine: while a scene plays, every other child of the page is hidden (96s-cinematics.js)
 // ---------------------------------------------------------------- files: fetched as soon as the hall opens on a save that hasn't seen it
 const BUF={}, MODEL={}; let MUS=null, musBytes=null, musSrc=null, musGain=null, parsing=false;
 function want(){ return HALL&&window.CINE&&!(window.CINE.seen&&window.CINE.seen(ID)); }

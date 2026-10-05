@@ -23,7 +23,7 @@ const TD=(typeof MAP!=='undefined'&&MAP&&MAP.tavern)||{ dx:0, dz:0 }; const at=(
 let prng=1; const rand=()=>{ prng=(prng*16807)%2147483647; return (prng-1)/2147483646; };
 // ---------------------------------------------------------------- the caption ("...Last call."), the same style as the prologue's words, low on the screen
 let words=null; function wordsEl(){ if(words) return words; words=document.createElement('div'); words.id='cineWords2';
-  const st=document.createElement('style'); st.textContent='#cineWords2{position:fixed;left:50%;bottom:17vh;transform:translateX(-50%);z-index:96;pointer-events:none;font:italic clamp(24px,3.4vw,50px) Georgia,serif;color:#f3e2b8;letter-spacing:.05em;text-shadow:0 0 18px #ff9a4a66,0 2px 0 #000;opacity:0;white-space:nowrap}'; document.head.appendChild(st); document.body.appendChild(words); return words; }
+  const st=document.createElement('style'); st.textContent='#cineWords2{position:fixed;left:50%;bottom:17vh;transform:translateX(-50%);z-index:96;pointer-events:none;font:italic clamp(24px,3.4vw,50px) Georgia,serif;color:#f3e2b8;letter-spacing:.05em;text-shadow:0 0 18px #ff9a4a66,0 2px 0 #000;opacity:0;white-space:nowrap}'; document.head.appendChild(st); (document.getElementById('cine')||document.body).appendChild(words); return words; }   // inside #cine (the page's other children are hidden while a scene plays)
 // ---------------------------------------------------------------- the tune
 let TUNE=null, tuneBytes=null, tuneSrc=null, tuneGain=null;
 function tuneFetch(){ if(tuneFetch.on) return; tuneFetch.on=true; try{ (typeof fetchBytesNow==='function'?fetchBytesNow:fetchBytes)(ASSET('music-build.mp3')).then(b=>{ tuneBytes=b; }).catch(()=>{}); }catch(e){} }
