@@ -1,0 +1,9 @@
+{
+  "name": "rootgate",
+  "productName": "Rootgate",
+  "version": "0.1.0",
+  "description": "Rootgate — gnome tower defense",
+  "main": "main.js",
+  "author": "Rootgate",
+  "license": "UNLICENSED"
+}
