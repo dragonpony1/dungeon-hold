@@ -15,7 +15,7 @@ const CS=MAP.castle, TOWERS=(CS.towers||[]).filter(t=>t[4]!=='cone'&&t[3]>=19.5&
 if(TOWERS.length<1) return;
 const cnt={ flights:0, landings:0, drops:0, steps:0 };
 const WALK=16, STEP=.5, DEPTH=.62;
-const stone=new THREE.MeshToonMaterial({ color:new THREE.Color(0x3c3650) });   // the castle's weathered stone, a shade darker than the wall faces' light side
+const stone=new THREE.MeshToonMaterial({ color:new THREE.Color(0x26223a) });   // the castle's weathered stone, a shade darker than the wall faces' light side
 const C3=h=>new THREE.Color(h);
 // ---- the towers made solid, with a stair up the inside of each
 const tops=[];
@@ -47,8 +47,28 @@ const lineM=new THREE.LineBasicMaterial({ color:0xeeeeee, transparent:true, opac
 { const pts=[]; for(let s=0;s<=SEG;s+=3){ const u=s/SEG-.5, a=u*ARC*2; pts.push(new THREE.Vector3(Math.sin(a)*SPAN/2/ARC*.9,Math.cos(a)*1.4-.05,0),new THREE.Vector3(0,-3.2,-.3)); } const g=new THREE.BufferGeometry().setFromPoints(pts); wing.add(new THREE.LineSegments(g,lineM)); }
 pm.traverse(o=>{ if(o.isMesh) o.userData.noOL=true; });
 // parked: on the tower top, the wing folded small behind it
-function park(){ pm.position.set(PERCH.x,PERCH.y,PERCH.z); pm.rotation.set(0,-Math.PI/2,0); wing.position.set(0,.5,-1.1); wing.scale.set(.18,.35,.6); wing.rotation.set(-1.2,0,0); }
+// build 576: Matt's Meshy models (pack, propeller, wing, folded wing on its crate) replace the drawn stand-in once they are in (MODELS); until then -- or if they never come -- the stand-in flies
+let MODELS=false, wingGrow=1; const folded=new THREE.Group(); folded.visible=false; world.add(folded);
+function park(){ pm.position.set(PERCH.x,PERCH.y,PERCH.z); pm.rotation.set(0,-Math.PI/2,0);
+  if(MODELS){ pm.position.set(PERCH.x+.55,PERCH.y,PERCH.z-.55); wing.visible=false; folded.visible=true; folded.position.set(PERCH.x+.35,PERCH.y,PERCH.z+1.0); folded.rotation.set(0,0,0); return; }   /* both on the tower's far half, clear of the stair's head and inside the merlons */
+  wing.position.set(0,.5,-1.1); wing.scale.set(.18,.35,.6); wing.rotation.set(-1.2,0,0); }
 park();
+const WING_Y=1.75;   // where the wing's lines meet: the hero's shoulders
+{ const parse=n=>fetchBytes(ASSET(n),'later').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej)));
+  // fit: scaled so its largest side (or the given axis) is SIZE; 'bottom' puts its lowest point at 0, else its centre
+  const fit=(root,size,axis,bottom)=>{ root.updateMatrixWorld(true); const b=new THREE.Box3().setFromObject(root), sz=b.getSize(new THREE.Vector3()), c=b.getCenter(new THREE.Vector3()); const sc=size/Math.max(axis?sz[axis]:Math.max(sz.x,sz.y,sz.z),1e-6);
+    const inner=new THREE.Group(); inner.add(root); inner.scale.setScalar(sc); inner.position.set(-c.x*sc,bottom?-b.min.y*sc:-c.y*sc,-c.z*sc); try{ toonify(root,sc); }catch(e){} inner.traverse(o=>{ if(o.isMesh) o.userData.noOL=true; }); const w=new THREE.Group(); w.add(inner); w.userData.size=sz.clone().multiplyScalar(sc); return w; };
+  Promise.all(['para-pack.glb','para-propeller.glb','para-wing.glb','para-wing-folded.glb'].map(parse)).then(([P,Q,Wg,F])=>{
+    // the pack on the hero's back (its harness toward him), the propeller in the middle of its cage, spinning about the cage's axis
+    for(const o of [...pack.children]) if(o!==prop) pack.remove(o); for(const o of [...prop.children]) prop.remove(o);
+    const pk=fit(P.scene,1.55,'y',true); pk.position.set(0,.55,-.62); pack.add(pk);
+    const H=pk.userData.size; const pr=fit(Q.scene,H.x*.8,'x',false); prop.add(pr); prop.position.set(0,.55+H.y*.5,-.62-H.z*.32);   /* inside the cage, between the engine and the ring (lined up by eye from behind and the side) */
+    // the wing: its lines' ends at the shoulders, the canopy overhead
+    for(const o of [...wing.children]) wing.remove(o); const wg=fit(Wg.scene,6.4,'x',true); wing.add(wg); wing.visible=false;
+    // folded on its crate, beside the pack on the tower top
+    const fd=fit(F.scene,1.3,'x',true); folded.add(fd);
+    MODELS=true; cnt.models=4; if(!FL.on&&!FL.back) park(); }).catch(e=>{ console.warn('paramotor models',e); });
+}
 // ---- the prompt and the flight bar
 const css=document.createElement('style'); css.textContent='#paraPrompt,#paraBar{position:fixed;left:50%;transform:translateX(-50%);z-index:25;pointer-events:none;display:none;background:#0b0912e8;border:2px solid #c9962f;border-radius:999px;color:#ffe2b8;font:bold 15px Georgia,serif;padding:7px 16px;box-shadow:0 3px 12px #000}#paraPrompt{top:62%}#paraBar{bottom:130px;font-size:14px}#paraPrompt kbd,#paraBar kbd{display:inline-block;min-width:20px;padding:0 6px;margin:0 3px;border:2px solid #ffd27a;border-radius:6px;font:bold 13px system-ui;color:#ffd27a;background:#000}';
 document.head.appendChild(css);
@@ -68,9 +88,9 @@ addEventListener('keyup',e=>{ if(e.code==='Space') keys.space=0; },true);
 const phase=()=>{ try{ return typeof hallPhase==='function'?hallPhase():S.phase; }catch(e){ return S.phase; } };
 const near=()=>!FL.on&&!FL.back&&phase()==='build'&&!Meta.isOpen()&&Math.hypot(hero.x-PERCH.x,hero.z-PERCH.z)<2.6&&Math.abs((hero.y||0)-PERCH.y)<1.2;
 function launch(){ FL.on=true; FL.t=0; FL.x=hero.x; FL.y=(hero.y||0)+.2; FL.z=hero.z; FL.sp=8; FL.vy=2.5; FL.th=.6; FL.dropping=false; FL.camD=cam.dist; cnt.flights++;
-  wing.position.set(0,3.6,0); wing.scale.set(1,1,1); wing.rotation.set(0,0,0); humOn(); prm.style.display='none'; bar.style.display='block'; }
+  if(MODELS){ wing.visible=true; folded.visible=false; wingGrow=0; wing.position.set(0,WING_Y,-.25); wing.scale.setScalar(.15); wing.rotation.set(0,0,0); } else { wing.position.set(0,3.6,0); wing.scale.set(1,1,1); wing.rotation.set(0,0,0); } humOn(); prm.style.display='none'; bar.style.display='block'; }
 function land(dropped){ FL.on=false; humOff(); bar.style.display='none'; if(FL.camD!=null) cam.dist=FL.camD; hero.vy=0; if(dropped) cnt.drops++; else cnt.landings++;
-  FL.back={ t:0, from:new THREE.Vector3(FL.x,FL.y+.2,FL.z) }; wing.scale.set(.18,.35,.6); wing.rotation.set(-1.2,0,0); wing.position.set(0,.5,-1.1); }
+  FL.back={ t:0, from:new THREE.Vector3(FL.x,FL.y+.2,FL.z) }; if(MODELS){ wing.visible=false; } else { wing.scale.set(.18,.35,.6); wing.rotation.set(-1.2,0,0); wing.position.set(0,.5,-1.1); } }
 addEventListener('keydown',e=>{ if(e.code!=='KeyE'||e.repeat) return; if(FL.on){ e.preventDefault(); e.stopImmediatePropagation(); FL.dropping=true; return; } if(near()){ e.preventDefault(); e.stopImmediatePropagation(); launch(); } },true);
 const v3=new THREE.Vector3();
 const MINX=-OX+1, MAXX=GW*CELL-OX-1, MINZ=-OZ+1, MAXZ=GH*CELL-OZ-1;
@@ -90,6 +110,7 @@ function fly(dt){ FL.t+=dt;
   hero.x=FL.x; hero.z=FL.z; hero.y=FL.y; hero.vy=0; hero.moving=false; hero.yaw=Math.atan2(fx,fz);
   // the paramotor rides on the hero, the wing banked into turns
   pm.position.set(FL.x,FL.y,FL.z); pm.rotation.set(0,hero.yaw,0); const bank=(K.a?1:0)-(K.d?1:0); wing.rotation.z+=((bank*.25)-wing.rotation.z)*Math.min(1,dt*3); wing.rotation.x=-.15-FL.vy*.03;
+  if(MODELS&&wingGrow<1){ wingGrow=Math.min(1,wingGrow+dt*1.6); const g=1-Math.pow(1-wingGrow,3); wing.scale.set(g,.3+.7*g,g); }   /* the wing unfurls over the first half second */
   prop.rotation.z+=dt*(30+FL.th*40); humSet(drop?0:FL.th);
   cam.dist+=((Math.max(FL.camD||8,15))-cam.dist)*Math.min(1,dt*2); }
 { const prev=heroUpdate; heroUpdate=function(dt){ prev.apply(this,arguments); if(FL.on) fly(dt); }; }
@@ -97,6 +118,6 @@ function fly(dt){ FL.t+=dt;
     prm.style.display=near()?'block':'none';
     if(FL.back){ FL.back.t+=dt; const k=Math.min(1,FL.back.t/3), s=k*k*(3-2*k); pm.position.set(FL.back.from.x+(PERCH.x-FL.back.from.x)*s,FL.back.from.y+(PERCH.y-FL.back.from.y)*s+Math.sin(k*Math.PI)*6,FL.back.from.z+(PERCH.z-FL.back.from.z)*s); prop.rotation.z+=dt*25; if(k>=1){ FL.back=null; park(); } }
     else if(!FL.on) prop.rotation.z+=dt*.4; }; }
-window.__para={ info:()=>Object.assign({ on:FL.on, dropping:FL.dropping, back:!!FL.back, near:near(), x:+FL.x.toFixed(2), y:+FL.y.toFixed(2), z:+FL.z.toFixed(2), sp:+FL.sp.toFixed(2), perch:PERCH, towers:tops.length },cnt), launch, land:()=>{ if(FL.on) FL.dropping=true; },
+window.__para={ models:()=>MODELS, info:()=>Object.assign({ on:FL.on, dropping:FL.dropping, back:!!FL.back, near:near(), x:+FL.x.toFixed(2), y:+FL.y.toFixed(2), z:+FL.z.toFixed(2), sp:+FL.sp.toFixed(2), perch:PERCH, towers:tops.length },cnt), launch, land:()=>{ if(FL.on) FL.dropping=true; },
   scan:(x0,x1,z0,z1,y)=>{ const out=[]; for(let z=z0;z<=z1;z++){ const row=[]; for(let x=x0;x<=x1;x++) row.push(Math.round(floorAt(cw(x),cwz(z),y==null?99:y))); out.push((z-((MAP.padN)|0))+': '+row.join(' ')); } return out; }, perch:()=>PERCH, keys, profile:(x0,x1,z,stp)=>{ const o=[]; let y=WALK; for(let x=x0;x<=x1+1e-6;x+=stp){ y=floorAt(x,z,y+.6); o.push(+y.toFixed(2)); } return o; }, solid:(x,z,y)=>solidAt(x,z,y,true) };
 })();
