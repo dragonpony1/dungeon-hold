@@ -2,11 +2,12 @@ import { chromium } from "playwright"; import http from "http"; import fs from "
 import { serve } from "./serve.mjs"; const SP=process.env.SP; const server=await serve(8841);
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader","--autoplay-policy=no-user-gesture-required"]}); const page=await browser.newPage({viewport:{width:960,height:600}}); const errors=[]; page.on("pageerror",e=>errors.push(String(e))); page.on("console",m=>{ if(m.type()==="error"||m.type()==="warning") errors.push(m.text().slice(0,200)); });
+await page.addInitScript(()=>{ try{ localStorage.setItem("dd_cine_seen",JSON.stringify(["prologue","tavern","garden","feast","castle","lantern","torchline","ending"])); }catch(e){} });   // the story scenes (96s*) would hold the hall on its first visit
 await page.goto("http://127.0.0.1:8841/"); await page.waitForFunction(()=>window.__dd&&window.__dd.heroModel&&window.__dd.heroModel()&&window.__mus,null,{timeout:40000});
 const s0=await page.evaluate(()=>window.__mus.state());
-check("both tracks are embedded, nothing plays on the start screen",s0.tracks.includes("build")&&s0.tracks.includes("wave")&&!s0.playing&&s0.mode==="none",JSON.stringify(s0));
+check("both tracks are embedded; on the start screen the title track is the one asked for (build 561), nothing from the hall",s0.tracks.includes("build")&&s0.tracks.includes("wave")&&(s0.mode==="title"||s0.mode==="none")&&s0.track!=="build"&&s0.track!=="wave",JSON.stringify(s0));
 // enter the hall like a player: click the play button (a real gesture), the build theme should decode and start
-await page.click("#playbtn"); await page.waitForFunction(()=>window.__mus.state().playing,null,{timeout:15000}).catch(()=>{});
+await page.click("#playbtn"); await page.waitForFunction(()=>window.__mus.state().playing&&window.__mus.state().track==="build",null,{timeout:15000}).catch(()=>{});   // build 561: the title track plays before PLAY, so wait for the hall's own
 const s1=await page.evaluate(()=>window.__mus.state());
 check("hall theme (the uploaded mp3) plays during the build phase",s1.playing&&s1.track==="build"&&s1.mode==="build"&&s1.decoded.includes("build"),JSON.stringify(s1));
 check("audio context is running",s1.ctx==="running","ctx "+s1.ctx);
