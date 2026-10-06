@@ -11,10 +11,10 @@ Goal: prove every link from our code to "a friend clicks Install on Steam" works
 - [ ] Mouse lock, Esc, Tab, fullscreen, and alt-tabbing out and back all work.
 - [x] Title music starts without that first click. Desktop apps are allowed to do this.
 - [ ] Co-op still connects between two PCs.
-- [x] The full test suite passes against the app version. (`node tools/desktop-test.mjs`, 16 checks; the app runs the same files the website tests already cover)
+- [x] The full test suite passes against the app version. (`node tools/desktop-test.mjs`, 17 checks; the app runs the same files the website tests already cover)
 - [ ] It runs on a second PC that has never had it (OJ's or Bob's).
 
-Still to try by hand: mouse lock and the keys, co-op between two PCs, another PC. Note: Google's two fonts are kept once the app has been online one time. Packing them in for good (about 100 KB, free licence) needs your OK.
+Still to try by hand: mouse lock and the keys, co-op between two PCs, another PC. Google's two title fonts are packed in (145 KB, free licence; Matt OK'd 2026-10-06), so they show even on a first launch with no internet.
 
 ## Phase 2: Steamworks account. You (it needs money and identity, so I can't do it).
 - [ ] Sign up at partner.steamgames.com.

@@ -3,8 +3,8 @@
    but every request for that address is answered from the files packed inside the app (game/), so it plays with no
    internet and the game's own code -- co-op, the hideout, share links, the music -- behaves exactly as on the website,
    with no desktop-only branches in it. Everything else (the co-op broker and relay, the hideout's shared gear) goes out
-   to the network as usual; Google's fonts and the trailer's player script are kept in a small cache once seen so
-   they are there next time offline too.
+   to the network as usual. Google's two title fonts are packed in (fonts/); the trailer's player script is kept in a
+   small cache once seen so it is there next time offline too.
    Saves (the page's localStorage) live in %APPDATA%\Rootgate, outside the install folder, so updates never touch them.
    /api/* (the website's who-played log) is answered here and never posted from the app. */
 'use strict';
@@ -69,6 +69,9 @@ function streamOf(file, a, b){
 let CACHE = null;
 async function cached(req){
   const key = crypto.createHash('sha1').update(req.url).digest('hex'), f = path.join(CACHE, key), meta = f + '.type';
+  // the title fonts are packed in (desktop/fonts, tools/fetch-desktop-fonts.mjs): those never need the internet
+  const packed = path.join(__dirname, 'fonts', key);
+  try { return new Response(fs.readFileSync(packed + '.bin'), { status:200, headers:{ 'content-type':fs.readFileSync(packed + '.type', 'utf8'), 'access-control-allow-origin':'*' } }); } catch (e) {}
   try {
     const r = await net.fetch(req.url, { bypassCustomProtocolHandlers:true });
     if (r.ok) {

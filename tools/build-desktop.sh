@@ -14,6 +14,7 @@ mkdir -p "$STAGE"
 DIST=$STAGE/game RAWGLB=1 EXTRA=./parts/staging node assemble.mjs
 if [ -d trailer/hd ]; then cp trailer/hd/* "$STAGE/game/assets/"; fi
 cp desktop/main.js desktop/package.json desktop/icon.png "$STAGE/"
+cp -r desktop/fonts "$STAGE/fonts"
 ZIPDIR=$(dirname "$(ls "$LOCALAPPDATA"/electron/Cache/*/electron-v43.2.0-win32-x64.zip | head -1)")
 BUILD=$(grep -o "const BUILD=[0-9]*" parts/game.js | head -1 | grep -o "[0-9]*$")
 ../steam/node_modules/.bin/electron-packager "$STAGE" Rootgate --platform=win32 --arch=x64 --electron-version=43.2.0 \

@@ -19,6 +19,16 @@ async function launch(net){
   return { app, page, errors };
 }
 
+// ---- run 0: a brand-new install that has never been online: the packed title fonts still show
+{
+  const FRESH = fs.mkdtempSync(path.join(os.tmpdir(), 'rootgate-desktop-fresh-'));
+  const app = await electron.launch({ executablePath:EXE, args:['--profile=' + FRESH, '--net=off'], timeout:60000 });
+  const page = await app.firstWindow(); await page.waitForFunction(() => document.readyState === 'complete', null, { timeout:60000 });
+  const f = await page.evaluate(async () => { for (let i = 0; i < 40 && !(document.fonts.check('700 24px "Cinzel Decorative"') && document.fonts.check('700 24px Cinzel')); i++) await new Promise(r => setTimeout(r, 250)); return { deco:document.fonts.check('700 24px "Cinzel Decorative"'), cinzel:document.fonts.check('700 24px Cinzel') }; });
+  check('first launch with no internet ever: both title fonts are packed in', f.deco && f.cinzel, JSON.stringify(f));
+  await app.close(); try { fs.rmSync(FRESH, { recursive:true, force:true }); } catch (e) {}
+}
+
 // ---- run 1: online (safe), fresh profile
 {
   const { app, page, errors } = await launch('safe');
