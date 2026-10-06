@@ -8,6 +8,6 @@ const page=await (await browser.newContext()).newPage(); page.on("pageerror",e=>
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); }catch(e){} });
 await page.goto("http://127.0.0.1:9009/?silent&nogate&map=5",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__dd.waveComp&&window.__moth&&window.__wraith,null,{timeout:120000});
 const W=await page.evaluate(()=>{ const d=window.__dd, M=d.map(); const out={ id:M.id, moth:[], wraith:[] }; for(let w=1;w<=7;w++){ const q=d.waveComp(M.wbase+w).q; out.moth.push(q.filter(x=>x.kind==='moth').length); out.wraith.push(q.filter(x=>x.kind==='wraith').length); } return out; });
-check("the Deep Prison: moths from wave 2 (3, 4, 4, 5, 6), the wraith from wave 3 (two in waves 5 and 6), none in wave 1 or the final stand",W.id==='prison'&&W.moth.join()==='0,3,4,4,5,6,0'&&W.wraith.join()==='0,0,1,1,2,2,0',JSON.stringify(W));
+check("the Deep Prison: moths from wave 2 (3, 4, 4, 5, 6), the wraiths from wave 3 (build 563: 2, 2, 3, 3, and three in the final stand), none in waves 1-2",W.id==='prison'&&W.moth.join()==='0,3,4,4,5,6,0'&&W.wraith.join()==='0,0,2,2,3,3,3',JSON.stringify(W));
 check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
