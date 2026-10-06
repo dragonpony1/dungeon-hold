@@ -30,7 +30,7 @@ const MIX=[['goblin',64],['orc',24],['archer',10],['ogre',2]], TEAMS=['kegcart',
 const LATER=[['goblin',50],['orc',18],['archer',8],['ogre',2]], LATER_TEAMS=['firecart','kegcart'];   // and the second crowd, out of the dark over the next ten seconds
 // build 382 (Matt: "this boss wave 6 in the prison we need another 100 mobs pouring out during their march forward with huge boluses all at once then need to be overwhelming to a fully built out defense"): FOUR BOLUSES of 25 (12 goblins, 7 orcs, 3 archers, 3 ogres each, a siege cart with the first and the third) -- 100 more -- pour out of the breach one after another while the
 // horde marches, 14, 28, 42 and 56 seconds after the crowd is let out (the wave clock's seconds). Each is a marker in the wave's own spawn list (so the wave cannot end before the last), comes out within a fifth of a second, with a rumble and a cloud of dust along the breach.
-const BOLUS_AT=[14,28,42,56], BOLUS_MIX=[['goblin',12],['orc',7],['archer',3],['ogre',3]], BOLUS_TEAMS=[['firecart'],[],['kegcart'],[]];
+const BOLUS_AT=[14,28,42,56], BOLUS_MIX=[['goblin',12],['orc',7],['archer',3],['ogre',3]], BOLUS_TEAMS=[['firecart'],['kegcart'],['kegcart'],['firecart']];   /* build 563 (Matt: more siege machines): the second and fourth boluses bring a cart too -- 7 -> 9 over the wave (a third team in the second crowd jostled the carts round) */
 // build 383 (Matt: "at least one more spawn door ... to give more boluses of mobs and disperse ballista shots"): the second and fourth boluses burst out of the two new doors instead of the breach -- the middle terrace's east wall and the lower terrace's west wall -- so the surges come from three places
 const BOLUS_GATE=[null,'ME',null,'LW'];
 const smooth=k=>k<=0?0:k>=1?1:k*k*(3-2*k);

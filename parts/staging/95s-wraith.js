@@ -16,6 +16,9 @@ MOBDIM[K]={ fit:2.9, h:2.6, r:.8, nat:{walk:1,run:1} };
 const TOUR_T=9, TOUR_HEALS=5, CHARGE_T=7, VOLLEY_HEALS=4, DIVE_K=.45, DIVE_MIN=60, LOW=3.2, HIGH=6, SPD={ tour:6, hide:7, dive:16, back:9 };
 const cnt={ spawned:0, heals:0, dives:0, towerHits:0, deaths:0, charges:0 };
 const MAPS_ON=new Set(['feast','moat','prison']);
+// build 563 (Matt: "I think it needs more. They seem to be the only thing that causes concern for seasoned players"): THE DEEP PRISON's wraiths by wave -- 2, 2, 3, 3 in waves 3-6
+// (was 1, 2, 2, 2), spread evenly through each wave; three more come with the final stand (95p-finalstand.js MIX). 7 -> 13 over the map.
+const PRISON_N={ 3:2, 4:2, 5:3, 6:3 };
 const wantsWave=w=>{ if(TUTORIAL) return false; if(window.__finalstand&&window.__finalstand.isFinal&&window.__finalstand.isFinal(w)) return false;   /* the Deep Prison's final stand keeps its own fixed 300 */ if(SURVIVAL) return w>=12&&w%3===0; return MAP&&MAPS_ON.has(MAP.id)&&(w-(MAP.wbase|0))>=3; };
 // ---- his model, fetched once when a map he visits is reached (the same once-only guard as every loader: if it's in, or on its way, nothing more is asked)
 let loadP=null;
@@ -28,7 +31,8 @@ function load(){ if(MOBGLB[K]) return Promise.resolve(); if(loadP) return loadP;
 // ---- one to a wave, a third of the way in
 { const prev=waveComp; waveComp=function(w){ const c=prev.apply(this,arguments); if(!c||!Array.isArray(c.q)||!c.q.length||!wantsWave(w)) return c;
     const ts=c.q.map(x=>+x.t||0), t0=Math.min(...ts), t1=Math.max(...ts), lanes=Object.keys(LANES); const lane=c.q[(c.q.length/3)|0].lane||lanes[0];
-    const add=[{ t:+(t0+(t1-t0)/3).toFixed(2), kind:K, lane }]; if(!SURVIVAL&&MAP&&MAP.id==='prison'&&(w-(MAP.wbase|0))>=4){ const l2=c.q[(c.q.length*2/3)|0].lane||lane; add.push({ t:+(t0+(t1-t0)*2/3).toFixed(2), kind:K, lane:l2 }); }   /* build 425: two in the prison's fifth and sixth waves; build 562 (Matt: "add 20% more phase wraiths to the 6th room"): the fourth too -- 6 -> 7 over the map */
+    let add=[{ t:+(t0+(t1-t0)/3).toFixed(2), kind:K, lane }]; const pn=!SURVIVAL&&MAP&&MAP.id==='prison'?PRISON_N[w-(MAP.wbase|0)]:0;
+    if(pn){ add=[]; for(let i=1;i<=pn;i++){ const k=i/(pn+1); add.push({ t:+(t0+(t1-t0)*k).toFixed(2), kind:K, lane:c.q[(c.q.length*k)|0].lane||lane }); } }   /* build 425: two in the prison's fifth and sixth waves; build 562 (Matt: "add 20% more phase wraiths to the 6th room"): the fourth too; build 563: PRISON_N */
     const q=c.q.concat(add).sort((a,b)=>(+a.t||0)-(+b.t||0)); return Object.assign({},c,{ q }); }; }
 // ---- the corner he hides in: the walkable floor furthest from the Heartroot -- but never in a spawn alcove (build 435, Matt: "if phase wraith is the last mob he can't hide too far in a corner in a spawn
 // alcove"; the old pick was a corner of the box round all the floor, which on some maps sat right in a mob door). Floor within SPAWN_KEEP of a lane's door is out, and so is floor the mobs never walk to the Heartroot from.
