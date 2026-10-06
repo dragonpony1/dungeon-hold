@@ -140,7 +140,7 @@ function teardown(ctx){ cnt.teardowns++; dripStop(.4); marchStop(.8);
   for(const M of marchers){ if(M.t){ M.t.traverse(o=>{ if(o.geometry&&o.geometry.type==='ConeGeometry') o.geometry.dispose(); if(o.material&&(o.material.isSpriteMaterial||o.material.isMeshBasicMaterial)) o.material.dispose(); }); } if(M.pool) M.pool.material.dispose(); try{ M.m.mixer.stopAllAction(); }catch(e){} }
   if(poolGeo){ poolGeo.dispose(); poolGeo=null; } marchers=[]; }
 CINE.register(ID,{ title:'THE DEEP PRISON', sub:'THE TORCH LINE', map:'prison', pic:'cine-torchline.jpg', dur:DUR,
-  when:()=>PRISON&&!TUTORIAL&&S.phase==='build'&&S.wave===0,
+  when:()=>PRISON&&!TUTORIAL&&S.phase==='build'&&S.wave===0&&(!CINE.list().some(d=>d.id==='lantern')||CINE.seen('lantern')),   /* build 556: THE LAST LANTERN (96s9-lantern.js) plays first; this follows straight on out of its black */
   ready:()=>!!(MOBGLB.goblin&&MOBGLB.orc)&&!!(window.__prisonkit&&window.__prisonkit.info&&(window.__prisonkit.info()||{}).modules>0),
   setup, step, teardown });
 window.__torchline={ info:()=>Object.assign({ marchBytes:!!marchBytes, marchReady:!!MARCH, dripReady:!!DRIP, glb:marchers.filter(M=>M.m.glb).length, path:P?{ len:+P.len.toFixed(1), lane:P.lane, n:P.X.length }:null, anchors:Object.assign({},A), alive:marchers.filter(M=>M.m.g.visible).length, face },cnt), shot:t=>{ const s=shot(t); return { name:s.name, p:s.p, l:s.l }; }, head, SH, DUR, N };
