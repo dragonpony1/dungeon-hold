@@ -57,7 +57,7 @@ function clink(U){ if(!U||!U.a) return; const a=U.a, t=a.currentTime; for(let i=
 function growRoot(group,pts,rad,mat){ const cur=new THREE.CatmullRomCurve3(pts), geo=new THREE.TubeGeometry(cur,64,rad,6,false); geo.setDrawRange(0,0); const m=own(new THREE.Mesh(geo,mat)); group.add(m); return { m, geo, n:geo.index?geo.index.count:geo.attributes.position.count }; }
 function setGrow(r,k){ const c=Math.floor(r.n*Math.max(0,Math.min(1,k))/18)*18; r.geo.setDrawRange(0,c); }
 // ---------------------------------------------------------------- the scene
-let heroes=[], roots=[], gateRoots=[], heartG=null, motes=null, moteMat=null, mugs=[], A_={}, lastCut=null;
+let hidRaven=[], heroes=[], roots=[], gateRoots=[], heartG=null, motes=null, moteMat=null, mugs=[], A_={}, lastCut=null;
 const SRC=[0,1,2,3,4,5,6,7].map(()=>({ x:0, y:-80, z:0, on:false, ph:0, k:1 }));
 const _v1=new THREE.Vector3(), _v2=new THREE.Vector3(), _v3=new THREE.Vector3(), _q1=new THREE.Quaternion(), _q2=new THREE.Quaternion(), _q3=new THREE.Quaternion();
 function aim(ch,target){ if(!ch) return; ch.upper.getWorldPosition(_v1); ch.hand.getWorldPosition(_v2); _v2.sub(_v1).normalize(); _v3.copy(target).sub(_v1).normalize(); _q1.setFromUnitVectors(_v2,_v3);
@@ -93,6 +93,8 @@ function setup(ctx){ if(!PRISON) return false; const C2=window.__prologue&&windo
     if(P&&m.actions.idle){ P.play(m,'idle',{fade:0,restart:true}); m.actions.idle.time=i*.7; } const mt=P&&P.mount(m.root); let left=null; try{ const dw=window.__dualwield&&window.__dualwield.prep?window.__dualwield.prep(m.root):null; left=dw&&dw.node?chainOf(dw.node):null; }catch(e){}
     const mug=makeMug(); mug.visible=false; ctx.group.add(mug); mugs.push(mug); heroes.push({ h, m, right:mt?chainOf(mt):null, left, mug, x, z }); });
   cnt.heroes=heroes.length; cnt.mugs=mugs.length;
+  // the raven and its perch (57-raven.js) sit by the Heartroot: they step out of the ending (found by the raven's own spots), back after
+  hidRaven=[]; try{ const sp=(window.__raven&&window.__raven.spots&&window.__raven.spots())||[]; for(const root of [scene,world]) for(const o of root.children){ if(!o.visible||o===ctx.group) continue; if(sp.some(p=>Math.hypot(o.position.x-p.x,o.position.z-p.z)<1.6&&Math.abs(o.position.y-p.y)<4)){ o.visible=false; hidRaven.push(o); } } }catch(e){}
   ctx.darken({ hemi:.04, emissive:.08, fog:[90,240], flat:.45 }); const F=ctx.fireLights(8); F.I=2; F.dist=16; F.col=0xc8ff8a;
   return true; }
 function camFor(t){ const H=A_.heart, G=A_.gate, T=A_.table;
@@ -100,7 +102,7 @@ function camFor(t){ const H=A_.heart, G=A_.gate, T=A_.table;
   if(t<SH.gate){ const k=ssm((t-SH.roots)/(SH.gate-SH.roots)); return { p:[H.x+6+4*k,H.y+11+5*k,H.z+10+5*k], l:[H.x,H.y,H.z], fov:52, name:'roots', f:{ x:H.x, y:H.y+1, z:H.z } }; }
   if(t<SH.tavern){ const k=ssm((t-SH.gate)/(SH.tavern-SH.gate)), bx=G.x+G.fx*10, bz=G.z+G.fz*10;   /* inside the prison, looking back at the doorway */ return { p:[bx-G.fz*1.5*(1-k),G.y+3,bz+G.fx*1.5*(1-k)], l:[G.x,G.y+2.4,G.z], fov:50, name:'gate', f:{ x:G.x, y:G.y+2, z:G.z } }; }
   if(t<SH.title){ const k=ssm((t-SH.tavern)/(SH.title-SH.tavern)), a=2.2+.9*k, r=6.6-.6*k; return { p:[T.x+Math.sin(a)*r,2.6+.2*k,T.z+Math.cos(a)*r], l:[T.x,1.3,T.z], fov:50, name:'tavern', f:{ x:T.x, y:1.5, z:T.z } }; }
-  const k=ssm((t-SH.title)/(DUR-SH.title)), a=3.1, r=6+5*k; return { p:[T.x+Math.sin(a)*r,2.8+4*k,T.z+Math.cos(a)*r], l:[T.x,1.4,T.z], fov:52, name:'title', f:{ x:T.x, y:1.5, z:T.z } }; }
+  const k=ssm((t-SH.title)/(DUR-SH.title)), a=3.1, r=5.6+1.6*k; return { p:[T.x+Math.sin(a)*r,2.8+2.4*k,T.z+Math.cos(a)*r], l:[T.x,1.3,T.z], fov:54, name:'title', f:{ x:T.x, y:1.5, z:T.z } }; }
 function step(ctx,t,dt){ const U=ctx.audio, F=ctx.fire, P=window.__party&&window.__party.model;
   ctx.black(t<1.6?1-ssm(t/1.6):t>DUR-2?ssm((t-(DUR-2))/1.8):(t>=SH.tavern-.4&&t<SH.tavern+.6?(t<SH.tavern?ssm((t-SH.tavern+.4)/.4):1-ssm((t-SH.tavern)/.6)):0)); ctx.title(ssm((t-(SH.title+.6))/1.3)*(1-ssm((t-(DUR-1.6))/1)));
   // the blaze
@@ -126,7 +128,7 @@ function step(ctx,t,dt){ const U=ctx.audio, F=ctx.fire, P=window.__party&&window
     SRC.forEach((o,i)=>{ const p=pts[i]; if(!p){ o.on=false; return; } o.x=p[0]; o.y=p[1]; o.z=p[2]; o.on=true; o.ph=i*1.3; o.k=1; }); F.update(SRC,camFor(t).f,dt,t); }
   const c=camFor(t); ctx.cam(c.p,c.l,c.fov); if(c.name!==lastCut){ if(lastCut!==null&&F&&F.cut) F.cut(); lastCut=c.name; }
   tunePrep(U); if(!tuneSrc&&TUNE&&t<DUR-1) tunePlay(U,t); }
-function teardown(ctx){ cnt.teardowns++; if(lastCut!=='title') tuneStop(.6); else tuneSrc=null;   /* ended by itself: the song runs out on its own */
+function teardown(ctx){ cnt.teardowns++; for(const o of hidRaven) o.visible=true; hidRaven=[]; if(lastCut!=='title') tuneStop(.6); else tuneSrc=null;   /* ended by itself: the song runs out on its own */
   for(const H of heroes){ try{ H.m.mixer.stopAllAction(); }catch(e){} if(H.m.wrap.parent) H.m.wrap.parent.remove(H.m.wrap); H.m.wrap.rotation.y=0; }
   for(const m of OWN.splice(0)) try{ m.dispose(); }catch(e){}
   heroes=[]; roots=[]; gateRoots=[]; mugs=[]; motes=null; setFlames=null; setNpc=null; }
