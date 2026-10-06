@@ -5,7 +5,7 @@ const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftsh
 await page.addInitScript(()=>{ try{ localStorage.setItem("dd_cine_seen",JSON.stringify(["prologue","tavern","garden","feast","castle","lantern","torchline","ending"])); }catch(e){} });   // the story scenes (96s*) would hold the hall on its first visit
 await page.goto("http://127.0.0.1:8841/"); await page.waitForFunction(()=>window.__dd&&window.__dd.heroModel&&window.__dd.heroModel()&&window.__mus,null,{timeout:40000});
 const s0=await page.evaluate(()=>window.__mus.state());
-check("both tracks are embedded; on the start screen the title track is the one asked for (build 561), nothing from the hall",s0.tracks.includes("build")&&s0.tracks.includes("wave")&&(s0.mode==="title"||s0.mode==="none")&&s0.track!=="build"&&s0.track!=="wave",JSON.stringify(s0));
+check("both tracks are embedded; on the start screen the title track is the one asked for (build 561), nothing from the hall",s0.tracks.includes("build")&&s0.tracks.includes("wave")&&(/^title/.test(s0.mode||"")||s0.mode==="none")&&s0.track!=="build"&&s0.track!=="wave",JSON.stringify(s0));
 // enter the hall like a player: click the play button (a real gesture), the build theme should decode and start
 await page.click("#playbtn"); await page.waitForFunction(()=>window.__mus.state().playing&&window.__mus.state().track==="build",null,{timeout:15000}).catch(()=>{});   // build 561: the title track plays before PLAY, so wait for the hall's own
 const s1=await page.evaluate(()=>window.__mus.state());

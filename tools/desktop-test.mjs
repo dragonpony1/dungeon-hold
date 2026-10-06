@@ -52,8 +52,8 @@ async function launch(net){
   check('a missing file is a plain 404', net.miss === 404, 'status ' + net.miss);
   let fonts = false; for (let i = 0; i < 40 && !fonts; i++) { fonts = await page.evaluate(() => document.fonts.check('700 24px "Cinzel Decorative"')); if (!fonts) await sleep(250); }
   check('the title font loads', fonts);
-  let mus = null; for (let i = 0; i < 60; i++) { mus = await page.evaluate(() => window.__mus.state()); if (mus.playing && mus.track === 'title') break; await sleep(250); }
-  check('title music starts on its own, no click needed', mus.playing && mus.track === 'title' && mus.ctx === 'running', JSON.stringify({ playing:mus.playing, track:mus.track, ctx:mus.ctx }));
+  let mus = null; for (let i = 0; i < 60; i++) { mus = await page.evaluate(() => window.__mus.state()); if (mus.playing && /^title/.test(mus.track)) break; await sleep(250); }
+  check('title music starts on its own, no click needed', mus.playing && /^title/.test(mus.track) && mus.ctx === 'running', JSON.stringify({ playing:mus.playing, track:mus.track, ctx:mus.ctx }));
   if (SHOTS) await page.screenshot({ path:path.join(SHOTS, 'desktop-title.png') });
   await page.evaluate(() => { try { localStorage.setItem('dd_cine_seen', JSON.stringify(['prologue','tavern','garden','feast','castle','lantern','torchline','ending'])); } catch (e) {} });
   await page.click('#playbtn');
