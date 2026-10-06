@@ -12,7 +12,7 @@ const L=window.__lesson; if(!L) return;
 const seen=k=>{ try{ return localStorage.getItem(k)==='1'; }catch(e){ return true; } }, mark=k=>{ try{ localStorage.setItem(k,'1'); }catch(e){} };
 const cnt={ special:0, sludge:0, ring:0 };
 const coop=()=>{ try{ const n=window.__net; return !!(n&&n.role&&n.role()!=='solo'&&n.peers&&n.peers().length); }catch(e){ return false; } };
-const busy=()=>{ try{ return L.on()||(window.__bagguide&&window.__bagguide.isOn())||Meta.isOpen()||!!(window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen())||document.body.classList.contains('cine-on')||!!(ring&&ring.on); }catch(e){ return true; } };
+const busy=()=>{ try{ return L.on()||!!(heroEl&&heroEl.classList.contains('on'))||(window.__bagguide&&window.__bagguide.isOn())||Meta.isOpen()||!!(window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen())||document.body.classList.contains('cine-on')||!!(ring&&ring.on); }catch(e){ return true; } };
 const off=()=>TUTORIAL||SILENT;
 
 // ---- 1. the hero's second attack, once, in the hall
@@ -46,11 +46,32 @@ function ringStop(it){ try{ L.close(); }catch(e){} mark('dd_tip_ring'); cnt.ring
 function go(){ if(!ring||!ring.on) return; if(performance.now()-ring.at<400) return; ring.on=false; window.__freeze=ring.was; const el=document.getElementById('ringtip'); if(el) el.classList.remove('on'); }
 addEventListener('keydown',e=>{ if(!ring||!ring.on) return; e.preventDefault(); e.stopImmediatePropagation(); if(e.code==='Enter'||e.code==='Space'||e.code==='Escape'||e.code==='NumpadEnter') go(); },true);
 
+// ---- 4. build 573 (Matt: "does the tutorial explain switching heros i wonder?" / "yes add the hero card"): the first time THE GNOME HALL is held the other three heroes unlock (95-campaign.js) --
+//      a card shows them, their portraits (assets/hero-*.png), and the ways to switch: H in the hall or the hideout, a card on the title screen. Each keeps their own gear; the bag is shared.
+const HEROES3=[['witch','GNOME BATTLE WITCH','a battle staff'],['troll','GNOME RANGER','a longbow'],['fighter','GNOME FIGHTER','a battle polearm']];
+const hst=document.createElement('style'); hst.textContent=
+ '#herotip{position:fixed;inset:0;z-index:85;display:none;align-items:center;justify-content:center;background:#000a}#herotip.on{display:flex}'+
+ '#herotip .ht{width:min(760px,94vw);background:linear-gradient(#24162e,#140c1a);border:3px solid #ffd27a;border-radius:16px;box-shadow:0 0 30px #ffd27a44,0 10px 40px #000;padding:16px 18px 14px;color:#f3e6cf;font:16px Georgia,serif;text-align:center}'+
+ '#herotip h3{margin:0 0 12px;font:bold 26px Georgia,serif;letter-spacing:4px;color:#ffd27a}#herotip .hs{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}'+
+ '#herotip .h{flex:1 1 180px;max-width:220px;background:#ffffff0a;border:1px solid #ffffff1c;border-radius:12px;padding:8px}#herotip .h img{width:100%;height:170px;object-fit:contain;filter:drop-shadow(0 4px 8px #000)}#herotip .h b{display:block;font-size:14px;letter-spacing:1px;color:#ffe2a8}#herotip .h span{font-size:13px;color:#c9b8a0}'+
+ '#herotip .ways{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px}#herotip .w{background:#ffffff0a;border:1px solid #ffd27a55;border-radius:10px;padding:7px 12px;font-size:15px}#herotip kbd{display:inline-block;min-width:22px;padding:1px 6px;border:2px solid #ffd27a;border-radius:6px;font:bold 14px system-ui;color:#ffd27a;background:#000}'+
+ '#herotip .n{margin-top:10px;color:#c9b8a0;font-size:14px}#herotip .go{margin-top:12px;background:linear-gradient(#5a2a14,#2a1208);border:2px solid #c9962f;border-radius:999px;color:#ffe2b8;font:bold 16px Georgia,serif;letter-spacing:3px;padding:9px 34px;cursor:pointer}';
+document.head.appendChild(hst);
+let heroEl=null, heroAt=0;
+function heroCard(){ mark('dd_tip_heroes'); cnt.heroes=(cnt.heroes|0)+1;
+  if(!heroEl){ heroEl=document.createElement('div'); heroEl.id='herotip'; document.body.appendChild(heroEl); heroEl.addEventListener('click',e=>{ if(e.target.closest('.go')||e.target===heroEl) heroClose(); }); }
+  heroEl.innerHTML='<div class="ht"><h3>✦ 3 NEW HEROES ✦</h3><div class="hs">'+HEROES3.map(h=>'<div class="h"><img src="'+ASSET('hero-'+h[0]+'.png')+'" alt="" onerror="this.style.display=\'none\'"><b>'+h[1]+'</b><span>'+h[2]+'</span></div>').join('')+'</div>'+
+    '<div class="ways"><div class="w"><kbd>H</kbd> switch hero, in the hall or the hideout</div><div class="w">🃏 or pick a card on the title screen</div></div><div class="n">Each hero wears their own gear · the bag is shared</div><button class="go" type="button">GOT IT</button></div>';
+  heroAt=performance.now(); try{ if(document.pointerLockElement) document.exitPointerLock(); }catch(e){} heroEl.classList.add('on'); }
+function heroClose(){ if(!heroEl||performance.now()-heroAt<400) return; heroEl.classList.remove('on'); }
+addEventListener('keydown',e=>{ if(!heroEl||!heroEl.classList.contains('on')) return; e.preventDefault(); e.stopImmediatePropagation(); if(e.code==='Enter'||e.code==='Space'||e.code==='Escape'||e.code==='NumpadEnter') heroClose(); },true);
+let heldT=0;
 // ---- the watch: the hall's update for the ring (it moves), a slow timer for the rest
 const ringBusy=()=>{ try{ return Meta.isOpen()||!!(window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen())||document.body.classList.contains('cine-on')||!!(ring&&ring.on)||S.phase==='start'||S.phase==='dead'; }catch(e){ return true; } };   // not the lesson card: the ring cannot wait behind it (it would be walked over)
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(off()||seen('dd_tip_ring')||ringBusy()) return; try{ for(const l of loot){ const it=l&&l.it; if(!it||!RINGS[it.named]||!(l.t>.6)) continue; if(Math.hypot(l.x-hero.x,l.z-hero.z)<6){ ringStop(it); break; } } }catch(e){} }; }
 setInterval(()=>{ if(off()) return;
   try{ if(!seen('dd_tip_sludge')&&!busy()){ const J=window.__jars; if(J&&J.run&&J.run().some(n=>n>0)) sludge(); } }catch(e){}
+  try{ if(!seen('dd_tip_heroes')&&MAPI===0&&!SURVIVAL&&S.held){ heldT+=.5; if(heldT>=4&&!busy()&&!(heroEl&&heroEl.classList.contains('on'))) heroCard(); } else heldT=0; }catch(e){}
   try{ if(!seen('dd_tip_special')&&MAPI===0&&!SURVIVAL&&S.phase==='build'&&S.wave>=2){ buildT+=.5; if(buildT>=2.5&&!busy()) special(); } else buildT=0; }catch(e){} },500);
-window.__halltips={ info:()=>Object.assign({ ringOn:!!(ring&&ring.on) },cnt), special, sludge, ringStop, go };
+window.__halltips={ info:()=>Object.assign({ ringOn:!!(ring&&ring.on), heroOn:!!(heroEl&&heroEl.classList.contains('on')) },cnt), special, sludge, ringStop, go, heroCard, heroClose };
 })();

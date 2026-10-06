@@ -77,7 +77,7 @@ function step(ctx,t,dt){ const U=ctx.audio;
   ctx.once('swell',SH.four,()=>{ U.swell(.05); });
   tunePrep(U); if(!tuneSrc&&TUNE&&t<DUR-1.5) tunePlay(U);
   lastT=t; }
-function teardown(ctx){ cnt.teardowns++; if(tuneSrc&&lastT>=DUR-.8){ tuneOn=true; try{ setMusic('none'); }catch(e){} } else tuneStop(.6);
+function teardown(ctx){ cnt.teardowns++; tuneStop(lastT>=DUR-.8?1.5:.6);   /* build 573 (Matt: 'same thing in the cloister the cinematic music keeps playing after its over'): the song stops with the scene, the hall's music comes back */
   for(const H of heroes){ try{ H.m.mixer.stopAllAction(); }catch(e){} if(H.m.wobj&&H.m.wobj.parent) H.m.wobj.parent.remove(H.m.wobj); if(H.m.wrap.parent) H.m.wrap.parent.remove(H.m.wrap); H.m.wrap.rotation.y=0; }
   for(const m of OWN.splice(0)) try{ m.dispose(); }catch(e){}
   heroes=[]; flies=null; moon=null; moonG=null; }
