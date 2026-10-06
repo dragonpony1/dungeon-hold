@@ -13,8 +13,8 @@ await page.goto("http://127.0.0.1:9003/?silent&nogate&map=4",{timeout:120000}); 
 await page.evaluate(()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} d.start(); d.step(1/60,3); window.__freeze=true; });
 const walk=(route,y0)=>page.evaluate(([route,y0])=>{ const d=window.__dd, M=window.__moatwalk, h=d.hero; const p0=M.at(route[0][0],route[0][1]); h.x=p0.x; h.z=p0.z; h.y=y0; h.vy=0; const log=[];
   for(const [cx,cz] of route.slice(1)){ const p=M.at(cx,cz); const ok=M.walkTo(p.x,p.z); log.push([cx,cz,ok,+h.y.toFixed(2)]); if(!ok) break; } return log; },[route,y0]);
-const loop=await walk([[20,0],[20,1],[2,1],[2,14],[22,14],[26,14],[47,14],[47,1],[36,1],[30,1]],16);
-check("from the roof all the way round the ward on the walls (over the postern, the gate and the sally port) and back onto the roof, at the walk's height the whole way",loop.length===9&&loop.every(s=>s[2]&&s[3]>15.9),JSON.stringify(loop));
+const loop=await walk([[20,0],[20,1],[2,1],[2,14],[17,14],[17,12],[31,12],[31,14],[47,14],[47,1],[36,1],[30,1]],16);   // build 575: the two gate towers are solid now (99r-paramotor.js), so the walk goes round them on row 12, still over the gate
+check("from the roof all the way round the ward on the walls (over the postern, the gate and the sally port) and back onto the roof, at the walk's height the whole way",loop.length===11&&loop.every(s=>s[2]&&s[3]>15.9),JSON.stringify(loop));
 const bridge=await walk([[36,1],[47,1],[47,14],[31,15],[31,36],[29,36],[29,44],[39,44]],16);   /* build 452: the inn 10 south, the bridge at x30-33 */
 check("down onto the bridge from the south wall, over the moat and the green, and round the inn's wall-top",bridge.length===7&&bridge.every(s=>s[2]&&s[3]>15.9),JSON.stringify(bridge));
 const off=await page.evaluate(()=>{ const d=window.__dd, M=window.__moatwalk, h=d.hero; const a=M.at(10,1), b=M.at(10,4); h.x=a.x; h.z=a.z; h.y=16; const ok=M.walkTo(b.x,b.z); return { ok, y:+h.y.toFixed(2), z:+(h.z-a.z).toFixed(2) }; });
