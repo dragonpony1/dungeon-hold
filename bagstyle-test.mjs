@@ -23,14 +23,14 @@ const W=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta, P=M.pack
   const ups={}; SL.forEach((sl,i)=>{ const it=roll(3,sl); M.giveItem(it); M.equip(it.id); const ks=F.keys(it); for(let j=0;j<i;j++) F.upgrade(it.id,ks[0],1); ups[sl]={ id:it.id, used:F.used(it) }; });
   return { ups, bag:M.bag().length }; });
 const open=()=>page.evaluate(()=>{ const T=window.__tavern; if(T.isOpen()) T.close(); T.open(); T.tab('bag'); });
-const eqRow=()=>page.evaluate(()=>[...document.querySelectorAll('#tv-bag .tv-eq .bs-eqrow > .bs-eq')].map(c=>({ from:c.dataset.from||'', act:c.dataset.act, id:c.dataset.id||'', slot:c.dataset.slot||'', off:c.dataset.off||'', up:(c.querySelector('.bs-up')||{}).textContent||'', text:c.textContent })));
+const eqRow=()=>page.evaluate(()=>[...document.querySelectorAll('#tv-bag .tv-eq .bs-eqrow .bs-eq')].map(c=>({ from:c.dataset.from||'', act:c.dataset.act, id:c.dataset.id||'', slot:c.dataset.slot||'', off:c.dataset.off||'', up:(c.querySelector('.bs-up')||{}).textContent||'', text:c.textContent })));
 await open(); await page.waitForTimeout(300);
 // ---- six cards, the sixth locked with no ring on
 let row=await eqRow();
 check("the EQUIPPED band holds six cards: the five slots plus the OFF-HAND / 2ND PET card",row.length===6&&row.filter(c=>c.from==='eq').length===5&&row.filter(c=>c.off).length===1,JSON.stringify(row.map(c=>c.from+c.slot+c.off)));
-check("each worn card shows its slot, Lv. and rarity",row.filter(c=>c.from==='eq').every(c=>new RegExp(c.slot,'i').test(c.text)&&/Lv\. \d+/.test(c.text)&&/(Common|Uncommon|Rare|Epic|Legendary|Mythic)/.test(c.text)),row.map(c=>c.text.slice(0,40)).join(' | '));
+check("each worn card shows its slot (the weapon reads RIGHT HAND, build 570), Lv. and rarity",row.filter(c=>c.from==='eq').every(c=>new RegExp(c.slot==='weapon'?'RIGHT HAND':c.slot,'i').test(c.text)&&/Lv\. \d+/.test(c.text)&&/(Common|Uncommon|Rare|Epic|Legendary|Mythic)/.test(c.text)),row.map(c=>c.text.slice(0,40)).join(' | '));
 const lockedC=row.find(c=>c.off);
-check("no ring on: the sixth card is the locked 💍 slot (OFF-HAND / 2ND PET), beside the weapon",lockedC&&lockedC.off==='locked'&&/💍/.test(lockedC.text)&&/OFF-HAND/.test(lockedC.text)&&row[1].off==='locked',JSON.stringify(lockedC));
+check("no ring on: the sixth card is the locked 💍 slot (OFF-HAND / 2ND PET), beside the weapon",lockedC&&lockedC.off==='locked'&&/💍/.test(lockedC.text)&&/LEFT HAND/.test(lockedC.text)&&row[1].off==='locked',JSON.stringify(lockedC));
 check("the old separate 2ND FAMILIAR / 2ND WEAPON rows are gone",await page.evaluate(()=>!document.querySelector('#tv-fam2')&&!document.querySelector('#tv-wpn2')));
 await page.click('#bs-off'); await page.waitForTimeout(100);
 check("a click on the locked slot says what opens it (and opens no panel)",await page.evaluate(()=>/💍/.test(document.getElementById('tv-msg').textContent)&&document.getElementById('tv-detail').classList.contains('hide')));
@@ -52,7 +52,7 @@ check("...and hide on the SHOP tab",await page.evaluate(()=>getComputedStyle(doc
 await page.click('#tv-tab-bag'); await page.waitForTimeout(100);
 // ---- sort cycle
 const s0=await page.evaluate(()=>window.__meta.bagSort()); await page.click('#tv-sort'); await page.waitForTimeout(100);
-const s1=await page.evaluate(()=>({ m:window.__meta.bagSort(), lbl:document.getElementById('tv-sort').textContent, six:document.querySelectorAll('#tv-bag .bs-eqrow > .bs-eq').length }));
+const s1=await page.evaluate(()=>({ m:window.__meta.bagSort(), lbl:document.getElementById('tv-sort').textContent, six:document.querySelectorAll('#tv-bag .bs-eqrow .bs-eq').length }));
 check("the sort button still cycles (by set -> by piece), the six cards stay in every sort",s0==='setcols'&&s1.m==='columns'&&/by piece/.test(s1.lbl)&&s1.six===6,JSON.stringify({s0,s1}));
 for(let i=0;i<6&&await page.evaluate(()=>window.__meta.bagSort())!=='setcols';i++){ await page.click('#tv-sort'); await page.waitForTimeout(80); }
 check("...and round again to by set",await page.evaluate(()=>window.__meta.bagSort())==='setcols');
@@ -80,7 +80,7 @@ const DW=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta, D=windo
 await open(); await page.waitForTimeout(150); row=await eqRow();
 const dw=row.find(c=>c.off);
 check("Twotimer on, nothing in it yet: the sixth card was the open OFF-HAND slot",DW.before==='open-weapon',DW.before);
-check("a 2nd sword in: the sixth card IS that sword (OFF-HAND, its +1), beside the weapon",DW.ok&&dw&&dw.off==='weapon2'&&dw.from==='wpn2'&&dw.id===DW.id&&dw.up==='+1'&&/OFF-HAND/.test(dw.text)&&row[1]===dw,JSON.stringify(dw));
+check("a 2nd sword in: the sixth card IS that sword (OFF-HAND, its +1), beside the weapon",DW.ok&&dw&&dw.off==='weapon2'&&dw.from==='wpn2'&&dw.id===DW.id&&dw.up==='+1'&&/LEFT HAND/.test(dw.text)&&row[1]===dw,JSON.stringify(dw));
 await page.click('#bs-off'); await page.waitForTimeout(100);
 const dp=await page.evaluate(()=>({ open:!document.getElementById('tv-detail').classList.contains('hide'), forge:!!document.querySelector('#tv-detail #tv-forge'), off:!!document.querySelector('#tv-detail [data-act="unequipw2"]'), tag:(document.querySelector('#tv-detail .dh .dm')||{}).textContent||'' }));
 check("...a click opens its panel: the forge and Take off 2nd (the 2ND WEAPON tag)",dp.open&&dp.forge&&dp.off&&/2ND WEAPON/.test(dp.tag),JSON.stringify(dp));

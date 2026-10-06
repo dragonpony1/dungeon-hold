@@ -88,7 +88,9 @@ const css=document.createElement('style'); css.id='bs-css'; css.textContent=`
 .bs .bs-eqh:before,.bs .bs-eqh>.bs-orn{content:"";flex:0 1 160px;height:10px;background:radial-gradient(circle at 100% 50%,#f2d27a 0 3px,transparent 3.6px) right center/8px 10px no-repeat,linear-gradient(90deg,transparent,#c9962f) left center/calc(100% - 8px) 2px no-repeat}
 .bs .bs-eqh>.bs-orn{transform:scaleX(-1)}
 .bs .bs-eqh .bg-head{position:absolute;right:12px;top:6px;margin:0;padding:4px 10px;font:700 13px ${CZ};letter-spacing:1px}.bs .bs-eqh .bg-head b{font-size:14px}
-.bs .bs-eqrow{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.bs .bs-eqrow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.bs .bs-stack{display:flex;flex-direction:column;gap:6px;min-width:0}.bs .bs-stack>.tv-card.bs-eq{min-height:0;flex:1;padding:4px 8px;gap:8px}.bs .bs-stack .bs-eq .bs-pic{width:44px;height:44px;font-size:22px}
+.bs .bs-stack .bs-eq .bs-lv,.bs .bs-stack .bs-eq .bs-rar{display:none}.bs .bs-stack .bs-eq .bs-lv.bs-pics{display:block;font-size:11px;line-height:1.25}.bs .bs-stack .bs-eq .nm{-webkit-line-clamp:1}.bs .bs-stack .bs-eq .bs-up{left:32px;width:22px;height:22px;font-size:11px}
 .bs .tv-card.bs-eq{display:flex;flex-direction:row;align-items:center;gap:10px;min-height:96px;margin:0;padding:8px 10px;border:2px solid #4fc85a;border-radius:9px;overflow:visible;
  background:radial-gradient(circle at 7px calc(100% - 7px),#7dff8a 0 2.6px,#1c6a24 3.4px,transparent 4.2px),radial-gradient(circle at calc(100% - 7px) calc(100% - 7px),#7dff8a 0 2.6px,#1c6a24 3.4px,transparent 4.2px),linear-gradient(#24152c,#120a18);
  box-shadow:inset 0 0 0 1px #000,inset 0 0 14px #3fdc5a22,0 0 8px #3fdc5a33,0 3px 8px #000}
@@ -205,7 +207,7 @@ function eqCard(it,o){ // o: {from, slot, label, extra classes, sel}
     +'<div class="bs-inf"><div class="bs-sl">'+o.label+'</div><div class="nm" style="color:'+RCSS[it.rarity]+'">'+tvEsc(it.name)+'</div><div class="bs-lv">Lv. '+(it.lvl|0)+'</div><div class="bs-rar" style="color:'+RCSS[it.rarity]+'">'+(it.named?'✦ ':'')+RNAME[it.rarity]+'</div>'+(typeof gsBadge==='function'?'<div class="bs-gs">'+gsBadge(it,'gs-eq')+(it.slot==='weapon'?'<span class="wt" data-wt="'+wtypeOf(it)+'">'+WEAPON_EMBLEM[wtypeOf(it)]+'</span>':'')+'</div>':'')+'</div></div>'; }   // build 525 prep: GS on every worn card
 function emptyCard(slot){ const B=window.__best, up=B&&B.slotState&&Meta.bag().some(it=>it.slot===slot&&B.verdict(it)==='up');
   return '<div class="tv-card bs-eq bs-none'+(up?' bg-up':'')+'" data-act="sel" data-id="" data-from="eq" data-slot="'+slot+'" style="--rc:#4a6a4a">'+(up?'<i class="bg-b" title="Your bag has one to put here">▲</i>':'')
-    +'<div class="bs-pic"><span class="ic">'+SICON[slot]+'</span></div><div class="bs-inf"><div class="bs-sl">'+SLOT_WORD[slot]+'</div><div class="bs-lv">empty</div></div></div>'; }
+    +'<div class="bs-pic"><span class="ic">'+SICON[slot]+'</span></div><div class="bs-inf"><div class="bs-sl">'+(slot==='weapon'?'RIGHT HAND':SLOT_WORD[slot])+'</div><div class="bs-lv">empty</div></div></div>'; }
 // the sixth card: what it shows right now -- {kind:'weapon2'|'pet2'|'open-weapon'|'open-pet'|'blocked'|'locked', it, asleep}
 function offState(){ const D=window.__dualwield, R=window.__tworings, w=gear.weapon2, f=gear.familiar2;
   const dOn=!!(D&&D.ringMine&&D.ringMine()), pOn=!!(R&&R.ringOn&&R.ringOn());
@@ -217,16 +219,18 @@ function offState(){ const D=window.__dualwield, R=window.__tworings, w=gear.wea
   if(f) return { kind:'pet2', it:f, asleep:true };
   return { kind:'locked' }; }
 function offCard(){ const s=offState(), D=window.__dualwield, kic=(D&&D.kindIcon&&D.kindIcon())||'⚔', kw=(D&&D.kindWord&&D.kindWord())||'weapon';
-  if(s.it) return eqCard(s.it,{ from:s.kind==='weapon2'?'wpn2':'fam2', label:(s.kind==='weapon2'?'OFF-HAND':'2ND PET')+(s.asleep?' 💤':''), cls:' bs-off'+(s.asleep?' bs-zz':'') }).replace('class="tv-card','id="bs-off" data-off="'+s.kind+(s.asleep?'-asleep':'')+'" class="tv-card');
+  if(s.it) return eqCard(s.it,{ from:s.kind==='weapon2'?'wpn2':'fam2', label:(s.kind==='weapon2'?'LEFT HAND':'2ND PET')+(s.asleep?' 💤':''), cls:' bs-off'+(s.asleep?' bs-zz':'') }).replace('class="tv-card','id="bs-off" data-off="'+s.kind+(s.asleep?'-asleep':'')+'" class="tv-card');
   const lock=s.kind==='locked', pet=s.kind==='open-pet', blocked=s.kind==='blocked';
   const tip=lock?'Wear a two-weapon ring (Twotimer, Toil-n-Trouble, Tootsie, Bifurcation) or Beast Mode / Malamute and this slot opens':pet?'Pick a pet in your bag, then Equip as 2nd':blocked?'A polearm takes both hands':'Pick a '+kw+' in your bag, then Equip as 2nd';
   return '<div id="bs-off" data-off="'+s.kind+'" class="tv-card bs-eq bs-off bs-none'+(lock?' bs-lock':'')+(blocked?' bs-zz':'')+'" data-act="bsoff" title="'+tvEsc(tip)+'" style="--rc:#4a6a4a">'
-    +'<div class="bs-pic"><span class="ic">'+(lock?'💍':pet?'🦉':kic)+'</span></div><div class="bs-inf"><div class="bs-sl">'+(lock?'OFF-HAND / 2ND PET':pet?'2ND PET':'OFF-HAND')+'</div>'
+    +'<div class="bs-pic"><span class="ic">'+(lock?'💍':pet?'🦉':kic)+'</span></div><div class="bs-inf"><div class="bs-sl">'+(lock?'LEFT HAND / 2ND PET':pet?'2ND PET':'LEFT HAND')+'</div>'
     +'<div class="bs-lv bs-pics">'+(lock?'💍 ➜ '+kic+kic+'<br>💍 ➜ 🦉🦉':blocked?'💤 🔱 ✋✋':'🎒 ➜ '+(pet?'🦉🦉':kic+kic))+'</div></div></div>'; }
 // the band: the title with its ornaments and the UPGRADES call, then the six cards -- the 2nd weapon beside the weapon, the 2nd pet beside the familiar
 function renderEq(){ const eq=document.querySelector('#tv-bag .tv-eq'); if(!eq) return; const sub=eq.querySelector(':scope > .tv-sub'), head=eq.querySelector(':scope > .bg-head');
   const title=sub?sub.textContent.replace(/\s*·\s*/,' — '):'EQUIPPED'; const s=offState(), pet=s.kind==='pet2'||s.kind==='open-pet';
-  const cards=SLOTS.map(sl=>gear[sl]?eqCard(gear[sl],{ from:'eq', slot:sl, label:SLOT_WORD[sl] }):emptyCard(sl)); cards.splice(pet?5:1,0,offCard());
+  // build 570 (Matt: "the off hand weapon slot should maybe [s]lide under the weapon rather than be in line with the other gear, call one right hand and one left hand"): five columns; the sixth card
+  // sits UNDER its partner, the two half height -- the LEFT HAND under the RIGHT HAND, a 2nd pet under the familiar
+  const cards=SLOTS.map(sl=>gear[sl]?eqCard(gear[sl],{ from:'eq', slot:sl, label:sl==='weapon'?'RIGHT HAND':SLOT_WORD[sl] }):emptyCard(sl)); const at=SLOTS.indexOf(pet?'familiar':'weapon'); cards[at]='<div class="bs-stack">'+cards[at]+offCard()+'</div>';
   eq.innerHTML='<div class="bs-eqh"><div class="tv-sub">'+tvEsc(title)+'</div>'+(typeof gearScoreTotal==='function'?'<b class="gs-total" id="bs-gstotal" data-gs="'+gearScoreTotal()+'" title="Gear score of everything you wear">⚔ GEAR SCORE '+gsFmt(gearScoreTotal())+'</b>':'')+'<i class="bs-orn"></i></div><div class="bs-eqrow">'+cards.join('')+'</div>';
   if(head) eq.querySelector('.bs-eqh').appendChild(head); }
 // the bag's buttons go up beside the tabs ("BAG" becomes the 🎒 count)
