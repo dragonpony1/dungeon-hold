@@ -30,10 +30,27 @@ const cnt={ advanced:0 };
 // the page's sound opens on the first click: the title music starts then (a track begun on a shut page waits)
 for(const ev of ['pointerdown','keydown']) addEventListener(ev,()=>{ try{ if(S.phase==='start'&&typeof musicMode!=='undefined'&&!isTitle(musicMode)) musicForPhase(); }catch(e){} },{ capture:true, passive:true });
 // the 🎵 MUSIC switch on the title
-const st=document.getElementById('start'); if(st){ const css=document.createElement('style'); css.textContent='#titlemus{position:absolute;top:134px;right:12px;z-index:2;background:linear-gradient(#3a1a10,#1a0b06);border:2px solid #c9962f;border-radius:999px;color:#ffe2b8;font:bold 13px Georgia,serif;letter-spacing:2px;padding:7px 14px;cursor:pointer;box-shadow:0 2px 0 #000}#titlemus:hover{border-color:#ffd27a;color:#fff}#titlemus.off{opacity:.7}'; document.head.appendChild(css);
-  const b=document.createElement('button'); b.id='titlemus'; const label=()=>{ b.textContent=musicOn?'🎵 MUSIC ON':'🔇 MUSIC OFF'; b.classList.toggle('off',!musicOn); }; label();
-  b.addEventListener('click',e=>{ e.stopPropagation(); toggleMusic(); label(); }); st.appendChild(b);
-  window.__titlemusic={ label, mode:()=>typeof musicMode!=='undefined'?musicMode:null, song, songs:()=>SONGS.map(x=>x[0]), order:()=>ORDER.slice(), info:()=>Object.assign({ cur },cnt),
+// build 574 (Matt: "i wonder if we put a juke box player strip in the top that tells the title and alllows you to skip"): the 🎵 MUSIC button becomes a JUKEBOX STRIP at the top left of the title --
+// little dancing bars, NOW PLAYING and the song's name, ⏭ to skip to the next one in the rotation, and 🔊/🔇 for the music switch. With the music off the strip says so (Matt's own title was silent
+// because his switch was off -- now it shows) and a click turns it on.
+const NAMES={ title:'Heartroot Rap', title2:'Guard the Heartroot · Tavern', title3:'Guard the Heartroot · Rap', title4:'Guard the Heartroot · Country', title5:'Guard the Heartroot · Sea Chanty' };
+function skip(){ if(!musicOn) return false; cur=(cur+1)%ORDER.length; keep(); cnt.skipped=(cnt.skipped|0)+1; try{ setMusic(song()); }catch(e){} return true; }
+const st=document.getElementById('start'); if(st){ const css=document.createElement('style'); css.textContent=
+ '#jukebox{position:absolute;top:52px;left:12px;z-index:2;display:flex;align-items:center;gap:10px;background:linear-gradient(#2a1608,#140904);border:2px solid #c9962f;border-radius:999px;padding:5px 6px 5px 14px;color:#ffe2b8;font:13px Georgia,serif;box-shadow:0 2px 0 #000,0 0 14px #0008;max-width:min(440px,70vw)}'+
+ '#jukebox .eq{display:flex;align-items:flex-end;gap:2px;height:16px;width:18px;flex:none}#jukebox .eq i{flex:1;background:#ffd27a;border-radius:1px;height:30%;animation:jbq .9s ease-in-out infinite}#jukebox .eq i:nth-child(2){animation-delay:-.3s}#jukebox .eq i:nth-child(3){animation-delay:-.6s}'+
+ '@keyframes jbq{0%,100%{height:25%}50%{height:100%}}#jukebox.off .eq i,#jukebox.wait .eq i{animation:none;height:25%;opacity:.5}'+
+ '#jukebox .t{display:flex;flex-direction:column;min-width:0;line-height:1.15}#jukebox .np{font:bold 9px system-ui,sans-serif;letter-spacing:2px;color:#c9962f}#jukebox .nm{font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'+
+ '#jukebox button{flex:none;width:32px;height:32px;border-radius:50%;border:2px solid #c9962f;background:#3a1a10;color:#ffe2b8;font:15px/1 system-ui;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}#jukebox button:hover{border-color:#ffd27a;background:#5a2a14}'+
+ '#jukebox.off{opacity:.85;cursor:pointer}#jukebox.off .nm{color:#c9b8a0}#jukebox.off .sk{display:none}';
+  document.head.appendChild(css);
+  const b=document.createElement('div'); b.id='jukebox'; b.innerHTML='<span class="eq"><i></i><i></i><i></i></span><span class="t"><span class="np">NOW PLAYING</span><span class="nm"></span></span><button class="sk" type="button" title="Next song">⏭</button><button class="mu" type="button" title="Music on / off">🔊</button>';
+  const nm=b.querySelector('.nm'), np=b.querySelector('.np'), mu=b.querySelector('.mu');
+  const label=()=>{ const on=!!musicOn, tr=typeof musTrack!=='undefined'&&isTitle(musTrack)?musTrack:null; b.classList.toggle('off',!on); b.classList.toggle('wait',on&&!tr);
+    np.textContent=on?(tr?'NOW PLAYING':'CLICK TO PLAY'):'MUSIC OFF'; nm.textContent=on?(NAMES[tr||song()]||''):'click to turn it on'; mu.textContent=on?'🔊':'🔇'; };
+  label(); setInterval(label,400);
+  b.addEventListener('click',e=>{ e.stopPropagation(); const k=e.target.closest('button'); if(k&&k.classList.contains('sk')){ skip(); label(); return; } if(k&&k.classList.contains('mu')||!musicOn){ toggleMusic(); label(); return; } if(!(typeof musTrack!=='undefined'&&isTitle(musTrack))) try{ musicForPhase(); }catch(er){} label(); });
+  st.appendChild(b);
+  window.__titlemusic={ label, skip, names:NAMES, mode:()=>typeof musicMode!=='undefined'?musicMode:null, song, songs:()=>SONGS.map(x=>x[0]), order:()=>ORDER.slice(), info:()=>Object.assign({ cur },cnt),
     looping:()=>!!(musNode&&musNode.loop), finish:()=>{ const n=musNode; if(n&&n.onended) n.onended(); return !!n; } };   // test hooks: is the song on a loop; end it now as if it had played out
 }
 })();
