@@ -43,8 +43,8 @@ function makeLantern(){ const g=new THREE.Group(), iron=new THREE.MeshToonMateri
   for(let i=0;i<4;i++){ const a=i/4*TAU+PI/4; add(new THREE.BoxGeometry(.02,.3,.02),iron,Math.cos(a)*.12,.17,Math.sin(a)*.12); }
   const gm=new THREE.MeshBasicMaterial({ color:C(0xffe2a8), transparent:true, opacity:.9 }); OWN.push(gm); add(new THREE.CylinderGeometry(.1,.1,.26,10),gm,0,.17,0);
   const flame=glow(0xffb050,.5,.95); flame.position.y=.17; g.add(flame); const halo=glow(0xffa040,3.2,.45); halo.position.y=.17; g.add(halo); OWN.push(flame.material,halo.material); g.userData.flame=flame; g.userData.halo=halo; return g; }
-let TT=null; function tallyTex(){ if(TT) return TT; const c=document.createElement('canvas'); c.width=256; c.height=128; const g=c.getContext('2d'); g.strokeStyle='rgba(225,215,200,.75)'; g.lineCap='round';
-  for(let row=0;row<4;row++) for(let grp=0;grp<5;grp++){ const x0=14+grp*48+(Math.random()-.5)*4, y0=12+row*29; g.lineWidth=2+Math.random(); for(let k=0;k<4;k++){ g.beginPath(); g.moveTo(x0+k*8,y0+Math.random()*2); g.lineTo(x0+k*8+(Math.random()-.5)*3,y0+20); g.stroke(); } g.beginPath(); g.moveTo(x0-4,y0+16); g.lineTo(x0+30,y0+4); g.stroke(); }
+let TT=null; function tallyTex(){ if(TT) return TT; const c=document.createElement('canvas'); c.width=128; c.height=128;   /* build 559 (Matt: "the hashmarks run off the pillar"): two groups across, four rows -- a block that fits the pillar */ const g=c.getContext('2d'); g.strokeStyle='rgba(225,215,200,.75)'; g.lineCap='round';
+  for(let row=0;row<4;row++) for(let grp=0;grp<2;grp++){ const x0=14+grp*48+(Math.random()-.5)*4, y0=12+row*29; g.lineWidth=2+Math.random(); for(let k=0;k<4;k++){ g.beginPath(); g.moveTo(x0+k*8,y0+Math.random()*2); g.lineTo(x0+k*8+(Math.random()-.5)*3,y0+20); g.stroke(); } g.beginPath(); g.moveTo(x0-4,y0+16); g.lineTo(x0+30,y0+4); g.stroke(); }
   TT=new THREE.CanvasTexture(c); TT.encoding=THREE.sRGBEncoding; return TT; }
 function setup(ctx){ if(!PRISON) return false; const C2=window.__prologue&&window.__prologue.crew; cnt.setups++; prng=3301; torches=[]; dripT=0; beatT=0;
   const gy=hgt[GOAL]||0; A_.heart={ x:0, y:gy, z:0 };
@@ -63,7 +63,7 @@ function setup(ctx){ if(!PRISON) return false; const C2=window.__prologue&&windo
   // the wall beside him: tally scratches and chains, found by looking out from his spot
   { let best=null; for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){ const h=rayHit(new THREE.Vector3(sx,A_.spot.y+1.6,sz),new THREE.Vector3(dx,0,dz),9); if(h&&(!best||h.distance<best.h.distance)) best={ h, dx, dz }; }
     if(best){ const p=best.h.point, nx=-best.dx, nz=-best.dz; A_.wall={ x:p.x+nx*.04, y:p.y, z:p.z+nz*.04, nx, nz };
-      const tm=new THREE.MeshBasicMaterial({ map:tallyTex(), transparent:true, depthWrite:false, opacity:.85 }); OWN.push(tm); const tp=own(new THREE.Mesh(new THREE.PlaneGeometry(1.8,.9),tm)); tp.position.set(A_.wall.x,A_.spot.y+1.4,A_.wall.z); tp.lookAt(A_.wall.x+nx,A_.spot.y+1.4,A_.wall.z+nz); ctx.group.add(tp);
+      const tm=new THREE.MeshBasicMaterial({ map:tallyTex(), transparent:true, depthWrite:false, opacity:.85 }); OWN.push(tm); const tp=own(new THREE.Mesh(new THREE.PlaneGeometry(.78,.78),tm)); tp.position.set(A_.wall.x,A_.spot.y+1.4,A_.wall.z); tp.lookAt(A_.wall.x+nx,A_.spot.y+1.4,A_.wall.z+nz); ctx.group.add(tp);
       const iron=new THREE.MeshToonMaterial({ color:C(0x3a3348) }); OWN.push(iron); const tx=-nz, tz=nx; for(const off of [-1.6,1.4]){ for(let k=0;k<9;k++){ const l=own(new THREE.Mesh(new THREE.TorusGeometry(.07,.02,5,10),iron)); l.position.set(A_.wall.x+nx*.12+tx*off,A_.spot.y+3.2-k*.17,A_.wall.z+nz*.12+tz*off); l.rotation.y=k%2?PI/2:0; ctx.group.add(l); }
         const cuff=own(new THREE.Mesh(new THREE.TorusGeometry(.12,.035,6,12),iron)); cuff.position.set(A_.wall.x+nx*.14+tx*off,A_.spot.y+1.62,A_.wall.z+nz*.14+tz*off); ctx.group.add(cuff); } } }
   if(!A_.wall) A_.wall={ x:sx+2, y:A_.spot.y+1.5, z:sz, nx:-1, nz:0 };
@@ -83,11 +83,11 @@ function aim(ch,target,k){ if(!ch||k<=0) return; ch.upper.getWorldPosition(_v1);
 function placeThread(a,b){ const A=new THREE.Vector3(a.x,a.y,a.z), B=new THREE.Vector3(b.x,b.y,b.z), L=A.distanceTo(B); thread.position.copy(A).lerp(B,.5); thread.scale.set(1,Math.max(.01,L),1); thread.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),B.sub(A).normalize()); }
 function camFor(t){ const S0=A_.spot, W=A_.wall, Hh=A_.heart, Hd=A_.hand;
   const toPit=Math.atan2(-S0.x,-S0.z);
-  if(t<SH.wall){ const k=ssm((t-SH.lantern)/(SH.wall-SH.lantern)), a=toPit-.5+.6*k, r=4.4-.8*k; return { p:[S0.x+Math.sin(a)*r,S0.y+2,S0.z+Math.cos(a)*r], l:[S0.x,S0.y+1.5,S0.z], fov:44, name:'lantern', f:{ x:S0.x, y:S0.y+1, z:S0.z } }; }
+  if(t<SH.wall){ const k=ssm((t-SH.lantern)/(SH.wall-SH.lantern)), a=toPit-.5+.6*k, r=6.2-.8*k; return { p:[S0.x+Math.sin(a)*r,S0.y+2,S0.z+Math.cos(a)*r], l:[S0.x,S0.y+1.5,S0.z], fov:44, name:'lantern', f:{ x:S0.x, y:S0.y+1, z:S0.z } }; }
   if(t<SH.below){ const k=ssm((t-SH.wall)/(SH.below-SH.wall)), tx=-W.nz, tz=W.nx, along=-2.4+4.4*k; return { p:[W.x+W.nx*2.2+tx*along,S0.y+1.6,W.z+W.nz*2.2+tz*along], l:[W.x+tx*(along+.6),S0.y+1.8,W.z+tz*(along+.6)], fov:48, name:'wall', f:{ x:W.x, y:S0.y+1, z:W.z } }; }
   if(t<SH.corrupt){ const k=ssm((t-SH.below)/(SH.corrupt-SH.below)), dx=-S0.x, dz=-S0.z, dl=Math.hypot(dx,dz); return { p:[Hh.x+6-1.6*k,Hh.y+3.6-.6*k,Hh.z+7-1.8*k], l:[Hh.x,Hh.y+2,Hh.z], fov:46, name:'below', f:{ x:Hh.x, y:Hh.y+1, z:Hh.z } }; }
   if(t<SH.holds){ const k=ssm((t-SH.corrupt)/(SH.holds-SH.corrupt)), dx=-S0.x, dz=-S0.z, dl=Math.hypot(dx,dz); const cb=A_.corrBase||Hd.y-6; let p=[S0.x+dx/dl*3.2-dz/dl*1.2,S0.y+1.3,S0.z+dz/dl*3.2+dx/dl*1.2];   /* out on the rim's edge, nothing between him and the camera */ if(A_.shakeT>0){ p=[p[0]+(Math.random()-.5)*.5*A_.shakeT,p[1]+(Math.random()-.5)*.4*A_.shakeT,p[2]+(Math.random()-.5)*.5*A_.shakeT]; } return { p, l:L3([Hd.x,cb+2,Hd.z],[Hd.x,cb+5,Hd.z],k), fov:56, name:'corrupt', f:{ x:S0.x, y:S0.y+1, z:S0.z } }; }
-  const k=ssm((t-SH.holds)/(DUR-SH.holds)), a=toPit+.35, r=5.4-.6*k; return { p:[S0.x+Math.sin(a)*r,S0.y+2.1+.3*k,S0.z+Math.cos(a)*r], l:[S0.x,S0.y+1.7+.3*k,S0.z], fov:44, name:'holds', f:{ x:S0.x, y:S0.y+1, z:S0.z } }; }
+  const k=ssm((t-SH.holds)/(DUR-SH.holds)), a=toPit+.35, r=7.2-.8*k; return { p:[S0.x+Math.sin(a)*r,S0.y+2.1+.3*k,S0.z+Math.cos(a)*r], l:[S0.x,S0.y+1.7+.3*k,S0.z], fov:44, name:'holds', f:{ x:S0.x, y:S0.y+1, z:S0.z } }; }
 function step(ctx,t,dt){ const U=ctx.audio, F=ctx.fire, P=window.__party&&window.__party.model, W=wordsEl();
   ctx.black(t<SH.lantern?1:t<SH.lantern+1.6?1-ssm((t-SH.lantern)/1.6):t>DUR-1.6?ssm((t-(DUR-1.6))/1.4):0); ctx.title(0);
   // the words
@@ -100,11 +100,11 @@ function step(ctx,t,dt){ const U=ctx.audio, F=ctx.fire, P=window.__party&&window
   ctx.once('drone',0,()=>{ U.droneOn(.045,5); },99);
   // the knight and his lantern
   if(knight){ const m=knight.m; if(m.mixer) m.mixer.update(dt); m.wrap.updateMatrixWorld(true); const W0=m.wrap.position, yaw=m.wrap.rotation.y, fx=Math.sin(yaw), fz=Math.cos(yaw), rx=-fz, rz=fx, HT=2.3;
-    const lift=ssm((t-SH.holds-1.6)/1.6), y=HT*(.4+.85*lift), fwd=.75-.45*lift, side=.42+.5*lift;   /* held out low at his side, then lifted high above his head -- never across his face */
+    const lift=0, y=HT*.38, fwd=.32, side=.62;   /* build 559: held low at his side the whole scene -- no lift that puts his hand in the middle of the shot */   /* held out low at his side, then lifted high above his head -- never across his face */
     aim(knight.right,new THREE.Vector3(W0.x+fx*fwd-rx*side,W0.y+y,W0.z+fz*fwd-rz*side),1);
     if(knight.right&&lantern){ knight.right.hand.getWorldPosition(_v1); lantern.position.set(_v1.x,_v1.y-.74,_v1.z); lantern.rotation.set(0,yaw,0); }   /* the ring at his hand, the lantern hanging straight */
     aim(knight.left,new THREE.Vector3(W0.x+rx*.5+fx*.08,W0.y+HT*.12,W0.z+rz*.5+fz*.08),1); }
-  let lf=1+.08*Math.sin(t*13)+.05*Math.sin(t*29); if(t>=SH.holds&&t<SH.holds+1.6){ const k=(t-SH.holds)/1.6; lf*=(.2+.8*Math.abs(Math.sin(k*9)))*(1-.6*Math.sin(k*PI)); } else if(t>=SH.holds+1.6) lf*=1.35;
+  let lf=1+.08*Math.sin(t*13)+.05*Math.sin(t*29); if(t>=SH.holds&&t<SH.holds+1.6){ const k=(t-SH.holds)/1.6; lf*=(.2+.8*Math.abs(Math.sin(k*9)))*(1-.6*Math.sin(k*PI)); } else if(t>=SH.holds+1.6) lf*=1+.8*ssm((t-SH.holds-1.6)/1.2);   /* ...it blazes up instead */
   if(lantern){ lantern.userData.flame.material.opacity=.95*Math.min(1,lf); lantern.userData.halo.material.opacity=.45*lf; lantern.userData.halo.scale.setScalar(3.6*lf); }
   // the torches: burning, then out at the snick
   const out=t>=SH.snick; torches.forEach((T,i)=>{ const k=out?Math.max(0,1-(t-SH.snick-i*.03)/.35):1, fl=1+.12*Math.sin(t*11+T.ph); T.f1.material.opacity=.9*k; T.f2.material.opacity=.9*k; T.f1.scale.set(1.4*fl,1.9*fl,1); });

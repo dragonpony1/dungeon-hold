@@ -13,7 +13,24 @@ mapLine();
 function heroLine(){ let el=$('heroline'); if(!el){ el=document.createElement('div'); el.id='heroline'; el.className='herorow'; $('mapline').insertAdjacentElement('afterend',el); } const H=HEROES, cur=heroPick.id;
   // a card per hero -- its portrait (hero-<id>.png, rendered from the hero's own model), name, and the picked one's line -- click to pick
   const lockedOf=h=>window.__heroes&&window.__heroes.locked(h.id);
-  el.innerHTML='<div class="hlab">HERO</div>'+H.map(h=>{ const lk=lockedOf(h); return '<button class="hcard'+(h.id===cur?' sel':'')+(lk?' locked':'')+'" data-hero="'+h.id+'" title="'+(lk?'Hold your first hall to unlock':String(h.sub).replace(/"/g,'&quot;'))+'"><img src="'+ASSET('hero-'+h.id+'.png')+'" alt="'+h.name+'">'+(lk?'<span class="lk">🔒</span>':'')+'<span class="hn">'+h.name+'</span><span class="hs">'+(lk?'hold your first hall to unlock':h.sub)+'</span></button>'; }).join('');
+  // build 558 (Matt: "our hero picker on the main page need a little love"): bigger cards all one size, each in its hero's own colour, the portrait a studio shot of the hero with his weapon
+  // (tools/render-hero-portraits.mjs), the short name, and the weapon and its reach as two picture chips instead of a sentence; the picked one lifts and glows, the others dim until hovered
+  const HC={ witch:['#9a5cff','WITCH','🪄','STAFF'], troll:['#5fbf4a','RANGER','🏹','BOW'], knight:['#e0503a','KNIGHT','🗡️','SWORD'], fighter:['#e8b94a','FIGHTER','🔱','POLEARM'] };
+  el.innerHTML='<div class="hlab">HERO</div>'+H.map(h=>{ const lk=lockedOf(h), c=HC[h.id]||['#c9962f',h.name,'⚔','WEAPON'], reach=h.reach>4?'🎯 '+h.reach:'🛡 MELEE';
+    return '<button class="hcard'+(h.id===cur?' sel':'')+(lk?' locked':'')+'" data-hero="'+h.id+'" style="--hc:'+c[0]+';background:radial-gradient(ellipse at 50% 34%,'+c[0]+'99 0%,'+c[0]+'33 40%,#140d1b 74%)" title="'+(lk?'Hold your first hall to unlock':String(h.sub).replace(/"/g,'&quot;'))+'">'
+      +'<img src="'+ASSET('hero-'+h.id+'.png')+'?v=558" alt="'+h.name+'">'+(lk?'<span class="lk">🔒</span>':'')
+      +'<span class="hplate"><span class="hk">GNOME</span> <span class="hn">'+c[1]+'</span><span class="ht"><i>'+c[2]+' '+c[3]+'</i><i>'+reach+'</i></span></span></button>'; }).join('');
+  if(!document.getElementById('herocardcss')){ const st=document.createElement('style'); st.id='herocardcss'; st.textContent=
+     '#start #heroline{gap:14px;margin:14px 0 6px}#start #heroline .hlab{writing-mode:vertical-rl;transform:rotate(180deg);font-size:13px;letter-spacing:5px}'
+    +'#start #heroline .hcard{width:148px;height:218px;padding:0;overflow:hidden;border:2px solid #6b5a3c;border-radius:14px;position:relative;display:block;filter:brightness(.78) saturate(.85);transition:transform .18s ease,filter .18s ease,box-shadow .18s ease,border-color .18s ease;box-shadow:0 6px 18px #000b}'
+    +'#start #heroline .hcard:hover{filter:none;transform:translateY(-3px);border-color:var(--hc)}'
+    +'#start #heroline .hcard img{position:absolute;left:50%;bottom:50px;transform:translateX(-50%);width:138px;height:172px;object-fit:contain;object-position:bottom;background:none;border-radius:0;filter:drop-shadow(0 4px 8px #000c)}'
+    +'#start #heroline .hcard .hplate{position:absolute;left:0;right:0;bottom:0;height:56px;padding:5px 4px 0;background:linear-gradient(#0000,#0b0710f0 30%);display:flex;flex-direction:column;align-items:center;gap:1px}'
+    +'#start #heroline .hcard .hk{font-size:9px;letter-spacing:3px;color:#bfae90}#start #heroline .hcard .hn{font-size:15px;letter-spacing:2px;color:#f3e6c8;font-weight:bold;line-height:1.05}'
+    +'#start #heroline .hcard .ht{display:flex;gap:4px;margin-top:3px}#start #heroline .hcard .ht i{font-style:normal;font-size:9.5px;letter-spacing:1px;color:#e9ddc8;background:#2a1f33;border:1px solid var(--hc);border-radius:999px;padding:1px 6px;white-space:nowrap}'
+    +'#start #heroline .hcard.sel{filter:none;transform:translateY(-7px);border-color:var(--gold,#e8b94a);box-shadow:0 0 0 1px #000,0 0 26px var(--hc),0 10px 24px #000c}'
+    +'#start #heroline .hcard.sel .hn{color:#ffe08a}#start #heroline .hcard.locked{filter:brightness(.5) grayscale(.6)}#start #heroline .hcard.locked img{filter:grayscale(1) brightness(.6)}#start #heroline .hcard .lk{top:70px}';
+    document.head.appendChild(st); }
   el.querySelectorAll('.hcard').forEach(b=>{ b.onclick=()=>{ const h=H.find(x=>x.id===b.dataset.hero); if(!h) return; if(lockedOf(h)){ toast('Hold your first hall to unlock the '+h.name); return; } if(h.id!==heroPick.id){ installHero(h); heroLine(); } }; }); }
 heroLine();
 // testing shortcuts, on the start screen: unlock every map, magnet mana from anywhere, a purse of gold
