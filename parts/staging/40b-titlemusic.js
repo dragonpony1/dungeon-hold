@@ -1,4 +1,5 @@
 // ===== TITLE SCREEN MUSIC (build 561). Matt: "i wanna try this as tittle screen background music" -- his "Every Leaf Keeps a Little of" (halothane862; assets/music-title.mp3, 2:12,
+// Build 565 (Matt: "lets put this one on the title page but start it when the lyrics start"): the song is now his "Heartroot Rap" (halothane862, Suno), cut to begin at 9.3 s where the vocals come in (a 0.12 s fade-in), 2:17.
 // looped like the hall's tracks). It plays while the title is up (S.phase 'start'), from the first click (a browser keeps a page's sound shut until then), and hands over to the hall's own
 // music on PLAY. It is music, so it follows the music switch -- and a 🎵 MUSIC button on the title (under ▶ TRAILER) turns that switch on and off right there.
 (function(){
