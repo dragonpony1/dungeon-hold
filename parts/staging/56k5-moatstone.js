@@ -51,7 +51,7 @@ fetchBytes(ASSET('throne-panel2.glb'),'soon').then(buf=>new Promise((res,rej)=>n
   #endif
   vSWP=(modelMatrix*swp).xyz; vSWN=normalize(mat3(modelMatrix)*swn);`);
       sh.fragmentShader='varying vec3 vSWP; varying vec3 vSWN;\n'+sh.fragmentShader.replace('#include <map_fragment>',`vec3 an=abs(vSWN); vec2 suv=an.y>.7?vSWP.xz:(an.x>an.z?vSWP.zy:vSWP.xy);
-  vec4 texelColor=texture2D(map,suv/vec2(${TW.toFixed(3)},${TH.toFixed(3)})); texelColor=mapTexelToLinear(texelColor); ${top} diffuseColor*=texelColor;`); }; };
+  vec4 texelColor=texture2D(map,suv/vec2(${TW.toFixed(3)},${TH.toFixed(3)})); texelColor=mapTexelToLinear(texelColor); ${top} diffuseColor*=texelColor;`); }; }; window.__stoneify=stoneify;   /* build 577: the paramotor's tower stairs (99r) wear the same stone */;
   stoneify(mat(0x5a5276),false); stoneify(mat(0x6a6080),true); cnt.castleStone=true; }
 // ---- sconces (Matt: "a few sconces scattered about the exterior and inside walls of the large walls surrounding the whole thing"): the throne room's sconce, lit, on both faces of the castle's
 // curtain walls -- the raised walls, outside and in -- one every 12 or so along each long stretch, at a hand's height over the ground at its foot

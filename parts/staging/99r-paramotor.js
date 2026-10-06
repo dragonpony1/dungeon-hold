@@ -15,7 +15,7 @@ const CS=MAP.castle, TOWERS=(CS.towers||[]).filter(t=>t[4]!=='cone'&&t[3]>=19.5&
 if(TOWERS.length<1) return;
 const cnt={ flights:0, landings:0, drops:0, steps:0 };
 const WALK=16, STEP=.5, DEPTH=.62;
-const stone=new THREE.MeshToonMaterial({ color:new THREE.Color(0x26223a) });   // the castle's weathered stone, a shade darker than the wall faces' light side
+const stone=new THREE.MeshToonMaterial({ color:new THREE.Color(0x5a5276) }); try{ if(window.__stoneify) window.__stoneify(stone,false); }catch(e){}   // build 577 (Matt: 'make the stairs match the castle stone'): the walls' own stone (56k5-moatstone.js), projected the same way   // the castle's weathered stone, a shade darker than the wall faces' light side
 const C3=h=>new THREE.Color(h);
 // ---- the towers made solid, with a stair up the inside of each
 const tops=[];
@@ -53,7 +53,7 @@ function park(){ pm.position.set(PERCH.x,PERCH.y,PERCH.z); pm.rotation.set(0,-Ma
   if(MODELS){ pm.position.set(PERCH.x+.55,PERCH.y,PERCH.z-.55); wing.visible=false; folded.visible=true; folded.position.set(PERCH.x+.35,PERCH.y,PERCH.z+1.0); folded.rotation.set(0,0,0); return; }   /* both on the tower's far half, clear of the stair's head and inside the merlons */
   wing.position.set(0,.5,-1.1); wing.scale.set(.18,.35,.6); wing.rotation.set(-1.2,0,0); }
 park();
-const WING_Y=1.75;   // where the wing's lines meet: the hero's shoulders
+const WING_Y=1.0;   // where the wing's lines meet: the handles clip onto the pack's frame (build 577, Matt: 'the handles on the canopy are floating')
 { const parse=n=>fetchBytes(ASSET(n),'later').then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej)));
   // fit: scaled so its largest side (or the given axis) is SIZE; 'bottom' puts its lowest point at 0, else its centre
   const fit=(root,size,axis,bottom)=>{ root.updateMatrixWorld(true); const b=new THREE.Box3().setFromObject(root), sz=b.getSize(new THREE.Vector3()), c=b.getCenter(new THREE.Vector3()); const sc=size/Math.max(axis?sz[axis]:Math.max(sz.x,sz.y,sz.z),1e-6);
@@ -88,7 +88,7 @@ addEventListener('keyup',e=>{ if(e.code==='Space') keys.space=0; },true);
 const phase=()=>{ try{ return typeof hallPhase==='function'?hallPhase():S.phase; }catch(e){ return S.phase; } };
 const near=()=>!FL.on&&!FL.back&&phase()==='build'&&!Meta.isOpen()&&Math.hypot(hero.x-PERCH.x,hero.z-PERCH.z)<2.6&&Math.abs((hero.y||0)-PERCH.y)<1.2;
 function launch(){ FL.on=true; FL.t=0; FL.x=hero.x; FL.y=(hero.y||0)+.2; FL.z=hero.z; FL.sp=8; FL.vy=2.5; FL.th=.6; FL.dropping=false; FL.camD=cam.dist; cnt.flights++;
-  if(MODELS){ wing.visible=true; folded.visible=false; wingGrow=0; wing.position.set(0,WING_Y,-.25); wing.scale.setScalar(.15); wing.rotation.set(0,0,0); } else { wing.position.set(0,3.6,0); wing.scale.set(1,1,1); wing.rotation.set(0,0,0); } humOn(); prm.style.display='none'; bar.style.display='block'; }
+  if(MODELS){ wing.visible=true; folded.visible=false; wingGrow=0; wing.position.set(0,WING_Y,-.6); wing.scale.setScalar(.15); wing.rotation.set(0,0,0); } else { wing.position.set(0,3.6,0); wing.scale.set(1,1,1); wing.rotation.set(0,0,0); } humOn(); prm.style.display='none'; bar.style.display='block'; }
 function land(dropped){ FL.on=false; humOff(); bar.style.display='none'; if(FL.camD!=null) cam.dist=FL.camD; hero.vy=0; if(dropped) cnt.drops++; else cnt.landings++;
   FL.back={ t:0, from:new THREE.Vector3(FL.x,FL.y+.2,FL.z) }; if(MODELS){ wing.visible=false; } else { wing.scale.set(.18,.35,.6); wing.rotation.set(-1.2,0,0); wing.position.set(0,.5,-1.1); } }
 addEventListener('keydown',e=>{ if(e.code!=='KeyE'||e.repeat) return; if(FL.on){ e.preventDefault(); e.stopImmediatePropagation(); FL.dropping=true; return; } if(near()){ e.preventDefault(); e.stopImmediatePropagation(); launch(); } },true);
