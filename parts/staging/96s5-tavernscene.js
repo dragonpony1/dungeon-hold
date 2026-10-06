@@ -51,7 +51,7 @@ function step(ctx,t,dt){ const U=ctx.audio, v=vid; ctx.black(0); ctx.title(0);
   tunePrep(U); if(!tuneSrc&&TUNE&&t<DUR-1.5) tunePlay(U);
   lastT=t; }
 function teardown(ctx){ cnt.teardowns++; if(vid){ try{ vid.pause(); }catch(e){} vid.style.display='none'; }
-  if(tuneSrc&&lastT>=DUR-.8){ tuneOn=true; cnt.playOn=(cnt.playOn|0)+1; try{ setMusic('none'); }catch(e){} } else tuneStop(.6);   /* ended by itself: the song plays on; skipped: it stops */ }
+  tuneStop(lastT>=DUR-.8?1.5:.6); }   /* build 571 (Matt: 'the music for gnome sweet gnome keeps playing when the cinimatic is over, should just stop'): it stops with the scene -- a short fade if it ran to its end, quicker if skipped -- and the hall's music comes back as usual (was: played on to its own end since build 547) */
 try{ if(want()&&!SILENT){ video(); tuneFetch(); } }catch(e){}
 CINE.register(ID,{ title:'GNOME SWEET GNOME', sub:'LAST CALL', map:'throne', pic:'cine-tavern.jpg', dur:DUR,
   when:()=>HALL&&!TUTORIAL&&S.phase==='build'&&S.wave===0,

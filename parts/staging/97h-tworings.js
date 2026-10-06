@@ -28,7 +28,21 @@ function secondPass(dt){ const f2=ringOn()?gear.familiar2:null; if(!f2&&!fam2) r
 // ---- the ring off: the 2nd familiar back to the bag
 // build 430: a ring dropped before its picture existed gets it now (Matt's thumbnails: named/beast_mode.jpg, named/malamute.jpg)
 let artDone=false; function fillArt(){ if(artDone) return; const A=window.__mythicDrops&&window.__mythicDrops.art; if(!A) return; artDone=true; const all=[gear.charm].concat(Meta.bag(),Meta.armory?Meta.armory():[]); for(const it of all){ if(it&&it.named&&RING_SET.has(it.named)&&!it.art){ const p=A(it); if(p) it.art=p; } } }
-function tick(){ fillArt(); const f=gear.familiar2; if(!f||ringOn()) return; if(Meta.giveItem&&Meta.giveItem(f)){ gear.familiar2=null; cnt.returned++; saveGear(); try{ applyGear(); }catch(e){} toast('🦉 Your 2nd familiar went back to your bag'); } }
+// build 571 (Matt: "whenever the map changes or maybe even when you change charcters the 2nd pet is unequipping on its own"): a hero switch laid the new hero's five pieces in (71-herogear.js) but the
+// 2nd pet stayed, the new hero had no ring, and this sent it to the bag -- and switching back never brought it home. Now EACH HERO KEEPS THEIR OWN 2nd pet (dd_heroPet2, beside the 2nd weapon's own
+// per-hero store in 99k-dualwield.js): filed on the way out of a hero, laid back in on the way in, the current hero's mirrored there too (so a reload that lost it from ddGear finds it). And it goes
+// back to the bag only when THIS hero's ring actually comes off -- never because the hero, the map or the page changed.
+const PKEY='dd_heroPet2', rdP=()=>{ try{ const o=JSON.parse(localStorage.getItem(PKEY)); return o&&typeof o==='object'&&!Array.isArray(o)?o:{}; }catch(e){ return {}; } }, wrP=o=>{ try{ localStorage.setItem(PKEY,JSON.stringify(o)); }catch(e){} };
+const famOk=it=>!!(it&&it.stats&&it.slot==='familiar'&&it.id), inBag=id=>{ try{ return Meta.bag().some(b=>b&&b.id===id); }catch(e){ return false; } }, heroNow=()=>typeof heroPick!=='undefined'&&heroPick?heroPick.id:null;
+try{ const h=heroNow(), st=rdP(); if(h&&!gear.familiar2&&famOk(st[h])&&!inBag(st[h].id)) gear.familiar2=st[h]; }catch(e){}   // boot: the current hero's 2nd pet, if ddGear lost it
+let mirId;   // the current hero's 2nd pet as last written to the store
+function mirror(){ const h=heroNow(); if(!h) return; const cur=gear.familiar2||null, id=cur?cur.id:null; if(id===mirId) return; mirId=id; const st=rdP(); if(cur) st[h]=cur; else delete st[h]; wrP(st); }
+if(typeof installHero==='function'){ const prev=installHero; installHero=function(h){ const from=heroNow(); const r=prev.apply(this,arguments); const to=heroNow();
+  if(from&&to&&from!==to){ const st=rdP(); if(gear.familiar2) st[from]=gear.familiar2; else delete st[from]; const nx=st[to]; if(famOk(nx)&&!inBag(nx.id)) gear.familiar2=nx; else delete gear.familiar2;   /* no key at all when there is none, as before */ wrP(st); mirId=gear.familiar2?gear.familiar2.id:null; cnt.swapped=(cnt.swapped|0)+1; try{ applyGear(); }catch(e){} }   /* no saveGear here: the switch has saved its own sets; ddGear picks the pet up on the next save, the store already has it */
+  return r; }; }
+let tickHero=null, lastOn=null;
+function tick(){ fillArt(); const h=heroNow(), on=ringOn(); if(h!==tickHero){ tickHero=h; lastOn=on; return; } lastOn=on; const f=gear.familiar2; if(!f||on){ mirror(); return; }   /* the ring off this hero (a hero change files and lays the pets in installHero above, and skips a tick here) */
+  if(Meta.giveItem&&Meta.giveItem(f)){ gear.familiar2=null; cnt.returned++; saveGear(); try{ applyGear(); }catch(e){} toast('🦉 Your 2nd familiar went back to your bag'); } }
 // ---- equip / unequip the 2nd
 function equip2(id){ if(!ringOn()) return false; const bag=Meta.bag(); const i=bag.findIndex(b=>b.id===id); if(i<0||bag[i].slot!=='familiar') return false; const it=bag.splice(i,1)[0]; const old=gear.familiar2; gear.familiar2=it; if(old) bag.push(old);
   saveGear(); Meta.save&&Meta.save(); try{ applyGear(); }catch(e){} return true; }

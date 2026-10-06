@@ -9,6 +9,8 @@
 //     hideout is up and your gear changes. The forge shows it as dots on each set and a ✓ / missing mark on each piece (hideout build 69).
 // Test hook: window.__hideoutbag.
 (function(){
+// build 571 (Matt: 'inside the bag when in the hide out, click salvage all and this sound'): his sound (UI assessts/sounds/salvaging all in bag sound.aac -> assets/sfx-salvage-all.mp3, 1.5 s) on 🧪 Salvage all
+let salvSnd=null; function salvAllSound(){ if(typeof soundOff!=='undefined'&&soundOff) return; try{ if(!salvSnd) salvSnd=new Audio(ASSET('sfx-salvage-all.mp3')); salvSnd.currentTime=0; salvSnd.volume=.9; const p=salvSnd.play(); if(p&&p.catch) p.catch(()=>{}); window.__salvAllSounds=(window.__salvAllSounds|0)+1; }catch(e){} }
 const H=window.__hideout, T=window.__tavern; if(!H||!T) return;
 const OWN_KEY='dd_owned_sets', RK=['common','uncommon','rare','epic','legendary'], RANK={worn:4,wornOther:3,bag:2,armory:1};
 let fromHideout=false, lastV=null, lastOwned='';
@@ -55,7 +57,7 @@ if(H.hooks){ const prev=H.hooks.close; H.hooks.close=function(){ if(fromHideout&
 $('tavern').addEventListener('click',e=>{ const t=e.target.closest('[data-act="tvsalv"],[data-act="tvsalvall"]'); if(!t||t.disabled) return;
   if(t.dataset.armed!=='1'){ e.stopPropagation(); t.dataset.armed='1'; t.dataset.label=t.innerHTML; t.innerHTML='⚠ Tap again to salvage'; t.style.background='#8a1e1e'; t.style.borderColor='#ff6a5a'; clearTimeout(t.__armT); t.__armT=setTimeout(()=>{ if(t.dataset.armed==='1'){ t.dataset.armed=''; t.innerHTML=t.dataset.label; t.style.background=''; t.style.borderColor=''; } },3000); return; }
   clearTimeout(t.__armT); t.dataset.armed='';
-  const r=t.dataset.act==='tvsalvall'?salvage(salvageable()):salvage(Meta.bag().filter(b=>b.id===t.dataset.id));
+  const r=t.dataset.act==='tvsalvall'?(salvAllSound(),salvage(salvageable())):salvage(Meta.bag().filter(b=>b.id===t.dataset.id));
   if(r.n){ tvSay('🧪 +'+r.n+' → Cauldron  ('+RK.filter(k=>r.got[k]).map(k=>r.got[k]+' '+k).join(' · ')+')'); TV.sel=null; } else tvSay('Nothing to salvage'); tvRenderTab(true); });
 // build 446 (Matt: "i want to get rid of the I screen all together" / "if my hot bar is sticky i should be able to drag or shift click from my bag to the hot bar"): in the hideout this bag IS the inventory.
 // Pinned under it: the room's HOTBAR (your hands, 1-9) and your FURNITURE (hideout build 86's __onebag.inv). Shift-click a piece in the bag (or drag it onto a hotbar square) and it is in your hands when the bag closes --
