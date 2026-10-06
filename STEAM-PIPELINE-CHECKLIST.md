@@ -7,7 +7,7 @@ Goal: prove every link from our code to "a friend clicks Install on Steam" works
 - [x] Pack every file inside it: songs, cinematics videos, the boss models (the pigs are about 87 MB). Test: the game plays with Wi-Fi OFF. (tested with the internet cut off: the game loads, PLAY works, a wave runs)
 - [x] Pack the hideout in too. Today it lives on a separate website. (it already loads from the game's own address, so no game change was needed)
 - [x] Saves survive: quit, reopen, and your gear and progress are still there.
-- [x] Saves survive an update: install a newer build over the old one and nothing is lost. (saves live in %APPDATA%Rootgate, never in the install folder)
+- [x] Saves survive an update: install a newer build over the old one and nothing is lost. (saves live in %APPDATA%/Rootgate, never in the install folder)
 - [ ] Mouse lock, Esc, Tab, fullscreen, and alt-tabbing out and back all work.
 - [x] Title music starts without that first click. Desktop apps are allowed to do this.
 - [ ] Co-op still connects between two PCs.
