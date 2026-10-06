@@ -28,7 +28,7 @@ function load(){ if(MOBGLB[K]) return Promise.resolve(); if(loadP) return loadP;
 // ---- one to a wave, a third of the way in
 { const prev=waveComp; waveComp=function(w){ const c=prev.apply(this,arguments); if(!c||!Array.isArray(c.q)||!c.q.length||!wantsWave(w)) return c;
     const ts=c.q.map(x=>+x.t||0), t0=Math.min(...ts), t1=Math.max(...ts), lanes=Object.keys(LANES); const lane=c.q[(c.q.length/3)|0].lane||lanes[0];
-    const add=[{ t:+(t0+(t1-t0)/3).toFixed(2), kind:K, lane }]; if(!SURVIVAL&&MAP&&MAP.id==='prison'&&(w-(MAP.wbase|0))>=5){ const l2=c.q[(c.q.length*2/3)|0].lane||lane; add.push({ t:+(t0+(t1-t0)*2/3).toFixed(2), kind:K, lane:l2 }); }   /* build 425: two in the prison's fifth and sixth waves */
+    const add=[{ t:+(t0+(t1-t0)/3).toFixed(2), kind:K, lane }]; if(!SURVIVAL&&MAP&&MAP.id==='prison'&&(w-(MAP.wbase|0))>=4){ const l2=c.q[(c.q.length*2/3)|0].lane||lane; add.push({ t:+(t0+(t1-t0)*2/3).toFixed(2), kind:K, lane:l2 }); }   /* build 425: two in the prison's fifth and sixth waves; build 562 (Matt: "add 20% more phase wraiths to the 6th room"): the fourth too -- 6 -> 7 over the map */
     const q=c.q.concat(add).sort((a,b)=>(+a.t||0)-(+b.t||0)); return Object.assign({},c,{ q }); }; }
 // ---- the corner he hides in: the walkable floor furthest from the Heartroot -- but never in a spawn alcove (build 435, Matt: "if phase wraith is the last mob he can't hide too far in a corner in a spawn
 // alcove"; the old pick was a corner of the box round all the floor, which on some maps sat right in a mob door). Floor within SPAWN_KEEP of a lane's door is out, and so is floor the mobs never walk to the Heartroot from.
