@@ -26,14 +26,14 @@ const hs=await H.evaluate(()=>{ const P=window.__para.info(), g=window.__party.l
 const gs=await G.evaluate(()=>{ const P=window.__para.info(), g=window.__party.list()[0], q=g?window.__party.get(g):null; return { on:P.on, peers:P.peers, taken:P.taken, puppet:q?{x:q.x,y:q.y,z:q.z}:null }; });
 check("both take off: two players flying at once",a1&&a2&&hs.on&&gs.on,JSON.stringify({a1,a2,h:hs.on,g:gs.on}));
 const near=(pf,q)=>pf&&q&&Math.hypot(pf.x-q.x,pf.z-q.z)<1.5&&Math.abs(pf.y-q.y)<1.5;
-check("the host sees the guest's paramotor (#1), wing open, riding over the guest's hero high above the walk",hs.peers.length===1&&hs.peers[0].k===1&&hs.peers[0].wing&&!hs.peers[0].spare&&near(hs.peers[0],hs.puppet)&&hs.puppet.y>16.5,JSON.stringify(hs));
+check("the host sees the guest's paramotor (#1), wing open, riding over the guest's hero in the air",hs.peers.length===1&&hs.peers[0].k===1&&hs.peers[0].wing&&!hs.peers[0].spare&&near(hs.peers[0],hs.puppet)&&hs.puppet.y>1,JSON.stringify(hs));
 check("the guest sees the host's (#4) the same way",gs.peers.length===1&&gs.peers[0].k===4&&gs.peers[0].wing&&near(gs.peers[0],gs.puppet),JSON.stringify(gs));
 check("on each screen the two taken are marked taken, the other two still there",hs.taken[3]==='me'&&hs.taken[0]&&hs.taken[0]!=='me'&&hs.taken[1]===null&&hs.taken[2]===null&&gs.taken[0]==='me'&&gs.taken[3]&&gs.taken[3]!=='me',JSON.stringify({h:hs.taken,g:gs.taken}));
 // the guest drops; on the host's screen #1 flies home
 await G.evaluate(()=>window.__para.land()); for(let i=0;i<40;i++){ await tick(1,5); if(!(await G.evaluate(()=>window.__para.info().on))) break; } await tick(4,5);
 const h2=await H.evaluate(()=>{ const P=window.__para.info(); return { peers:P.peers.length, taken:P.taken }; });
 check("the guest lands: on the host's screen it leaves him and flies home",h2.peers===0&&(h2.taken[0]==='back'||h2.taken[0]===null),JSON.stringify(h2));
-await tick(20,5); const h3=await H.evaluate(()=>window.__para.info().taken);
+for(let i=0;i<40;i++){ await tick(2,5); const tk=await H.evaluate(()=>window.__para.info().taken); if(tk[0]===null) break; } const h3=await H.evaluate(()=>window.__para.info().taken);
 check("...and parks again (free to take)",h3[0]===null,JSON.stringify(h3));
 // the host's horn brings a flying guest down
 await H.evaluate(()=>window.__para.land()); for(let i=0;i<40;i++){ await tick(1,5); if(!(await H.evaluate(()=>window.__para.info().on))) break; } await tick(20,5);

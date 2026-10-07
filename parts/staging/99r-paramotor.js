@@ -97,24 +97,34 @@ function launch(p){ p=p||nearest()||PERCHES.find(free); if(!p||!free(p)) return 
   FL.on=true; FL.t=0; FL.x=hero.x; FL.y=(hero.y||0)+.2; FL.z=hero.z; FL.sp=8; FL.vy=2.5; FL.th=.6; FL.dropping=false; FL.camD=cam.dist; FL.grow=0; cnt.flights++;
   openWing(FL.rig); hum=hum||mkHum(); prm.style.display='none'; bar.style.display='block'; return true; }
 function sendHome(p,from){ p.back={ t:0, from:from.clone() }; p.rig.wing.visible=false; }
-function land(dropped){ FL.on=false; humOff(hum); hum=null; bar.style.display='none'; if(FL.camD!=null) cam.dist=FL.camD; hero.vy=0; if(dropped) cnt.drops++; else cnt.landings++;
+const landHooks=[];   // build 580: the sky race (99s-skyrace.js) hears a landing
+function land(dropped){ for(const f of landHooks) try{ f(dropped); }catch(e){} FL.on=false; humOff(hum); hum=null; bar.style.display='none'; if(FL.camD!=null) cam.dist=FL.camD; hero.vy=0; if(dropped) cnt.drops++; else cnt.landings++;
   const p=PERCHES[FL.perch]; if(p){ p.taken=null; sendHome(p,new THREE.Vector3(FL.x,FL.y+.2,FL.z)); } FL.perch=-1; FL.rig=null; }
 addEventListener('keydown',e=>{ if(e.code!=='KeyE'||e.repeat) return; if(FL.on){ e.preventDefault(); e.stopImmediatePropagation(); FL.dropping=true; return; } if(near()){ e.preventDefault(); e.stopImmediatePropagation(); launch(); } },true);
 const v3=new THREE.Vector3();
 const MINX=-OX+1, MAXX=GW*CELL-OX-1, MINZ=-OZ+1, MAXZ=GH*CELL-OZ-1;
+// build 580: what stops a paramotor. The hero's walking rule (game.js solidAt) holds moat water and every wall cell solid at ANY height -- a paramotor could not cross the moat to the inn.
+// In the air: a wall only up to its top, a pillar or prop only near the ground, water never; a ledge higher than you, and the towers and stairs (RAILBOXES), as on foot.
+function flySolid(x,z,y){ const cx=wc(x), cz=wcz(z); if(!inb(cx,cz)) return true; const t=gat(cx,cz);
+  if(t===T.WALL){ let top=WALLH; try{ top=wallTopAt(cx,cz); }catch(e){} if(y<top+.3) return true; }
+  else if(t===T.PILLAR||t===T.PROP||t===T.CRYSTAL){ if(y<baseFloor(x,z)+4) return true; }
+  else if(t!==T.WATER&&baseFloor(x,z)>y+.62) return true;
+  for(const b of RAILBOXES){ if(x>=b.x0&&x<=b.x1&&z>=b.z0&&z<=b.z1&&y<b.top-(b.step?.62:.25)&&!(b.bot!==undefined&&y+2.4<=b.bot)) return true; }
+  return false; }
+const overWater=(x,z)=>gat(wc(x),wcz(z))===T.WATER;
 function grow(r,k){ const g=1-Math.pow(1-k,3); r.wing.scale.set(g,.3+.7*g,g); }
 function fly(dt){ FL.t+=dt;
   const drop=FL.dropping||phase()!=='build';
   camera.getWorldDirection(v3); const hl=Math.hypot(v3.x,v3.z)||1, fx=v3.x/hl, fz=v3.z/hl;
   if(!drop){ if(K.w) FL.th=Math.min(1,FL.th+dt*.9); if(K.s) FL.th=Math.max(0,FL.th-dt*.9); FL.sp=6+FL.th*10; }
-  else FL.sp=Math.max(0,FL.sp-dt*8);
+  else FL.sp=Math.max(overWater(FL.x,FL.z)?5:0,FL.sp-dt*8);   /* dropping over the moat: drift on to the bank, never down into the water */
   const climb=!drop&&keys.space, dive=!drop&&K.shift;
   const want=drop?-5:climb?3.8:dive?-7:-1.1; FL.vy+=(want-FL.vy)*Math.min(1,dt*2.2);
   let nx=FL.x+fx*FL.sp*dt, nz=FL.z+fz*FL.sp*dt, ny=Math.min(46,FL.y+FL.vy*dt);
   nx=Math.max(MINX,Math.min(MAXX,nx)); nz=Math.max(MINZ,Math.min(MAXZ,nz));
-  if(solidAt(nx,nz,ny,true)){ if(!solidAt(nx,FL.z,ny,true)) nz=FL.z; else if(!solidAt(FL.x,nz,ny,true)) nx=FL.x; else { nx=FL.x; nz=FL.z; } FL.sp*=.5; }
-  const fl=floorAt(nx,nz,ny+.3);
-  if(ny<=fl+.02&&(FL.t>1.2||drop)){ FL.x=nx; FL.z=nz; FL.y=fl; hero.x=nx; hero.z=nz; hero.y=fl; land(drop&&FL.dropping); return; }
+  if(flySolid(nx,nz,ny)){ if(!flySolid(nx,FL.z,ny)) nz=FL.z; else if(!flySolid(FL.x,nz,ny)) nx=FL.x; else { nx=FL.x; nz=FL.z; } FL.sp*=.5; }
+  const wet=overWater(nx,nz), fl=wet?1.2:floorAt(nx,nz,ny+.3);   /* over the water: skim it, no landing */
+  if(!wet&&ny<=fl+.02&&(FL.t>1.2||drop)){ FL.x=nx; FL.z=nz; FL.y=fl; hero.x=nx; hero.z=nz; hero.y=fl; land(drop&&FL.dropping); return; }
   FL.x=nx; FL.z=nz; FL.y=Math.max(ny,fl);
   hero.x=FL.x; hero.z=FL.z; hero.y=FL.y; hero.vy=0; hero.moving=false; hero.yaw=Math.atan2(fx,fz);
   const r=FL.rig; if(r){ r.g.position.set(FL.x,FL.y,FL.z); r.g.rotation.set(0,hero.yaw,0); const bank=(K.a?1:0)-(K.d?1:0); r.wing.rotation.z+=((bank*.25)-r.wing.rotation.z)*Math.min(1,dt*3); r.wing.rotation.x=-.15-FL.vy*.03;
@@ -145,9 +155,9 @@ function peersTick(dt){ hookParty(); if(!PEERFLY.size){ if(farHum) humSet(farHum
       else if(!p.taken) p.rig.prop.rotation.z+=dt*.4; }
     try{ peersTick(dt); }catch(e){} }; }
 const PP=PERCHES[PERCHES.length-1], PERCH={ x:PP.x, y:PP.y, z:PP.z };   // tests: one on the east tower (where the single paramotor stood before build 578)
-window.__para={ models:()=>MODELS, mine:()=>FL.on?FL.perch+1:0,
+window.__para={ models:()=>MODELS, mine:()=>FL.on?FL.perch+1:0, flying:()=>FL.on, onLand:f=>landHooks.push(f),
   info:()=>Object.assign({ on:FL.on, dropping:FL.dropping, back:PERCHES.some(p=>!!p.back), near:near(), x:+FL.x.toFixed(2), y:+FL.y.toFixed(2), z:+FL.z.toFixed(2), sp:+FL.sp.toFixed(2), perch:PERCH, perches:PERCHES.length, towers:tops.length,
     taken:PERCHES.map(p=>p.taken===null?(p.back?'back':null):p.taken), peers:[...PEERFLY.entries()].map(([id,pf])=>({ id, k:pf.k, spare:pf.spare, wing:pf.rig.wing.visible, x:+pf.rig.g.position.x.toFixed(1), y:+pf.rig.g.position.y.toFixed(1), z:+pf.rig.g.position.z.toFixed(1) })) },cnt),
   launch:i=>launch(typeof i==='number'?PERCHES[i]:null), land:()=>{ if(FL.on) FL.dropping=true; }, perches:()=>PERCHES.map(p=>({ i:p.i, x:p.x, y:p.y, z:p.z })),
-  scan:(x0,x1,z0,z1,y)=>{ const out=[]; for(let z=z0;z<=z1;z++){ const row=[]; for(let x=x0;x<=x1;x++) row.push(Math.round(floorAt(cw(x),cwz(z),y==null?99:y))); out.push((z-((MAP.padN)|0))+': '+row.join(' ')); } return out; }, perch:()=>PERCH, keys, profile:(x0,x1,z,stp)=>{ const o=[]; let y=WALK; for(let x=x0;x<=x1+1e-6;x+=stp){ y=floorAt(x,z,y+.6); o.push(+y.toFixed(2)); } return o; }, solid:(x,z,y)=>solidAt(x,z,y,true) };
+  scan:(x0,x1,z0,z1,y)=>{ const out=[]; for(let z=z0;z<=z1;z++){ const row=[]; for(let x=x0;x<=x1;x++) row.push(Math.round(floorAt(cw(x),cwz(z),y==null?99:y))); out.push((z-((MAP.padN)|0))+': '+row.join(' ')); } return out; }, perch:()=>PERCH, keys, profile:(x0,x1,z,stp)=>{ const o=[]; let y=WALK; for(let x=x0;x<=x1+1e-6;x+=stp){ y=floorAt(x,z,y+.6); o.push(+y.toFixed(2)); } return o; }, solid:(x,z,y)=>solidAt(x,z,y,true), flySolid };
 })();
