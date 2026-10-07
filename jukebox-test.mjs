@@ -20,6 +20,17 @@ await p.click('#jukebox .mu'); await p.waitForTimeout(700); const C=await strip(
 check("🔇 turns the music off and the strip says MUSIC OFF",C.off&&/MUSIC OFF/.test(C.text)&&!C.playing,JSON.stringify(C));
 await p.click('#jukebox .nm'); await wait(()=>window.__mus.state().playing); const D=await strip();
 check("a click on the strip turns it back on and it plays",!D.off&&D.playing&&/NOW PLAYING/.test(D.text),JSON.stringify(D));
+// build 581 (Matt: the hall's music volume / sound off came through to the title with no control there): the strip shows the music volume, and says when it is at 0 or the sound is off
+await p.evaluate(()=>window.__sound.set('music',0)); await p.waitForTimeout(600); const V0=await strip(); const vv=await p.evaluate(()=>+document.querySelector('#jukebox .vol').value);
+check("music volume at 0 (set in the hall): the strip says MUSIC VOLUME 0 and its slider sits at 0",/MUSIC VOLUME 0/.test(V0.text)&&vv===0,JSON.stringify({V0,vv}));
+await p.click('#jukebox .nm'); await p.waitForTimeout(600); const V1=await strip(); const mv=await p.evaluate(()=>window.__sound.get().music);
+check("a click on the strip turns it up and it plays",mv>.3&&/NOW PLAYING/.test(V1.text),JSON.stringify({V1,mv}));
+await p.evaluate(()=>{ const s=document.querySelector('#jukebox .vol'); s.value='0.25'; s.dispatchEvent(new Event('input',{bubbles:true})); }); const mv2=await p.evaluate(()=>window.__sound.get().music);
+check("the slider sets the music volume (the same one as the hall's sound menu)",Math.abs(mv2-.25)<.01,String(mv2));
+await p.evaluate(()=>window.__dd.mute()); await p.waitForTimeout(600); const S0=await strip();
+check("the game's sound off: the strip says SOUND OFF",/SOUND OFF/.test(S0.text),JSON.stringify(S0));
+await p.click('#jukebox .nm'); await p.waitForTimeout(800); const S1=await strip();
+check("a click turns the sound back on",!/SOUND OFF/.test(S1.text),JSON.stringify(S1));
 check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close();
 // a browser with 3D off

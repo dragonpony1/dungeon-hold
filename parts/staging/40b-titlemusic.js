@@ -7,7 +7,7 @@
 (function(){
 if(typeof TRACKS==='undefined') return;
 // Build 567 (Matt: "i really like that country one, make it come up more often like every other"): two more -- "Guard the Heartroot" as a rap (his "main theme rap"; cut at 28.1 s where the
-// rapping starts, 3:14) and as COUNTRY (cut at 13.3 s where the singing starts, 2:33) -- and the order puts the country one every other song.
+// rapping starts, 3:14) and as COUNTRY (cut at 13.3 s, then build 581 at 10.3 s -- Matt: 'its starts just 3 seconds to late it cuts off the lyrics just barley', 2:36) -- and the order puts the country one every other song.
 const SONGS=[['title','assets/music-title.mp3'],['title2','assets/music-title2.mp3'],['title3','assets/music-title3.mp3'],['title4','assets/music-title4.mp3'],['title5','assets/music-title5.mp3']];   // Heartroot Rap, Guard the Heartroot (tavern), Guard the Heartroot (rap), Guard the Heartroot (country), Guard the Heartroot (sea chanty)
 // Build 568 (Matt: "last one"): "Guard the Heartroot" as a SEA CHANTY (cut at 2.5 s, past the opening stomps where the voices come in, 3:00) -- the country one still every other song.
 const ORDER=['title4','title','title4','title2','title4','title3','title4','title5'];   // the country one every other song
@@ -41,15 +41,30 @@ const st=document.getElementById('start'); if(st){ const css=document.createElem
  '@keyframes jbq{0%,100%{height:25%}50%{height:100%}}#jukebox.off .eq i,#jukebox.wait .eq i{animation:none;height:25%;opacity:.5}'+
  '#jukebox .t{display:flex;flex-direction:column;min-width:0;line-height:1.15}#jukebox .np{font:bold 9px system-ui,sans-serif;letter-spacing:2px;color:#c9962f}#jukebox .nm{font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'+
  '#jukebox button{flex:none;width:32px;height:32px;border-radius:50%;border:2px solid #c9962f;background:#3a1a10;color:#ffe2b8;font:15px/1 system-ui;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}#jukebox button:hover{border-color:#ffd27a;background:#5a2a14}'+
+ '#jukebox .vol{flex:none;width:76px;height:6px;-webkit-appearance:none;appearance:none;border-radius:3px;background:linear-gradient(90deg,#ffd27a var(--v,60%),#3a2a14 var(--v,60%));cursor:pointer;margin:0 2px}#jukebox .vol::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#ffe2b8;border:2px solid #c9962f}'+
  '#jukebox.off{opacity:.85;cursor:pointer}#jukebox.off .nm{color:#c9b8a0}#jukebox.off .sk{display:none}';
   document.head.appendChild(css);
-  const b=document.createElement('div'); b.id='jukebox'; b.innerHTML='<span class="eq"><i></i><i></i><i></i></span><span class="t"><span class="np">NOW PLAYING</span><span class="nm"></span></span><button class="sk" type="button" title="Next song">⏭</button><button class="mu" type="button" title="Music on / off">🔊</button>';
-  const nm=b.querySelector('.nm'), np=b.querySelector('.np'), mu=b.querySelector('.mu');
-  const label=()=>{ const on=!!musicOn, tr=typeof musTrack!=='undefined'&&isTitle(musTrack)?musTrack:null; b.classList.toggle('off',!on); b.classList.toggle('wait',on&&!tr);
-    const loading=on&&!tr&&typeof musicMode!=='undefined'&&isTitle(musicMode)&&!!((musFetch.busy&&musFetch.busy[musicMode])||(typeof musDecoding!=='undefined'&&musDecoding[musicMode])); b.classList.toggle('load',loading);
-    np.textContent=on?(tr?'NOW PLAYING':loading?'LOADING SONG…':'CLICK TO PLAY'):'MUSIC OFF'; nm.textContent=on?(NAMES[tr||song()]||''):'click to turn it on'; mu.textContent=on?'🔊':'🔇'; };
+  // build 581 (Matt: "in the hall room, if the music is turned down or set to off, it comes thru to the title screen as well, but theres no audio controls on the title screen"): the strip carries
+  // the MUSIC VOLUME too (the sound menu's music slider, 41-soundmenu.js window.__sound -- the same saved value), and says so when the game's sound is OFF (M / the speaker in the hall) or the music
+  // volume is at nothing: one click on the strip fixes either.
+  const b=document.createElement('div'); b.id='jukebox'; b.innerHTML='<span class="eq"><i></i><i></i><i></i></span><span class="t"><span class="np">NOW PLAYING</span><span class="nm"></span></span><input class="vol" type="range" min="0" max="1" step="0.05" title="Music volume"><button class="sk" type="button" title="Next song">⏭</button><button class="mu" type="button" title="Music on / off">🔊</button>';
+  const nm=b.querySelector('.nm'), np=b.querySelector('.np'), mu=b.querySelector('.mu'), vol=b.querySelector('.vol');
+  const SND=()=>window.__sound&&window.__sound.get?window.__sound:null, mvol=()=>{ const S=SND(); return S?(+S.get().music||0):1; }, sOff=()=>typeof soundOff!=='undefined'&&!!soundOff;
+  const label=()=>{ const on=!!musicOn, so=sOff(), v=mvol(), quiet=v<.02, tr=typeof musTrack!=='undefined'&&isTitle(musTrack)?musTrack:null;
+    const bad=so||!on||quiet; b.classList.toggle('off',bad); b.classList.toggle('wait',!bad&&!tr);
+    const loading=!bad&&!tr&&typeof musicMode!=='undefined'&&isTitle(musicMode)&&!!((musFetch.busy&&musFetch.busy[musicMode])||(typeof musDecoding!=='undefined'&&musDecoding[musicMode])); b.classList.toggle('load',loading);
+    np.textContent=so?'SOUND OFF':!on?'MUSIC OFF':quiet?'MUSIC VOLUME 0':tr?'NOW PLAYING':loading?'LOADING SONG…':'CLICK TO PLAY';
+    nm.textContent=so?'click to turn sound on':!on?'click to turn it on':quiet?'click to turn it up':(NAMES[tr||song()]||''); mu.textContent=on&&!so?'🔊':'🔇';
+    if(document.activeElement!==vol) vol.value=String(v); vol.style.setProperty('--v',Math.round(v*100)+'%'); };
   label(); setInterval(label,400);
-  b.addEventListener('click',e=>{ e.stopPropagation(); const k=e.target.closest('button'); if(k&&k.classList.contains('sk')){ skip(); label(); return; } if(k&&k.classList.contains('mu')||!musicOn){ toggleMusic(); label(); return; } if(!(typeof musTrack!=='undefined'&&isTitle(musTrack))) try{ musicForPhase(); }catch(er){} label(); });
+  vol.addEventListener('input',e=>{ e.stopPropagation(); const S=SND(); if(S) S.set('music',+vol.value); if(+vol.value>0&&!musicOn){ toggleMusic(); } label(); });
+  for(const ev of ['click','pointerdown','keydown']) vol.addEventListener(ev,e=>e.stopPropagation());
+  b.addEventListener('click',e=>{ e.stopPropagation(); if(e.target.closest('.vol')) return; const k=e.target.closest('button');
+    if(k&&k.classList.contains('sk')){ skip(); label(); return; }
+    if(sOff()){ try{ setSound(true); }catch(er){} label(); return; }
+    if(k&&k.classList.contains('mu')||!musicOn){ toggleMusic(); label(); return; }
+    if(mvol()<.02){ const S=SND(); if(S) S.set('music',.6); label(); return; }
+    if(!(typeof musTrack!=='undefined'&&isTitle(musTrack))) try{ musicForPhase(); }catch(er){} label(); });
   st.appendChild(b);
   window.__titlemusic={ label, skip, names:NAMES, mode:()=>typeof musicMode!=='undefined'?musicMode:null, song, songs:()=>SONGS.map(x=>x[0]), order:()=>ORDER.slice(), info:()=>Object.assign({ cur },cnt),
     looping:()=>!!(musNode&&musNode.loop), finish:()=>{ const n=musNode; if(n&&n.onended) n.onended(); return !!n; } };   // test hooks: is the song on a loop; end it now as if it had played out
