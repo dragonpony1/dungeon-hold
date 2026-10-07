@@ -20,7 +20,7 @@ check("by the paramotor in the build phase: the E prompt shows, and E takes off"
 check("it flies a good way, glides down and lands",B.landed.landings===1&&!B.landed.on&&B.dist>15,JSON.stringify({dist:B.dist,landed:B.landed}).slice(0,240));
 check("the paramotor flies itself back to its perch",!B.back.back&&B.back.on===false,JSON.stringify(B.back).slice(0,200));
 const C=await p.evaluate(async()=>{ const d=window.__dd, P=window.__para, pe=P.perch(); d.S.phase='build'; d.hero.x=pe.x; d.hero.z=pe.z+.5; d.hero.y=pe.y; d.step(1/60,5); P.launch(); for(let i=0;i<60;i++) d.step(1/60,1);
-  d.S.phase='wave'; let t=0; for(;t<60*20&&P.info().on;t++) d.step(1/60,1); const down=P.info(); d.S.phase='wave'; d.hero.x=pe.x; d.hero.z=pe.z+.5; d.hero.y=pe.y; d.step(1/60,5); const nearWave=P.info().near; d.S.phase='build'; return { down, secs:+(t/60).toFixed(1), nearWave }; });
+  d.S.phase='wave'; for(let i=0;i<4;i++) d.spawn('goblin','S');   /* a wave with mobs on the field (an empty one clears straight back to build) */ let t=0; for(;t<60*20&&P.info().on;t++) d.step(1/60,1); const down=P.info(); d.S.phase='wave'; d.hero.x=pe.x; d.hero.z=pe.z+.5; d.hero.y=pe.y; d.step(1/60,5); const nearWave=P.info().near; d.enemies.length=0; d.S.phase='build'; return { nearWave, down, secs:+(t/60).toFixed(1) }; });
 check("the horn mid-flight: the wing brings you straight down",!C.down.on&&C.secs<12,JSON.stringify(C).slice(0,200));
 check("in a wave there is no take-off",C.nearWave===false,JSON.stringify(C).slice(0,120));
 check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,3)));
