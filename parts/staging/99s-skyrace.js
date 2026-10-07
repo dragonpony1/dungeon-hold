@@ -55,13 +55,14 @@ function passes(r,a,b){ const da=tmp.copy(a).sub(r.c).dot(r.n), db=tmp.copy(b).s
 function track(x,y,z){ const nr=rings[RACE.next]; cur.set(x,y,z); if(havePrev&&nr&&passes(nr,prevPos,cur)){ cnt.passes++; chime(RACE.next); if(RACE.next===0){ RACE.on=true; RACE.t=0; } RACE.next++; if(RACE.next>=rings.length) finish(); else paint(); } prevPos.copy(cur); havePrev=true; }
 PA.onLand(()=>{ if(RACE.next>0&&RACE.next<rings.length){ cnt.dnfs++; RACE.dnf={ at:RACE.next }; } reset(); });
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt);
-    const build=phase()==='build'; for(const r of rings) r.m.visible=build; if(!build){ beam.visible=false; if(halo) halo.visible=false; hud.style.display='none'; if(RACE.next) reset(); havePrev=false; return; }
+    const build=phase()==='build'&&!(window.CINE&&window.CINE.active&&window.CINE.active()); for(const r of rings) r.m.visible=build;   /* build 585: never inside a cinematic (the castle scene plays in the Drawbridge's first build phase) */ if(!build){ beam.visible=false; if(halo) halo.visible=false; hud.style.display='none'; if(RACE.next) reset(); havePrev=false; return; }
     if(RACE.finT>0){ RACE.finT-=dt; if(RACE.finT<=0){ fin.style.display='none'; reset(); } }
     const t=performance.now()/1000, nr=rings[RACE.next]; if(nr){ const pulse=.8+.2*Math.sin(t*5); nr.mat.opacity=.95*pulse; nr.m.rotation.z+=dt*.6; if(halo) halo.material.opacity=.45*pulse; }
     if(RACE.on) RACE.t+=dt;
     const flying=PA.flying(); if(!flying){ hud.style.display='none'; havePrev=false; return; }
     track(hero.x,(hero.y||0)+1.2,hero.z);   // the hero's middle (the wing rides above)
     if(RACE.next<rings.length){ hud.style.display='block'; hud.innerHTML='🏁 RING <b>'+(RACE.next+1)+'</b>/'+rings.length+'<span class="t">'+(RACE.on?fmt(RACE.t):'0:00.0')+'</span>'+(best!==null?'<span class="bst">best '+fmt(best)+'</span>':'<span class="bst">fly through the blue ring</span>'); } else hud.style.display='none'; }; }
+(window.__cineHide=window.__cineHide||[]).push(()=>rings.map(r=>r.m).concat([beam,halo]));   // build 585: out of every cinematic (the framework hides them as a scene begins; the build check below keeps them hidden)
 window.__skyrace={ info:()=>Object.assign({ next:RACE.next, on:RACE.on, t:+RACE.t.toFixed(2), best, rewarded:RACE.rewarded, last:RACE.last||null, dnf:RACE.dnf||null, rings:rings.map(r=>({ x:+r.c.x.toFixed(1), y:+r.c.y.toFixed(1), z:+r.c.z.toFixed(1), st:r.st, vis:r.m.visible })) },cnt),
   ring:i=>{ const r=rings[i]; return r?{ x:r.c.x, y:r.c.y, z:r.c.z, nx:r.n.x, ny:r.n.y, nz:r.n.z }:null; }, count:rings.length, R, reset, track,
   clear:()=>rings.map((r,i)=>{ let hits=0; const u=new THREE.Vector3(), v=new THREE.Vector3(); u.set(0,1,0).cross(r.n); if(u.lengthSq()<1e-6) u.set(1,0,0); u.normalize(); v.copy(r.n).cross(u).normalize(); for(let k=0;k<24;k++){ const a=k/24*Math.PI*2, px=r.c.x+(u.x*Math.cos(a)+v.x*Math.sin(a))*R, py=r.c.y+(u.y*Math.cos(a)+v.y*Math.sin(a))*R, pz=r.c.z+(u.z*Math.cos(a)+v.z*Math.sin(a))*R; if(PA.flySolid(px,pz,py)) hits++; } return hits; }) };

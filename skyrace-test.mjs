@@ -37,5 +37,12 @@ const W=await p.evaluate(()=>{ const d=window.__dd; d.S.phase='wave'; for(let i=
 check("in a wave the course is hidden; back in the build phase it returns",!W.inWave&&W.back,JSON.stringify(W));
 const M=await p.evaluate(()=>{ const P=window.__para, S=window.__skyrace, r=S.ring(4); return { flyOk:!P.flySolid(r.x,r.z,3), footBlocked:P.solid(r.x,r.z,3) }; });
 check("the paramotor flies over the moat (on foot the water still stops you)",M.flyOk&&M.footBlocked,JSON.stringify(M));
+const CI=await p.evaluate(()=>{ const d=window.__dd, C=window.CINE, real=C.active; d.step(1/60,3); const before=window.__skyrace.info().rings.some(r=>r.vis); C.active=()=>'castle'; d.step(1/60,3); const during=window.__skyrace.info().rings.some(r=>r.vis); C.active=real; d.step(1/60,3); const after=window.__skyrace.info().rings.some(r=>r.vis); return { before, during, after }; });
+check("build 585: a cinematic (the castle scene) never shows the rings; they come back after",CI.before&&!CI.during&&CI.after,JSON.stringify(CI));
+const CR=await p.evaluate(async()=>{ const d=window.__dd; window.__freeze=true; if(!window.CINE.play('castle',{replay:true})) return { played:false };
+  for(let i=0;i<4000;i++){ d.step(1/30,1); const c=window.__cine.info(); if(c.active&&!c.wait) break; if(i%30===0) await new Promise(r=>setTimeout(r,100)); }
+  for(let i=0;i<30;i++) d.step(1/30,1); const during=window.__skyrace.info().rings.some(r=>r.vis), active=window.__cine.info().active;
+  for(let i=0;i<1400&&window.__cine.info().active;i++) d.step(1/30,1); window.__freeze=false; d.step(1/60,3); return { played:true, active, during, after:window.__skyrace.info().rings.some(r=>r.vis) }; });
+check("build 585: the real castle scene plays with no rings in it; they are back once it ends",CR.played&&CR.active==='castle'&&!CR.during&&CR.after,JSON.stringify(CR));
 check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);

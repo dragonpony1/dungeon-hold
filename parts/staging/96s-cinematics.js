@@ -170,7 +170,9 @@ function play(id,opts){ opts=opts||{}; const def=DEFS[id]; if(!def){ cnt.refused
   if(!opts.replay) markSeen(id);
   return true; }
 // build 555: the player's own hero steps out of every scene (it stood in the Drawbridge's opening shot) and comes back after
-let heroHid=null; function heroHide(){ if(heroHid) return; heroHid=[]; for(const o of [typeof GLBH!=='undefined'&&GLBH?GLBH.wrap:null, typeof H!=='undefined'&&H?H.g:null, typeof heroShadow!=='undefined'?heroShadow:null]) if(o&&o.visible){ o.visible=false; heroHid.push(o); } }
+let heroHid=null; function heroHide(){ if(heroHid) return; heroHid=[]; for(const o of [typeof GLBH!=='undefined'&&GLBH?GLBH.wrap:null, typeof H!=='undefined'&&H?H.g:null, typeof heroShadow!=='undefined'?heroShadow:null]) if(o&&o.visible){ o.visible=false; heroHid.push(o); }
+  /* build 585: anything else that must stay out of every scene registers here (window.__cineHide: functions returning objects) -- the sky race rings stood in the castle scene */
+  for(const fn of (window.__cineHide||[])){ let list=[]; try{ list=fn()||[]; }catch(e){} for(const o of list) if(o&&o.visible){ o.visible=false; heroHid.push(o); } } }
 function heroShow(){ if(!heroHid) return; for(const o of heroHid) o.visible=true; heroHid=null; }
 function begin(){ const r=run, def=r.def; r.wait=false; el.classList.remove('cn-waiting'); heroHide();
   let ok=true; try{ ok=def.setup?def.setup(r.ctx)!==false:true; }catch(e){ console.warn('cine setup',e); ok=false; }
