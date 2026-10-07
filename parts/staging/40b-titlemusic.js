@@ -46,7 +46,8 @@ const st=document.getElementById('start'); if(st){ const css=document.createElem
   const b=document.createElement('div'); b.id='jukebox'; b.innerHTML='<span class="eq"><i></i><i></i><i></i></span><span class="t"><span class="np">NOW PLAYING</span><span class="nm"></span></span><button class="sk" type="button" title="Next song">⏭</button><button class="mu" type="button" title="Music on / off">🔊</button>';
   const nm=b.querySelector('.nm'), np=b.querySelector('.np'), mu=b.querySelector('.mu');
   const label=()=>{ const on=!!musicOn, tr=typeof musTrack!=='undefined'&&isTitle(musTrack)?musTrack:null; b.classList.toggle('off',!on); b.classList.toggle('wait',on&&!tr);
-    np.textContent=on?(tr?'NOW PLAYING':'CLICK TO PLAY'):'MUSIC OFF'; nm.textContent=on?(NAMES[tr||song()]||''):'click to turn it on'; mu.textContent=on?'🔊':'🔇'; };
+    const loading=on&&!tr&&typeof musicMode!=='undefined'&&isTitle(musicMode)&&!!((musFetch.busy&&musFetch.busy[musicMode])||(typeof musDecoding!=='undefined'&&musDecoding[musicMode])); b.classList.toggle('load',loading);
+    np.textContent=on?(tr?'NOW PLAYING':loading?'LOADING SONG…':'CLICK TO PLAY'):'MUSIC OFF'; nm.textContent=on?(NAMES[tr||song()]||''):'click to turn it on'; mu.textContent=on?'🔊':'🔇'; };
   label(); setInterval(label,400);
   b.addEventListener('click',e=>{ e.stopPropagation(); const k=e.target.closest('button'); if(k&&k.classList.contains('sk')){ skip(); label(); return; } if(k&&k.classList.contains('mu')||!musicOn){ toggleMusic(); label(); return; } if(!(typeof musTrack!=='undefined'&&isTitle(musTrack))) try{ musicForPhase(); }catch(er){} label(); });
   st.appendChild(b);
