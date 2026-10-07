@@ -11,6 +11,7 @@ await p.mouse.click(700,500,{delay:10}).catch(()=>{});
 const wait=async f=>{ for(let i=0;i<60;i++){ const r=await p.evaluate(f); if(r) return r; await p.waitForTimeout(250); } return null; };
 await wait(()=>window.__mus.state().playing&&/^title/.test(window.__mus.state().track));
 const strip=()=>p.evaluate(()=>{ const b=document.getElementById('jukebox'); return { text:b?b.textContent:'', off:b?b.classList.contains('off'):null, track:window.__mus.state().track, playing:window.__mus.state().playing }; });
+for(let i=0;i<12;i++){ const s0=await strip(); if(/NOW PLAYING/.test(s0.text)) break; await p.waitForTimeout(150); }
 const A=await strip(); const N=await p.evaluate(()=>window.__titlemusic.names);
 check("the strip says NOW PLAYING and the song's name",/NOW PLAYING/.test(A.text)&&A.text.includes(N[A.track]),JSON.stringify(A));
 const before=A.track; await p.click('#jukebox .sk'); for(let i=0;i<60;i++){ const s=await p.evaluate(()=>window.__mus.state()); if(s.playing&&s.track&&s.track!==before) break; await p.waitForTimeout(250); }
