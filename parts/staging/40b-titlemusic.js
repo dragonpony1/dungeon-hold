@@ -7,7 +7,7 @@
 (function(){
 if(typeof TRACKS==='undefined') return;
 // Build 567 (Matt: "i really like that country one, make it come up more often like every other"): two more -- "Guard the Heartroot" as a rap (his "main theme rap"; cut at 28.1 s where the
-// rapping starts, 3:14) and as COUNTRY (cut at 13.3 s, then build 581 at 10.3 s -- Matt: 'its starts just 3 seconds to late it cuts off the lyrics just barley', 2:36) -- and the order puts the country one every other song.
+// rapping starts, 3:14) and as COUNTRY (cut at 13.3 s, then build 581 at 10.3 s -- Matt: 'its starts just 3 seconds to late it cuts off the lyrics just barley' -- then build 587 at 5.3 s -- Matt: 'that guard the heartroot song starts 2 seconds too late, can you back it up 5 seconds', 2:41) -- and the order puts the country one every other song.
 const SONGS=[['title','assets/music-title.mp3'],['title2','assets/music-title2.mp3'],['title3','assets/music-title3.mp3'],['title4','assets/music-title4.mp3'],['title5','assets/music-title5.mp3']];   // Heartroot Rap, Guard the Heartroot (tavern), Guard the Heartroot (rap), Guard the Heartroot (country), Guard the Heartroot (sea chanty)
 // Build 568 (Matt: "last one"): "Guard the Heartroot" as a SEA CHANTY (cut at 2.5 s, past the opening stomps where the voices come in, 3:00) -- the country one still every other song.
 const ORDER=['title4','title','title4','title2','title4','title3','title4','title5'];   // the country one every other song
