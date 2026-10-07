@@ -43,7 +43,9 @@ function eligible(it){ return !!(it&&typeof it==='object'&&SLOTS.includes(it.slo
 function weaponKind(){ const hm=window.__weapons&&window.__weapons.mount&&window.__weapons.mount(); if(hm&&hm.pole) return 'polearm'; if(hm&&hm.staff) return 'staff';   /* build 510 prep: the Fighter's is a polearm (the Witch still shows it as her staff: the hand decides the model) */ if(hm&&hm.bow) return 'bow'; return LR()<.3?'polearm':'sword'; }
 function mythicize(it){ const pool=SETS.filter(s=>gateOk(s[0])); if(!pool.length) return it; const [id,tail]=pool[Math.floor(LR()*pool.length)]; const L=Math.max(1,it.lvl|0); let kind=null;
   if(it.slot==='weapon'){ kind=typeof wtypeOf==='function'?wtypeOf(it):weaponKind(); it.look=kind; it.wtype=kind; }   /* build 525 prep: the type it rolled (game.js rollWtype, 70/30), not the hand that found it */
-  it.name='Mythic '+(kind?kind[0].toUpperCase()+kind.slice(1):(BASE[it.slot]||'Relic'))+' '+tail;
+  /* build 586: the Stone Tortoise (the Feast Hall's wave-7 reward, 85c-tortoise.js) stays a tortoise when the lucky roll hits -- 'Mythic Familiar' reads as a Wisp (famKind), so it was lost */
+  const turtle=it.slot==='familiar'&&typeof it.name==='string'&&it.name.includes('Stone Tortoise');
+  it.name='Mythic '+(kind?kind[0].toUpperCase()+kind.slice(1):turtle?'Stone Tortoise':(BASE[it.slot]||'Relic'))+' '+tail;
   it.setId=id; it.rarity=5; it.mythic=true; it.mythicTier='mythic'; const pic=mythicArt(it); if(pic) it.art=pic;
   for(const k in it.stats){ const v=rollStat(k,L,5); it.stats[k]=Number.isFinite(v)?v:Math.round((+it.stats[k]||0)*1.6*10)/10; }   // rarity 5 on its own level
   let sc=0; for(const k in it.stats) sc+=(it.stats[k]||0)*(STATW[k]||1); it.score=Math.round(sc*10)/10; it.value=Math.max(+it.value||0,250);
