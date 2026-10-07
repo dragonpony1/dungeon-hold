@@ -11,7 +11,7 @@ const PA=window.__para;
 if(!MAP||MAP.id!=='moat'||!PA||!PA.flying) return;
 const P=(MAP.padN)|0;
 // the course: [cell x, the dev panel's row (north padding off), height]
-const COURSE=[[24,8,22],[24,-4,30],[42,3,24],[44,11,21],[44,20,6],[40,31,16],[22,40,5],[6,30,9],[24,20,10]];
+const COURSE=[[24,8,22],[24,-4,30],[42,3,24],[45,9,20],[44,22,9],[40,31,18],[22,30,7],[6,30,9],[24,20,10]];
 const R=3.6;   // ring radius: wide enough for the wing
 const pts=COURSE.map(([x,r,y])=>new THREE.Vector3(cw(x),y,cwz(r+P)));
 const START=new THREE.Vector3(cw(24),20,cwz(14+P));   // the gate towers: where the paramotors take off

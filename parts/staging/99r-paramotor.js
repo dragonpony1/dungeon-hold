@@ -115,11 +115,14 @@ const overWater=(x,z)=>gat(wc(x),wcz(z))===T.WATER;
 function grow(r,k){ const g=1-Math.pow(1-k,3); r.wing.scale.set(g,.3+.7*g,g); }
 function fly(dt){ FL.t+=dt;
   const drop=FL.dropping||phase()!=='build';
-  camera.getWorldDirection(v3); const hl=Math.hypot(v3.x,v3.z)||1, fx=v3.x/hl, fz=v3.z/hl;
+  camera.getWorldDirection(v3); const hl=Math.hypot(v3.x,v3.z)||1; let fx=v3.x/hl, fz=v3.z/hl;
+  // build 583: a FILM-ONLY autopilot (the music video, trailer/mv): window.__paraAuto={ yaw, vy, th } steers, climbs and throttles, and the camera swings round behind -- no player ever sets it
+  const ap=window.__paraAuto; if(ap&&typeof ap.yaw==='number'){ fx=Math.sin(ap.yaw); fz=Math.cos(ap.yaw); try{ let dy=ap.yaw-cam.yaw; dy=Math.atan2(Math.sin(dy),Math.cos(dy)); cam.yaw+=dy*Math.min(1,dt*(ap.camK||2.2)); }catch(e){} }
+  if(ap&&typeof ap.th==='number') FL.th=ap.th;
   if(!drop){ if(K.w) FL.th=Math.min(1,FL.th+dt*.9); if(K.s) FL.th=Math.max(0,FL.th-dt*.9); FL.sp=6+FL.th*10; }
   else FL.sp=Math.max(overWater(FL.x,FL.z)?5:0,FL.sp-dt*8);   /* dropping over the moat: drift on to the bank, never down into the water */
   const climb=!drop&&keys.space, dive=!drop&&K.shift;
-  const want=drop?-5:climb?3.8:dive?-7:-1.1; FL.vy+=(want-FL.vy)*Math.min(1,dt*2.2);
+  const want=drop?-5:(ap&&typeof ap.vy==='number')?Math.max(-7,Math.min(3.8,ap.vy)):climb?3.8:dive?-7:-1.1; FL.vy+=(want-FL.vy)*Math.min(1,dt*2.2);
   let nx=FL.x+fx*FL.sp*dt, nz=FL.z+fz*FL.sp*dt, ny=Math.min(46,FL.y+FL.vy*dt);
   nx=Math.max(MINX,Math.min(MAXX,nx)); nz=Math.max(MINZ,Math.min(MAXZ,nz));
   if(flySolid(nx,nz,ny)){ if(!flySolid(nx,FL.z,ny)) nz=FL.z; else if(!flySolid(FL.x,nz,ny)) nx=FL.x; else { nx=FL.x; nz=FL.z; } FL.sp*=.5; }
@@ -159,5 +162,5 @@ window.__para={ models:()=>MODELS, mine:()=>FL.on?FL.perch+1:0, flying:()=>FL.on
   info:()=>Object.assign({ on:FL.on, dropping:FL.dropping, back:PERCHES.some(p=>!!p.back), near:near(), x:+FL.x.toFixed(2), y:+FL.y.toFixed(2), z:+FL.z.toFixed(2), sp:+FL.sp.toFixed(2), perch:PERCH, perches:PERCHES.length, towers:tops.length,
     taken:PERCHES.map(p=>p.taken===null?(p.back?'back':null):p.taken), peers:[...PEERFLY.entries()].map(([id,pf])=>({ id, k:pf.k, spare:pf.spare, wing:pf.rig.wing.visible, x:+pf.rig.g.position.x.toFixed(1), y:+pf.rig.g.position.y.toFixed(1), z:+pf.rig.g.position.z.toFixed(1) })) },cnt),
   launch:i=>launch(typeof i==='number'?PERCHES[i]:null), land:()=>{ if(FL.on) FL.dropping=true; }, perches:()=>PERCHES.map(p=>({ i:p.i, x:p.x, y:p.y, z:p.z })),
-  scan:(x0,x1,z0,z1,y)=>{ const out=[]; for(let z=z0;z<=z1;z++){ const row=[]; for(let x=x0;x<=x1;x++) row.push(Math.round(floorAt(cw(x),cwz(z),y==null?99:y))); out.push((z-((MAP.padN)|0))+': '+row.join(' ')); } return out; }, perch:()=>PERCH, keys, profile:(x0,x1,z,stp)=>{ const o=[]; let y=WALK; for(let x=x0;x<=x1+1e-6;x+=stp){ y=floorAt(x,z,y+.6); o.push(+y.toFixed(2)); } return o; }, solid:(x,z,y)=>solidAt(x,z,y,true), flySolid };
+  scan:(x0,x1,z0,z1,y)=>{ const out=[]; for(let z=z0;z<=z1;z++){ const row=[]; for(let x=x0;x<=x1;x++) row.push(Math.round(floorAt(cw(x),cwz(z),y==null?99:y))); out.push((z-((MAP.padN)|0))+': '+row.join(' ')); } return out; }, perch:()=>PERCH, keys, profile:(x0,x1,z,stp)=>{ const o=[]; let y=WALK; for(let x=x0;x<=x1+1e-6;x+=stp){ y=floorAt(x,z,y+.6); o.push(+y.toFixed(2)); } return o; }, solid:(x,z,y)=>solidAt(x,z,y,true), flySolid, floor:(x,z,y)=>floorAt(x,z,y) };
 })();

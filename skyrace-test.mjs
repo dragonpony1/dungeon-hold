@@ -11,7 +11,7 @@ await p.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); loca
 await p.goto("http://127.0.0.1:8876/?silent&nogate&map=4",{timeout:120000}); await p.waitForFunction(()=>window.__dd&&window.__skyrace&&window.__skyrace.track,null,{timeout:120000});
 await p.evaluate(()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} d.start(); d.step(1/60,5); window.__freeze=true; d.S.phase='build'; d.step(1/60,2); });
 const A=await p.evaluate(()=>{ const S=window.__skyrace, i=S.info(); return { n:S.count, clear:S.clear(), ys:i.rings.map(r=>r.y), st:i.rings.map(r=>r.st), vis:i.rings.every(r=>r.vis) }; });
-check("nine rings, some high some low, none in a wall or the ground, all showing in the build phase",A.n===9&&A.clear.every(h=>h===0)&&Math.min(...A.ys)<=6&&Math.max(...A.ys)>=28&&A.vis,JSON.stringify(A));
+check("nine rings, some high some low, none in a wall or the ground, all showing in the build phase",A.n===9&&A.clear.every(h=>h===0)&&Math.min(...A.ys)<=8&&Math.max(...A.ys)>=28&&A.vis,JSON.stringify(A));
 check("ring 1 is the blue one, the rest wait",A.st[0]==='next'&&A.st.slice(1).every(s=>s==='todo'),JSON.stringify(A.st));
 // through a ring: from a step before its face to a step after
 const thru=i=>p.evaluate(i=>{ const S=window.__skyrace, r=S.ring(i); S.track(r.x-r.nx*3,r.y-r.ny*3,r.z-r.nz*3); S.track(r.x+r.nx*3,r.y+r.ny*3,r.z+r.nz*3); window.__dd.step(1/60,20); return S.info(); },i);
