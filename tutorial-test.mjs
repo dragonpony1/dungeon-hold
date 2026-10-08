@@ -133,7 +133,8 @@ async function pickLoot(p){ return until(p,()=>{ const d=window.__dd; if(window.
   await ctx.close(); }
 
 // ================= a phone (touch): a brand-new player taps PLAY =================
-{ const ctx=await context({viewport:{width:390,height:844},hasTouch:true,isMobile:true},{real:true}); const p=await open(ctx);
+// build 595: a phone held upright now shows a TURN YOUR PHONE card over everything (99v-phone.js) -- the phone here is held sideways, as the game is played
+{ const ctx=await context({viewport:{width:844,height:390},hasTouch:true,isMobile:true},{real:true}); const p=await open(ctx);
   const tap=async sel=>{ await p.tap(sel); await run(p,.05); };
   const tapHb=async t=>{ await p.locator('#btns .hb',{hasText:t}).first().tap(); await run(p,.05); };
   await p.tap('#playbtn'); await landed(p,/tutorial=/,'build');
@@ -141,7 +142,8 @@ async function pickLoot(p){ return until(p,()=>{ const d=window.__dd; if(window.
   await p.evaluate(()=>{ window.__freeze=true; window.__dd.step(1/60,20); });
   const t1=await view(p); const box=await p.evaluate(()=>{ const r=document.getElementById('tut').getBoundingClientRect(); return {top:Math.round(r.top),bottom:Math.round(r.bottom),left:Math.round(r.left),right:Math.round(r.right),font:parseFloat(getComputedStyle(document.querySelector('#tut .tm')).fontSize)}; });
   check("touch wording: 'Walk to the glowing spot' — drag the joystick; the joystick glows",/Walk to the glowing spot/.test(t1.main)&&/joystick/.test(t1.how)&&!/W A S D/.test(t1.how)&&t1.glow.includes('joy'),JSON.stringify(t1));
-  check("on a 390 px phone the panel fits the width (clear of the touch buttons on the right) with a 21 px main line",box.left>=4&&box.right<=390-80&&box.font>=20&&box.top>=100,JSON.stringify(box));
+  const bl=await p.evaluate(()=>{ const xs=[...document.querySelectorAll("#btns .hb")].filter(b=>b.offsetParent).map(b=>b.getBoundingClientRect().left); return { btnL:Math.round(Math.min(...xs)), W:innerWidth }; });
+  check("on a phone held sideways (build 595) the panel sits on screen, clear of the touch buttons on the right, with a 20 px+ main line",box.left>=4&&box.right<=bl.btnL-4&&box.right<=bl.W&&box.font>=20&&box.top>=40,JSON.stringify({box,bl}));
   await p.screenshot({path:SHOTS+"/tut-phone-step1.png"});
   await p.evaluate(()=>{ const d=window.__dd, T=window.__tutorial; d.setHero(T.spot[0],T.spot[1]+.5); }); await ticked(p);
   await onStep(p,'goblin'); const t2=await view(p);
