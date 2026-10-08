@@ -22,6 +22,10 @@ const LEVELS=[
 const KEY='dd_difficulty', BKEY='dd_diff_best';
 let cur=1; try{ const v=localStorage.getItem(KEY); const i=LEVELS.findIndex(l=>l.id===v); if(i>=0) cur=i; }catch(e){}
 const L=()=>LEVELS[cur];
+// build 591 (Matt: "yes i agree on the medals rule"): the level can change mid-run at the raven now, so a map's medal is the EASIEST level played on this run -- set on the title, lowered
+// by any switch down after (a page is one run: a map change reloads it)
+let runMin=cur;
+const noteRun=()=>{ if(S.phase==='start') runMin=cur; else runMin=Math.min(runMin,cur); };
 const cnt={ added:0, dropped:0, boosted:0, waves:0 };
 const isGuest=()=>!!(window.__net&&window.__net.role&&window.__net.role()==='guest');
 // ---- more (or fewer) mobs, spread over the wave
@@ -43,9 +47,9 @@ let baseRates=null;
 function applyRates(){ const M=window.__mythicDrops; if(!M||!M.rates||!M.set) return; if(!baseRates) baseRates=M.rates(); const k=L().myth; M.set(baseRates.mythic*k,baseRates.named*k,baseRates.mob*k); }
 setTimeout(applyRates,0);
 // ---- the pick
-function set(i,quiet){ i=Math.max(0,Math.min(LEVELS.length-1,i|0)); if(i===cur&&!quiet) return render(); cur=i; try{ localStorage.setItem(KEY,L().id); }catch(e){} applyRates(); render(); }
+function set(i,quiet){ i=Math.max(0,Math.min(LEVELS.length-1,i|0)); if(i===cur&&!quiet) return render(); cur=i; noteRun(); try{ localStorage.setItem(KEY,L().id); }catch(e){} applyRates(); render(); }
 function best(){ try{ const o=JSON.parse(localStorage.getItem(BKEY)); return o&&typeof o==='object'?o:{}; }catch(e){ return {}; } }
-function record(){ if(TUTORIAL||!MAP) return; const b=best(); if(!((b[MAP.id]|0)>=cur&&MAP.id in b)){ b[MAP.id]=Math.max(b[MAP.id]|0,cur); try{ localStorage.setItem(BKEY,JSON.stringify(b)); }catch(e){} } }
+function record(){ if(TUTORIAL||!MAP) return; const b=best(); if(!((b[MAP.id]|0)>=runMin&&MAP.id in b)){ b[MAP.id]=Math.max(b[MAP.id]|0,runMin); try{ localStorage.setItem(BKEY,JSON.stringify(b)); }catch(e){} } }
 { const prev=Meta.onMapHeld; Meta.onMapHeld=function(){ record(); return prev.apply(this,arguments); }; }
 { const prev=Meta.onWaveHeld; Meta.onWaveHeld=function(){ const r=prev.apply(this,arguments); if(SURVIVAL&&S.wave>=10) record(); return r; }; }   // a Survival run counts once it has held ten
 // ---- the row on the title (under the mode row)
@@ -61,5 +65,17 @@ function render(){ if(TUTORIAL) return; const el=row(); if(!el) return; const b=
   const html='<span class="mlab">DIFFICULTY</span>'+LEVELS.map((x,i)=>'<button class="dl'+(i===cur?' sel':'')+'" data-i="'+i+'" style="--dc:'+x.col+'" title="'+x.name+'">'+x.ic+' '+x.name+'</button>').join('')+'<small>'+why+'</small>';
   if(el.innerHTML!==html){ el.innerHTML=html; el.querySelectorAll('button.dl').forEach(x=>{ x.onclick=e=>{ e.stopPropagation(); const s=$('start'); if(S.phase!=='start'||(s&&(s.classList.contains('inLobby')||s.classList.contains('coopPage')))) return; set(+x.dataset.i); }; }); } }
 render(); setTimeout(render,0); setInterval(()=>{ if(S.phase==='start') render(); },1000);   // the map picker (◀ ▶) changes MAP's best medal
-window.__difficulty={ record /* co-op sweep 2026-10-02: 99-network records a guest's medal at HALL HELD (Meta.onMapHeld never runs on a guest) */, id:()=>L().id,level:()=>Object.assign({},L()), set:(v,q)=>{ const i=typeof v==='number'?v:LEVELS.findIndex(l=>l.id===v); if(i>=0) set(i,q); return L().id; }, goldK:()=>L().gold, levels:()=>LEVELS.map(l=>l.id), best, info:()=>Object.assign({ id:L().id },cnt), fromHost:id=>{ const i=LEVELS.findIndex(l=>l.id===id); if(i>=0&&i!==cur){ cur=i; applyRates(); render(); } } };
+// ---- build 591 (Matt: "it would be nice if i could go into like the same picker mechanism as the hero picker at the raven and change the difficulty. so i could play it on easy, get some
+// gold spec up my gear"): beside the raven, in the build phase, a row of the four levels above its hero buttons (57-raven.js #heroPick). One click switches; it counts from the next wave
+// (mobs already out keep theirs). A co-op guest follows the host (no row on a guest's page).
+let rrow=null;
+function syncRaven(){ if(!rrow) return; [...rrow.children].forEach((b,i)=>{ const on=i===cur, x=LEVELS[i]; b.style.borderColor=on?x.col:'#6b5a3c'; b.style.boxShadow=on?'0 0 10px '+x.col:'none'; b.style.background=on?'linear-gradient(#4a3a24,#2a1c10)':'linear-gradient(#3a2a44,#1c1424)'; }); }
+function ensureRaven(){ if(rrow) return rrow; const hud=document.getElementById('hud'); if(!hud) return null;
+  rrow=document.createElement('div'); rrow.id='diffPick'; rrow.style.cssText='position:absolute;left:50%;bottom:192px;transform:translateX(-50%);display:none;gap:8px;pointer-events:auto;z-index:5;';
+  LEVELS.forEach((x,i)=>{ const b=document.createElement('button'); b.textContent=x.ic+' '+x.name; b.dataset.i=i; b.style.cssText='padding:7px 12px;border-radius:6px;border:2px solid #6b5a3c;background:linear-gradient(#3a2a44,#1c1424);color:'+x.col+';font:bold 11px Georgia,serif;letter-spacing:.5px;cursor:pointer;white-space:nowrap';
+    b.addEventListener('click',e=>{ e.stopPropagation(); if(isGuest()||S.phase!=='build') return; if(i!==cur){ set(i); try{ toast(x.ic+' '+x.name+' · next wave'); }catch(er){} } syncRaven(); }); rrow.appendChild(b); });
+  hud.appendChild(rrow); syncRaven(); return rrow; }
+{ const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(TUTORIAL) return; const R=window.__raven; const show=!!(R&&R.near&&R.near())&&S.phase==='build'&&!S.held&&!isGuest()&&!(typeof placing!=='undefined'&&placing)&&!Meta.isOpen();
+    const el=show?ensureRaven():rrow; if(el&&(el.style.display==='flex')!==show){ el.style.display=show?'flex':'none'; if(show) syncRaven(); } }; }
+window.__difficulty={ record /* co-op sweep 2026-10-02: 99-network records a guest's medal at HALL HELD (Meta.onMapHeld never runs on a guest) */, id:()=>L().id,level:()=>Object.assign({},L()), set:(v,q)=>{ const i=typeof v==='number'?v:LEVELS.findIndex(l=>l.id===v); if(i>=0) set(i,q); return L().id; }, goldK:()=>L().gold, levels:()=>LEVELS.map(l=>l.id), best, info:()=>Object.assign({ id:L().id },cnt), fromHost:id=>{ const i=LEVELS.findIndex(l=>l.id===id); if(i>=0&&i!==cur){ cur=i; noteRun(); applyRates(); render(); syncRaven(); } }, runMin:()=>LEVELS[runMin].id, ravenRow:()=>!!(rrow&&rrow.style.display==='flex') };
 })();
