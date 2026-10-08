@@ -77,5 +77,9 @@ function ensureRaven(){ if(rrow) return rrow; const hud=document.getElementById(
   hud.appendChild(rrow); syncRaven(); return rrow; }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(TUTORIAL) return; const R=window.__raven; const show=!!(R&&R.near&&R.near())&&S.phase==='build'&&!S.held&&!isGuest()&&!(typeof placing!=='undefined'&&placing)&&!Meta.isOpen();
     const el=show?ensureRaven():rrow; if(el&&(el.style.display==='flex')!==show){ el.style.display=show?'flex':'none'; if(show) syncRaven(); } }; }
+// build 592 (Matt: "H changes the hero, what button changes the difficulty"): K at the raven steps to the next level, as H steps the hero
+addEventListener('keydown',e=>{ if(e.code!=='KeyK'||e.repeat||TUTORIAL) return; const ae=document.activeElement; if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')) return;
+  const R=window.__raven; if(!(R&&R.near&&R.near())||S.phase!=='build'||S.held||isGuest()) return; try{ if(Meta.isOpen()) return; }catch(er){}
+  e.preventDefault(); const i=(cur+1)%LEVELS.length, x=LEVELS[i]; set(i); try{ toast(x.ic+' '+x.name+' · next wave'); }catch(er){} syncRaven(); });
 window.__difficulty={ record /* co-op sweep 2026-10-02: 99-network records a guest's medal at HALL HELD (Meta.onMapHeld never runs on a guest) */, id:()=>L().id,level:()=>Object.assign({},L()), set:(v,q)=>{ const i=typeof v==='number'?v:LEVELS.findIndex(l=>l.id===v); if(i>=0) set(i,q); return L().id; }, goldK:()=>L().gold, levels:()=>LEVELS.map(l=>l.id), best, info:()=>Object.assign({ id:L().id },cnt), fromHost:id=>{ const i=LEVELS.findIndex(l=>l.id===id); if(i>=0&&i!==cur){ cur=i; noteRun(); applyRates(); render(); syncRaven(); } }, runMin:()=>LEVELS[runMin].id, ravenRow:()=>!!(rrow&&rrow.style.display==='flex') };
 })();

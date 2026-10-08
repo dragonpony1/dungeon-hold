@@ -26,5 +26,10 @@ const C=await page.evaluate(async()=>{ const d=window.__dd, D=window.__difficult
   return { inWave, mobs, b1, run2, b2, id:D.id() }; });
 check("in a wave the row is gone",C.inWave===false,JSON.stringify(C.inWave));
 check("medal rule: held with HARD then NIGHTMARE -> a HARD medal; after a switch down to EASY -> an EASY medal",C.b1.throne===2&&C.run2==='easy'&&C.b2.throne===0&&C.id==='easy',JSON.stringify(C));
+// build 592: K at the raven steps the level (as H steps the hero); the raven's prompt says so; away from the raven K does nothing
+const K=await page.evaluate(()=>{ const d=window.__dd, D=window.__difficulty, p=window.__raven.pos(); d.hero.x=p.x+1.2; d.hero.z=p.z+1.2; for(let i=0;i<5;i++) d.step(1/30,1);
+  const a=D.id(); window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyK',bubbles:true})); const b=D.id(); for(let i=0;i<3;i++) d.step(1/30,1); const prompt=(document.getElementById('prompt')||{}).textContent||'';
+  d.hero.x=p.x+14; d.hero.z=p.z+14; for(let i=0;i<5;i++) d.step(1/30,1); window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyK',bubbles:true})); return { a, b, c:D.id(), prompt }; });
+check("build 592: K at the raven steps to the next level (EASY -> NORMAL), the prompt shows 'K difficulty'; away from the raven K does nothing",K.a==='easy'&&K.b==='normal'&&K.c==='normal'&&/K\s+difficulty/.test(K.prompt),JSON.stringify(K));
 check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);

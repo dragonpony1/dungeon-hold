@@ -42,7 +42,7 @@ function ravenUpdate(dt){ if(!wrap) return; const ph=hallPhase();   // co-op swe
   const ws=WRAPS.length?WRAPS:[wrap]; ws.forEach((w,k)=>{ const s=SPOTS[k]||SPOTS[0]; w.visible=state!=='hidden'; if(state==='hidden') return; w.position.set(s.x,ravenY()-baseY+s.y,s.z); w.rotation.y=s.face+Math.sin(S.t*1.1+k)*.1; w.rotation.z=Math.sin(S.t*1.7+k)*.04;
     w.scale.setScalar(state==='perched'?1:easeOutBack(pop)); }); }
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); ravenUpdate(dt); }; }
-{ const ph=Meta.hud; Meta.hud=()=>{ ph(); if(near()&&!placing&&!Meta.isOpen()){ const el=$('prompt'); const want='E  the raven (character sheet)  ·  H  switch hero'; if(el.textContent!==want) el.textContent=want; } }; }
+{ const ph=Meta.hud; Meta.hud=()=>{ ph(); if(near()&&!placing&&!Meta.isOpen()){ const el=$('prompt'); const want='E  the raven (character sheet)  ·  H  switch hero  ·  K  difficulty';   /* build 592: K steps the difficulty (95r-difficulty.js) */ if(el.textContent!==want) el.textContent=want; } }; }
 { const prev=upgrade; upgrade=function(){ if(near()){ window.__doll.open(); return; } return prev(); }; }
 // a real button row, not just the H key — four hero buttons that show up near the raven so the choice is visible
 // and clickable (touch included), not a hint you have to already know about. Built lazily (first raven update,
