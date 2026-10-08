@@ -55,6 +55,8 @@ function draw(){ if(!bg) drawBg(); g.clearRect(0,0,cv.width,cv.height); g.drawIm
   let mates=[]; try{ mates=gu?(window.__party?window.__party.list().map(id=>window.__party.get(id)).filter(p=>p&&!p.dead):[]):((Meta.heroes&&Meta.heroes())||[]); }catch(e){} for(const h of mates){ if(h&&!(h.isDead&&h.isDead())) dot(h.x,h.z,2.4,'#5ff0ff','#000a'); } cnt.mates=mates.length;
   // build 508 (Matt approved, co-op): on the host's map a guest in the hideout carries the same 🏠 as over its gnome (99d2-hideoutbadge.js)
   cnt.homes=0; if(!gu&&window.__hideoutBadge){ const inn=new Set(window.__hideoutBadge.ids()); if(inn.size){ g.font=Math.round(10*DPR)+'px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif'; g.textAlign='center'; g.textBaseline='middle'; for(const h of mates){ if(h&&h.gid&&inn.has(h.gid)){ g.fillText('\u{1F3E0}',px(h.x)+5*DPR,pz(h.z)-5*DPR); cnt.homes++; } } } }
+  // build 590: anything else drawn over the map (99u-doorpreview.js: the next wave's icon on each door during the build phase)
+  if(window.__mmExtra){ try{ window.__mmExtra(g,px,pz,DPR,cv); }catch(e){} }
   // you: an arrow along where the camera looks
   if(hero.dead<=0){ const x=px(hero.x), z=pz(hero.z), a=cam.yaw, fx=Math.sin(a), fz=Math.cos(a), s=5*DPR; g.beginPath(); g.moveTo(x+fx*s,z+fz*s); g.lineTo(x-fx*s*.6+fz*s*.55,z-fz*s*.6-fx*s*.55); g.lineTo(x-fx*s*.25,z-fz*s*.25); g.lineTo(x-fx*s*.6-fz*s*.55,z-fz*s*.6+fx*s*.55); g.closePath(); g.fillStyle='#ffffff'; g.fill(); g.lineWidth=DPR; g.strokeStyle='#000'; g.stroke(); } }
 const show=()=>want&&(S.phase==='build'||S.phase==='wave')&&!(window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen());
