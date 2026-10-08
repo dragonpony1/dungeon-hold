@@ -30,7 +30,7 @@ const GTAL={ knight:{ksweep:3,kbash:3,kbleed:1,kfury:3,kcyclone:1,kaegis:1,kstan
   witch:{wither:3,mark:3,tempest:1},
   fighter:{fsurge:3,fcrown:1,fnova:1,fmartyr:1,fmend:1,fbind:1,fflare:1} };
 await hostPage.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); localStorage.removeItem("dd_talents"); }catch(e){} });
-await guestPage.addInitScript(t=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); localStorage.setItem("dd_talents",JSON.stringify(t)); }catch(e){} },GTAL);
+await guestPage.addInitScript(t=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); if(!localStorage.getItem("ddMeta")) localStorage.setItem("ddMeta",JSON.stringify({level:99}));   /* build 588: a preset needs a hero high enough to own it (one point a level) */ localStorage.setItem("dd_talents",JSON.stringify(t)); }catch(e){} },GTAL);
 for(const p of [hostPage,guestPage]){ await p.goto("http://127.0.0.1:8933/?silent&ownweapons&nogate",{timeout:120000}); await p.waitForFunction(()=>window.__dd&&window.__net&&window.__combat&&window.__talents,null,{timeout:120000}); }
 for(const p of [hostPage,guestPage]) await p.evaluate(()=>{ window.__freeze=true; try{ window.__trainer.skip(); }catch(e){} window.__dd.start(); window.__dd.step(1/60,30); });
 

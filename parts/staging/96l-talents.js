@@ -100,16 +100,20 @@ const heroId=()=>window.__heroes?window.__heroes.pick():'knight';
 const tree=()=>TREES[heroId()]||null;
 const mine=()=>{ const h=heroId(); return ALL[h]||(ALL[h]={}); };
 const rank=id=>tree()?(mine()[id]|0):0;
-const total=()=>Math.max(0,((Meta.level&&Meta.level())||1)-1)+HELD.size;
+// build 588 (Matt, on a fresh run: "i think i should only be getting talent points when i level up"): ONE POINT A LEVEL, nothing for waves held any more (waves still give their xp, so
+// they still bring levels). HELD is still kept (it is cheap and other code may ask), it just no longer counts.
+const total=()=>Math.max(0,((Meta.level&&Meta.level())||1)-1);
 const spent=()=>Object.values(mine()).reduce((s,v)=>s+(v|0),0);
 const avail=()=>Math.max(0,total()-spent());
+// a hero who spent wave points they no longer have gets them all back, free, to place again (once, at load)
+{ const L=Math.max(0,((Meta.level&&Meta.level())||1)-1); let n=0; for(const h in ALL){ const sp=Object.values(ALL[h]||{}).reduce((a,v)=>a+(v|0),0); if(sp>L){ ALL[h]={}; n++; } } if(n){ save(); window.__talentRefunded=n; setTimeout(()=>{ try{ toast('✦ Talents refunded — one point a level now'); }catch(e){} },4000); } }
 const branchSpent=b=>b.nodes.reduce((s,n)=>s+rank(n.id),0);
 const nodeOf=id=>{ const T=tree(); if(!T) return null; for(const b of T.branches) for(const n of b.nodes) if(n.id===id) return {b,n}; return null; };
 const open=(b,n)=>branchSpent(b)>=GATE[n.tier];
 function spend(id){ const f=nodeOf(id); if(!f) return false; const {b,n}=f; if(!avail()||!open(b,n)||rank(id)>=n.ranks) return false; mine()[id]=rank(id)+1; save(); if(typeof applyGear==='function') applyGear(); try{ Meta.save&&Meta.save(); }catch(e){} SFX.place&&SFX.place(); return true; }
 function respec(){ if(!spent()) return false; ALL[heroId()]={}; save(); if(typeof applyGear==='function') applyGear(); try{ Meta.save&&Meta.save(); }catch(e){} toast('Talents refunded — '+avail()+' to spend'); return true; }   // free: try things
 { const prev=Meta.onWaveHeld; Meta.onWaveHeld=function(w){ const r=prev.apply(this,arguments); if(!SURVIVAL&&!TUTORIAL&&MAP&&MAP.id!=='tutorial'){ const k=MAP.id+':'+S.wave; if(!HELD.has(k)){ HELD.add(k); saveHeld(); } }
-    let seen=false; try{ seen=localStorage.getItem('dd_talent_card')==='1'; }catch(e){}   /* build 397 (Matt: "the N for talent tree tooltip only needs to come up once"): the card shows the first time only, ever */
+    let seen=true;   /* build 588: a wave held gives no point now -- the +1 TALENT card comes with a level (10-meta.js) */   /* build 397 (Matt: "the N for talent tree tooltip only needs to come up once"): the card shows the first time only, ever */
     if(!seen&&tree()&&avail()>0&&window.__lesson&&window.__lesson.flow&&(()=>{ try{ localStorage.setItem('dd_talent_card','1'); }catch(e){} return true; })()) window.__lesson.flow({ic:'✦',title:'+1 TALENT',css:'#ffd27a',steps:[{ic:{k:'N'},t:'Talents'},{ic:'✦',t:avail()+' to spend'}]},4);
     return r; }; }
 // ---- the stats: a hero with a tree takes her numbers from it
@@ -311,7 +315,7 @@ const css=document.createElement('style'); css.textContent=
 +'.tal-node.buy{animation:talpulse 1.4s ease-in-out infinite}.tal-node.buy:hover{transform:translateY(-2px);border-color:#ffd27a}@keyframes talpulse{0%,100%{box-shadow:0 0 0 0 #ffd27a00}50%{box-shadow:0 0 0 3px #ffd27a66}}';
 document.head.appendChild(css);
 function pips(n,r){ let s=''; for(let i=0;i<n.ranks;i++) s+=i<r?'●':'○'; return s; }
-function treeHtml(){ const T=tree(), a=avail(); let h='<div class="tal-top"><h3>✦ TALENTS · '+T.name+'</h3><span class="tal-pts'+(a?'':' none')+'">✦ '+a+' point'+(a===1?'':'s')+'</span><span class="tv-n">one a level + one a wave held · N opens this</span><span class="sp" style="flex:1"></span><button class="tv-btn sm" data-tal-respec="1"'+(spent()?'':' disabled')+'>Respec · free</button></div><div class="tal-cols">';
+function treeHtml(){ const T=tree(), a=avail(); let h='<div class="tal-top"><h3>✦ TALENTS · '+T.name+'</h3><span class="tal-pts'+(a?'':' none')+'">✦ '+a+' point'+(a===1?'':'s')+'</span><span class="tv-n">one a level · N opens this</span><span class="sp" style="flex:1"></span><button class="tv-btn sm" data-tal-respec="1"'+(spent()?'':' disabled')+'>Respec · free</button></div><div class="tal-cols">';
   for(const b of T.branches){ const bs=branchSpent(b); h+='<div class="tal-col" style="--tc:'+b.col+';--tcg:'+b.col+'66"><div class="tal-head" style="color:'+b.col+'">'+b.ic+' '+b.name+'<small>'+bs+' spent</small></div>';
     b.nodes.forEach((n,i)=>{ const r=rank(n.id), op=open(b,n), buy=op&&a>0&&r<n.ranks; if(i) h+='<div class="tal-link'+(r?' lit':'')+'"></div>';
       h+='<div class="tal-node'+(op?' open':'')+(r?' has':'')+(n.cap?' cap':'')+(n.key?' key':'')+(buy?' buy':'')+'" data-tal="'+n.id+'" title="'+n.name+'">'+(op?'':'<span class="lk">🔒'+GATE[n.tier]+'</span>')+'<div class="i">'+n.ic+'</div><div class="n">'+n.name+'</div><div class="c">'+n.chip(Math.max(1,r))+'</div><div class="p">'+pips(n,r)+'</div></div>'; });
@@ -320,7 +324,7 @@ function treeHtml(){ const T=tree(), a=avail(); let h='<div class="tal-top"><h3>
 if(typeof tvRenderSkills==='function'){ const prev=tvRenderSkills; tvRenderSkills=function(){ const el=$('tv-skills'); if(!tree()||!el) return prev.apply(this,arguments); el.innerHTML=treeHtml(); }; }
 function redraw(){ if(typeof tvRenderTab==='function') tvRenderTab(true); else if(typeof tvRenderSkills==='function') tvRenderSkills(); }
 document.addEventListener('click',e=>{ const t=e.target.closest&&e.target.closest('[data-tal],[data-tal-respec]'); if(!t||!t.closest('#tv-skills')) return; e.stopPropagation();
-  if(t.dataset.talRespec) respec(); else if(!spend(t.dataset.tal)){ const f=nodeOf(t.dataset.tal); if(f&&!open(f.b,f.n)) toast('🔒 '+GATE[f.n.tier]+' points in '+f.b.name+' opens it'); else if(!avail()) toast('No points — one a level, one a wave held'); }
+  if(t.dataset.talRespec) respec(); else if(!spend(t.dataset.tal)){ const f=nodeOf(t.dataset.tal); if(f&&!open(f.b,f.n)) toast('🔒 '+GATE[f.n.tier]+' points in '+f.b.name+' opens it'); else if(!avail()) toast('No points — one a level'); }
   redraw(); },true);
 function openTree(){ const TV=window.__tavern; if(!TV) return false; if(TV.isOpen()){ TV.close(); return false; } if(S.phase==='start') return false; TV.open(); TV.tab('skills'); return true; }
 addEventListener('keydown',e=>{ if(e.code!=='KeyN'||e.repeat) return; const ae=document.activeElement; if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')) return; if(window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen()) return; e.preventDefault(); openTree(); },true);

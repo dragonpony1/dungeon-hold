@@ -9,7 +9,7 @@ const page=await (await browser.newContext({viewport:{width:1400,height:900}})).
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
 await page.goto("http://127.0.0.1:8987/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__talents&&window.__heroes&&window.__dd.heroModel(),null,{timeout:120000});
 const buy=(ids)=>page.evaluate(ids=>{ const T=window.__talents; return ids.map(id=>T.spend(id)); },ids);
-await page.evaluate(async()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} await window.__heroes.select('troll'); d.start(); d.step(1/60,3); window.__freeze=true; window.__meta.setLevel(40); d.addMana(1e5); d.S.phase='build'; });
+await page.evaluate(async()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} await window.__heroes.select('troll'); d.start(); d.step(1/60,3); window.__freeze=true; window.__meta.setLevel(99); d.addMana(1e5); d.S.phase='build'; });
 const A=await page.evaluate(()=>{ const T=window.__talents; const n=T.nodes(); window.__tavern.open(); window.__tavern.tab('skills'); const html=document.getElementById('tv-skills').innerHTML; window.__tavern.close(); return { tree:T.tree(), branches:n&&n.map(b=>b.id+':'+b.nodes.length).join(' '), tab:/THE GNOME RANGER/.test(html)&&/MARKSMAN/.test(html) }; });
 check("the Ranger has his own tree (MARKSMAN, TRAPPER, WILDS; 5 each) and the TALENTS tab draws it",A.tree==='troll'&&A.branches==='marksman:5 trapper:5 wilds:5'&&A.tab,JSON.stringify(A));
 const m0=await page.evaluate(()=>window.__meta.mult('dmg')); await buy(['rsteady']); const m1=await page.evaluate(()=>window.__meta.mult('dmg'));

@@ -9,7 +9,7 @@ const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftsh
 const ctx=await browser.newContext({viewport:{width:1100,height:700}}); await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.removeItem("dd_talents"); localStorage.setItem("ddSound","off"); }catch(e){} });
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
 await page.goto("http://127.0.0.1:8987/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__talents&&window.__heroes&&window.__meta&&window.__meta.setLevel&&window.__dd.heroModel(),null,{timeout:120000});
-await page.evaluate(async()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} await window.__heroes.select('knight'); d.start(); d.step(1/60,5); window.__meta.setLevel(40); d.addMana(99999); d.S.du=-80; d.S.crystal=1e9; });
+await page.evaluate(async()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} await window.__heroes.select('knight'); d.start(); d.step(1/60,5); window.__meta.setLevel(99); d.addMana(99999); d.S.du=-80; d.S.crystal=1e9; });
 await page.waitForFunction(()=>{ const w=window.__weapons&&window.__weapons.mounted(); return w&&!/^(staff|bow)-/.test(w.name); },null,{timeout:120000});   /* the Knight's sword in his hand (the hero switch swaps it in a moment later) */
 await page.evaluate(()=>{ window.__freeze=true; });
 const prep=`const d=window.__dd, T=window.__talents, h=d.hero; for(const e of d.enemies) if(!e.dead) d.kill(e); d.step(1/60,2); d.setHero(0,8,0); h.yaw=0; h.hp=h.max;
