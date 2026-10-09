@@ -29,11 +29,13 @@ const CAP=2;
 // picks the perch (never at start: only the Ranger places it) and 50-defmodels.js's template path draws it from then on
 // (its reskinDefs swaps any perch already standing). Fitted so its deck is at 2.5, the top the perch always had: the
 // deck is 1.70 of the model's 2.0 height, so the whole model stands 2.5*2/1.7 tall. Until it arrives, the old tiers.
-DEF_H.perch=2.5*2/1.70;
+// Build 599 (Matt's engineer zip: the new LOOKOUT PERCH -- a timber lookout with a round railed deck, a ladder down its front, a lantern and a steam whistle; parts/assets/lookout.glb):
+// its deck sits at 0.64 of its height (tools: a height map from above), so the model stands 2.5/0.64 tall to keep the deck at the 2.5 the perch always had.
+DEF_H.perch=2.5/.64;
 let perchAsked=false;
 { const prevMakeDef=makeDef; makeDef=function(kind,ghost,lvl){ if(kind!=='perch') return prevMakeDef(kind,ghost,lvl);
     if(defTemplate('perch')) return prevMakeDef(kind,ghost,lvl);
-    if(!perchAsked){ perchAsked=true; fetchDefGLB('perch',ASSET('perch.glb'),0,'first'); }
+    if(!perchAsked){ perchAsked=true; fetchDefGLB('perch',ASSET('lookout.glb'),0,'first'); }   // build 599: the new lookout (was perch.glb)
     const g=new THREE.Group(); const wood=mat(0x7a4f2c), stone=mat(0x8a8698), dark=mat(0x4a3320);
     g.add(M(G.box(1.4,1.0,1.4),wood,0,.5,0));
     g.add(M(G.box(.84,.85,.84),wood,0,1.425,0));
@@ -63,10 +65,11 @@ const QUARTER=Math.PI/2, snapRot=r=>Math.round((r||0)/QUARTER)*QUARTER;   // bui
 // each reaching out past the deck's rim far enough for the hero's 0.42 body to stand at the step's end. Ground -> front
 // step -> right step (or straight) -> deck: hops within one jump each (vy 10.6, ~2.8 reach). Local boxes, turned with
 // the perch a quarter turn at a time.
+// Build 599: the new lookout's footholds -- the round DECK (top 2.5) over its frame, and its LADDER down the front (+z) as one foothold at 1.3 out at its foot (a hero's body reaches the deck
+// from anywhere higher up the ladder, so one foothold is all it needs): ground -> ladder -> deck, two easy hops (measured from the model's height map, scaled to its 3.9 height)
 const PERCH_BOXES=[
-  {x0:-.72,x1:.62,z0:-.72,z1:.58,top:2.5},     // the deck over the post
-  {x0:-.35,x1:.4,z0:.58,z1:1.3,top:1.47},      // the front step's end
-  {x0:.62,x1:1.3,z0:-.35,z1:.42,top:2.06}];    // the right step's end
+  {x0:-.9,x1:.75,z0:-1.0,z1:.45,top:2.5},      // the deck
+  {x0:-.45,x1:.25,z0:.85,z1:1.3,top:1.3}];     // the ladder
 function turnBox(b,r,x,z){ const c=Math.round(Math.cos(r)), s=Math.round(Math.sin(r)); const pts=[[b.x0,b.z0],[b.x1,b.z0],[b.x0,b.z1],[b.x1,b.z1]].map(([lx,lz])=>[lx*c+lz*s,-lx*s+lz*c]);
   return {x0:x+Math.min(...pts.map(p=>p[0])),x1:x+Math.max(...pts.map(p=>p[0])),z0:z+Math.min(...pts.map(p=>p[1])),z1:z+Math.max(...pts.map(p=>p[1]))}; }   // three.js's turn about y: x' = x cos + z sin, z' = -x sin + z cos
 { const prevPlace=placeDefAt; placeDefAt=function(kind,x,z,rot){ const d=prevPlace(kind,x,z,rot); if(d&&d.kind==='perch'){
@@ -80,16 +83,18 @@ function turnBox(b,r,x,z){ const c=Math.round(Math.cos(r)), s=Math.round(Math.si
 // an enemy too close) or when a tower already stands there (one to a surface). The tower is its own defense (it takes no floor cell, so mobs still walk through a perch as always, and never reach a hedge) tied to what it stands on
 // (d.onSurf): sell or lose the perch and the tower comes down with it, 70% of its mana back. STACK is the list of towers that may stand on a surface -- the ballista (harpoon) for now. A surface is a function
 // (kind,x,z) -> {x,z,y,key} | null pushed on window.__standSurf (this file adds the perch's; 56d adds the hedge's). Works for a co-op guest too (99-network.js asks deckFor).
-const STACK=new Set(['harpoon']);
+const STACK=new Set(['harpoon','turret','sky']);   // build 599: every tower that may stand on SOME surface (the Gnome Turret, and the Sky Wrecker on the Sky Platform); each surface says which it takes (PERCH_TAKES etc.)
+const PERCH_TAKES=new Set(['harpoon','turret']);
+const STANDS=new Set(['perch','skyplat']);   // build 599: the stands a tower comes down with, and is picked through
 function perchFor(kind,x,z){ const cx=wc(x), cz=wcz(z); if(!inb(cx,cz)) return null; const d=defAt[idx(cx,cz)]; return (d&&d.kind==='perch')?d:null; }
 const SURF=window.__standSurf=window.__standSurf||[];
-SURF.push((kind,x,z)=>{ const p=perchFor(kind,x,z); return p?{ x:p.x, z:p.z, y:p.base+DEFS.perch.top, key:p }:null; });
+SURF.push((kind,x,z)=>{ if(!PERCH_TAKES.has(kind)) return null; const p=perchFor(kind,x,z); return p?{ x:p.x, z:p.z, y:p.base+DEFS.perch.top, key:p }:null; });
 const surfaceAt=(kind,x,z)=>{ if(!STACK.has(kind)) return null; for(const f of SURF){ const s=f(kind,x,z); if(s) return s; } return null; };
 const towerOn=key=>defs.find(o=>o.onSurf===key);
 const deckFor=(kind,x,z)=>{ const s=surfaceAt(kind,x,z); return (s&&!towerOn(s.key))?s:null; };
 { const prevPlace2=placeDefAt; placeDefAt=function(kind,x,z,rot){ const s=surfaceAt(kind,x,z); if(!s) return prevPlace2.apply(this,arguments); if(towerOn(s.key)) return null;   /* one tower to a surface */
     const d=prevPlace2.call(this,kind,s.x,s.z,rot); if(d){ d.onSurf=s.key; d.base=s.y; d.top=DEFS[kind].top+s.y; if(d.mdl) d.mdl.position.y=s.y; } return d; }; }   // snapped to the middle of it and set up at its top
-{ const prevRemove2=removeDef; removeDef=function(d){ if(d&&d.kind==='perch'){ for(const o of defs.slice()){ if(o.onSurf!==d) continue; const back=Math.round((o.spent||0)*.7); S.mana+=back; floatText(o.x,o.top+.8,o.z,'+'+back+' mana','#5ee9ff'); toast('The tower comes down with its perch'); prevRemove2.call(this,o); } } return prevRemove2.apply(this,arguments); }; }
+{ const prevRemove2=removeDef; removeDef=function(d){ if(d&&STANDS.has(d.kind)){ for(const o of defs.slice()){ if(o.onSurf!==d) continue; const back=Math.round((o.spent||0)*.7); S.mana+=back; floatText(o.x,o.top+.8,o.z,'+'+back+' mana','#5ee9ff'); toast('The tower comes down with its perch'); prevRemove2.call(this,o); } } return prevRemove2.apply(this,arguments); }; }
 { const prevGhost2=updateGhost; updateGhost=function(){ prevGhost2.apply(this,arguments); if(!placing||!ghost||!STACK.has(placing)) return;
     const [px,pz]=placeStage===1?anchorPos:aimPoint(); const s=surfaceAt(placing,px,pz); if(!s) return;
     const cfg=DEFS[placing]; let reason=''; if(towerOn(s.key)) reason='A tower already stands here'; else if(S.du+cfg.du>DU_CAP) reason='Not enough Defense Units'; else if(S.mana<cfg.mana) reason='Not enough mana'; else if(enemies.some(e=>!e.dead&&Math.hypot(e.x-s.x,e.z-s.z)<2.2)) reason='Enemy too close';
@@ -97,7 +102,7 @@ const deckFor=(kind,x,z)=>{ const s=surfaceAt(kind,x,z); return (s&&!towerOn(s.k
     if(typeof ghostSector!=='undefined'&&ghostSector){ ghostSector.position.set(s.x,s.y,s.z); if(typeof tintSector==='function') tintSector(ghostSector,ghostOk?0x40ff80:0xff3030); } }; }
 // build 407 (Matt: "when ballista is on a perch, can't upgrade the ballista cuz it's not selectable"): the ballista stands at the perch's very spot, so game.js's pickDef tied them and the perch (built first) always won.
 // The perch is a stand -- nothing to upgrade, nothing to mend -- so aiming at a perch with a tower on it picks the TOWER (E upgrades it, X sells it, the card and ring are its). An empty perch is picked as ever.
-{ const prevPick=pickDef; pickDef=function(pos){ const d=prevPick.apply(this,arguments); if(d&&d.kind==='perch'){ const on=towerOn(d); if(on) return on; } return d; }; }
+{ const prevPick=pickDef; pickDef=function(pos){ const d=prevPick.apply(this,arguments); if(d&&STANDS.has(d.kind)){ const on=towerOn(d); if(on) return on; } return d; }; }
 window.__perch={ deckFor, towerOn, surfaceAt, stack:()=>[...STACK], remove:d=>removeDef(d), boxesFor:(x,z,rot,base)=>PERCH_BOXES.map(b=>Object.assign(turnBox(b,snapRot(rot),x,z),{top:base+b.top})), cap:CAP };
 { const prevRemove=removeDef; removeDef=function(d){ if(d.railboxes) for(const b of d.railboxes){ const i=RAILBOXES.indexOf(b); if(i>=0) RAILBOXES.splice(i,1); } prevRemove(d); }; }
 })();

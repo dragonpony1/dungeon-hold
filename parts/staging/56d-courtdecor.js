@@ -37,7 +37,7 @@ reflow();
 const after={}; SP.forEach(([x,z])=>{ after[x+','+z]=flowFree.dist[idx(x,z)]; });
 const cellOf=(cx,cz)=>cx>=0&&cz>=0&&cx<GW&&cz<GH?BED.get(idx(cx,cz)):undefined;
 // build 381 (Matt: "need to be able to place ballista on hedges in cloister as well"): a HEDGE (a bed cell beside a path) is a surface a ballista may be set on (96b-perch.js, the same rule as a perch's deck): the tower stands at the hedge's top, in the middle of its cell
-(window.__standSurf=window.__standSurf||[]).push((kind,x,z)=>{ const c=cellOf(wc(x),wcz(z)); return (c&&c.edge)?{ x:cw(c.cx), z:cwz(c.cz), y:c.top, key:c }:null; });
+(window.__standSurf=window.__standSurf||[]).push((kind,x,z)=>{ if(kind!=='harpoon') return null;   /* build 599: a hedge takes the Saw Blade Gunner only (the turret and Sky Wrecker stand on the engineer's stands) */ const c=cellOf(wc(x),wcz(z)); return (c&&c.edge)?{ x:cw(c.cx), z:cwz(c.cz), y:c.top, key:c }:null; });
 // ---- build 285 (Matt, killed by drakes: "those guys need a little pathing or something its overwhelming ... hard is good. something in the middle"): flyers still cross the beds, but a bed cell costs them
 // BED_FLY steps instead of one, and they come down into the court by a stair like everyone else (they used to glide round the raised walkway and drop in beside a Heartroot), so they mostly keep to the lanes and only cut across where it saves a lot -- harder than a walker, no longer a straight dash to a Heartroot. A weighted field (a bucket
 // queue: the weights are small whole numbers) replaces game.js's plain one for flyers, rebuilt whenever reflow() is (a defense placed or sold).

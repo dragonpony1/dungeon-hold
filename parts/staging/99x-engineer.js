@@ -4,15 +4,15 @@
 //  * LOCKED until the player reaches LEVEL 7 (70-hero2.js lockLvl): the card, the raven and H all honour it and say so.
 //  * Melee, like the Knight: he swings what the Knight swings (swords and polearms count for his stats, game.js WTYPE_HEROES) -- but his hand always shows HIS WRENCH (Matt's
 //    gnome_wrench_model.glb, cut from 526,000 triangles to 35,000 with tools/glb-decimate.mjs: parts/assets/wrench-engineer.glb).
-//  * His kit, for now (my call -- his own Barricade, Gnome Turret and Powder Keg come in as their art lands): the LOOKOUT PERCH (it moves to him from the Ranger, as Matt planned),
-//    the SAW BLADE GUNNER (the Knight keeps his too) and the SKY WRECKER (the Ranger keeps his too).
+//  * His kit (build 599, 99y-engineerkit.js): the LOOKOUT PERCH (moved to him from the Ranger, as Matt planned), the SKY PLATFORM, the GNOME TURRET and the SKY WRECKER (the Ranger keeps his too,
+//    so he has something to put on his platform); the Barricade and the Powder Keg come as they are built / their art lands. (Build 598 lent him the Saw Blade Gunner; it is the Knight's again.)
 //  * His special, OVERCLOCK (73-specials.js): every tower within 10 of him reloads TWICE AS FAST for 6 s, a blue steam glow on each while it lasts.
 // Test hook: window.__engineer.
 (function(){
 'use strict';
 if(typeof HEROES==='undefined') return;
 const ID='engineer', LVL=7, OC_R=10, OC_T=6, OC_K=.5, WRENCH='wrench-engineer';
-if(!HEROES.find(h=>h.id===ID)) HEROES.push({ id:ID, name:'GNOME ENGINEER', sub:'a big brass wrench · he builds the battlefield', glb:'engineer.glb', label:'Gnome Engineer (Meshy)', reach:2.4, lockLvl:LVL, unlocks:['perch','harpoon','sky'] });
+if(!HEROES.find(h=>h.id===ID)) HEROES.push({ id:ID, name:'GNOME ENGINEER', sub:'a big brass wrench · he builds the battlefield', glb:'engineer.glb', label:'Gnome Engineer (Meshy)', reach:2.4, lockLvl:LVL, unlocks:['perch','skyplat','turret','sky'] });
 { const r=HEROES.find(h=>h.id==='troll'); if(r){ const i=r.unlocks.indexOf('perch'); if(i>=0) r.unlocks.splice(i,1); } }   // the Lookout Perch is his now
 if(DEFS.perch){ DEFS.perch.name='Lookout Perch'; const n=document.querySelector('#slot-perch .n'); if(n) n.textContent='Lookout Perch'; }   // Matt's name for it, now it is no longer the archer's
 // the saved pick was read (70-hero2.js) before he joined the list, so a player who left as the Engineer came back as the first hero: pick him again (if his level still allows)

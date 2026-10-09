@@ -51,13 +51,13 @@ async function connect(H,G,tag){ const rc=tag+"-"+Math.random().toString(36).sli
   const c=await connect(H,G,'perch'); check('host and guest connect (the perch)',!c.hostOpen.err&&!c.join.err,JSON.stringify(c));
   const placed=await H.evaluate(()=>{ const d=window.__dd; window.__heroes.select('troll'); d.addMana(5000); d.setHero(8,10,0); d.step(1/60,3); const p=d.place('perch',12,14,0); return p?{x:p.x,z:p.z,base:p.base}:null; });
   check("the host places an Lookout Perch",!!placed,JSON.stringify(placed));
-  const got=await tickUntil([H,G],G,()=>window.__dd.rails().length>=3?window.__dd.rails().length:null,null,120,3);
-  check('the guest builds the perch footholds too (three boxes in its own world)',got===3,String(got));
+  const got=await tickUntil([H,G],G,()=>window.__dd.rails().length>=2?window.__dd.rails().length:null,null,120,3);
+  check('the guest builds the perch footholds too (two boxes in its own world: the deck and the ladder, build 599)',got===2,String(got));
   const wearing=await tickUntil([H,G],G,id=>{ const p=window.__party.get(id); return p&&p.glb==='ranger.glb'?p.glb:null; },c.hostOpen.id,150,3);
   check("the host is the Gnome Ranger: the guest's puppet of the host wears ranger.glb, not the retired troll.glb",wearing==='ranger.glb',String(wearing));
   const drop=(dx,dz)=>G.evaluate(({dx,dz,placed})=>{ const d=window.__dd, Hh=d.hero; Hh.x=placed.x+dx; Hh.z=placed.z+dz; Hh.y=placed.base+4.2; Hh.vy=0; Hh.grounded=false; for(let i=0;i<120;i++){ Hh.x=placed.x+dx; Hh.z=placed.z+dz; d.step(1/60,1); } return +(Hh.y-placed.base).toFixed(2); },{dx,dz,placed});
-  const [f,r,k,off]=[await drop(.05,1.15),await drop(1.15,.05),await drop(-.3,-.3),await drop(-1.4,0)];
-  check('a GUEST dropped onto the front step stands at 1.47, the right step 2.06, the deck 2.5 (it fell through before), and off the back falls to the ground',Math.abs(f-1.47)<.05&&Math.abs(r-2.06)<.05&&Math.abs(k-2.5)<.05&&off<.1,JSON.stringify({f,r,k,off}));
+  const [f,k,off]=[await drop(-.1,1.15),await drop(-.3,-.3),await drop(-1.4,0)];
+  check("a GUEST dropped onto the lookout's ladder stands at 1.3 (build 599), the deck 2.5 (it fell through before), and off the back falls to the ground",Math.abs(f-1.3)<.05&&Math.abs(k-2.5)<.05&&off<.1,JSON.stringify({f,k,off}));
   await H.evaluate(()=>{ const d=window.__dd; const p=d.defs.find(x=>x.kind==='perch'); d.defs.splice(d.defs.indexOf(p),1); });
   const gone=await tickUntil([H,G],G,()=>window.__dd.rails().length===0?1:null,null,120,3);
   check('and the footholds go when the perch does',!!gone);
