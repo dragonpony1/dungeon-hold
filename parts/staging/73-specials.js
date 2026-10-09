@@ -43,8 +43,8 @@
 (function(){
 'use strict';
 const CHARGE_TIME=1.2, COOLDOWN=10;
-const SPEC_NAME={knight:'Whirlwind Cleave',witch:'Starfall',fighter:'Halo Surge',troll:'Volley'};
-const CHARGE_COLOR={knight:0xcfd8ff,witch:0x9a6bff,fighter:0xffd27a,troll:0x9be06a};
+const SPEC_NAME={knight:'Whirlwind Cleave',witch:'Starfall',fighter:'Halo Surge',troll:'Volley',engineer:'Overclock'};   // build 598: the Gnome Engineer's OVERCLOCK (99x-engineer.js does the towers' side)
+const CHARGE_COLOR={knight:0xcfd8ff,witch:0x9a6bff,fighter:0xffd27a,troll:0x9be06a,engineer:0x6ad0ff};
 const CLEAVE_R=4, CLEAVE_KB=3.0;
 const STARFALL_R=5, STARFALL_MAXR=12, STARFALL_SLOW=2.5;
 const HALO_RING_R=8, HALO_RING_DUR=.6, HALO_SURGE_DUR=6, HALO_KINDS=['zap','venom','ember','dazzle'];
@@ -151,6 +151,7 @@ function playFlourish(hid,p){
   if(hid==='knight'){ if(window.__whirl) window.__whirl.vortex(p.x,p.z); shockRing(p.x,fl,p.z,CLEAVE_R); const g=glow(0xcfd8ff,3.2,.85); g.position.set(p.x,fl+1,p.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); floatText(p.x,fl+2.4,p.z,'WHIRLWIND CLEAVE','#dfe8ff'); noise(.25,.15,500); beep(120,.3,'sawtooth',.09,-40); }
   else if(hid==='witch'){ spawnRain(p.x,p.z,0x8a5cff,6,'bolt'); shockRing(p.x,fl,p.z,STARFALL_R); floatText(p.x,fl+2.4,p.z,'STARFALL','#c9a8ff'); beep(880,.22,'sine',.07,-260); beep(660,.28,'triangle',.055,-180); }
   else if(hid==='fighter'){ shockRing(p.x,fl,p.z,HALO_RING_R); if(window.__halofx) window.__halofx.burst(p.x,fl,p.z,p.col!=null?p.col:null,HALO_RING_R);   /* build 541: Matt's radial shockwave rolls out with the ring (73c-halofx.js) */ const g=glow(0xffd27a,2.6,.8); g.position.set(p.x,fl+1,p.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); floatText(p.x,fl+2.4,p.z,'HALO SURGE','#ffd27a'); beep(140,.4,'sawtooth',.1,60); noise(.3,.12,900); }
+  else if(hid==='engineer'){ const R=(window.__engineer&&window.__engineer.OC_R)||10; shockRing(p.x,fl,p.z,R); const g=glow(0x6ad0ff,3,.85); g.position.set(p.x,fl+1,p.z); scene.add(g); projs.push({kind:'splat',t:0,mesh:g}); floatText(p.x,fl+2.4,p.z,'OVERCLOCK','#9ae0ff'); beep(220,.25,'sawtooth',.05,180); beep(440,.3,'square',.035,260); try{ if(window.__engineer) window.__engineer.steam(p.x,p.z); }catch(e){} }
   else if(hid==='troll'){ const V=VFX(); if(!(V&&V.rain(p.x,p.z,p.col!=null?p.col:CHARGE_COLOR.troll,p.hx,p.hz,VOLLEY_R))) spawnRain(p.x,p.z,0x8ef05a,VOLLEY_WAVES,'arrow');   /* build 533 prep: Matt's arrow rain in the bow's colour, coming in from the caster's side (73b-volleyfx.js) */ floatText(p.x,fl+2.4,p.z,'VOLLEY','#bfe89a'); beep(300,.15,'square',.05,-140); }
 }
 
@@ -160,7 +161,7 @@ function realCleave(p){ let n=0; for(const e of enemies){ if(e.dead) continue; c
 function realStarfall(p){ let n=0; for(const e of enemies){ if(e.dead) continue; const d=Math.hypot(e.x-p.x,e.z-p.z); if(d<STARFALL_R+e.r*.5){ hurt(e,p.dmg,0,0); e.slowT=Math.max(e.slowT||0,STARFALL_SLOW); n++; } } if(n) SFX.hit(); }
 function realHaloSurge(p){ RING_FX={x:p.x,z:p.z,r:0,R:HALO_RING_R,DUR:HALO_RING_DUR,t:0,dmg:p.dmg,hit:new Set()}; HALO_SURGE_T=HALO_SURGE_DUR+(p.surge!==undefined?p.surge:(window.__talents&&window.__talents.surgeBonus?window.__talents.surgeBonus():0));   /* co-op sweep 2026-10-02: p.surge = a guest caster's own Surge Master */   /* build 448: the Fighter's Surge Master */ const n=NET(); if(n) n.send('toast','⚡ 💫×2 · '+Math.round(HALO_SURGE_T)+'s'); }   /* co-op sweep 2026-10-02: the partners' Halo Surge card is icons, not a sentence (only co-op ever showed it) */
 function realVolley(p){ const per=Math.round(p.dmg/VOLLEY_PER*10)/10; for(let i=0;i<VOLLEY_WAVES;i++) VOLLEY_Q.push({x:p.x,z:p.z,dmg:per,at:S.t+i*(VOLLEY_DUR/VOLLEY_WAVES)}); }
-function applyReal(hid,p){ if(hid==='knight') realCleave(p); else if(hid==='witch') realStarfall(p); else if(hid==='fighter') realHaloSurge(p); else if(hid==='troll') realVolley(p); }
+function applyReal(hid,p){ if(hid==='knight') realCleave(p); else if(hid==='witch') realStarfall(p); else if(hid==='fighter') realHaloSurge(p); else if(hid==='troll') realVolley(p); else if(hid==='engineer'&&window.__engineer) window.__engineer.overclock(p); }
 
 // ---- co-op relay: window.__net's already-public surface, no changes needed to 99-network.js itself. 99-network.js
 // (file 99) loads AFTER this one, so window.__net doesn't exist yet at THIS file's own top level -- wireNet() is

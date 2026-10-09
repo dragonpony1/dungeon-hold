@@ -55,7 +55,7 @@ function ensureHeroPick(){ if(heroPick) return heroPick;
   heroPick.style.cssText='position:absolute;left:50%;bottom:150px;transform:translateX(-50%);display:none;gap:8px;pointer-events:auto;z-index:5;';
   window.__heroes.list().forEach(h=>{ const b=document.createElement('button'); b.textContent=h.name; b.dataset.hero=h.id;
     b.style.cssText='padding:8px 12px;border-radius:6px;border:2px solid #6b5a3c;background:linear-gradient(#3a2a44,#1c1424);color:#fff;font:bold 11px Georgia,serif;letter-spacing:.5px;cursor:pointer;white-space:nowrap';
-    b.addEventListener('click',e=>{ e.stopPropagation(); if(window.__heroes.pick()!==h.id) window.__heroes.select(h.id); syncHeroPick(); });
+    b.addEventListener('click',e=>{ e.stopPropagation(); if(window.__heroes.locked&&window.__heroes.locked(h.id)){ toast(window.__heroes.lockText?window.__heroes.lockText(h.id):'Locked'); return; } if(window.__heroes.pick()!==h.id) window.__heroes.select(h.id); syncHeroPick(); });   /* build 598: a locked hero (the Engineer before level 7) can't be picked here either */
     heroPick.appendChild(b); });
   document.getElementById('hud').appendChild(heroPick); syncHeroPick(); return heroPick; }
 { const prev=ravenUpdate; ravenUpdate=function(dt){ prev(dt); const show=near()&&!placing&&!Meta.isOpen(); const hp=ensureHeroPick(); if((hp.style.display==='flex')!==show){ hp.style.display=show?'flex':'none'; if(show) syncHeroPick(); } }; }

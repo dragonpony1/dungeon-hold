@@ -60,7 +60,7 @@ function holdHedgeLength(){ for(const d of defs){ const s=d.kind==='spike'&&d.md
 const DEF_LAZY={}, DEF_ASKED={};
 function defMarks(kind,base){ fetchDefGLB(kind,ASSET(base+'-1.glb'),0,'soon'); DEF_LAZY[kind]=[null,ASSET(base+'-2.glb'),ASSET(base+'-3.glb'),ASSET(base+'-4.glb')]; }
 function ensureDefMark(kind,lvl){ const list=DEF_LAZY[kind]; if(!list) return false; const i=Math.min(3,(lvl||1)-1); if(i<1||!list[i]) return false; const key=kind+':'+i; if(DEF_ASKED[key]) return false; DEF_ASKED[key]=true; fetchDefGLB(kind,list[i],i,'first'); return true; }
-defMarks('harpoon','sawgun');   // build 597 (Matt: "saw blade gunner to replace ballistas everywhere"): the SAW BLADE GUNNER, Mark I..IV (sawgun-1/2/3 Bob's animated rigs; 4 is the tier-3 one until a tier 4 comes); Mark V keeps the tier-4 look
+defMarks('harpoon','sawgun');   // build 597 (Matt: "saw blade gunner to replace ballistas everywhere"): the SAW BLADE GUNNER, Mark I..IV (sawgun-1..4 Bob's animated rigs); Mark V keeps the tier-4 look
 defMarks('spike','hedge');   // the bramble hedge (Meshy) Mark I..IV; Mark V keeps the tier-4 look (hedge-1 is the hedge every mark used to share; II-IV are the player's T2-T4 cut to one 1024 px base-colour map, all toonify() reads)
 defMarks('acorn','cannon');   // the acorn cannon (Meshy) Mark I..IV; Mark V keeps the tier-4 look
 // (build 230: the Mycelium Cage tower is gone from the game -- its Mark IV art became the Heartroot, heartroot.glb -- so its Mark I..IV files are no longer requested)

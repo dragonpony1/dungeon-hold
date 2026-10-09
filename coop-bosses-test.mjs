@@ -46,11 +46,11 @@ async function connect(H,G,tag){ const rc=tag+"-"+Math.random().toString(36).sli
   check("and the bar is gone when the bosses are",!!gone);
   await H.context().close(); await G.context().close(); }
 
-// ================= (4) the Archer's Perch: a guest climbs it too (build 376) =================
+// ================= (4) the Lookout Perch: a guest climbs it too (build 376) =================
 { const H=await open(0), G=await open(0); await sleep(4300);
   const c=await connect(H,G,'perch'); check('host and guest connect (the perch)',!c.hostOpen.err&&!c.join.err,JSON.stringify(c));
   const placed=await H.evaluate(()=>{ const d=window.__dd; window.__heroes.select('troll'); d.addMana(5000); d.setHero(8,10,0); d.step(1/60,3); const p=d.place('perch',12,14,0); return p?{x:p.x,z:p.z,base:p.base}:null; });
-  check("the host places an Archer's Perch",!!placed,JSON.stringify(placed));
+  check("the host places an Lookout Perch",!!placed,JSON.stringify(placed));
   const got=await tickUntil([H,G],G,()=>window.__dd.rails().length>=3?window.__dd.rails().length:null,null,120,3);
   check('the guest builds the perch footholds too (three boxes in its own world)',got===3,String(got));
   const wearing=await tickUntil([H,G],G,id=>{ const p=window.__party.get(id); return p&&p.glb==='ranger.glb'?p.glb:null; },c.hostOpen.id,150,3);

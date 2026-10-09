@@ -10,7 +10,7 @@ const page=await (await browser.newContext({viewport:{width:1000,height:640}})).
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
 await page.goto("http://127.0.0.1:9004/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__skywrecker&&window.__heroes&&window.__dd.heroModel(),null,{timeout:120000});
 const A=await page.evaluate(async()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} await window.__heroes.select('troll'); d.start(); d.step(1/60,3); window.__freeze=true; return { unlocks:window.__heroes.unlocks().join(), def:d.DEFS.sky&&{mana:d.DEFS.sky.mana,range:d.DEFS.sky.range} }; });
-check("the Sky Wrecker is the Gnome Ranger's fifth key",/acorn,snare,venom,perch,sky/.test(A.unlocks)&&A.def&&A.def.range>=22,JSON.stringify(A));
+check("the Sky Wrecker is on the Gnome Ranger's keys (his fourth since build 598: the Lookout Perch went to the Engineer)",/acorn,snare,venom,sky/.test(A.unlocks)&&A.def&&A.def.range>=22,JSON.stringify(A));
 const B=await page.evaluate(()=>{ const d=window.__dd, S=window.__skywrecker; for(const e of d.enemies) d.kill(e); d.addMana(9999); d.S.du=-50; d.S.phase='wave'; d.S.crystal=1e9; d.setHero(-30,-30,0);
   const t=d.placeDefAt('sky',0,-8,0); window.__sky=t; t.cd=0; d.spawn('goblin','N'); const g=d.enemies[d.enemies.length-1]; g.spd=0; g.atk=1e9; g.x=t.x+3; g.z=t.z; g.hp=g.max=999;
   for(let i=0;i<60;i++) d.step(1/60,1); const walker={ volleys:S.info().volleys, gHp:g.hp };

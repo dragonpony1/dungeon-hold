@@ -15,9 +15,9 @@ function heroLine(){ let el=$('heroline'); if(!el){ el=document.createElement('d
   const lockedOf=h=>window.__heroes&&window.__heroes.locked(h.id);
   // build 558 (Matt: "our hero picker on the main page need a little love"): bigger cards all one size, each in its hero's own colour, the portrait a studio shot of the hero with his weapon
   // (tools/render-hero-portraits.mjs), the short name, and the weapon and its reach as two picture chips instead of a sentence; the picked one lifts and glows, the others dim until hovered
-  const HC={ witch:['#9a5cff','WITCH','🪄','STAFF'], troll:['#5fbf4a','RANGER','🏹','BOW'], knight:['#e0503a','KNIGHT','🗡️','SWORD'], fighter:['#e8b94a','FIGHTER','🔱','POLEARM'] };
+  const HC={ witch:['#9a5cff','WITCH','🪄','STAFF'], troll:['#5fbf4a','RANGER','🏹','BOW'], knight:['#e0503a','KNIGHT','🗡️','SWORD'], fighter:['#e8b94a','FIGHTER','🔱','POLEARM'], engineer:['#4ab8ff','ENGINEER','🔧','WRENCH'] };
   el.innerHTML='<div class="hlab">HERO</div>'+H.map(h=>{ const lk=lockedOf(h), c=HC[h.id]||['#c9962f',h.name,'⚔','WEAPON'], reach=h.reach>4?'🎯 '+h.reach:'🛡 MELEE';
-    return '<button class="hcard'+(h.id===cur?' sel':'')+(lk?' locked':'')+'" data-hero="'+h.id+'" style="--hc:'+c[0]+';background:radial-gradient(ellipse at 50% 34%,'+c[0]+'99 0%,'+c[0]+'33 40%,#140d1b 74%)" title="'+(lk?'Hold your first hall to unlock':String(h.sub).replace(/"/g,'&quot;'))+'">'
+    return '<button class="hcard'+(h.id===cur?' sel':'')+(lk?' locked':'')+'" data-hero="'+h.id+'" style="--hc:'+c[0]+';background:radial-gradient(ellipse at 50% 34%,'+c[0]+'99 0%,'+c[0]+'33 40%,#140d1b 74%)" title="'+(lk?String(window.__heroes.lockText?window.__heroes.lockText(h.id):'Hold your first hall to unlock').replace(/"/g,'&quot;'):String(h.sub).replace(/"/g,'&quot;'))+'">'
       +'<img src="'+ASSET('hero-'+h.id+'.png')+'?v=558" alt="'+h.name+'">'+(lk?'<span class="lk">🔒</span>':'')
       +'<span class="hplate"><span class="hk">GNOME</span> <span class="hn">'+c[1]+'</span><span class="ht"><i>'+c[2]+' '+c[3]+'</i><i>'+reach+'</i></span></span></button>'; }).join('');
   if(!document.getElementById('herocardcss')){ const st=document.createElement('style'); st.id='herocardcss'; st.textContent=
@@ -31,8 +31,8 @@ function heroLine(){ let el=$('heroline'); if(!el){ el=document.createElement('d
     +'#start #heroline .hcard.sel{filter:none;transform:translateY(-7px);border-color:var(--gold,#e8b94a);box-shadow:0 0 0 1px #000,0 0 26px var(--hc),0 10px 24px #000c}'
     +'#start #heroline .hcard.sel .hn{color:#ffe08a}#start #heroline .hcard.locked{filter:brightness(.5) grayscale(.6)}#start #heroline .hcard.locked img{filter:grayscale(1) brightness(.6)}#start #heroline .hcard .lk{top:70px}';
     document.head.appendChild(st); }
-  el.querySelectorAll('.hcard').forEach(b=>{ b.onclick=()=>{ const h=H.find(x=>x.id===b.dataset.hero); if(!h) return; if(lockedOf(h)){ toast('Hold your first hall to unlock the '+h.name); return; } if(h.id!==heroPick.id){ installHero(h); heroLine(); } }; }); }
-heroLine();
+  el.querySelectorAll('.hcard').forEach(b=>{ b.onclick=()=>{ const h=H.find(x=>x.id===b.dataset.hero); if(!h) return; if(lockedOf(h)){ toast(window.__heroes.lockText?window.__heroes.lockText(h.id):'Hold your first hall to unlock the '+h.name); return; } if(h.id!==heroPick.id){ installHero(h); heroLine(); } }; }); }
+heroLine(); window.__heroLine=heroLine;   // build 598: a hero added later (99x-engineer.js, the fifth) redraws the row
 // testing shortcuts, on the start screen: unlock every map, magnet mana from anywhere, a purse of gold
 const TEST={autoMana:false}; try{ TEST.autoMana=localStorage.getItem('ddAutoMana')==='on'; }catch(e){} window.__autoMana=TEST.autoMana;
 function testLine(){ let el=$('testline'); if(!el){ el=document.createElement('p'); el.id='testline'; el.className='mapline'; el.style.fontSize='12px'; el.style.letterSpacing='1px'; el.style.color='#bfae90'; el.style.gap='8px'; const fold=$('howto'); if(fold) fold.appendChild(el); else $('heroline').insertAdjacentElement('afterend',el); }   /* the testing line lives in the folded section since build 133: testers know where it is, a new player never sees it */

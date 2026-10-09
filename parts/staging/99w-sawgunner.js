@@ -1,5 +1,5 @@
 // ===== THE SAW BLADE GUNNER (build 597). Matt: "saw blade gunner (SPG) to replace ballistas everywhere" -- his dieselpunk turrets (Pictures\dungeon art,\defenses\saw blade gunner: tier 1 and 2
-// animated by Bob, "MechanicalRig" 4 s, a Base > Pan > Tilt rig with twelve sparks at the blade; tier 3 too) cut to 1024 px as parts/assets/sawgun-1..4.glb (4 = 3 until a tier 4 comes).
+// animated by Bob, "MechanicalRig" 4 s, a Base > Pan > Tilt rig with twelve sparks at the blade; tiers 3 and 4 too) cut to 1024 px as parts/assets/sawgun-1..4.glb.
 // It IS the ballista from now on -- the same tower ('harpoon' inside the game: its keys, cost, reach, damage, upgrades, the perch it may stand on), with a new body, a new name and a new shot:
 //  * each gunner its OWN skeleton (cloneSkinned, as the Mouse Trap does -- a plain copy shares the template's bones and would sit at the map's origin);
 //  * it turns WHOLE on its round base to aim (the game's yoke), and its barrel TILTS on Bob's Tilt joint at a flyer; Bob's own pan and tilt are taken out of the loop, his sparks stay;
