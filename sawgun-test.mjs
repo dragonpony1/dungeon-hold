@@ -28,5 +28,9 @@ check("the barrel's Tilt joint follows the game's pitch",A.tiltOk===true,JSON.st
 const F=await page.evaluate(async({X,Z})=>{ const d=window.__dd; d.S.phase='wave'; const L=Object.keys(d.lanes())[0]; for(let i=0;i<8;i++){ d.spawn('goblin',L); const e=d.enemies[d.enemies.length-1]; e.x=X-6+i*1.6; e.z=Z-12; e.spd=0; }
   const b0=window.__sawgun.info().blades; for(let i=0;i<150;i++){ d.step(1/30,1); if(i%30===0) await new Promise(r=>setTimeout(r,20)); if(window.__sawgun.info().blades>b0+2) break; } return { blades:window.__sawgun.info().blades-b0 }; },{X:A.X,Z:A.Z});
 check("facing goblins, the gunners fire spinning saw blades",F.blades>=2,JSON.stringify(F));
+// build 600: Matt's projectile models -- Mark III fires the molten blade, Mark IV the tesla blade, I and II the steel one
+const P=await page.evaluate(async()=>{ for(let i=0;i<60;i++){ const a=window.__sawgun.tierBlade(3), b=window.__sawgun.tierBlade(4); if(a.real&&b.real) break; await new Promise(r=>setTimeout(r,100)); }
+  return { t1:window.__sawgun.tierBlade(1), t3:window.__sawgun.tierBlade(3), t4:window.__sawgun.tierBlade(4), fired:window.__sawgun.info().real||0 }; });
+check("Mark III fires Matt's molten blade, Mark IV his tesla blade, Mark I the steel one; the high marks' real blades have flown",P.t1.tier===1&&P.t3.tier===3&&P.t3.real&&P.t4.tier===4&&P.t4.real,JSON.stringify(P));
 check("no page errors",errors.length===0,JSON.stringify(errors.slice(0,3)));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);

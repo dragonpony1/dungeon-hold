@@ -33,7 +33,15 @@ let BLADE=null;
 function bladeGeo(){ if(BLADE) return BLADE; const sh=new THREE.Shape(), N=14, R=.58, r=.46; for(let i=0;i<N;i++){ const a0=i/N*TAU, a1=(i+.62)/N*TAU, a2=(i+1)/N*TAU; const p=(a,rr)=>[Math.cos(a)*rr,Math.sin(a)*rr]; if(i===0) sh.moveTo(...p(a0,r)); sh.lineTo(...p(a1,R)); sh.lineTo(...p(a2,r)); }
   const hole=new THREE.Path(); hole.absarc(0,0,.12,0,TAU,true); sh.holes.push(hole); const g=new THREE.ExtrudeGeometry(sh,{ depth:.05, bevelEnabled:false, curveSegments:6 }); g.translate(0,0,-.025); g.rotateY(PI/2); return (BLADE=g); }   // disc in the y-z plane: it stands upright along its flight, spinning about x
 const bladeMat=()=>mat(0xb9c2cc);
-harpoonMesh=function(){ const g=new THREE.Group(), spin=new THREE.Group(); const disc=new THREE.Mesh(bladeGeo(),bladeMat()); spin.add(disc); const hub=M(G.cyl(.15,.15,.09,10),mat(0xd8a040)); hub.rotation.z=PI/2; spin.add(hub);
-  try{ outline(spin); }catch(e){} g.add(spin); disc.onBeforeRender=()=>{ spin.rotation.x-=.55; }; g.userData.sawBlade=true; cnt.blades++; return g; };
-window.__sawgun={ name:NAME, info:()=>Object.assign({},cnt), sparks:T=>{ const c=sparks(T); return c?c.tracks.length:0; } };
+// build 600 (Matt's projectiles: Picturesdungeon art,defensessaw blade gunnerMeshy_AI_projectile_t3_molten / _t4_tesla, cut to 512 px as parts/assets/sawblade-3/4.glb): a Mark III gunner
+// fires the MOLTEN blade, Mark IV and up the TESLA blade; Marks I and II keep the plain steel one. Each model is turned so its face stands upright along the flight (its thin axis onto x, the axis it spins on).
+const REAL={}, TURN={ 3:['z',-PI/2], 4:['y',PI/2] };   // the molten blade lies flat in its file (thin along y), the tesla one stands facing z
+for(const t of [3,4]) fetchBytes(ASSET('sawblade-'+t+'.glb'),'first').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const sc=1.16/1.9; const inner=new THREE.Group(); inner.add(root); root.rotation[TURN[t][0]]=TURN[t][1]; inner.scale.setScalar(sc); toonify(root,sc); REAL[t]=inner; }catch(e){ console.warn('saw blade '+t,e); } },e=>console.warn('saw blade '+t,e))).catch(e=>console.warn('saw blade '+t,e));
+let TIER=1;   // the firing gunner's mark, set as it fires (fire is wrapped below)
+{ const prev=fire; fire=function(d){ TIER=(d&&d.kind===K)?(d.lvl||1):1; try{ return prev.apply(this,arguments); } finally{ TIER=1; } }; }
+harpoonMesh=function(){ const g=new THREE.Group(), spin=new THREE.Group(); const t=TIER>=4?4:TIER>=3?3:0; let face;
+  if(t&&REAL[t]){ const c=REAL[t].clone(); spin.add(c); face=c; cnt.real=(cnt.real||0)+1; }
+  else { const disc=new THREE.Mesh(bladeGeo(),bladeMat()); spin.add(disc); const hub=M(G.cyl(.15,.15,.09,10),mat(0xd8a040)); hub.rotation.z=PI/2; spin.add(hub); try{ outline(spin); }catch(e){} face=disc; }
+  g.add(spin); let spun=false; face.traverse(o=>{ if(!spun&&o.isMesh){ spun=true; o.onBeforeRender=()=>{ spin.rotation.x-=.55; }; } }); g.userData.sawBlade=true; g.userData.bladeTier=t||1; cnt.blades++; return g; };
+window.__sawgun={ name:NAME, mesh:t=>{ TIER=t; try{ return harpoonMesh(); } finally{ TIER=1; } }, tierBlade:t=>{ TIER=t; try{ const m=harpoonMesh(); return { tier:m.userData.bladeTier, real:!!REAL[t>=4?4:3] }; } finally{ TIER=1; } }, info:()=>Object.assign({},cnt), sparks:T=>{ const c=sparks(T); return c?c.tracks.length:0; } };
 })();
