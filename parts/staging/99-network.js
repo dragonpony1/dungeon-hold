@@ -1282,7 +1282,7 @@ function defPuppetAdd(id,kind,lvl,x,y,z,rot){
   ensureDefMark(kind,lvl); ensureDefMark(kind,lvl+1);   // Marks II-IV are fetched lazily (50-defmodels.js), and only reskinDefs asks, over the local defs -- empty on a guest, who builds on the host -- so without this a guest never fetched them and saw every Mark II-V defense in its Mark I look
   const m=makeDef(kind,false,lvl); m.position.set(x,y,z); m.rotation.y=rot; scene.add(m);
   const pup={kind,lvl,mdl:m}; DEFPUP.set(id,pup); pupMarkRings(pup);
-  if(kind==='perch'&&window.__perch&&role==='guest'){ pup.railboxes=window.__perch.boxesFor(x,z,rot,y); for(const b of pup.railboxes) RAILBOXES.push(b); }   // build 376: the Archer's Perch's footholds, so a guest can climb it (96b-perch.js)
+  if(kind==='perch'&&window.__perch&&role==='guest'){ pup.railboxes=window.__perch.boxesFor(x,z,rot,y,lvl); for(const b of pup.railboxes) RAILBOXES.push(b); }   // build 376: the Archer's Perch's footholds, so a guest can climb it (96b-perch.js)
 }
 // the cage's show on a guest (build 148): the host cues charge / calm / implode over the wire (Meta.onDefFx), the guest runs
 // the same cageAnim on its puppet and plays the implosion sound; the damage itself stays the host's, as for every defense
@@ -1413,7 +1413,9 @@ onMessage('defs',data=>{
     if(!p){ defPuppetAdd(d.id,d.kind,d.lvl,d.x,d.y,d.z,d.rot); const np=DEFPUP.get(d.id); if(np){ np.hp=d.hp; np.max=d.max; np.kills=d.kills; np.spent=d.spent; np.x=d.x; np.y=d.y; np.z=d.z; np.rr=+d.rr||0; defPupRing(np,d.rc); defPupLong(np,d.lg); defPuppetFoot(np,d); if(d.sec){ try{ const PWk=window.__prisonwalls; if(PWk&&PWk.guestMount) PWk.guestMount(np); }catch(er){} } } if(GSFX.defsSeen){ SFX.place(); GSFX.place++; } return; }   // a defense set down since the last list: the placement sound (build 147), whoever placed it
     ensureDefMark(d.kind,d.lvl); ensureDefMark(d.kind,d.lvl+1); const T=defTemplate(d.kind,d.lvl);   // an upgrade on the host asks for that mark's model here too (and the next one up), as reskinDefs does for the host's own
     if(d.lvl>p.lvl){ SFX.place(); GSFX.upgrade++; }   // a mark up: the same sound the host hears for it (build 147)
-    if(p.lvl!==d.lvl||(T&&p.mdl.userData.tpl!==T)){ scene.remove(p.mdl); p.mdl=makeDef(d.kind,false,d.lvl); p.mdl.position.set(d.x,d.y,d.z); p.mdl.rotation.y=d.rot; scene.add(p.mdl); p.lvl=d.lvl; pupMarkRings(p); }
+    if(p.lvl!==d.lvl||(T&&p.mdl.userData.tpl!==T)){ scene.remove(p.mdl); p.mdl=makeDef(d.kind,false,d.lvl); p.mdl.position.set(d.x,d.y,d.z); p.mdl.rotation.y=d.rot; scene.add(p.mdl); p.lvl=d.lvl; pupMarkRings(p);
+      if(p.kind==='perch'&&p.railboxes&&window.__perch){ for(const b of p.railboxes){ const i=RAILBOXES.indexOf(b); if(i>=0) RAILBOXES.splice(i,1); } p.railboxes=window.__perch.boxesFor(d.x,d.z,d.rot,d.y,d.lvl); for(const b of p.railboxes) RAILBOXES.push(b); } }   // build 601: a perch grows a storey a mark (96b-perch.js): its footholds go up with it
+    if(p.mdl&&Math.abs(p.mdl.position.y-d.y)>.01) p.mdl.position.y=d.y;   // build 601: a tower standing on a perch rides up as the perch grows
     defPupRing(p,d.rc); if((p.lg|0)!==(d.lg?1:0)||d.lg) defPupLong(p,d.lg);   // a new mark, or its model just landed (the first build wore the mark below while it downloaded): the same test reskinDefs makes, caught on the host's next list, twice a second
   });
   [...DEFPUP.keys()].forEach(id=>{ if(!ids.has(id)) defPuppetRemove(id); });   // sold or destroyed on the host -- same roster-diff removal as heroes and enemies
