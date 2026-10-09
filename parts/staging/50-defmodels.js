@@ -5,7 +5,7 @@
 const DEFGLB={};                                                     // kind -> [{wrap,scale,turn,tpl}] by mark index
 const DEF_H={harpoon:1.6*BALLISTA_UP,   /* build 164: "a little bigger" -- 1.6 → ~1.95 */acorn:1.5,ball:2.5,slice:.6,spike:1.1,totem:2.8,frost:2.8,snare:2.6};              // target heights in world units (about the procedural sizes)
 const DEF_W={slice:3.8,zap:3.2,venom:3.2,ember:3.2,dazzle:3.2};             // flat things fit by footprint width instead (the ring's toadstools stand at radius 2.3) — the halos are the same idea, a low sigil disc, not a spire
-const DEF_FACE={ball:-PI/2};   // a model whose front is not +z: the Meshy trebuchet's frame runs along x and throws toward +x (the counterweight side), so it is turned to face +z, the way every defense aims (build 150)
+const DEF_FACE={ball:-PI/2, harpoon:PI/2};   /* build 597: the Saw Blade Gunner (Matt's dieselpunk turrets) points its blade along -x in the file */   // a model whose front is not +z: the Meshy trebuchet's frame runs along x and throws toward +x (the counterweight side), so it is turned to face +z, the way every defense aims (build 150)
 const DEF_TURN=/yoke|turret|swivel|head|top|arm|bow|hub|blade|rotor/i; // a node named like this is the part that turns
 // the ballista's rig: the bow assembly (everything above HINGE of the model's height -- the stock, bow and winch post on
 // the pedestal) is cut off into a group named 'pitch' that tilts, inside a group named 'yoke' that pans, both hung from a
@@ -14,7 +14,7 @@ const DEF_TURN=/yoke|turret|swivel|head|top|arm|bow|hub|blade|rotor/i; // a node
 // drives the same handles it always did -- yoke.rotation.y to aim (and yoke.position.z for recoil), pitch.rotation.x to
 // tilt at a drake -- so nothing in updateDefs/fire changed for the rig. The cut is by triangle centroid, so a model needs
 // a clean waist between pedestal and stock at HINGE (the Meshy ballistas: their pivot block sits at 45-52% of the height).
-const HINGE={harpoon:.53};
+const HINGE={};   /* build 597: the ballista's hinge cut is gone with the ballista -- the Saw Blade Gunner is Bob's rig, turned whole on its round base (99w-sawgunner.js) */
 function hingeSplit(root,frac){ root.updateMatrixWorld(true); const box=new THREE.Box3().setFromObject(root); const H=box.max.y-box.min.y, ySplit=box.min.y+frac*H; const ctr=box.getCenter(new THREE.Vector3()); const meshes=[]; root.traverse(m=>{ if(m.isMesh) meshes.push(m); }); if(!meshes.length) return null;
   // pass 1: where is the pedestal's top? the footprint centre of the triangles in the slice just under the cut
   const pb=new THREE.Box3(); let pn=0; for(const m of meshes){ const g=m.geometry, P=g.attributes.position, idx=g.index; const n=idx?idx.count:P.count; const v=new THREE.Vector3(); for(let t=0;t<n;t+=3){ let cx=0,cy=0,cz=0; for(let k=0;k<3;k++){ const i=idx?idx.getX(t+k):t+k; v.fromBufferAttribute(P,i).applyMatrix4(m.matrixWorld); cx+=v.x; cy+=v.y; cz+=v.z; } cy/=3; if(cy<ySplit&&cy>=ySplit-.1*H){ pb.expandByPoint(new THREE.Vector3(cx/3,cy,cz/3)); pn++; } } }
@@ -60,7 +60,7 @@ function holdHedgeLength(){ for(const d of defs){ const s=d.kind==='spike'&&d.md
 const DEF_LAZY={}, DEF_ASKED={};
 function defMarks(kind,base){ fetchDefGLB(kind,ASSET(base+'-1.glb'),0,'soon'); DEF_LAZY[kind]=[null,ASSET(base+'-2.glb'),ASSET(base+'-3.glb'),ASSET(base+'-4.glb')]; }
 function ensureDefMark(kind,lvl){ const list=DEF_LAZY[kind]; if(!list) return false; const i=Math.min(3,(lvl||1)-1); if(i<1||!list[i]) return false; const key=kind+':'+i; if(DEF_ASKED[key]) return false; DEF_ASKED[key]=true; fetchDefGLB(kind,list[i],i,'first'); return true; }
-defMarks('harpoon','ballista');   // Mark I..IV; Mark V keeps the tier-4 look
+defMarks('harpoon','sawgun');   // build 597 (Matt: "saw blade gunner to replace ballistas everywhere"): the SAW BLADE GUNNER, Mark I..IV (sawgun-1/2/3 Bob's animated rigs; 4 is the tier-3 one until a tier 4 comes); Mark V keeps the tier-4 look
 defMarks('spike','hedge');   // the bramble hedge (Meshy) Mark I..IV; Mark V keeps the tier-4 look (hedge-1 is the hedge every mark used to share; II-IV are the player's T2-T4 cut to one 1024 px base-colour map, all toonify() reads)
 defMarks('acorn','cannon');   // the acorn cannon (Meshy) Mark I..IV; Mark V keeps the tier-4 look
 // (build 230: the Mycelium Cage tower is gone from the game -- its Mark IV art became the Heartroot, heartroot.glb -- so its Mark I..IV files are no longer requested)

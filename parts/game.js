@@ -690,7 +690,7 @@ const DEFS={
   // build 161 (Matt: "the tier one towers die too fast, they need a little more health"): every tower's health +30% (the hedge,
   // already the wall, stays 220) -- and see updateEnemies/updateDefs: an archer or troll shooting a tower now has to stand inside
   // that tower's reach, and a tower shot at answers its attacker first
-  harpoon:{name:'Ballista',ic:'🏹',du:4,mana:60,hp:120,top:1.95,range:22,arc:16,arcs:[16,22,28,34,40],cd:1.6,dmg:6},        // single bolt, long range; cone widens with each of its four upgrades
+  harpoon:{name:'Saw Blade Gunner',ic:'🪚',du:4,mana:60,hp:120,top:1.95,range:22,arc:16,arcs:[16,22,28,34,40],cd:1.6,dmg:6},        // single bolt, long range; cone widens with each of its four upgrades
   acorn:{name:'Acorn Cannon',ic:'🌰',du:3,mana:45,hp:105,top:1.4,range:12,rangeUp:1.5,arc:70,cd:1.1,dmg:3,shots:3},          // a hollow oak stump that sprays three bouncing acorns in a cone
   ball:{name:'Turnip Trebuchet',ic:'🥔',du:5,mana:80,hp:120,top:2.4,range:25,arc:100,cd:2.8,dmg:10,splash:3.8,splashUp:.35},   // lobs a turnip that splats for area damage: a wide splash (+.35 a mark) with a gentle falloff -- the trebuchet is the crowd-breaker. Build 161 (Matt: "the turnip trebuchet needs the longest range and big splash damage"): reach 17 → 25, the longest of any tower (the ballista's is 22); damage 7 → 10; splash 3.2 → 3.8; still the slowest arm
   slice:{name:'Mycelium Cage',ic:'🍄',du:6,mana:90,hp:140,top:.05,range:2.6,rangeUp:.6,arc:360,cd:.45,dmg:2,slow:.55,charge:[1.3,2.9],burst:5,cloud:3},     // a cage of glowing roots: mobs inside are slowed, and at a random interval the cage implodes on them (a spore vortex, a violet flash of burst x dmg, a lingering cloud that poisons for cloud s); heavy traffic tramples it
@@ -819,7 +819,7 @@ function updateDeathCut(dt){ const c=deathCut; if(!c) return; c.t+=dt; const k=c
 
 // ================= GLB HERO (fetched from assets/, or drop any .glb on the page) =================
 let GLBH=null, useGLB=false, heroYawOff=0, heroLoadError='';
-const BUILD=596;
+const BUILD=597;
 // the load timer (build 142: "I wish you could time how long it's taking to load map 2"). Every map is a fresh page load, so
 // performance.now() counts from the moment the browser started on this URL. page: this script running (the 3 MB page itself
 // down and parsed); first: the start screen's tier (hero, crystal, sword in hand); soon: what building and the first wave need;

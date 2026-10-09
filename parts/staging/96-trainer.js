@@ -66,7 +66,7 @@ function render(){ const on=showing()&&(current()||finT>0); card.classList.toggl
 function tipChime(){ try{ if(typeof beep==='function'){ beep(784,.13,'sine',.045,0); setTimeout(()=>beep(1175,.2,'sine',.04,0),110); } }catch(e){} }
 function tick(dt){ if(finT>0) finT-=dt; if(newT>0) newT-=dt; if(nudgeT>0) nudgeT-=dt;
   if(showing()&&current()&&!waitNext){ idleT+=dt; if(idleT>=14){ idleT=4; nudges++; nudgeT=.9; if(nudges===1) tipChime(); } }   /* left undone: a wiggle and glow after 14 s, then every 10 s (the chime only on the first) */
-  if(training()&&S.phase==='build'&&!bannered){ bannered=true; if(current()) banner('THE TRAINING GROUND','wave zero: watch the lane, then set up a ballista — the guide on the left leads'); }
+  if(training()&&S.phase==='build'&&!bannered){ bannered=true; if(current()) banner('THE TRAINING GROUND','wave zero: watch the lane, then set up a saw blade gunner — the guide on the left leads'); }
   if(isGuest()){ const g=trainingGoblin(); if(g){ g.through=true; g.dead=.001; W0.g=null; } }   /* a page that started solo and then joined as a guest: its own wave-zero goblin is a phantom now (the host's hall is the real one) -- gone, uncounted (build 150). Build 159 (3/7): taken away quietly, the way one that got through is (below) -- kill() is a real kill: it paid 2 xp, a mana orb and a loot roll, so a fresh guest started with 2 xp */
   if(training()&&current()){ const id=current().id; if(W0.respawnT>0) W0.respawnT-=dt; if(id==='slay') waveZero(); if(id==='ballista') lendMana();
     const g=W0.g; if(g&&g.dead&&!g.through){ W0.kills++; W0.g=null; }   /* the player's blow (or a defense's) */

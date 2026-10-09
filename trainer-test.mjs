@@ -35,7 +35,7 @@ const v3b=await view(page);
 check("...and ten seconds later it is still waiting: the tips never move on by themselves",v3b.waiting&&/^✓ /.test(v3b.text),JSON.stringify(v3b));
 await next(page);
 const v4=await view(page);
-check("Enter: step 2/8 is one tip — look at the goblin's path, set up a BALLISTA (press 1, then click); the hall lent the mana",!v4.waiting&&v4.n==='2/8'&&/goblin's path/.test(v4.text)&&/BALLISTA/.test(v4.text)&&/press 1/.test(v4.text)&&(await page.evaluate(()=>window.__dd.S.mana))>=60,JSON.stringify(v4));
+check("Enter: step 2/8 is one tip — look at the goblin's path, set up a BALLISTA (press 1, then click); the hall lent the mana",!v4.waiting&&v4.n==='2/8'&&/goblin's path/.test(v4.text)&&/SAW BLADE GUNNER/.test(v4.text)&&/press 1/.test(v4.text)&&(await page.evaluate(()=>window.__dd.S.mana))>=60,JSON.stringify(v4));
 // build 143: "he almost didn't notice the tool tip on the left, it needs to be a little more annoying"
 const lk1=await page.evaluate(()=>window.__trainer.look());
 check("a new tip slides in with a gold flash (class new) and the card is bigger (19 px type, 340 px wide, a solid gold border)",/\bnew\b/.test(lk1.cls)&&await page.evaluate(()=>{ const c=getComputedStyle(document.getElementById('trainer')); return parseFloat(c.fontSize)>=19&&parseFloat(c.width)>=330&&parseFloat(c.borderTopWidth)>=3; }),JSON.stringify(lk1));
@@ -46,7 +46,7 @@ const v4b=await view(page);
 check("picking the ballista alone does not tick it: the tip stays until the ballista is really down",v4b.step==='ballista'&&!v4b.waiting&&/goblin's path/.test(v4b.text),JSON.stringify(v4b));
 await page.evaluate(k=>{ const d=window.__dd; d.S.mana=999; const h=d.hero; let ok=false; for(let dz=3;dz<=12&&!ok;dz++) for(let dx=-6;dx<=6&&!ok;dx++){ try{ d.placeDefAt(k,h.x+dx,h.z+dz,0); }catch(e){} ok=d.defs.length>0; } d.step(1/60,5); },'harpoon');
 const v5=await view(page);
-check("the ballista on the lane ticks step 2 (✓, waiting for Enter)",v5.waiting&&/^✓ /.test(v5.text)&&/BALLISTA/.test(v5.text),JSON.stringify(v5));
+check("the ballista on the lane ticks step 2 (✓, waiting for Enter)",v5.waiting&&/^✓ /.test(v5.text)&&/SAW BLADE GUNNER/.test(v5.text),JSON.stringify(v5));
 await next(page); const v6=await view(page);
 check("Enter: step 3/8 is the horn",v6.step==='horn'&&!v6.waiting&&/horn/i.test(v6.text)&&v6.n==='3/8',JSON.stringify(v6));
 await page.evaluate(()=>{ window.__dd.startWave(); window.__dd.step(1/60,5); }); await next(page); const v7=await view(page);

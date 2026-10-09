@@ -94,7 +94,7 @@ const picks=[]; let equips=0, pickups=0;
 { const prev=Meta.equip; Meta.equip=function(id){ const r=prev(id); if(r) equips++; return r; }; }   // the bag and the sheet both equip through here
 // ---- the rails: one thing at a time
 { const prev=select; select=function(kind){ if(!finished&&kind!=='harpoon'&&DEFKEYS.includes(kind)) return; return prev(kind); }; }   // the knight's hedge and totem wait for room one (their slots are hidden below)
-{ const prev=sell; sell=function(pos){ if(!finished){ toast('Keep it — the tutorial still needs your ballista'); return; } return prev(pos); }; }
+{ const prev=sell; sell=function(pos){ if(!finished){ toast('Keep it — the tutorial still needs your saw blade gunner'); return; } return prev(pos); }; }
 { const prev=startWave; startWave=function(){ if(S.held||finished) return prev.apply(this,arguments); const s=STEPS[si]; if(s&&s.horn&&!beatUntil) return prev.apply(this,arguments);   /* the horn is its step's to sound (4 and 7); the victory lap's MOVE ON always goes through */
   if(S.phase==='build'){ nudgeT=.9; toast('Not yet — the horn comes in a moment. First: '+(s?stripTags(s.view().main):'follow the steps')); } }; }
 { const prev=moveOn; moveOn=function(){ if(S.held&&S.phase==='build'&&!finished){ finish(); return; } return prev.apply(this,arguments); }; }   // MOVE ON: the tutorial is done -- straight on to room one, no tally in between
@@ -130,14 +130,14 @@ const STEPS=[
   view:()=>({main:'A goblin! Kill it with your sword',how:K?'get close, then <kbd>click</kbd> to swing (<kbd>F</kbd> works too)':'get close, then tap <b>⚔</b> to swing',at:mobAt(G.e&&!G.e.dead?G.e:null),glow:TOUCH?[hb('⚔')]:[]}),
   done:()=>G.kills>=1, ok:'Goblin down!'},
  {id:'ballista', enter(){ if(S.mana<DEFS.harpoon.mana) lend(DEFS.harpoon.mana-S.mana,'the hall lends it'); },
-  view(){ const slot=$('slot-harpoon'); if(placing!=='harpoon') return {main:'Build a BALLISTA',how:K?'press <kbd>1</kbd> — it shoots the goblins down the hall for you':'tap the <b>🏹 Ballista</b> slot at the bottom — it shoots the goblins down the hall for you',el:slot,glow:[slot],mk:'mark'};
+  view(){ const slot=$('slot-harpoon'); if(placing!=='harpoon') return {main:'Build a SAW BLADE GUNNER',how:K?'press <kbd>1</kbd> — it shoots the goblins down the hall for you':'tap the <b>🪚 Saw Blade Gunner</b> slot at the bottom — it shoots the goblins down the hall for you',el:slot,glow:[slot],mk:'mark'};
     const tch=TOUCH?[hb('✔')]:[];
-    if(placeStage===0) return {main:'Put it on the glowing marker',how:K?'look at the marker on the floor, then <kbd>click</kbd> to set it down':'walk toward the marker until the ballista sits on it, then tap <b>✔</b>',at:[MARK[0],.4,MARK[1]],mk:'mark',glow:tch};
+    if(placeStage===0) return {main:'Put it on the glowing marker',how:K?'look at the marker on the floor, then <kbd>click</kbd> to set it down':'walk toward the marker until the gunner sits on it, then tap <b>✔</b>',at:[MARK[0],.4,MARK[1]],mk:'mark',glow:tch};
     return {main:K?'Click once more to build it':'Tap ✔ again to build it',how:'it faces up the hall, at the door the goblins come through',at:[MARK[0],.4,MARK[1]],mk:'mark',glow:tch}; },
-  done:()=>defs.some(d=>d.kind==='harpoon'), ok:'Ballista built!'},
+  done:()=>defs.some(d=>d.kind==='harpoon'), ok:'Saw Blade Gunner built!'},
  {id:'horn', horn:true,
   view(){ if(S.phase!=='wave'){ const b=$('wavebtn'); return {main:'Now sound the horn',how:K?'press <kbd>G</kbd> — a few goblins come through the door, after the Heartroot behind you':'tap <b>📯 START WAVE</b> (top right) — a few goblins come through the door, after your Heartroot',el:b,glow:[b]}; }
-    return {main:'Here they come!',how:'your ballista shoots them down the hall — help it with your sword ('+(K?'<kbd>click</kbd>':'<b>⚔</b>')+')',at:mobAt(leadMob()),glow:TOUCH?[hb('⚔')]:[]}; },
+    return {main:'Here they come!',how:'your saw blade gunner shoots them down the hall — help it with your sword ('+(K?'<kbd>click</kbd>':'<b>⚔</b>')+')',at:mobAt(leadMob()),glow:TOUCH?[hb('⚔')]:[]}; },
   done:()=>S.wave>=1&&S.phase==='build', ok:'Wave held!'},
  {id:'loot', enter(){ L.equipBase=equips; L.pickBase=pickups; L.selFor=-1; if(!loot.length&&!lootItem()) dropLoot(rollItem(1),0,4.6,true); },   // the held wave drops its reward by the crystal (game.js); if it is already gone somewhere, the hall drops another
   run(){ const it=lootItem(); if(it&&tavernOpen()&&L.selFor!==opens&&Meta.bag().some(b=>b.id===it.id)){ L.selFor=opens; try{ window.__tavern.tab('bag'); window.__tavern.select(it.id,'bag'); }catch(e){} } },   // the bag opens with the new piece already picked: its EQUIP button is right there
@@ -149,12 +149,12 @@ const STEPS=[
   run(){ if(tavernOpen()||orbs.length) return; const b=ballista(); if(!b){ if(S.mana<DEFS.harpoon.mana) lend(DEFS.harpoon.mana-S.mana,'the hall lends it'); return; } if(!U.lent){ U.lent=true; if(S.mana<upCost(b)) lend(upCost(b)-S.mana,'the hall lends the rest'); } },
   view(){ if(tavernOpen()){ const x=$('tv-close'); return {main:'Close your bag',how:K?'press <kbd>B</kbd> (or <kbd>Esc</kbd>)':'tap <b>✕</b> (top right)',el:x,glow:[x],low:true}; }
     if(orbs.length){ const o=nearest(orbs); return {main:'Grab the blue mana orbs',how:'walk over them — mana builds and upgrades towers',at:[o.x,o.y+1,o.z]}; }
-    const b=ballista(); if(!b){ const slot=$('slot-harpoon'); return {main:'Build a BALLISTA again',how:K?'press <kbd>1</kbd>, then click on the marker':'tap the <b>🏹</b> slot, then <b>✔</b> on the marker',el:slot,glow:[slot],mk:'mark'}; }
-    return {main:'Upgrade your ballista',how:'walk up to it (a gold ring shows under it) and '+(K?'press <kbd>E</kbd>':'tap <b>🔧</b>'),at:[b.x,b.top+.7,b.z],glow:TOUCH?[hb('🔧')]:[]}; },
+    const b=ballista(); if(!b){ const slot=$('slot-harpoon'); return {main:'Build a SAW BLADE GUNNER again',how:K?'press <kbd>1</kbd>, then click on the marker':'tap the <b>🏹</b> slot, then <b>✔</b> on the marker',el:slot,glow:[slot],mk:'mark'}; }
+    return {main:'Upgrade your saw blade gunner',how:'walk up to it (a gold ring shows under it) and '+(K?'press <kbd>E</kbd>':'tap <b>🔧</b>'),at:[b.x,b.top+.7,b.z],glow:TOUCH?[hb('🔧')]:[]}; },
   done:()=>defs.some(d=>d.kind==='harpoon'&&(d.lvl||1)>=2), ok:'Mark II — it hits harder and aims wider'},
  {id:'last', horn:true,
   view(){ const b=$('wavebtn'); if(S.held) return {main:'HALL HELD!',how:K?'you are ready — press <kbd>G</kbd> to move on to room one':'you are ready — tap <b>▶ MOVE ON</b> (top right) to go to room one',el:b,glow:[b]};
-    if(S.phase==='wave') return {main:'Hold the hall!',how:'sword and ballista together — '+(K?'<kbd>click</kbd>':'<b>⚔</b>')+' to swing',at:mobAt(leadMob()),glow:TOUCH?[hb('⚔')]:[]};
+    if(S.phase==='wave') return {main:'Hold the hall!',how:'sword and saw blades together — '+(K?'<kbd>click</kbd>':'<b>⚔</b>')+' to swing',at:mobAt(leadMob()),glow:TOUCH?[hb('⚔')]:[]};
     return {main:'One last wave',how:K?'press <kbd>G</kbd> when you are ready':'tap <b>📯 START WAVE</b> when you are ready',el:b,glow:[b]}; },
   done:()=>false, ok:''}];   // MOVE ON ends it (finish)
 function lootItem(){ for(let i=picks.length-1;i>=0;i--){ const p=picks[i]; if(p.step<3) continue; const it=Meta.bag().find(b=>b.id===p.id)||SLOTS.map(s=>gear[s]).find(g=>g&&g.id===p.id); if(it) return it; } return null; }   // the latest piece bagged since the horn step (the wave's reward, or a goblin's drop in the fight)

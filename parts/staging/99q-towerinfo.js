@@ -7,7 +7,7 @@
 (function(){
 'use strict';
 const LINE={
-  harpoon:'Shoots big bolts a long way down a lane', acorn:'Sprays bouncing acorns at mobs up close', ball:'Lobs turnips that splash a whole crowd',
+  harpoon:'Fires spinning saw blades a long way down a lane', acorn:'Sprays bouncing acorns at mobs up close', ball:'Lobs turnips that splash a whole crowd',
   slice:'Slows mobs inside it, and bursts now and then', spike:'A thorny wall: blocks the way, hurts what hits it, grows back', totem:'Towers near it hit harder and faster',
   frost:'Chills mobs around it so they crawl', snare:'Nets flying mobs out of the sky', zap:'Zaps every mob in its ring at once', venom:'Poisons mobs that walk through it',
   ember:'Burns mobs standing in its ring', dazzle:'Confuses mobs so they wander off', pit:'Swallows a crowd that stands on it', shock:'Throws lightning that jumps between mobs',

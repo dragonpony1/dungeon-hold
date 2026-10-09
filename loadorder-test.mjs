@@ -20,9 +20,9 @@ page.on("request",r=>{ const u=r.url().replace(BASE,''); if(/\.glb\.txt$/.test(u
 page.on("requestfinished",r=>{ const u=r.url().replace(BASE,''); if(/\.glb\.txt$/.test(u)) finished.push({u,t:Date.now()-t0}); });
 const name=u=>u.replace(/^\/assets\//,'').replace(/\.[0-9a-f]{8}\.glb\.txt$/,'');
 const isFirst=u=>/^(gnome|knight|witch|fighter|squire|ninja|crystal|heartroot|sword-[a-z]+)$/.test(name(u));
-const isSoon=u=>/^(goblin|ballista-1|hedge-1|cannon-1|cage-1|pit-1|trebuchet-1|totem-1|frost-1|snare-1|aura-[a-z]+|acorn|ballista-bolt|raven|hideout-portal)$/.test(name(u));
+const isSoon=u=>/^(goblin|sawgun-1|hedge-1|cannon-1|cage-1|pit-1|trebuchet-1|totem-1|frost-1|snare-1|aura-[a-z]+|acorn|ballista-bolt|raven|hideout-portal)$/.test(name(u));
 const isLater=u=>/^(orc|ogre|bandit|trollmob|trollboss|drake|smith)$/.test(name(u));
-const isLazy=u=>/^(armor-stand-|fam-|(ballista|hedge|cannon|cage|pit|trebuchet|totem|frost|snare)-[234]$)/.test(name(u));
+const isLazy=u=>/^(armor-stand-|fam-|(sawgun|hedge|cannon|cage|pit|trebuchet|totem|frost|snare)-[234]$)/.test(name(u));
 
 await page.goto(BASE+"/?silent",{timeout:120000,waitUntil:'commit'});
 check("the build-line markup no longer carries the old 'build 21' placeholder",!/id="buildline">[^<]*build 21/.test(fs.readFileSync(DIST+"/index.html","utf8")));
@@ -53,10 +53,10 @@ const placed=await page.evaluate(()=>{ const d=window.__dd; const before=d.defs.
   const nd=d.defs[d.defs.length-1]; if(d.defs.length===before) return null; d.step(1/60,3); return {x:nd.x,z:nd.z,lvl:nd.lvl,asked:window.__defglb.asked()}; });
 check("a ballista could be placed for the test",!!placed&&placed.lvl===1,JSON.stringify(placed));
 await sleep(300);
-check("placing it asks for Mark II (prefetched so the first upgrade lands dressed), not Marks III/IV",!!placed&&placed.asked.includes('harpoon:1')&&!placed.asked.includes('harpoon:2')&&started.some(s=>name(s.u)==='ballista-2')&&!started.some(s=>name(s.u)==='ballista-3'),JSON.stringify(placed&&placed.asked));
+check("placing it asks for Mark II (prefetched so the first upgrade lands dressed), not Marks III/IV",!!placed&&placed.asked.includes('harpoon:1')&&!placed.asked.includes('harpoon:2')&&started.some(s=>name(s.u)==='sawgun-2')&&!started.some(s=>name(s.u)==='sawgun-3'),JSON.stringify(placed&&placed.asked));
 const up=await page.evaluate(p=>{ const d=window.__dd; d.setHero(p.x+1,p.z); d.upgradeDef(); d.step(1/60,3); const nd=d.defs.find(x=>x.x===p.x&&x.z===p.z); return {lvl:nd&&nd.lvl,asked:window.__defglb.asked()}; },placed||{x:0,z:0});
 await sleep(300);
-check("upgrading it to Mark II asks for Mark III next",up.lvl===2&&up.asked.includes('harpoon:2')&&started.some(s=>name(s.u)==='ballista-3'),JSON.stringify(up));
+check("upgrading it to Mark II asks for Mark III next",up.lvl===2&&up.asked.includes('harpoon:2')&&started.some(s=>name(s.u)==='sawgun-3'),JSON.stringify(up));
 await page.waitForFunction(()=>{ const l=window.__defglb.list(); return l.harpoon&&l.harpoon[1]; },null,{timeout:30000}).catch(()=>{});
 check("...and the Mark II model actually lands and registers",await page.evaluate(()=>{ const l=window.__defglb.list(); return !!(l.harpoon&&l.harpoon[1]); }));
 { const bl=await page.evaluate(()=>document.getElementById('buildline').textContent);   // since build 142 the load timer rides on the line too, between the build numbers and the hero

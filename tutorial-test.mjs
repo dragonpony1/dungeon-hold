@@ -69,7 +69,7 @@ async function pickLoot(p){ return until(p,()=>{ const d=window.__dd; if(window.
   check("F swings the sword: the goblin falls and the step ticks ✓ Goblin down!",!!slain&&/Goblin down/.test(v2b.main),JSON.stringify(v2b));
   // 3. the ballista: press 1, look at the marker, click, click
   await onStep(p,'ballista'); const v3=await view(p);
-  check("'Build a BALLISTA' — press 1; the arrow points at the Ballista's hotbar slot, which glows, and the marker shows on the lane",/Build a BALLISTA/.test(v3.main)&&/press 1/.test(v3.how)&&v3.arrow&&v3.arrow.to==='slot-harpoon'&&v3.glow.includes('slot-harpoon')&&v3.marker==='mark',JSON.stringify(v3));
+  check("'Build a BALLISTA' — press 1; the arrow points at the Ballista's hotbar slot, which glows, and the marker shows on the lane",/Build a SAW BLADE GUNNER/.test(v3.main)&&/press 1/.test(v3.how)&&v3.arrow&&v3.arrow.to==='slot-harpoon'&&v3.glow.includes('slot-harpoon')&&v3.marker==='mark',JSON.stringify(v3));
   await p.keyboard.press('Digit1'); await p.keyboard.press('Digit2'); await run(p,.1);
   const v3b=await view(p); const pk=await p.evaluate(()=>window.__dd.ghost()&&document.querySelector('#hotbar .slot.sel')?document.querySelector('#hotbar .slot.sel').id:null);
   check("1 picks the ballista (2, the hedge, does nothing here): 'Put it on the glowing marker' — look at it, click to set it down; the marker is behind the knight, so the arrow waits at the screen's edge",pk==='slot-harpoon'&&/Put it on the glowing marker/.test(v3b.main)&&/click to set it down/.test(v3b.how)&&v3b.arrow&&v3b.arrow.to==='edge'&&v3b.marker==='mark',JSON.stringify({pk,v3b}));
@@ -81,7 +81,7 @@ async function pickLoot(p){ return until(p,()=>{ const d=window.__dd; if(window.
   check("a click sets it down: 'Click once more to build it'",/Click once more to build it/.test(v3c.main),JSON.stringify(v3c));
   await p.mouse.click(640,420); await run(p,.1);
   const built=await p.evaluate(()=>{ const b=window.__dd.defs.find(d=>d.kind==='harpoon'); return b?{x:b.x,z:b.z,rot:+b.rot.toFixed(3)}:null; }); const v3d=await view(p);
-  check("a second click builds it on the marker, facing the door: ✓ Ballista built!",!!built&&built.x===0&&built.z===-12&&Math.abs(Math.abs(built.rot)-Math.PI)<.01&&/Ballista built/.test(v3d.main),JSON.stringify({built,v3d}));
+  check("a second click builds it on the marker, facing the door: ✓ Ballista built!",!!built&&built.x===0&&built.z===-12&&Math.abs(Math.abs(built.rot)-Math.PI)<.01&&/Saw Blade Gunner built/.test(v3d.main),JSON.stringify({built,v3d}));
   // 4. the horn and the first wave
   await onStep(p,'horn'); const v4=await view(p);
   check("'Now sound the horn' — press G; the arrow is on START WAVE, which glows",/Now sound the horn/.test(v4.main)&&/press G/.test(v4.how)&&v4.arrow&&v4.arrow.to==='wavebtn'&&v4.glow.includes('wavebtn'),JSON.stringify(v4));
@@ -109,7 +109,7 @@ async function pickLoot(p){ return until(p,()=>{ const d=window.__dd; if(window.
   await p.keyboard.press('KeyB'); await run(p,.2); const v6b=await view(p);
   check("B closes it: 'Grab the blue mana orbs'",/Grab the blue mana orbs/.test(v6b.main)&&v6b.arrow,JSON.stringify(v6b));
   await walkToOrbs(p); await run(p,.3); const v6c=await view(p);
-  check("orbs grabbed: 'Upgrade your ballista' — walk up to it and press E (and the hall has lent what the upgrade costs)",/Upgrade your ballista/.test(v6c.main)&&/press E/.test(v6c.how)&&v6c.arrow&&v6c.mana>=100,JSON.stringify(v6c));
+  check("orbs grabbed: 'Upgrade your ballista' — walk up to it and press E (and the hall has lent what the upgrade costs)",/Upgrade your saw blade gunner/.test(v6c.main)&&/press E/.test(v6c.how)&&v6c.arrow&&v6c.mana>=100,JSON.stringify(v6c));
   await p.evaluate(()=>{ const d=window.__dd, b=d.defs.find(x=>x.kind==='harpoon'); d.setHero(b.x,b.z+2,Math.PI); d.setCam(Math.PI,.34,8); d.step(1/60,4); });
   await p.keyboard.press('KeyE'); await run(p,.1); const up=await p.evaluate(()=>window.__dd.defs.find(x=>x.kind==='harpoon').lvl); const v6d=await view(p);
   check("E by the ballista makes it Mark II: ✓ Mark II",up===2&&/Mark II/.test(v6d.main),JSON.stringify({up,v6d}));
@@ -152,7 +152,7 @@ async function pickLoot(p){ return until(p,()=>{ const d=window.__dd; if(window.
   let slain=null; for(let k=0;k<14&&!slain;k++){ await strike(p,()=>tapHb('⚔')); slain=await p.evaluate(()=>window.__tutorial.beat()); }
   check("tapping ⚔ slays it",!!slain);
   await onStep(p,'ballista'); const t3=await view(p);
-  check("touch: 'Build a BALLISTA' — tap the 🏹 Ballista slot at the bottom, the arrow on it",/tap the 🏹 Ballista slot/.test(t3.how)&&t3.arrow&&t3.arrow.to==='slot-harpoon',JSON.stringify(t3));
+  check("touch: 'Build a BALLISTA' — tap the 🏹 Ballista slot at the bottom, the arrow on it",/tap the 🪚 Saw Blade Gunner slot/.test(t3.how)&&t3.arrow&&t3.arrow.to==='slot-harpoon',JSON.stringify(t3));
   await p.screenshot({path:SHOTS+"/tut-phone-step3.png"});
   await tap('#slot-harpoon'); await p.evaluate(()=>{ const d=window.__dd, T=window.__tutorial; d.setHero(0,T.mark[1]-5.5,0); d.setCam(0,.34,8); d.step(1/60,20); });
   const t3b=await view(p);
@@ -172,7 +172,7 @@ async function pickLoot(p){ return until(p,()=>{ const d=window.__dd; if(window.
   await tap('#tv-detail [data-act="equip"]'); await onStep(p,'upgrade'); const t6=await view(p);
   check("touch: 'Close your bag' — tap ✕",/Close your bag/.test(t6.main)&&/tap ✕/.test(t6.how),JSON.stringify(t6));
   await tap('#tv-close'); await walkToOrbs(p); await run(p,.3); const t6b=await view(p);
-  check("touch: 'Upgrade your ballista' — tap 🔧 (glowing)",/Upgrade your ballista/.test(t6b.main)&&/tap 🔧/.test(t6b.how)&&t6b.glow.includes('🔧'),JSON.stringify(t6b));
+  check("touch: 'Upgrade your ballista' — tap 🔧 (glowing)",/Upgrade your saw blade gunner/.test(t6b.main)&&/tap 🔧/.test(t6b.how)&&t6b.glow.includes('🔧'),JSON.stringify(t6b));
   await p.evaluate(()=>{ const d=window.__dd, b=d.defs.find(x=>x.kind==='harpoon'); d.setHero(b.x,b.z+2,Math.PI); d.setCam(Math.PI,.34,8); d.step(1/60,4); }); await tapHb('🔧');
   check("🔧 by the ballista upgrades it",await p.evaluate(()=>window.__dd.defs.find(x=>x.kind==='harpoon').lvl===2));
   await onStep(p,'last'); await tap('#wavebtn'); const w2=await holdWave(p,()=>tapHb('⚔'),150); await run(p,.2); const t7=await view(p);
