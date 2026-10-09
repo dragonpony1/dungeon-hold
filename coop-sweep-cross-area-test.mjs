@@ -8,7 +8,7 @@ import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 let PeerServer; try { ({ PeerServer } = await import("peer")); } catch(e) { console.log("SKIP coop-sweep-cross-area-test.mjs -- the `peer` package isn't installed"); process.exit(0); }
 const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const sigPort=9543; const sig=PeerServer({ port:sigPort, path:"/peerjs", host:"127.0.0.1" }); await new Promise(r=>setTimeout(r,300)); const peerOpts={ host:"127.0.0.1", port:sigPort, path:"/peerjs" };
-const PORT=9863; const server=await serve(PORT,{dist:"./dist"});
+const PORT=9863; const server=await serve(PORT,{dist:process.env.DIST||"./dist"});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const hostCtx=await browser.newContext(), guestCtx=await browser.newContext();

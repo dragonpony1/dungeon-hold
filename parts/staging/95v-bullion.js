@@ -87,7 +87,7 @@ function addPuddle(x,z,r,o){ o=o||{}; let p=PUDS.find(q=>!q.on); if(!p){ p=pudMe
   Object.assign(p,{ on:true, x,z,y,r,t:0,life:o.life||PUD.life,grow:o.grow||.3,hot:!o.cosmetic,tick:PUD.tick*.5,steamT:0 }); p.g.visible=true; p.g.position.set(x,y,z); p.g.rotation.y=Math.random()*TAU; p.g.scale.setScalar(.01); p.disc.material.opacity=1; cnt.puddles++; return p; }
 const allHeroes=()=>[{ x:hero.x, y:hero.y, z:hero.z, isDead:()=>hero.dead>0, hurt:hurtHero }].concat(Meta.heroes?Meta.heroes():[]);
 function burn(p){ for(const h of allHeroes()){ if(h.isDead()) continue; if(Math.hypot(h.x-p.x,h.z-p.z)<=p.r+.3&&Math.abs((h.y||0)-(p.y-.24))<1.6){ h.hurt(PUD.hero); cnt.heroBurn++; } }
-  for(const d of defs.slice()){ if(d.kind==='perch') continue; if(Math.hypot(d.x-p.x,d.z-p.z)<=p.r+.5&&Math.abs((d.base||0)-(p.y-.24))<1.6){ hurtDef(d,PUD.tower); cnt.towerBurn++; } } }   // mobs never: the soup is his
+  for(const d of defs.slice()){ if(d.kind==='perch'||BARRICADE_K[d.kind]) continue; if(Math.hypot(d.x-p.x,d.z-p.z)<=p.r+.5&&Math.abs((d.base||0)-(p.y-.24))<1.6){ hurtDef(d,PUD.tower); cnt.towerBurn++; } } }   // mobs never: the soup is his
 function updPuddles(dt,live){ for(const p of PUDS){ if(!p.on) continue; p.t+=dt; if(p.t>=p.life){ p.on=false; p.g.visible=false; continue; }
     const s=p.r*Math.min(1,1-Math.pow(1-Math.min(1,p.t/p.grow),3)); p.g.scale.set(s,1,s); p.disc.material.opacity=p.t>p.life-1.2?Math.max(0,(p.life-p.t)/1.2):1;
     for(const b of p.bub){ b.t+=dt; if(b.t>1){ b.t=0; const a=Math.random()*TAU, r=Math.random()*.75; b.x=Math.cos(a)*r; b.z=Math.sin(a)*r; } b.b.position.set(b.x,.05,b.z); b.b.scale.set(1/Math.max(s,.01)*Math.max(.01,Math.sin(b.t*PI)),Math.max(.01,Math.sin(b.t*PI)),1/Math.max(s,.01)*Math.max(.01,Math.sin(b.t*PI))); }
@@ -213,7 +213,7 @@ function stepCut(dt){ const c=cut, T=TL; c.t+=dt; const t=c.t, b=bull; if(!b) re
 { const prev=mobSpd; mobSpd=function(e){ if(e&&e.kind===K&&(e.special||e.swing>=0)) return 0; return prev.apply(this,arguments); }; }   // he plants his feet to punch, slam or boil
 { const prev=landHit; landHit=function(e,tg){ if(e&&e.kind===K&&tg){ if(tg.kind==='def'&&!tg.ranged&&tg.obj&&tg.obj.kind!=='spike'){ const d=tg.obj; if(!defs.includes(d)) return; hurtDef(d,Math.round(e.dmg*TOWER_PUNCH)); cnt.towerPunch++; splash(d.x,(d.base||0)+1,d.z,6,3); return; }
       if(tg.kind==='hero') cnt.heroPunch++; } return prev.apply(this,arguments); }; }
-function towerInWay(e){ const [fx_,fz_]=fwd(e.yaw); let best=null, bd=e.r+1.7; for(const d of defs){ if(NOWALK_DEF[d.kind]||d.kind==='perch'||d.kind==='trap'||d.kind==='pit') continue; const dx=d.x-e.x, dz=d.z-e.z, dd=Math.hypot(dx,dz); if(dd<bd&&(dx*fx_+dz*fz_)/Math.max(dd,.01)>-.25){ bd=dd; best=d; } } return best; }
+function towerInWay(e){ const [fx_,fz_]=fwd(e.yaw); let best=null, bd=e.r+1.7; for(const d of defs){ if(NOWALK_DEF[d.kind]||d.kind==='perch'||BARRICADE_K[d.kind]||d.kind==='trap'||d.kind==='pit') continue; const dx=d.x-e.x, dz=d.z-e.z, dd=Math.hypot(dx,dz); if(dd<bd&&(dx*fx_+dz*fz_)/Math.max(dd,.01)>-.25){ bd=dd; best=d; } } return best; }
 function tick(e,dt){ const m=e.mdl; if(m&&m.bullHoldT>0) m.bullHoldT=Math.max(0,m.bullHoldT-dt);
   if(e.special){ const s=e.special; s.t+=dt; e.yaw=s.yaw; m.g.rotation.y=s.yaw; e.atk=Math.max(e.atk,.4);
     if(s.k==='slam'&&!s.landed&&s.t>=s.hit){ s.landed=true; slamLand(e,false); }

@@ -36,11 +36,13 @@ const bladeMat=()=>mat(0xb9c2cc);
 // build 600 (Matt's projectiles: Picturesdungeon art,defensessaw blade gunnerMeshy_AI_projectile_t3_molten / _t4_tesla, cut to 512 px as parts/assets/sawblade-3/4.glb): a Mark III gunner
 // fires the MOLTEN blade, Mark IV and up the TESLA blade; Marks I and II keep the plain steel one. Each model is turned so its face stands upright along the flight (its thin axis onto x, the axis it spins on).
 const REAL={}, TURN={ 3:['z',-PI/2], 4:['y',PI/2] };   // the molten blade lies flat in its file (thin along y), the tesla one stands facing z
-for(const t of [3,4]) fetchBytes(ASSET('sawblade-'+t+'.glb'),'first').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const sc=1.16/1.9; const inner=new THREE.Group(); inner.add(root); root.rotation[TURN[t][0]]=TURN[t][1]; inner.scale.setScalar(sc); toonify(root,sc); REAL[t]=inner; }catch(e){ console.warn('saw blade '+t,e); } },e=>console.warn('saw blade '+t,e))).catch(e=>console.warn('saw blade '+t,e));
+// build 602: asked for only once a gunner reaches Mark III / IV (loadorder-test: nothing jumps the first downloads)
+const ASKED={}; function want(t){ if(ASKED[t]) return; ASKED[t]=true; fetchBytes(ASSET('sawblade-'+t+'.glb'),'first').then(buf=>new THREE.GLTFLoader().parse(buf,'',gltf=>{ try{ const root=gltf.scene||gltf.scenes[0]; const sc=1.16/1.9; const inner=new THREE.Group(); inner.add(root); root.rotation[TURN[t][0]]=TURN[t][1]; inner.scale.setScalar(sc); toonify(root,sc); REAL[t]=inner; }catch(e){ console.warn('saw blade '+t,e); } },e=>console.warn('saw blade '+t,e))).catch(e=>console.warn('saw blade '+t,e)); }
+WORLDANIM.push(()=>{ for(const d of defs){ if(d.kind===K&&(d.lvl||1)>=3){ want(3); if(d.lvl>=4) want(4); } } });
 let TIER=1;   // the firing gunner's mark, set as it fires (fire is wrapped below)
 { const prev=fire; fire=function(d){ TIER=(d&&d.kind===K)?(d.lvl||1):1; try{ return prev.apply(this,arguments); } finally{ TIER=1; } }; }
 harpoonMesh=function(){ const g=new THREE.Group(), spin=new THREE.Group(); const t=TIER>=4?4:TIER>=3?3:0; let face;
-  if(t&&REAL[t]){ const c=REAL[t].clone(); spin.add(c); face=c; cnt.real=(cnt.real||0)+1; }
+  if(t) want(t); if(t&&REAL[t]){ const c=REAL[t].clone(); spin.add(c); face=c; cnt.real=(cnt.real||0)+1; }
   else { const disc=new THREE.Mesh(bladeGeo(),bladeMat()); spin.add(disc); const hub=M(G.cyl(.15,.15,.09,10),mat(0xd8a040)); hub.rotation.z=PI/2; spin.add(hub); try{ outline(spin); }catch(e){} face=disc; }
   g.add(spin); let spun=false; face.traverse(o=>{ if(!spun&&o.isMesh){ spun=true; o.onBeforeRender=()=>{ spin.rotation.x-=.55; }; } }); g.userData.sawBlade=true; g.userData.bladeTier=t||1; cnt.blades++; return g; };
 window.__sawgun={ name:NAME, mesh:t=>{ TIER=t; try{ return harpoonMesh(); } finally{ TIER=1; } }, tierBlade:t=>{ TIER=t; try{ const m=harpoonMesh(); return { tier:m.userData.bladeTier, real:!!REAL[t>=4?4:3] }; } finally{ TIER=1; } }, info:()=>Object.assign({},cnt), sparks:T=>{ const c=sparks(T); return c?c.tracks.length:0; } };

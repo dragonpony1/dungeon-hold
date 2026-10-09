@@ -16,7 +16,7 @@ const sigPort=9497;
 const sig=PeerServer({ port:sigPort, path:"/peerjs", host:"127.0.0.1" });
 await new Promise(r=>sig.on('connection',()=>{}) && setTimeout(r,300));
 const peerOpts={ host:"127.0.0.1", port:sigPort, path:"/peerjs" };
-const server=await serve(8937,{dist:"./dist"});
+const server=await serve(8937,{dist:process.env.DIST||"./dist"});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const errors=[]; const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const cleared=()=>{ try{ if(!localStorage.getItem('ddMapsCleared')) localStorage.setItem('ddMapsCleared','5'); localStorage.removeItem('dd_sludge_in'); }catch(e){} };

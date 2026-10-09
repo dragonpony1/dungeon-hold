@@ -19,7 +19,7 @@ DEFKEYS.push('perch'); DEFKEY_LABELS.push('4');
   s.addEventListener('click',()=>select('perch')); $('hotbar').appendChild(s); }
 { const t=HEROES.find(h=>h.id==='troll'); if(t&&!t.unlocks.includes('perch')) t.unlocks.push('perch'); }
 NOWALK_DEF.perch=1;   // mobs path straight through/over it, same treatment the Mycelium Cage already gets (game.js's shared NOWALK_DEF lookup)
-const CAP=2;
+const CAP=Infinity;   // build 602, Matt: "allow unlimited lookout perches" (was 2)
 // ---------------------------------------------------------------- the model: three stacked, shrinking tiers (wood
 // steps, stone-topped platform) -- climbing collision comes entirely from the three RAILBOXES pushed on placement
 // below, not from this defense's own generic hp/collision (bypassed via NOWALK_DEF), so the visual just has to

@@ -86,7 +86,7 @@ function updFeathers(dt){ for(let i=FALL.length-1;i>=0;i--){ const f=FALL[i]; f.
 function heartroots(){ const out=[{ which:1, x:0, z:0, y:(crystalG&&crystalG.position.y)||0, hp:S.crystal }];
   if(typeof GOAL2!=='undefined'&&GOAL2>=0) out.push({ which:2, x:C2X, z:C2Z, y:hgt[GOAL2]||0, hp:S.crystal2 }); if(typeof GOAL3!=='undefined'&&GOAL3>=0) out.push({ which:3, x:C3X, z:C3Z, y:MAP.crystal3Y!=null?MAP.crystal3Y:(hgt[GOAL3]||0), hp:S.crystal3 });
   return out.filter(h=>h.hp>0); }
-function pickTarget(e,skip){ let best=null, bd=REACH; for(const d of defs){ if(d.dead||d===skip||d.kind==='perch'||d.kind==='trap'||d.kind==='pit') continue; const dd=Math.hypot(d.x-e.x,d.z-e.z); if(dd<bd){ bd=dd; best=d; } }
+function pickTarget(e,skip){ let best=null, bd=REACH; for(const d of defs){ if(d.dead||d===skip||d.kind==='perch'||BARRICADE_K[d.kind]||d.kind==='trap'||d.kind==='pit') continue; const dd=Math.hypot(d.x-e.x,d.z-e.z); if(dd<bd){ bd=dd; best=d; } }
   if(best) return { def:best, x:best.x, z:best.z, y:best.top||((best.base||0)+2) };
   const hs=heartroots(); if(!hs.length) return null; hs.sort((a,b)=>a.hp-b.hp); const h=hs[0]; return { heart:h.which, x:h.x, z:h.z, y:h.y+2.5 }; }
 function strike(e,tg){ if(tg.def){ const d=tg.def; if(!defs.includes(d)) return; const dmg=Math.max(TOWER_MIN,Math.round((d.max||100)*TOWER_K)); hurtDef(d,dmg); cnt.towerHits+=dmg; }

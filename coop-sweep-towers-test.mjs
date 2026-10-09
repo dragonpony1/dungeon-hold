@@ -14,7 +14,7 @@ const sigPort=9671;
 const sig=PeerServer({ port:sigPort, path:"/peerjs", host:"127.0.0.1" });
 await new Promise(r=>sig.on('connection',()=>{}) && setTimeout(r,300));
 const peerOpts={ host:"127.0.0.1", port:sigPort, path:"/peerjs" };
-const server=await serve(9672,{dist:"./dist"});
+const server=await serve(9672,{dist:process.env.DIST||"./dist"});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const errors=[]; const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function open(){ const ctx=await browser.newContext(); await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });

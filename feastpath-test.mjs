@@ -1,7 +1,7 @@
 // ===== THE FEAST HALL'S NEW FLOOR (build 468: the gallery, the wrecked tables, the fire pit). Checked: from each of the three doors a goblin reaches the Heartroot; the gallery stands 5 up with its
 // railings, the tables and the pit are drawn; no page errors.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
-const server=await serve(9021,{dist:"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
+const server=await serve(9021,{dist:process.env.DIST||"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const page=await (await browser.newContext({viewport:{width:1000,height:640}})).newPage(); const errors=[]; page.on("pageerror",e=>errors.push(String(e)));
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
 await page.goto("http://127.0.0.1:9021/?silent&nogate&map=3",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__dd.heroModel(),null,{timeout:120000});

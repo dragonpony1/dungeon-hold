@@ -13,7 +13,7 @@ const sigPort=9531, PORT=8953;
 const sig=PeerServer({ port:sigPort, path:"/peerjs", host:"127.0.0.1" });
 await new Promise(r=>sig.on('connection',()=>{}) && setTimeout(r,300));
 const peerOpts={ host:"127.0.0.1", port:sigPort, path:"/peerjs" };
-const server=await serve(PORT,{dist:"./dist"});
+const server=await serve(PORT,{dist:process.env.DIST||"./dist"});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const hostCtx=await browser.newContext(), guestCtx=await browser.newContext();
 const gearCalls=[]; for(const [c,who] of [[hostCtx,'host'],[guestCtx,'guest']]) await c.route(/\/api\/hideout\//,route=>{ const r=route.request(); if(who==='guest') gearCalls.push({ t:Date.now(), m:r.method(), u:r.url() }); route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ items:[] }) }); });

@@ -1,7 +1,7 @@
 // ===== AVERY, THE DRAWBRIDGE'S BOSS (build 473). Checked: her two models load; the cut scene runs (the glide in, the bust, the stamp) and gives the hall back; she circles, swoops and her feathers
 // hurt a tower; below half she is furious; every fourth swoop she lands on the hall roof; her fall drops the five Wind pieces and 40 Legendary jars; no page errors. Pictures of each beat in tools/test-logs.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
-const server=await serve(9024,{dist:"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
+const server=await serve(9024,{dist:process.env.DIST||"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const page=await (await browser.newContext({viewport:{width:1100,height:680}})).newPage(); const errors=[]; page.on("pageerror",e=>errors.push(String(e)));
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
 await page.goto("http://127.0.0.1:9024/?silent&nogate&map=4",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__dd.heroModel(),null,{timeout:120000});

@@ -28,8 +28,8 @@ const PLAT_TAKES=new Set(['sky','harpoon','turret']);
 DEFS[KT]={ name:'Gnome Turret', ic:'🏹', du:3, mana:50, hp:120, top:2.0, range:13, rangeUp:1, arc:360, cd:.5, dmg:2 };
 DEFKEYS.push(KT); DEFKEY_LABELS.push('?'); slot(KT);
 DEF_H[KT]=2.2; DEF_FACE[KT]=PI/2;   // the crossbow points along -x in the file
-fetchDefGLB(KT,ASSET('turret-1.glb'),0,'first');
-{ const prev=makeDef; makeDef=function(kind,ghost,lvl){ if(kind!==KT||defTemplate(KT,lvl)) return prev.apply(this,arguments);
+let turAsked=false;   // build 602: asked for the first time anyone picks or builds one (loadorder-test: nothing jumps the first downloads), as the platform and the perch
+{ const prev=makeDef; makeDef=function(kind,ghost,lvl){ if(kind===KT&&!turAsked){ turAsked=true; fetchDefGLB(KT,ASSET('turret-1.glb'),0,'first'); } if(kind!==KT||defTemplate(KT,lvl)) return prev.apply(this,arguments);
     const g=new THREE.Group(), y=new THREE.Group(), wood=mat(0x7a4f2c), metal=mat(0x8a8698); g.add(M(G.box(1.2,.3,1.2),wood,0,.15,0)); y.add(M(G.box(.5,.9,.5),wood,0,.75,0)); y.add(M(G.box(1.3,.12,.12),metal,0,1.3,.3)); y.add(M(G.box(.12,.12,.9),wood,0,1.3,.1)); g.add(y); g.userData.yoke=y;
     if(ghost){ g.traverse(m=>{ if(m.isMesh) m.material=GHOST_OK; }); } else { outline(g); g.add(blob(.8)); } return g; }; }
 const cnt={ shots:0, hits:0 };

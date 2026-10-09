@@ -1,6 +1,6 @@
 // ===== co-op sweep 2026-10-02 (drawbridge-map): a guest on the Drawbridge, with a host.
 //  * the host's copy of a guest who climbs a perch stands up on its deck (not on the ground at its post, where mobs could swing at it) -- 99-network.js guestInputTick
-//  * the perch cap (2 for the whole hall) holds for a guest: its ghost turns red and the host refuses a 3rd -- 99-network.js
+//  * build 602 (Matt: "allow unlimited lookout perches"): no perch cap any more -- a guest's 3rd perch is neither refused by its ghost nor by the host
 //  * a guest's ballista ghost snaps onto the host's perch (its centre), and turns red when a tower already stands on it -- 99-network.js (__standSurf)
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 let PeerServer;
@@ -11,7 +11,7 @@ const sigPort=9513, pagePort=9813;
 const sig=PeerServer({ port:sigPort, path:"/peerjs", host:"127.0.0.1" });
 await new Promise(r=>setTimeout(r,300));
 const peerOpts={ host:"127.0.0.1", port:sigPort, path:"/peerjs" };
-const server=await serve(pagePort,{dist:"./dist"});
+const server=await serve(pagePort,{dist:process.env.DIST||"./dist"});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const errors=[]; const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function open(){ const ctx=await browser.newContext(); await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
@@ -63,19 +63,19 @@ check("back on the ground: the copy is on the ground again",!!c2&&Math.abs(c2.y)
 await hostPage.evaluate(()=>{ const a=window.__moatwalk.at(28,36); window.__dd.placeDefAt('perch',a.x,a.z,0); });
 await tickBoth(8,5);
 const nHost=await hostPage.evaluate(()=>window.__dd.defs.filter(d=>d.kind==='perch').length);
-const sel=await guestPage.evaluate(()=>{ const d=window.__dd; window.__heroes.select('troll'); d.select('perch'); d.step(1/60,1); return window.__heroes.pick(); });
+const sel=await guestPage.evaluate(()=>{ const d=window.__dd; window.__meta.setLevel(7); window.__heroes.select('engineer'); d.select('perch'); d.step(1/60,1); return window.__heroes.pick(); });
 await tickBoth(2,5);
 const g3=await guestPage.evaluate(()=>window.__dd.ghost());
-check("the hall has its 2 perches: the guest's perch ghost is red, 'Only 2 perches at a time'",nHost===2&&!!g3&&!g3.ok&&g3.why==='Only 2 perches at a time',JSON.stringify({nHost,sel,g3}));
+check("the hall has 2 perches and the guest's ghost for a 3rd never says 'Only 2 perches at a time' (no cap)",nHost===2&&!!g3&&!/perches at a time/.test(g3.why||''),JSON.stringify({nHost,sel,g3}));
 await guestPage.evaluate(()=>{ document.getElementById('toast').textContent=''; const d=window.__dd, g=d.ghost(); if(g) d.placeDefAt('perch',g.x,g.z,0); });
 await tickBoth(8,5);
 const nHost2=await hostPage.evaluate(()=>window.__dd.defs.filter(d=>d.kind==='perch').length);
 const t3=await guestPage.evaluate(()=>document.getElementById('toast').textContent);
-check("the guest's 3rd perch is refused by the host, with the solo words",nHost2===2&&/Only 2 perches/.test(t3),JSON.stringify({nHost2,t3}));
+check("the guest's 3rd perch goes down on the host (no cap)",nHost2===3&&!/perches at a time/.test(t3),JSON.stringify({nHost2,t3}));
 await hostPage.evaluate(()=>{ const d=window.__dd, p=d.defs.find(o=>o.kind==='perch'&&!d.defs.some(t=>t.onSurf===o)); if(p) window.__perch.remove(p); });
 await tickBoth(8,5);
 const g4=await guestPage.evaluate(()=>window.__dd.ghost());
-check("one perch sold: the guest's perch ghost is green again",!!g4&&g4.ok,JSON.stringify(g4));
+check("one perch sold: the guest's perch ghost still never speaks of a cap",!!g4&&!/perches at a time/.test(g4.why||''),JSON.stringify(g4));
 
 check("no page errors",errors.length===0,errors.slice(0,3).join(" | "));
 await browser.close(); server.close(); try{ sig.close(); }catch(e){}

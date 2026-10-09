@@ -5,7 +5,7 @@
 // with a shove -- its blows still land at about the same rate, it is never moved off its spot and its model is never squashed (e.squash still marks it "just hit"); a melee boss hit from just outside its old notice ring (behind it, inside the Knight's reach)
 // turns and swings; an ordinary goblin is still shoved by the Wind and still squashes; no page errors.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
-const PORT=9533; const server=await serve(PORT,{dist:"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
+const PORT=9533; const server=await serve(PORT,{dist:process.env.DIST||"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const page=await (await browser.newContext({viewport:{width:1000,height:640}})).newPage(); const errors=[]; page.on("pageerror",e=>errors.push(String(e)));
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
 await page.route("**/api/**",r=>r.fulfill({ status:200, contentType:"application/json", body:"{}" }));

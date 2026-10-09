@@ -16,7 +16,7 @@ const sig=PeerServer({ port:sigPort, path:"/peerjs", host:"127.0.0.1" });
 await new Promise(r=>sig.on('connection',()=>{}) && setTimeout(r,300));
 const peerOpts={ host:"127.0.0.1", port:sigPort, path:"/peerjs" };
 
-const server=await serve(8888,{dist:"./dist"});
+const server=await serve(8888,{dist:process.env.DIST||"./dist"});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const hostCtx=await browser.newContext(), guestCtx=await browser.newContext();
 const hostPage=await hostCtx.newPage(), guestPage=await guestCtx.newPage();

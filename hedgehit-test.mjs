@@ -1,7 +1,7 @@
 // ===== MOBS STRIKE A BRAMBLE HEDGE (build 437). Matt: "are bramble hedges taking damage?" -- they were not: a hedge is five squares wide and a mob held at it aimed at its middle, out of reach, and stood there.
 // Checked: the Heartroot ringed in hedges; a goblin and an orc walk in, strike a hedge within 2 s of arriving, and take thorns back.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
-const server=await serve(9014,{dist:"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
+const server=await serve(9014,{dist:process.env.DIST||"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const page=await (await browser.newContext({viewport:{width:1000,height:640}})).newPage(); const errors=[]; page.on("pageerror",e=>errors.push(String(e)));
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
 await page.goto("http://127.0.0.1:9014/?silent&nogate&map=1",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__dd.heroModel(),null,{timeout:120000});

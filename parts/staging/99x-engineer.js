@@ -12,7 +12,7 @@
 'use strict';
 if(typeof HEROES==='undefined') return;
 const ID='engineer', LVL=7, OC_R=10, OC_T=6, OC_K=.5, WRENCH='wrench-engineer';
-if(!HEROES.find(h=>h.id===ID)) HEROES.push({ id:ID, name:'GNOME ENGINEER', sub:'a big brass wrench · he builds the battlefield', glb:'engineer.glb', label:'Gnome Engineer (Meshy)', reach:2.4, lockLvl:LVL, unlocks:['perch','skyplat','turret','sky'] });
+if(!HEROES.find(h=>h.id===ID)) HEROES.push({ id:ID, name:'GNOME ENGINEER', sub:'a big brass wrench · he builds the battlefield', glb:'engineer.glb', label:'Gnome Engineer (Meshy)', reach:2.4, lockLvl:LVL, unlocks:['perch','skyplat','turret','barricade','bgate','sky'] });
 { const r=HEROES.find(h=>h.id==='troll'); if(r){ const i=r.unlocks.indexOf('perch'); if(i>=0) r.unlocks.splice(i,1); } }   // the Lookout Perch is his now
 if(DEFS.perch){ DEFS.perch.name='Lookout Perch'; const n=document.querySelector('#slot-perch .n'); if(n) n.textContent='Lookout Perch'; }   // Matt's name for it, now it is no longer the archer's
 // the saved pick was read (70-hero2.js) before he joined the list, so a player who left as the Engineer came back as the first hero: pick him again (if his level still allows)

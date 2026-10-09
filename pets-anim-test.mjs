@@ -9,7 +9,7 @@
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
 const results=[]; const check=(n,ok,d)=>{ results.push(!!ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-const server=await serve(8958,{dist:"./dist"});
+const server=await serve(8958,{dist:process.env.DIST||"./dist"});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
 const page=await (await browser.newContext({viewport:{width:960,height:600}})).newPage(); page.on("pageerror",e=>errors.push(String(e)));
 await page.route("**/api/**",r=>r.fulfill({status:200,contentType:"application/json",body:"{}"}));

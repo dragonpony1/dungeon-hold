@@ -1,7 +1,7 @@
 // ===== THE SETS' OWN 3D ART (build 482 onward). Chaos first: Matt's sword in the hero's hand and on the floor stand in place of the code-built one; the set's amulet and charm stand on the floor in 3D
 // (a set without its own files yet keeps its card). Pictures in tools/test-logs.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
-const server=await serve(9038,{dist:"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
+const server=await serve(9038,{dist:process.env.DIST||"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const page=await (await browser.newContext({viewport:{width:1100,height:680}})).newPage(); const errors=[]; page.on("pageerror",e=>errors.push(String(e)));
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
 await page.goto("http://127.0.0.1:9038/?silent&nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__dd.heroModel()&&window.__weaponStand&&window.__mythic,null,{timeout:120000});

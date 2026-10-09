@@ -11,7 +11,8 @@ const LINE={
   slice:'Slows mobs inside it, and bursts now and then', spike:'A thorny wall: blocks the way, hurts what hits it, grows back', totem:'Towers near it hit harder and faster',
   frost:'Chills mobs around it so they crawl', snare:'Nets flying mobs out of the sky', zap:'Zaps every mob in its ring at once', venom:'Poisons mobs that walk through it',
   ember:'Burns mobs standing in its ring', dazzle:'Confuses mobs so they wander off', pit:'Swallows a crowd that stands on it', shock:'Throws lightning that jumps between mobs',
-  trap:'Snaps shut: everything on it dies', sky:'Fireworks for flying mobs only, very long reach', perch:'Climb it to shoot from up high' };
+  trap:'Snaps shut: everything on it dies', sky:'Fireworks for flying mobs only, very long reach', perch:'Climb it to shoot from up high', skyplat:'A high deck to set a Sky Wrecker or a tower on',
+  turret:'A fast crossbow that turns all the way round', barricade:'A wall to steer the horde: it walks the long way round', bgate:'A wall heroes walk through and mobs cannot' };
 const ROM=['','I','II','III','IV','V','VI','VII','VIII','IX','X'];
 const cnt={ world:0, bar:0 };
 const st=document.createElement('style'); st.textContent=
@@ -21,7 +22,7 @@ document.head.appendChild(st);
 const el=document.createElement('div'); el.id='towerinfo'; document.body.appendChild(el);
 let mode=null, barKey=null;
 function fill(kind,lvl){ const c=DEFS[kind]; if(!c) return false; const line=LINE[kind]||'';
-  el.innerHTML='<div class="h"><span class="i">'+c.ic+'</span><span>'+c.name+'</span>'+(lvl?'<span class="m">Mark '+(ROM[lvl]||lvl)+'</span>':'')+'</div>'+(line?'<div class="l">'+line+'</div>':''); return true; }
+  el.innerHTML='<div class="h"><span class="i">'+c.ic+'</span><span>'+c.name+'</span>'+(lvl&&!c.noUp?'<span class="m">Mark '+(ROM[lvl]||lvl)+'</span>':'')+'</div>'+(line?'<div class="l">'+line+'</div>':''); return true; }
 // the bar: hover a tower's button
 const bar=document.getElementById('hotbar');
 if(bar){ bar.addEventListener('mouseover',e=>{ const s=e.target.closest&&e.target.closest('.slot'); if(!s||!s.id||s.id.slice(0,5)!=='slot-') return; const k=s.id.slice(5); if(!fill(k,0)) return;

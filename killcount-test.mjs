@@ -2,7 +2,7 @@
 // Checked: a ring of ballistas, cannons, frost and a storm halo round the Heartroot with goblins walking in -- the towers' kills add up to the mobs they killed, each tower's own number; a mob the hero kills
 // is nobody's; the tower card shows 💀 Kills with the tower's number.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
-const server=await serve(9015,{dist:"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
+const server=await serve(9015,{dist:process.env.DIST||"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const page=await (await browser.newContext({viewport:{width:1200,height:760}})).newPage(); const errors=[]; page.on("pageerror",e=>errors.push(String(e)));
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
 await page.goto("http://127.0.0.1:9015/?silent&nogate&map=1",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__dd.heroModel(),null,{timeout:120000});
@@ -20,5 +20,5 @@ const results=[]; const check=(n,ok,d)=>{ results.push(ok); console.log((ok?'PAS
 check('the towers killed most of the goblins, and their kills add up to no more than the goblins that died',out.towerKills>=out.mobKills*.8&&out.towerKills<=out.mobKills,JSON.stringify(out));
 check('more than one tower has kills of its own',out.per.filter(s=>!s.endsWith(':0')).length>=2,out.per.join(' '));
 check('a mob the hero kills is nobody\'s',out.heroKillCredited===0,''+out.heroKillCredited);
-check('the tower card shows 💀 Kills with that tower\'s number',!!out.card&&/Kills ([0-9]+)/.test(out.card)&&out.per.includes((/Ballista/.test(out.card)?'harpoon':/Cannon/.test(out.card)?'acorn':/Halo/.test(out.card)?'zap':'frost')+':'+out.card.match(/Kills ([0-9]+)/)[1])&&+out.card.match(/Kills ([0-9]+)/)[1]>0,out.card);
+check('the tower card shows 💀 Kills with that tower\'s number',!!out.card&&/Kills ([0-9]+)/.test(out.card)&&out.per.includes((/Ballista|Saw Blade/.test(out.card)?'harpoon':/Cannon/.test(out.card)?'acorn':/Halo/.test(out.card)?'zap':'frost')+':'+out.card.match(/Kills ([0-9]+)/)[1])&&+out.card.match(/Kills ([0-9]+)/)[1]>0,out.card);
 check('no page errors',errors.length===0,JSON.stringify(errors.slice(0,2))); await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);

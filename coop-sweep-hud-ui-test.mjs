@@ -13,7 +13,7 @@ const sigPort=9505, pagePort=9797;
 const sig=PeerServer({ port:sigPort, path:"/peerjs", host:"127.0.0.1" });
 await new Promise(r=>setTimeout(r,300));
 const peerOpts={ host:"127.0.0.1", port:sigPort, path:"/peerjs" };
-const server=await serve(pagePort,{dist:"./dist"});
+const server=await serve(pagePort,{dist:process.env.DIST||"./dist"});
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const hostPage=await (await browser.newContext()).newPage(), guestPage=await (await browser.newContext()).newPage();
 const errors=[]; for(const p of [hostPage,guestPage]) p.on("pageerror",e=>errors.push(String(e)));

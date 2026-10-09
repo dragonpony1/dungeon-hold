@@ -1,7 +1,7 @@
 // ===== THE WHITE TREE LINKS (build 480). A robot golfer plays all four holes (aims at the next bend or the cup, picks its power from the distance): every hole finishes, the ball never leaves its fairway,
 // a holed hole pays Legendary jars at the cup, a hole can't be played twice; the moat sends a ball back to the tee while the bridge is up; the catapult flings the ball to the island; E starts and leaves a hole.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
-const server=await serve(9032,{dist:"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
+const server=await serve(9032,{dist:process.env.DIST||"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const page=await (await browser.newContext({viewport:{width:1100,height:680}})).newPage(); const errors=[]; page.on("pageerror",e=>errors.push(String(e)));
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
 await page.goto("http://127.0.0.1:9032/?silent&nogate&map=4",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__dd.heroModel(),null,{timeout:120000});

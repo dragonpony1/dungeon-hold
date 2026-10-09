@@ -75,9 +75,9 @@ function chevHtml(l){ const n=chevCount(l); return n?'<span class="dc-chevs" tit
 // build 499: the card on a co-op GUEST's screen -- the host's tower its E will act on (99-network.js guestPick): its name and mark, health, kills, and what E and X will do
 function guestCard(p){ const cfg=DEFS[p.kind]; const rows=[]; const R=(l,v)=>rows.push('<div class="dc-r"><i>'+l+'</i><b>'+v+'</b></div>'); const hurt=p.max&&p.hp<p.max;
   R('❤ Health','<span class="dc-hp">'+Math.ceil(p.hp||0)+'</span> / '+(p.max||'?')); R('💀 Kills',(p.kills|0).toLocaleString());
-  if(hurt) R('🔧 Repair · E',Math.ceil((p.max-p.hp)/8)+' ◆ mana'); if(p.lvl<MAXLVL) R(hurt?'⬆ Upgrade (after repair)':'⬆ Upgrade · E',upCost(p)+' ◆ mana → Mk '+MARK[p.lvl+1]+chevHtml(p.lvl+1)); else R('⬆ Upgrade','Mark '+MARK[MAXLVL]+' — the top mark');
+  if(hurt) R('🔧 Repair · E',Math.ceil((p.max-p.hp)/8)+' ◆ mana'); if(cfg&&cfg.noUp){} else if(p.lvl<MAXLVL) R(hurt?'⬆ Upgrade (after repair)':'⬆ Upgrade · E',upCost(p)+' ◆ mana → Mk '+MARK[p.lvl+1]+chevHtml(p.lvl+1)); else R('⬆ Upgrade','Mark '+MARK[MAXLVL]+' — the top mark');
   if(p.spent) R('✖ Sell · X','+'+Math.round(p.spent*.7)+' ◆ mana');
-  const key='g'+p.id+p.lvl+'|'+rows.join(''); if(key===dcKey) return; dcKey=key; dcEl.innerHTML='<div class="dc-n">'+cfg.ic+' '+cfg.name+' · Mark '+MARK[p.lvl]+chevHtml(p.lvl)+'</div>'+rows.join(''); dcEl.classList.add('show'); }
+  const key='g'+p.id+p.lvl+'|'+rows.join(''); if(key===dcKey) return; dcKey=key; dcEl.innerHTML='<div class="dc-n">'+cfg.ic+' '+cfg.name+(cfg.noUp?'':' · Mark '+MARK[p.lvl]+chevHtml(p.lvl))+'</div>'+rows.join(''); dcEl.classList.add('show'); }
 function defCard(){ if(!dcEl){ const anchor=$('herostats')||$('xpline')||$('gear'); if(!anchor) return; dcEl=document.createElement('div'); dcEl.id='defcard'; anchor.insertAdjacentElement('afterend',dcEl); }
   const d=(S.phase==='build'||S.phase==='wave')&&!placing?pickDef():null;   /* build 165: the same tower E will act on (game.js pickDef) */
   if(!d&&(S.phase==='build'||S.phase==='wave')&&!placing&&window.__defsync&&window.__defsync.card){ const c=window.__defsync.card(); if(c&&c.html){ if(c.key!==dcKey){ dcKey=c.key; dcEl.innerHTML=c.html; } dcEl.classList.add('show'); return; } }   // build 501 (Matt: "he should get all the tower info when he looks at a tower"): a co-op guest's card is the HOST's own, built there for the tower the guest's E will act on (99-network.js) -- every number exactly as the host sees it
@@ -96,13 +96,14 @@ function cardHtml(d,mana){ const cfg=DEFS[d.kind]; const rows=[]; const R=(l,v)=
   else if(d.buffD>0||d.buffS>0){ const parts=[]; if(cfg.dmg>0&&d.buffD>0) parts.push('+'+P(d.buffD)+'% damage'); if(cfg.cd!==undefined&&d.buffS>0) parts.push('+'+P(d.buffS)+'% speed'); if(parts.length) rows.push('<div class="dc-rune">🗿 Empowered by a Rune Totem: '+parts.join(', ')+'</div>'); }
   // what E and X do here, and what they cost — the numbers the player asked for
   if(d.hp<d.max){ R('🔧 Repair · E',Math.ceil((d.max-d.hp)/8)+' ◆ mana'); }
-  if(d.lvl<MAXLVL){ const l0=d.lvl; d.lvl=l0+1; const nd=cfg.dmg!==undefined?stat(d,'dmg'):null, nr=cfg.range?Math.round(stat(d,'range')*10)/10:null, na=cfg.arcs?arcOf(d):null; d.lvl=l0;
+  if(cfg.noUp){}   /* build 602: a barricade has no marks */
+  else if(d.lvl<MAXLVL){ const l0=d.lvl; d.lvl=l0+1; const nd=cfg.dmg!==undefined?stat(d,'dmg'):null, nr=cfg.range?Math.round(stat(d,'range')*10)/10:null, na=cfg.arcs?arcOf(d):null; d.lvl=l0;
     const gains=[]; if(nd!==null) gains.push('dmg '+nd); if(nr!==null) gains.push((cfg.arc===360?'radius ':'range ')+nr); if(na!==null&&na!==arcOf(d)) gains.push(na+'°');   /* build 177: the cone stops at 40° after Mark V -- only say it when it grows */ if(cfg.thorns||cfg.regrow) gains.push('hp '+Math.round(cfg.hp*(1+.4*l0))); if(cfg.buff){ d.lvl=l0+1; gains.push('auras +'+P(stat(d,'buffD'))+'% / +'+P(stat(d,'buffS'))+'%'); d.lvl=l0; }   /* build 178: a totem's next mark, +5% to each aura */
     R((d.hp<d.max?'⬆ Upgrade (after repair)':'⬆ Upgrade · E'),upCost(d)+' ◆ mana → Mk '+MARK[l0+1]+chevHtml(l0+1)+(gains.length?' ('+gains.join(', ')+')':'')); }
   else R('⬆ Upgrade','Mark '+MARK[MAXLVL]+' — the top mark');
   R('✖ Sell · X','+'+Math.round(d.spent*.7)+' ◆ mana');
   R('','<span class="dc-note">you have '+Math.floor(mana)+' ◆</span>');
-  return { key:d.kind+d.lvl+'|'+Math.ceil(d.hp)+'|'+rows.join(''), html:'<div class="dc-n">'+cfg.ic+' '+cfg.name+' · Mark '+MARK[d.lvl]+chevHtml(d.lvl)+'</div>'+rows.join('') }; }
+  return { key:d.kind+d.lvl+'|'+Math.ceil(d.hp)+'|'+rows.join(''), html:'<div class="dc-n">'+cfg.ic+' '+cfg.name+(cfg.noUp?'':' · Mark '+MARK[d.lvl]+chevHtml(d.lvl))+'</div>'+rows.join('') }; }
 window.__cardHtml=cardHtml;
 { const prevU=Meta.update; Meta.update=dt=>{ prevU(dt); visualsUpdate(dt); }; const prevH=Meta.hud; Meta.hud=()=>{ prevH(); statsUpdate(); defCard(); }; }
 window.__feel={defcard:()=>dcEl&&dcEl.classList.contains('show')?dcEl.textContent:null,card:()=>CS.it?{name:CS.it.name,id:CS.it.id,outcome:CS.outcome,canEquip:CS.canEquip,keep:CS.keep||null,shown:card.classList.contains('show'),html:card.innerHTML}:null,stats:heroStats,visuals:()=>({weapon:!!V.weapon,weaponColor:V.weapon?'#'+V.weapon.material.color.getHexString():null,hostIsBone:!!(V.host&&V.host.isBone),charm:!!V.charm,amulet:!!V.amulet}),equipFromCard};

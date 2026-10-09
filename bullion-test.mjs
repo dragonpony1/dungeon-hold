@@ -3,7 +3,7 @@
 // burns a hero and a tower but never a mob, and dries up; he walks the hall to the Heartroot; at half health he boils over and is faster (Run); his fall drops every Fire piece (the weapon the
 // hero's own type) and 30 Legendary jars with the picture card; the dev panel's spawn brings the whole roll-out and SPACE skips it; no page errors. Pictures in tools/test-logs/bullion-*.png.
 import { chromium } from "playwright"; import { serve } from "./serve.mjs";
-const server=await serve(9241,{dist:"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
+const server=await serve(9241,{dist:process.env.DIST||"./dist"}); const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]});
 const page=await (await browser.newContext({viewport:{width:1100,height:680}})).newPage(); const errors=[]; page.on("pageerror",e=>errors.push(String(e)));
 await page.addInitScript(()=>{ try{ localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("ddSound","off"); localStorage.setItem("dd_talent_card","1"); }catch(e){} });
 await page.route("**/api/**",r=>r.fulfill({ status:200, contentType:"application/json", body:"{}" }));
