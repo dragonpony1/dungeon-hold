@@ -181,7 +181,7 @@ function owned(id){ const R=window.__tworings; if(R&&R.owned) return R.owned(id)
 function dropRing(id){ const M=window.__mythic; if(!M||!M.normalize||!RING_HERO[id]) return null; const it=M.normalize({ tier:'named', named:id, lvl:Math.max(1,typeof effWave==='function'?effWave():1) }); if(!it) return null;
   const a=Math.random()*TAU, x=hero.x+Math.cos(a)*3, z=hero.z+Math.sin(a)*3; const f=SFX.fancy; SFX.fancy=()=>{}; try{ dropLoot(it,x,z,true); }finally{ SFX.fancy=f; } const R=window.__tworings; if(R&&R.sound) R.sound();
   floatText(x,(hero.y||0)+2.6,z,'💍 '+it.name.toUpperCase()+' 💍',LOOK[RING_HERO[id]].css); cnt.drops++; return it; }
-{ const prev=Meta.onWaveHeld; Meta.onWaveHeld=function(){ const r=prev.apply(this,arguments); if(!TUTORIAL){ for(const id of RINGS){ if(!owned(id)&&LR()<DROP) dropRing(id); } } return r; }; }
+{ const prev=Meta.onWaveHeld; Meta.onWaveHeld=function(){ const r=prev.apply(this,arguments); if(!TUTORIAL&&(!window.__ringsOpen||window.__ringsOpen())){ for(const id of RINGS){   /* build 613: not before map 2 wave 3 (97h-tworings.js) */ if(!owned(id)&&LR()<DROP) dropRing(id); } } return r; }; }
 // ---- the pictures: a ring's card picture (until Matt's thumbnail) and its chips
 { const prev=slotIcon; slotIcon=function(it){ const h=ringHero(it); return h?LOOK[h].card:prev.apply(this,arguments); }; }
 const HERO_WORD={ knight:'Knight', witch:'Witch', fighter:'Fighter', troll:'Ranger' };

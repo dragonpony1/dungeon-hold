@@ -68,6 +68,9 @@ function owned(id){ const is=it=>it&&it.named===id; if(SLOTS.some(s=>is(gear[s])
 function dropRing(id){ const M=window.__mythic; if(!M||!M.normalize) return null; const it=M.normalize({ tier:'named', named:id, lvl:Math.max(1,typeof effWave==='function'?effWave():1) }); if(!it) return null;
   const a=Math.random()*TAU, x=hero.x+Math.cos(a)*3, z=hero.z+Math.sin(a)*3; const f=SFX.fancy; SFX.fancy=()=>{}; let l=null; try{ l=dropLoot(it,x,z,true); }finally{ SFX.fancy=f; } ringSound();
   floatText(x,(hero.y||0)+2.6,z,'💍 '+it.name.toUpperCase()+' 💍','#ff9ae0'); cnt.drops++; return it; }
-{ const prev=Meta.onWaveHeld; Meta.onWaveHeld=function(){ const r=prev.apply(this,arguments); if(!TUTORIAL){ for(const id of RINGS){ if(!owned(id)&&LR()<DROP) dropRing(id); } } return r; }; }
+// build 613 (Matt: "lets not let our special ring drop so early in the hall at least wave 3 of map 2 before they have a chance to drop"): the special rings (these two and the four hero rings, 99k-dualwield.js)
+// roll only from the campaign's 10th wave on -- map 2 (the Throne Room) wave 3, i.e. the Gnome Hall's waves plus three. window.__ringsOpen is shared with 99k.
+window.__ringsOpen=()=>{ try{ return effWave()>=MAPS[0].waves+3; }catch(e){ return true; } };
+{ const prev=Meta.onWaveHeld; Meta.onWaveHeld=function(){ const r=prev.apply(this,arguments); if(!TUTORIAL&&window.__ringsOpen()){ for(const id of RINGS){ if(!owned(id)&&LR()<DROP) dropRing(id); } } return r; }; }
 window.__tworings={ RINGS, ringOn, equip2, unequip2, dropRing, owned, info:()=>Object.assign({ fam2:!!fam2, second:gear.familiar2?gear.familiar2.name:null },cnt), fam2:()=>fam2, fam1:()=>fam, sound:ringSound };
 })();

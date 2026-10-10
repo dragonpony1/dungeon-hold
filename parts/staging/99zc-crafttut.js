@@ -1,15 +1,15 @@
 // ===== THE CRAFTING TUTORIAL, the hall's half (build 611; the hideout's half is hideout build 99). Matt: "I think we need a very simple tutorial for how this system works, like start in the first map.
 // with very easy to follow clicks, like we did for 67 flowers" -> "yes build it".
-// Once, solo, on the Gnome Hall, right after the training guide (96-trainer.js) is finished: a picture banner says the one thing to do and a bouncing hand points at it.
+// Once, solo, on the THRONE ROOM (map 2 -- build 614, the Gnome Hall has the training guide), after the training guide (96-trainer.js) is finished: a picture banner says the one thing to do and a bouncing hand points at it.
 //   1  a torn recipe page drops beside you (guaranteed): walk over it
 //   2  two more drop, one at the end of each of the next waves (guaranteed): the third teaches the recipe (the gold RECIPE LEARNED card)
 //   3  the hand points at the hideout portal: go through
 //   4+ the hideout takes over (the Blacksmith, the piece, the set, Craft -- the first craft always PROCs -- the recipe book, then a boss -> trophy -> masterwork card)
-// The tutorial's piece is the first Gnome Hall (Earth) recipe you don't know. State: localStorage 'dd_craft_tut' = { s, key }; s 99 = done. Skip on every banner. Test hook: window.__craftTut.
+// The tutorial's piece is the first Throne Room (Chaos, then Radiance) recipe you don't know. State: localStorage 'dd_craft_tut' = { s, key }; s 99 = done. Skip on every banner. Test hook: window.__craftTut.
 (function(){
 'use strict';
 if(TUTORIAL||(SILENT&&!Q.has('crafttut'))) return;   // tests run ?silent: only a test that asks for it (?crafttut) gets the tutorial
-const KEY='dd_craft_tut', PIECES=['armor','amulet','charm','weapon','familiar'], SET='of the Earth';
+const KEY='dd_craft_tut', PIECES=['armor','amulet','charm','weapon','familiar'], SETS=['of Chaos','of Radiance'], TUT_MAP=1;   // build 614 (Matt: "we have soo much tutorial here in the hall theres gonna be tut fatigue"): it waits for the THRONE ROOM (map 2), its sets Chaos and Radiance
 let st=(()=>{ try{ const o=JSON.parse(localStorage.getItem(KEY)); if(o&&typeof o==='object') return o; }catch(e){} return { s:0 }; })();
 const save=()=>{ try{ localStorage.setItem(KEY,JSON.stringify(st)); }catch(e){} };
 const R=()=>window.__recipes, solo=()=>{ const n=window.__net; return !(n&&n.role&&n.role()); };
@@ -26,11 +26,11 @@ const V=new THREE.Vector3();
 function pointAt(x,y,z){ V.set(x,y,z).project(camera); const on=V.z<1&&Math.abs(V.x)<1.05&&Math.abs(V.y)<1.05; hand.classList.toggle('on',on); ring.classList.toggle('on',on); if(!on) return; const sx=(V.x+1)/2*innerWidth, sy=(1-V.y)/2*innerHeight; hand.style.left=sx+'px'; hand.style.top=(sy-18)+'px'; ring.style.left=sx+'px'; ring.style.top=sy+'px'; }
 function skip(){ st.s=99; save(); hideAll(); }
 // ---- the tutorial's piece: the first Earth recipe not known yet (none: straight to the hideout)
-function pickKey(){ const b=R().read(); for(const p of PIECES){ const k=SET+'|'+p; if(!b.known[k]) return k; } return null; }
+function pickKey(){ const b=R().read(); for(const st of SETS) for(const p of PIECES){ const k=st+'|'+p; if(!b.known[k]) return k; } return null; }
 const pages=()=>{ const b=R().read(); return st.key?(b.known[st.key]?3:(b.pages[st.key]|0)):0; };
 let lastPhase=null, pageOut=false;
 function dropPage(){ const H=hero; const a=hero.yaw||0; const p=R().spawn(st.key,H.x+Math.sin(a)*1.8,H.z+Math.cos(a)*1.8); if(p){ p.vx=0; p.vz=0; } pageOut=!!p;   /* lands right in front of you, no scatter */ st.dropWave=S.wave; save(); }
-function ready(){ if(st.s>=99||!solo()||MAPI!==0||!R()) return false; const T=window.__trainer; if(!T) return true; try{ const t=T.state(); return T.step()===null||!!t.off; }catch(e){ return true; } }
+function ready(){ if(st.s>=99||!solo()||MAPI!==TUT_MAP||!R()) return false; const T=window.__trainer; if(!T) return true; try{ const t=T.state(); return T.step()===null||!!t.off; }catch(e){ return true; } }
 WORLDANIM.push(()=>{
   if(st.s>=4&&st.s<99){ try{ const o=JSON.parse(localStorage.getItem(KEY)); if(o&&o.s>st.s) st=o; }catch(e){} }   // the hideout carries it on from step 4 and writes it there
   if(!ready()){ if(ban.classList.contains('on')&&st.s<99) hideAll(); lastPhase=hallPhase(); return; }
@@ -42,12 +42,12 @@ WORLDANIM.push(()=>{
       if(!list.length&&st.s===1&&ph==='build'&&!pageOut) dropPage();
       if(n>=1&&st.s===1){ st.s=2; save(); pageOut=false; }
       if(st.s===2&&ph==='build'&&!list.length&&S.wave>(st.dropWave|0)) dropPage();   // the next one comes at the end of the next wave (a new wave number since the last drop)
-      if(list.length){ const p=list[0]; banner('p'+n,'📜 ➜ 📖','<b>A torn recipe page!</b> Walk over it.<br>'+n+' of 3 pages'); pointAt(p.x,.9,p.z); }
-      else { banner('w'+n,'📜'.repeat(n)+'<span style="opacity:.35">'+'📜'.repeat(3-n)+'</span>','<b>'+n+' of 3 pages.</b> Fight the next wave:<br>another page drops at its end'); hand.classList.remove('on'); ring.classList.remove('on'); } } }
+      if(list.length){ const p=list[0]; banner('p'+n,'📜 ➜ 👣','<b>'+n+' / 3</b>');   /* build 614 (Matt: less words) */ pointAt(p.x,.9,p.z); }
+      else { banner('w'+n,'📜'.repeat(n)+'<span style="opacity:.35">'+'📜'.repeat(3-n)+'</span>','<b>'+n+' / 3</b> &nbsp;⚔ ➜ 📜'); hand.classList.remove('on'); ring.classList.remove('on'); } } }
   if(st.s===3){ const P=window.__portal, open=window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen();
     if(open){ st.s=4; save(); hideAll(); return; }
-    if(ph!=='build'){ banner('3w','🌀','<b>Recipe learned!</b> When this wave ends,<br>go through the <b>hideout portal</b>'); hand.classList.remove('on'); ring.classList.remove('on'); return; }
-    banner('3','🌀 ➜ 🔨','<b>Recipe learned!</b> Go through the <b>portal</b><br>to the <b>Blacksmith</b> in your hideout');
+    if(ph!=='build'){ banner('3w','📖✓','⚔ ➜ 🌀'); hand.classList.remove('on'); ring.classList.remove('on'); return; }
+    banner('3','📖✓','🌀 ➜ 🔨');
     if(P&&P.pos){ const q=P.pos(); pointAt(q.x,(q.y||0)+3.4,q.z); } }
   if(st.s>=4) hideAll();   // the hideout's half has it
 });

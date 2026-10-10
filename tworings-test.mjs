@@ -12,7 +12,7 @@ await page.goto("http://127.0.0.1:9010/?silent&ownweapons&nogate",{timeout:12000
 await page.evaluate(async()=>{ const d=window.__dd; try{ window.__trainer.skip(); }catch(e){} await window.__heroes.select('knight'); d.start(); d.step(1/60,3); window.__freeze=true; window.__meta.setLevel&&window.__meta.setLevel(40); });
 const A=await page.evaluate(()=>{ const N=window.__mythic.NAMED; return { bm:N.beast_mode&&[N.beast_mode.name,N.beast_mode.slot], mm:N.malamute&&[N.malamute.name,N.malamute.slot] }; });
 check("Beast Mode and Malamute are named charms",A.bm&&A.bm.join()==='Beast Mode,charm'&&A.mm&&A.mm.join()==='Malamute,charm',JSON.stringify(A));
-const B=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; const n0=window.__tworings.info().drops; d.S.phase='build'; for(let w=1;w<=100;w++){ d.S.wave=1; M.onWaveHeld(1); } return { drops:window.__tworings.info().drops-n0 }; });
+const B=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta; const n0=window.__tworings.info().drops; d.S.phase='build'; for(let w=1;w<=100;w++){ d.S.wave=12; M.onWaveHeld(12);   /* build 613: rings roll from map 2 wave 3 */ } return { drops:window.__tworings.info().drops-n0 }; });
 check("over 100 waves held, the two rings drop about one wave in ten each (5 to 40 drops between them)",B.drops>=5&&B.drops<=40,JSON.stringify(B));
 const C=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta, R=window.__tworings, T=window.__tavern; for(const l of d.loot.slice()){ try{ d.scene.remove(l.mesh); }catch(e){} } d.loot.length=0;
   const ring=window.__mythic.normalize({ tier:'named', named:'beast_mode', lvl:10 }); M.giveItem(ring); M.equip(ring.id);
