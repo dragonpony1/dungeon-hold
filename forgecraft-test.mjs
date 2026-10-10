@@ -14,7 +14,7 @@ await page.route("**/api/**",r=>r.fulfill({status:200,contentType:"application/j
 await page.goto("http://127.0.0.1:8894/?silent&nogate",{timeout:90000}); await page.waitForFunction(()=>window.__dd&&window.__hideout,null,{timeout:90000});
 await page.evaluate(()=>{ window.__dd.setHero(30,30); window.__hideout.open(); }); let f=null; for(let i=0;i<600&&!f;i++){ f=page.frames().find(x=>x.url().includes("hideout/index.html")); if(!f) await sleep(50); }
 await f.waitForFunction(()=>typeof openForge==="function"&&typeof SAVE!=="undefined"&&document.getElementById("forgeFocus"),null,{timeout:120000});
-const A=await f.evaluate(()=>{ window.__forgeFast=true; SAVE.legendarySludge=100; openForge(); const btn=document.getElementById("forgeCraftBtn"); const a={ b0:btn.textContent };
+const A=await f.evaluate(()=>{ window.__forgeFast=true; localStorage.setItem('dd_recipes',JSON.stringify({known:{'of Shadow|weapon':1},pages:{},seeded:1,seededH:1})); SAVE.legendarySludge=100; openForge(); const btn=document.getElementById("forgeCraftBtn"); const a={ b0:btn.textContent };
   [...document.querySelectorAll("#forgeGearGrid .fgear")][0].click(); a.b1=btn.textContent; a.focus=[...document.querySelectorAll("#forgeFocus .fset")].map(b=>b.textContent+(b.classList.contains("sel")?"*":""));
   a.chips=[...document.querySelectorAll("#forgeSets .fset")].map(b=>b.textContent); return a; });
 check("no 'Any set' any more: the nine sets to pick from; Craft says 'Pick a piece', then 'Pick a set'; a weapon's three main stats show, Damage chosen first",A.chips.length===9&&!A.chips.includes("Any set")&&A.b0==="Pick a piece"&&A.b1==="Pick a set"&&A.focus.join()==="Damage*,Swing speed,Defense damage",JSON.stringify(A));

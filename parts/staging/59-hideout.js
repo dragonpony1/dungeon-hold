@@ -64,6 +64,7 @@ function carryGear(){ const bag=Meta.bag(); const counts={}; RARITY_KEY.forEach(
   const items=bag.slice(); bag.length=0;   // emptied in place, never a fresh array: Meta.bag() is the live one 10-meta.js saves
   for(const it of items){
     if(it.locked){ bag.push(it); kept++; continue; }   // build 241: a locked piece stays in the bag, on this side of the portal
+    try{ if(window.__recipes) window.__recipes.salvaged(it); }catch(e){}   // build 604: scrapped at the door, a set piece still teaches its recipe (99zb-recipes.js)
     const k=RARITY_KEY[clampR(it.rarity)]; counts[k]++; b[k]++; n++; }   // scrap, for the Cart
   try{ localStorage.setItem(BAG_KEY,JSON.stringify(b)); }catch(e){}
   Meta.save(); lastCarry={n,counts,carried,kept}; return lastCarry; }

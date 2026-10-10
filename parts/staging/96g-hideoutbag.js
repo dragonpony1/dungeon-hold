@@ -24,9 +24,9 @@ function writeOwned(){ try{ const S=Meta.sets; if(!S) return; const sets={};
 setInterval(()=>{ if(!H.isOpen()){ lastV=null; return; } const v=Meta.version(); if(v!==lastV){ lastV=v; writeOwned(); } },700);
 function tell(msg){ try{ const w=H.frameWin(); if(w) w.postMessage(msg,'*'); }catch(e){} }
 // ---- salvage: out of the bag, into the Cart's scrap, the portal's own way
-function salvage(items){ const b=H.readBag(); RK.forEach(k=>{ b[k]=Math.max(0,Math.floor(+b[k])||0); }); const bag=Meta.bag(); const got={}; let n=0;
-  for(const it of items){ const i=bag.indexOf(it); if(i<0||!it||it.locked) continue; bag.splice(i,1); const k=RK[Math.max(0,Math.min(4,Math.round(+it.rarity)||0))]; b[k]++; got[k]=(got[k]||0)+1; n++; }
-  if(!n) return {n:0,got}; try{ localStorage.setItem(H.BAG_KEY,JSON.stringify(b)); }catch(e){} Meta.save(); tell('hideout:scrap'); writeOwned(); try{ SFX.mana(); }catch(e){} return {n,got}; }
+function salvage(items){ const b=H.readBag(); RK.forEach(k=>{ b[k]=Math.max(0,Math.floor(+b[k])||0); }); const bag=Meta.bag(); const got={}; let n=0; const learned=[];   // build 604: a set piece salvaged teaches its recipe (99zb-recipes.js)
+  for(const it of items){ const i=bag.indexOf(it); if(i<0||!it||it.locked) continue; bag.splice(i,1); try{ const L=window.__recipes&&window.__recipes.salvaged(it); if(L) learned.push(L); }catch(e){} const k=RK[Math.max(0,Math.min(4,Math.round(+it.rarity)||0))]; b[k]++; got[k]=(got[k]||0)+1; n++; }
+  if(!n) return {n:0,got,learned}; try{ localStorage.setItem(H.BAG_KEY,JSON.stringify(b)); }catch(e){} Meta.save(); tell('hideout:scrap'); writeOwned(); try{ SFX.mana(); }catch(e){} return {n,got,learned}; }
 const salvageable=()=>Meta.bag().filter(it=>it&&!it.locked);
 // ---- the bag over the hideout
 function openBag(){ if(!H.isOpen()||T.isOpen()) return false; fromHideout=true; writeOwned(); const el=$('tavern'); if(el) el.style.zIndex='25';
@@ -58,7 +58,7 @@ $('tavern').addEventListener('click',e=>{ const t=e.target.closest('[data-act="t
   if(t.dataset.armed!=='1'){ e.stopPropagation(); t.dataset.armed='1'; t.dataset.label=t.innerHTML; t.innerHTML='⚠ Tap again to salvage'; t.style.background='#8a1e1e'; t.style.borderColor='#ff6a5a'; clearTimeout(t.__armT); t.__armT=setTimeout(()=>{ if(t.dataset.armed==='1'){ t.dataset.armed=''; t.innerHTML=t.dataset.label; t.style.background=''; t.style.borderColor=''; } },3000); return; }
   clearTimeout(t.__armT); t.dataset.armed='';
   const r=t.dataset.act==='tvsalvall'?(salvAllSound(),salvage(salvageable())):salvage(Meta.bag().filter(b=>b.id===t.dataset.id));
-  if(r.n){ tvSay('🧪 +'+r.n+' → Cauldron  ('+RK.filter(k=>r.got[k]).map(k=>r.got[k]+' '+k).join(' · ')+')'); TV.sel=null; } else tvSay('Nothing to salvage'); tvRenderTab(true); });
+  if(r.n){ tvSay('🧪 +'+r.n+' → Cauldron  ('+RK.filter(k=>r.got[k]).map(k=>r.got[k]+' '+k).join(' · ')+')'+(r.learned&&r.learned.length?'  ·  📖 '+r.learned.join(', '):'')); TV.sel=null; } else tvSay('Nothing to salvage'); tvRenderTab(true); });
 // build 446 (Matt: "i want to get rid of the I screen all together" / "if my hot bar is sticky i should be able to drag or shift click from my bag to the hot bar"): in the hideout this bag IS the inventory.
 // Pinned under it: the room's HOTBAR (your hands, 1-9) and your FURNITURE (hideout build 86's __onebag.inv). Shift-click a piece in the bag (or drag it onto a hotbar square) and it is in your hands when the bag closes --
 // aim at a table, shelf or pedestal and click. Shift-click a hotbar square (or drag it back onto the bag) and it returns; furniture moves between its row and the hotbar the same way; a plain click on a hotbar square picks it.
