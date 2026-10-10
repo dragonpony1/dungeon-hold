@@ -27,9 +27,9 @@ const A=await page.evaluate(()=>{ const N=window.__mythic.NAMED; return ['twotim
 check("the four dual-wield rings are named charms, one per hero (reward: their own drop, never the ordinary named roll)",A.join('|')==='twotimer:Twotimer:charm:true:knight|toil_n_trouble:Toil-n-Trouble:charm:true:witch|tootsie:Tootsie:charm:true:fighter|bifurcation:Bifurcation:charm:true:troll',A.join(' | '));
 // ---- the drops: about one wave in ten held each; never while you have it
 const B=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta, D=window.__dualwield; const clear=()=>{ for(const l of d.loot.slice()){ try{ l.mesh.parent&&l.mesh.parent.remove(l.mesh); }catch(e){} } d.loot.length=0; };
-  clear(); M.reset(); d.resetGear(); const n=id=>d.loot.filter(l=>l.it&&l.it.named===id).length; d.S.phase='build'; for(let w=0;w<200;w++){ d.S.wave=12; M.onWaveHeld(12); }
+  clear(); M.reset(); d.resetGear(); const n=id=>d.loot.filter(l=>l.it&&l.it.named===id).length; d.S.phase='build'; for(let w=0;w<200;w++){ d.S.wave=30; M.onWaveHeld(30); }
   const free={}; for(const id of D.RINGS) free[id]=n(id); clear();
-  for(const id of D.RINGS) M.giveItem(window.__mythic.normalize({tier:'named',named:id,lvl:5})); for(let w=0;w<100;w++){ d.S.wave=12; M.onWaveHeld(12); } const own={}; for(const id of D.RINGS) own[id]=n(id); clear(); M.reset(); d.resetGear(); M.setLevel&&M.setLevel(40); return { free, own }; });
+  for(const id of D.RINGS) M.giveItem(window.__mythic.normalize({tier:'named',named:id,lvl:5})); for(let w=0;w<100;w++){ d.S.wave=30; M.onWaveHeld(30); } const own={}; for(const id of D.RINGS) own[id]=n(id); clear(); M.reset(); d.resetGear(); M.setLevel&&M.setLevel(40); return { free, own }; });
 check("over 200 waves held each ring drops about one wave in ten (8 to 40 times each)",Object.values(B.free).every(v=>v>=8&&v<=40),JSON.stringify(B.free));
 check("and never while you already have it (in the bag here)",Object.values(B.own).every(v=>v===0),JSON.stringify(B.own));
 // ---- each opens the 2nd slot only for its own hero; the left (free) hand; alternating attacks -- per hero
