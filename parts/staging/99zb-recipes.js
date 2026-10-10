@@ -103,7 +103,7 @@ function beatBoss(id,quiet){ const B=BOSSES[id]; if(!B) return null; const b=rea
   if(first){ const pool=[]; for(const st of B.sets) for(const p of PIECES){ const k=key(st,p); if(!b.known[k]) pool.push(k); } if(pool.length){ const k=pool[Math.floor(Math.random()*pool.length)]; b.known[k]=Date.now(); delete b.pages[k]; out.set=k; cnt.learned++; } }
   const nid=B.named.find(n=>!b.named[n]); if(nid){ b.named[nid]=Date.now(); out.named=nid; }
   write(b); cnt.bosses=(cnt.bosses|0)+1;
-  if(!quiet){ const rows=[]; if(out.set) rows.push({ t:'📖 Recipe: '+label(out.set) }); if(out.named) rows.push({ mw:true, t:'✦ MASTERWORK: '+NAMED_NAME[out.named] }); rows.push({ t:B.tic+' +1 '+B.trophy+'  ·  forge it at the Blacksmith' }); showBossCard(B,rows); }
+  if(!quiet){ const rows=[]; if(out.set) rows.push({ t:'📖 Recipe: '+label(out.set) }); if(out.named) rows.push({ mw:true, t:'✦ MASTERWORK: '+NAMED_NAME[out.named] }); rows.push({ t:'<img src="hideout/assets/hideout/items/trophies/'+id+'.webp" alt="'+B.tic+'" style="height:3.4em;vertical-align:middle;margin-right:.3em;filter:drop-shadow(0 0 6px #ffd27a)">+1 '+B.trophy+'  ·  forge it at the Blacksmith' });   /* build 610: the trophy's picture (Matt's models) */ showBossCard(B,rows); }
   return out; }
 function bossDied(e){ const id=bossOf(e&&e.kind); if(!id) return; const B=BOSSES[id]; if(B.kinds.length>1&&enemies.some(o=>o!==e&&!o.dead&&B.kinds.includes(o.kind))) return;   // the trio counts when the last one falls
   const N=window.__net, role=N&&N.role?N.role():null; if(role==='guest') return; beatBoss(id); if(role==='host'&&N.peers) N.peers().forEach(p=>N.send('bossBeat',{id},p)); }
