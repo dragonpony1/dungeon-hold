@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="94">
+<meta name="hideout-build" content="95">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -246,7 +246,7 @@ canvas{display:block}
   <button id="forgeBookBtn" title="Every recipe: what you know, the pages you have, where the rest drop">&#128214; <span id="forgeBookCount">Recipes</span></button>
   <div id="forgeBook"></div>
   <div id="forgeHeader">
-    <h1>THE FORGE</h1>
+    <h1>THE BLACKSMITH</h1>
     <p>Pick the piece, its set and its main stat. Every craft can PROC.</p>
     <div id="forgeInput"><img src="/assets/hideout/items/legendary_sludge.png"> <span id="forgeSludgeText"></span></div>
   </div>
@@ -335,7 +335,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 94;   // build 94: the recipe book shows the loot -- pictures in every frame, silhouettes for locked, pages reveal, NEW sparkle, spotlight, set pips, READY masterworks.   // build 93: the recipe book in Matt's art (the open tome, slot frames, bookmark).   // build 92: masterworks -- bosses teach the named mythics (game 605); forge one with its recipe + 1 of that boss's trophies; a proc makes it Proc'd. No more random named from a set craft.   // build 91: brings in builds 88-90, which were made in the game's own copy and never reached this branch (the co-op guest fallback, the Frost Fox and the new Fire Imp, the locker reward into the bag, the first-time picture cards), on top of the CRAFTING FORGE (pushed here as "88": pick the piece, its set and its main stat, it always makes it, every craft can PROC) and RECIPES ("89": the forge makes what you know -- 3 torn pages or salvaging a set piece teach it -- a recipe book, and you pick the weapon kind); the forge's picture card now tells the crafting forge.   // build 90 (game copy): first-time picture cards on the cauldron and the forge (hoTip).   // build 89 (game copy): the training reward taken from the wall locker goes straight into the bag (the game hears 'hideout:taken', 93-gearsets.js).   // build 88 (game copy, co-op sweep 2026-10-02): a guest shown its own room (the host's layout never came) no longer shows or drops gear on the HOST's display table.   // build 87: the wardrobe stores gear (100) and opens beside the game's bag.   // build 86: no I screen inside the game -- the game's bag is the inventory (I opens it), with this room's hotbar and furniture under it.   // build 85: a big gold close button on every window, and it always hands the mouse back.   // build 84: Esc out of any menu leaves you in the room (a small click-to-play sign), never the big entry card.   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 95;   // build 95: THE BLACKSMITH -- Matt's animated arcane blacksmith replaces the forge's model (bellows, steam, sparks looping); props can animate now.   // build 94: the recipe book shows the loot -- pictures in every frame, silhouettes for locked, pages reveal, NEW sparkle, spotlight, set pips, READY masterworks.   // build 93: the recipe book in Matt's art (the open tome, slot frames, bookmark).   // build 92: masterworks -- bosses teach the named mythics (game 605); forge one with its recipe + 1 of that boss's trophies; a proc makes it Proc'd. No more random named from a set craft.   // build 91: brings in builds 88-90, which were made in the game's own copy and never reached this branch (the co-op guest fallback, the Frost Fox and the new Fire Imp, the locker reward into the bag, the first-time picture cards), on top of the CRAFTING FORGE (pushed here as "88": pick the piece, its set and its main stat, it always makes it, every craft can PROC) and RECIPES ("89": the forge makes what you know -- 3 torn pages or salvaging a set piece teach it -- a recipe book, and you pick the weapon kind); the forge's picture card now tells the crafting forge.   // build 90 (game copy): first-time picture cards on the cauldron and the forge (hoTip).   // build 89 (game copy): the training reward taken from the wall locker goes straight into the bag (the game hears 'hideout:taken', 93-gearsets.js).   // build 88 (game copy, co-op sweep 2026-10-02): a guest shown its own room (the host's layout never came) no longer shows or drops gear on the HOST's display table.   // build 87: the wardrobe stores gear (100) and opens beside the game's bag.   // build 86: no I screen inside the game -- the game's bag is the inventory (I opens it), with this room's hotbar and furniture under it.   // build 85: a big gold close button on every window, and it always hands the mouse back.   // build 84: Esc out of any menu leaves you in the room (a small click-to-play sign), never the big entry card.   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -352,7 +352,7 @@ const STARTER_ITEMS = ['vending_machine', 'sludge_cauldron', 'ore_forge', 'porta
 const STARTER_LAYOUT = [
   { gid: 'wall_locker',     x: 0,      z: -13.12, ry: 0, w: 1.77, d: 1.15 },
   { gid: 'sludge_cauldron', x: -7.61,  z: -12.6,  ry: 0, w: 3.81, d: 2.09 },
-  { gid: 'ore_forge',       x: 7.61,   z: -12.25, ry: 0, w: 7.42, d: 2.64 },
+  { gid: 'ore_forge',       x: 7.61,   z: -11.4, ry: 0, w: 5.3, d: 4.3 },   // build 95: the Blacksmith is narrower and deeper than the old forge (was z -12.25, 7.42 x 2.64)
   { gid: 'vending_machine', x: -15.22, z: -12.05, ry: 0, w: 3.61, d: 3.06 },
   { gid: 'portal',          x: 16.8,   z: 6,      ry: -Math.PI / 2, w: 2.4, d: 1.8 },   // build 49: coming back to the hall is through this portal (Escape only closes menus)
 ];
@@ -409,6 +409,8 @@ function loadSave(){
           s.forgeBig = 1;
         } catch (e) { console.error('forge resize step skipped', e); }
       }
+      // once per save (build 95): the Blacksmith replaced the old forge -- deeper (4.3 vs 2.64), so a forge already standing steps forward the way it faces by the half of that, and its back stays off the wall
+      if (!s.smithV1) { try { s.placed.filter(p => p.gid === 'ore_forge').forEach(p => { p.x += 0.85 * Math.sin(p.ry || 0); p.z += 0.85 * Math.cos(p.ry || 0); }); s.smithV1 = 1; } catch (e) { console.error('blacksmith step skipped', e); } }
       // once per save: a machine a returning player never set down goes to its starter spot, so an old save opens
       // like a new one. Anything already placed stays where it is, a spot with something standing in it is skipped,
       // and a machine packed away in a chest stays there. Guarded on its own — this function's outer catch starts
@@ -910,7 +912,7 @@ const GEAR = {
   horizontal_rack:   { name:'Horizontal Rack',   icon:ITEMS_DIR+'horizontal_rack.png',    cost:6  },
   vertical_rack:     { name:'Vertical Rack',     icon:ITEMS_DIR+'vertical_rack.png',      cost:6  },
   sludge_cauldron:   { name:'Sludge Cauldron',   icon:ITEMS_DIR+'sludge_cauldron.png',    cost:12 },
-  ore_forge:         { name:'Ore Forge',         icon:ITEMS_DIR+'ore_forge.png',          cost:12 },
+  ore_forge:         { name:'The Blacksmith',    icon:ITEMS_DIR+'ore_forge.png',          cost:12 },   // build 95: Matt's animated arcane blacksmith (props/blacksmith.glb) -- "call it the black smith"; the gid stays ore_forge so every save keeps it
   vending_machine:   { name:'Trade-O-Matic',     icon:ITEMS_DIR+'vending_machine.png',    cost:0, notShop:true },
   portal:            { name:'Crystal Portal',    icon:ITEMS_DIR+'portal.png',             cost:0, notShop:true },
   wall_locker:       { name:'Ornate Wall Locker', icon:ITEMS_DIR+'wall_locker.png',       cost:0, notShop:true },
@@ -925,7 +927,7 @@ const MODEL_MAP = {
   display_pedestal: 'trophy_table.glb', weapon_rack: 'weapon_rack.glb',
   carousel_stand: 'carousel_stand.glb', horizontal_rack: 'horizontal_rack.glb', vertical_rack: 'vertical_rack.glb',
   vending_machine: 'vending_machine.glb',
-  sludge_cauldron: 'sludge_cauldron.glb', ore_forge: 'ore_forge.glb',
+  sludge_cauldron: 'sludge_cauldron.glb', ore_forge: 'blacksmith.glb',
   portal: 'crystal_portal.glb',
   wall_locker: 'arcane_wardrobe.glb',
   small_table: 'side_table.glb',
@@ -1182,9 +1184,16 @@ const wallObjects = []; // the wall tiles — wall art feels for the real surfac
 // and decode all 58.
 const gltfCache = new Map(); // url -> Promise<gltf>
 const gltfReady = new Set(); // urls whose promise has resolved, so a ghost can tell instantly whether it must wait
+// build 95: a model that moves (the Blacksmith's bellows, steam and sparks) -- its clips are kept by template, each placed copy gets its own skeleton and a mixer
+const TEMPLATE_CLIPS = new WeakMap(), PROP_MIXERS = [];
+function cloneProp(template) { const c = template.clone(); const sk = []; template.traverse(o => { if (o.isSkinnedMesh) sk.push(o); }); if (!sk.length) return c;
+  const bones = new Map(); c.traverse(o => { if (o.isBone) bones.set(o.name, o); }); const cs = []; c.traverse(o => { if (o.isSkinnedMesh) cs.push(o); });
+  cs.forEach((m, i) => { const src = sk[i]; if (!src || !src.skeleton) return; m.bind(new THREE.Skeleton(src.skeleton.bones.map(b => bones.get(b.name) || b), src.skeleton.boneInverses), src.bindMatrix); m.frustumCulled = false; });
+  return c; }
+function animateProp(obj, template) { const clips = TEMPLATE_CLIPS.get(template); if (!clips || !clips.length) return; const mx = new THREE.AnimationMixer(obj); clips.forEach(cl => { const a = mx.clipAction(cl); a.play(); a.time = Math.random() * cl.duration; }); PROP_MIXERS.push({ mx, obj }); }
 function loadGltf(url) {
   if (!gltfCache.has(url)) gltfCache.set(url, new Promise((res, rej) => loader.load(url,
-    (g) => { dequantize(g.scene); gltfReady.add(url); noteDone(url); res(g); },
+    (g) => { dequantize(g.scene); if (g.animations && g.animations.length) TEMPLATE_CLIPS.set(g.scene, g.animations); gltfReady.add(url); noteDone(url); res(g); },
     (ev) => noteProgress(url, ev),
     (e) => { noteDone(url); rej(e); })));
   return gltfCache.get(url);
@@ -1229,7 +1238,7 @@ function place(name, rx, ry, pos, scaleY) {
 // generic prop placer: source is a Promise of a template Object3D (cloned here), scale is uniform, sits on its own bottom at pos.y
 function placeSource(source, scale, pos, ry, onLoad) {
   return source.then((template) => {
-    const obj = template.clone();
+    const obj = cloneProp(template); animateProp(obj, template);
     obj.scale.setScalar(scale);
     obj.rotation.y = ry || 0;
     const b0 = new THREE.Box3().setFromObject(obj);
@@ -1390,7 +1399,7 @@ function box(w,h,d,color) {
 const PROPS_DIR = '/assets/hideout/props/';
 const PROP_PRIORITY = { portal: 0, vending_machine: 1, ore_forge: 1, sludge_cauldron: 1 }; // the things you walk up to first
 
-const SCALE_MAP = { vending_machine: (EYE_HEIGHT/1.90)*3.5*0.75, sludge_cauldron: 2.0, ore_forge: 3.9, portal: 2.0, wall_locker: 1.5, painting_triumph: 1.0, painting_hug: 1.0, painting_tease: 1.0, painting_company: 1.0, painting_rootgate: 1.0,
+const SCALE_MAP = { vending_machine: (EYE_HEIGHT/1.90)*3.5*0.75, sludge_cauldron: 2.0, ore_forge: 2.8, portal: 2.0, wall_locker: 1.5, painting_triumph: 1.0, painting_hug: 1.0, painting_tease: 1.0, painting_company: 1.0, painting_rootgate: 1.0,
   small_table: 1.5 }; // raw 2.0 x 0.72 x 0.9 -> 3 wide, top at waist height
 STAND_SETS.forEach(s => { SCALE_MAP['stand_' + s] = 1.35; }); // raw models are 2 units tall -> 2.7, a touch taller than the player // portal scale kept modest on purpose — easy to bump up once Matt sees it in place
 const DEFAULT_PLACE_SCALE = 1.7; // every Meshy prop is normalized so its longest axis is ~1.9 raw units regardless of what it is, so scale 1.0 reads as toy-sized next to the player
@@ -1428,7 +1437,7 @@ function spawnPlacedItem(gid, pos, ry, pid) {
       hit.position.copy(c);
       scene.add(hit);
       entry.useHit = hit;
-      interactables.push({ mesh: hit, prompt: 'E: Use the Forge', onUse: openForge });
+      interactables.push({ mesh: hit, prompt: 'E: Use the Blacksmith', onUse: openForge });
       if (entry.pickHit) { entry.pickHit.geometry.dispose(); entry.pickHit.geometry = new THREE.BoxGeometry(sz.x, sz.y, sz.z); entry.pickHit.position.copy(c); }
       if (entry.collider) Object.assign(entry.collider, { minX: b.min.x + 0.15, maxX: b.max.x - 0.15, minZ: b.min.z + 0.15, maxZ: b.max.z - 0.15 });
       entry.light = takeLight(0xff8833, 2.6, 16, c.x, pos.y + sz.y * 0.85, c.z);
@@ -2960,7 +2969,7 @@ function openForge() {
   if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
   document.getElementById('forgeWrap').style.display = 'flex';
   // build 91: the card tells the crafting forge (was: "×5 ... most tries make a Mythic set piece")
-  hoTip('dd_tip_forge', '🔨 THE FORGE', [ { k:'📜📜📜 <i>➜</i> 📖', w:'<b>Recipes:</b> 3 torn pages, or salvage a set piece, and you can make it' }, { k:'🎯 ' + SLUDGE_IMG('legendary') + '×' + FORGE_COST + ' <i>➜</i> ✦', w:'Pick the piece, its set and its main stat. The forge <b>always</b> makes it' }, { k:'🔥🔥🔥', w:'Stoke the fire with more sludge for a better chance to PROC' }, { gold:true, k:'✦ PROC\'D ✦', w:'<b>You won the lottery!</b> A very special version of this gear piece, its main stat boosted' } ], 'When it PROCs: you hear a fanfare and the piece glows gold.');
+  hoTip('dd_tip_forge', '🔨 THE BLACKSMITH', [ { k:'📜📜📜 <i>➜</i> 📖', w:'<b>Recipes:</b> 3 torn pages, or salvage a set piece, and you can make it' }, { k:'🎯 ' + SLUDGE_IMG('legendary') + '×' + FORGE_COST + ' <i>➜</i> ✦', w:'Pick the piece, its set and its main stat. The forge <b>always</b> makes it' }, { k:'🔥🔥🔥', w:'Stoke the fire with more sludge for a better chance to PROC' }, { gold:true, k:'✦ PROC\'D ✦', w:'<b>You won the lottery!</b> A very special version of this gear piece, its main stat boosted' } ], 'When it PROCs: you hear a fanfare and the piece glows gold.');
   forgeSelected = null; forgeFocus = null; forgeStoke = 0; forgeWeapon = null; forgeNamed = null;
   try { seedRecipesHere(); } catch (e) {} document.getElementById('forgeBook').classList.remove('on');
   const out = document.getElementById('forgeOutput');
@@ -3349,6 +3358,7 @@ function animate(now) {
   requestAnimationFrame(animate);
   if (hiddenByHost) return;
   const dt = Math.min(0.05, (now-lastT)/1000); lastT = now;
+  for (let i = PROP_MIXERS.length - 1; i >= 0; i--) { const P = PROP_MIXERS[i]; if (!P.obj.parent) { PROP_MIXERS.splice(i, 1); continue; } P.mx.update(dt); }   // build 95: animated props (the Blacksmith)
   if (active) {
     vel.set(0,0,0);
     if (keys['w']) vel.z -= 1;
