@@ -37,5 +37,7 @@ const Nm=await craft(.01);
 check("build 605: even the luckiest roll on a SET craft is a Proc'd set piece, never a named mythic (those come from masterworks now -- bossrecipes-test)",Nm.tier==="mythic"&&Nm.procd&&Nm.cls==="unique"&&/PROC/.test(Nm.txt),JSON.stringify(Nm));
 const St=await craft(.14,null,3);
 check("stoked three times (9 sludge, 15%), a roll of 14% procs; the stoke goes back to none",St.spent===9&&St.procd&&St.stokeAfter===0,JSON.stringify(St));
+const SND=await f.evaluate(async()=>{ for(let i=0;i<60&&Object.keys(SMITH_BUF).length<3;i++) await new Promise(r=>setTimeout(r,100)); const seq=[]; for(let i=0;i<4;i++){ smithSound(); seq.push(window.__smithLast); } return { loaded:Object.keys(SMITH_BUF).sort(), seq }; });
+check("hideout 97: Matt's three blacksmith sounds load, and crafts take them in turn (never the same twice running)",SND.loaded.join()==="smith-hammer,smith-pound,smith-steam"&&SND.seq.every((n,i)=>i===0||n!==SND.seq[i-1])&&new Set(SND.seq.slice(0,3)).size===3,JSON.stringify(SND));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
 await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
