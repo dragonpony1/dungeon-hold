@@ -52,7 +52,7 @@ addEventListener('keydown',e=>{ if(el&&el.classList.contains('on')&&(e.key==='Es
 const bagHas=()=>{ try{ return Meta.bag().length>0; }catch(e){ return false; } };
 setInterval(()=>{ let st; try{ st=T.state(); }catch(e){ return; } const onBag=st.open&&st.tab==='bag';
   if(onBag&&!document.getElementById('bagguide-btn')){ const sj=document.querySelector('[data-act="selljunk"]'); if(sj&&sj.parentElement){ const b=document.createElement('button'); b.id='bagguide-btn'; b.type='button'; b.title='How to read your gear'; b.textContent='?'; b.addEventListener('click',e=>{ e.stopPropagation(); show(); }); sj.parentElement.appendChild(b); } }
-  if(onBag&&!seen()&&!SILENT&&!(typeof TUTORIAL!=='undefined'&&TUTORIAL)&&bagHas()&&!(el&&el.classList.contains('on'))) show();
+  if(onBag&&!seen()&&!SILENT&&!(typeof TUTORIAL!=='undefined'&&TUTORIAL)&&bagHas()&&!(el&&el.classList.contains('on'))&&!(window.__wardguide&&window.__wardguide.active())) show();   /* build 620: never over the wardrobe walk-through */
   if(!st.open) hide(); },400);
 window.__bagguide={ show, hide, isOn:()=>!!(el&&el.classList.contains('on')), info:()=>Object.assign({ seen:seen() },cnt) };
 })();
