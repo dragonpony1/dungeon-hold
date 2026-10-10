@@ -8,11 +8,11 @@ const server=await serve(8897,{dist:process.env.DIST||"./dist"});
 const results=[]; const check=(n,ok,d)=>{ results.push(!!ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader"]}); const errors=[];
-const ctx=await browser.newContext({viewport:{width:1280,height:800}}); await ctx.addInitScript(()=>{ try{ if(sessionStorage.getItem('__rt')) return; sessionStorage.setItem('__rt','1'); localStorage.setItem("ddSound","off"); localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("dd_trainer","done"); localStorage.removeItem("dd_recipes"); }catch(e){} });
+const ctx=await browser.newContext({viewport:{width:1280,height:800}}); await ctx.addInitScript(()=>{ try{ if(sessionStorage.getItem('__rt')) return; sessionStorage.setItem('__rt','1'); localStorage.setItem("ddSound","off"); localStorage.setItem("ddMapsCleared","9"); localStorage.setItem("dd_trainer","done"); localStorage.setItem("dd_recipes",JSON.stringify({seededBoss:1})); }catch(e){} });
 const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
 await page.route("**/api/**",r=>r.fulfill({status:200,contentType:"application/json",body:"{}"}));
 await page.goto("http://127.0.0.1:8897/?silent&nogate&map=1",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__meta&&window.__recipes&&window.__hideout&&window.__tavern,null,{timeout:120000});
-const A=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta, R=window.__recipes; try{ window.__trainer.skip(); }catch(e){} localStorage.removeItem('dd_recipes');
+const A=await page.evaluate(()=>{ const d=window.__dd, M=window.__meta, R=window.__recipes; try{ window.__trainer.skip(); }catch(e){} localStorage.setItem('dd_recipes',JSON.stringify({seededBoss:1}));   /* the one-time boss credit (build 605) is bossrecipes-test's */
   const it=d.rollItem(2,'armor',2); it.name=it.name.replace(/ of (the )?[A-Z]\w*( [A-Z]\w*)?$/,'')+' of Fire'; M.giveItem(it);
   const n1=R.seed(), n2=R.seed(); const b=R.read(); return { n1, n2, fire:!!b.known['of Fire|armor'] }; });
 check("once, what you own counts as known (a Fire armor in the bag); a second time teaches nothing",A.fire&&A.n1>=1&&A.n2===0,JSON.stringify(A));

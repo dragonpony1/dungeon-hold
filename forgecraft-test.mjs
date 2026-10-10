@@ -34,7 +34,7 @@ check("a PROC: the main stat +35% (Swing speed 70), proc'd with Swing speed its 
 let G=null; for(let i=0;i<60;i++){ G=await page.evaluate(id=>{ const M=window.__dd.Meta; const b=(M.bag?M.bag():[]).find(x=>x.id===id); return b?{ procd:!!b.procd, primary:b.primary, spd:b.stats.spd, name:b.name }:null; },P.id); if(G) break; await sleep(100); }
 check("the game's bag has it PROC'D too (the gold stat and the glow are the game's)",G&&G.procd&&G.primary==="spd"&&G.spd===70,JSON.stringify(G));
 const Nm=await craft(.01);
-check("a third of procs is the jackpot: a NAMED MYTHIC (proc'd)",Nm.tier==="named"&&Nm.procd&&Nm.cls==="unique"&&/PROC/.test(Nm.txt),JSON.stringify(Nm));
+check("build 605: even the luckiest roll on a SET craft is a Proc'd set piece, never a named mythic (those come from masterworks now -- bossrecipes-test)",Nm.tier==="mythic"&&Nm.procd&&Nm.cls==="unique"&&/PROC/.test(Nm.txt),JSON.stringify(Nm));
 const St=await craft(.14,null,3);
 check("stoked three times (9 sludge, 15%), a roll of 14% procs; the stoke goes back to none",St.spent===9&&St.procd&&St.stokeAfter===0,JSON.stringify(St));
 const realErrors=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|hideout\/gear|fonts\.googleapis/i.test(e)); check("no page errors",realErrors.length===0,realErrors.slice(0,3).join(" | "));
