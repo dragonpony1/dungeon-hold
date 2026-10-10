@@ -11,7 +11,7 @@
 (function(){
 'use strict';
 const TUT=typeof TUTORIAL!=='undefined'&&!!TUTORIAL;
-const KEY='dd_recipes', NEED=3, PAGE_BUDGET=.3;
+const KEY='dd_recipes', NEED=3, PAGE_BUDGET=1;   // build 622 (Matt: "it seems like the blueprint progression is a little stingy"): 1 page a wave, was .3 -- about 7 a map run, two blueprints, a map's ten in 4-5 runs
 const ALL=['of the Void','of Chaos','of the Earth','of Fire','of Radiance','of the Storm','of Shadow','of Ice','of the Wind'];
 const HOME=[['of the Earth'],['of Chaos','of Radiance'],['of Shadow','of the Wind'],['of Fire'],['of the Storm','of Ice'],['of the Void']];
 const PIECES=['weapon','armor','amulet','familiar','charm'], PNAME={weapon:'Weapon',armor:'Armor',amulet:'Amulet',familiar:'Familiar',charm:'Charm'}, PIC={weapon:'⚔',armor:'🛡',amulet:'📿',familiar:'🐾',charm:'💍'};
@@ -30,7 +30,16 @@ function showCard(k,how){ const [s,p]=k.split('|'); card.innerHTML='<div class="
   card.classList.add('on'); clearTimeout(cardT); cardT=setTimeout(()=>card.classList.remove('on'),3200); try{ SFX.loot&&SFX.loot(4); }catch(e){} }
 function learn(k,how,quiet){ const b=read(); if(b.known[k]) return false; b.known[k]=Date.now(); delete b.pages[k]; write(b); cnt.learned++; if(how==='salvage') cnt.salvLearned++; if(!quiet) showCard(k,how); return true; }
 function addPage(k,x,y,z){ const b=read(); if(b.known[k]) return; const n=(b.pages[k]|0)+1; cnt.taken++;
-  if(n>=NEED){ learn(k,'pages'); return; } b.pages[k]=n; write(b); try{ SFX.mana(); }catch(e){} floatText(x,(y||0)+.9,z,'📜 '+label(k)+'  '+n+'/'+NEED,colOf(k.split('|')[0])); }
+  if(n>=NEED){ learn(k,'pages'); return; } b.pages[k]=n; write(b); try{ SFX.mana(); }catch(e){} floatText(x,(y||0)+.9,z,'📜 '+label(k)+'  '+n+'/'+NEED,colOf(k.split('|')[0])); pageCard(k,n); }
+// build 622 (Matt: "unless i am missing the card when i get a torn piece" -> "yes do both"): pages 1 and 2 get a small picture card in the top corner where the pickup cards go --
+// the piece's real picture and 📜 pips (n of 3), gone by itself; the big gold card stays for the blueprint learned
+const pcEl=document.createElement('div'); pcEl.id='pageCard'; document.body.appendChild(pcEl);
+{ const st=document.createElement('style'); st.textContent='#pageCard{position:fixed;right:206px;top:10px;z-index:30;display:flex;align-items:center;gap:9px;width:212px;box-sizing:border-box;padding:6px 9px;background:linear-gradient(#2a1f33f4,#160f1cf4);border:2px solid var(--pc,#c9962f);border-radius:10px;box-shadow:0 4px 0 #000,0 0 14px #0008;pointer-events:none;opacity:0;transform:translateX(30px);transition:opacity .25s,transform .3s cubic-bezier(.2,.9,.3,1.2)}#pageCard.on{opacity:1;transform:none}#pageCard img{width:44px;height:44px;object-fit:cover;border-radius:7px;border:1px solid #0008;flex:0 0 auto}#pageCard .pi{font-size:30px;flex:0 0 auto}#pageCard .pw{font:bold 12px Georgia,serif;color:#f3e6cf;line-height:1.2}#pageCard .pp{font-size:17px;letter-spacing:2px;margin-top:2px}#pageCard .pp b{filter:drop-shadow(0 0 4px var(--pc)) drop-shadow(0 0 2px var(--pc)) brightness(1.15)}#pageCard .pp i{font-style:normal;opacity:.3;filter:grayscale(1)}'; document.head.appendChild(st); }
+let pcT=0;
+function pageCard(k,n){ if(TUT) return; const [s,p]=k.split('|'), BP=window.__blueprints, src=BP&&BP.picOf?BP.picOf(k):''; const col=colOf(s);
+  pcEl.style.setProperty('--pc',col); pcEl.innerHTML=(src?'<img src="'+src+'" alt="">':'<span class="pi">'+(PIC[p]||'📜')+'</span>')+'<div><div class="pw">'+setInfo(s).ic+' '+label(k)+'</div><div class="pp">'+'<b>📜</b>'.repeat(n)+'<i>📜</i>'.repeat(Math.max(0,NEED-n))+'</div></div>';
+  const pk=document.getElementById('pickcard'); let top=10; if(pk){ const r=pk.getBoundingClientRect(), cs=getComputedStyle(pk); if(r.width&&+cs.opacity>.2&&r.top<innerHeight/2) top=Math.round(r.bottom+6); } pcEl.style.top=top+'px';   /* a pickup card already there: just under it */
+  pcEl.classList.add('on'); clearTimeout(pcT); pcT=setTimeout(()=>pcEl.classList.remove('on'),2800); }
 // which piece a page is for: this map's sets first, a piece you don't know (pages already started weigh more, so recipes finish); then any set; none once every recipe is known
 function pickKey(){ const b=read(); const pool=sets=>{ const out=[]; for(const s of sets) for(const p of PIECES){ const k=key(s,p); if(!b.known[k]) for(let i=0;i<1+(b.pages[k]|0);i++) out.push(k); } return out; };
   let P=pool(HOME[MAPI]||ALL); if(!P.length) P=pool(ALL); return P.length?P[Math.floor(Math.random()*P.length)]:null; }
@@ -113,5 +122,5 @@ if(window.__net&&window.__net.onMessage) window.__net.onMessage('bossBeat',d=>{ 
 function seedBosses(){ const b=read(); if(b.seededBoss) return []; b.seededBoss=Date.now(); write(b); let cleared=0; try{ cleared=parseInt(localStorage.getItem('ddMapsCleared'))||0; }catch(e){}
   const done=[]; for(const id in BOSSES){ const B=BOSSES[id]; if(B.map>=0&&B.map<cleared&&!(read().bosses||{})[id]){ beatBoss(id,true); done.push(id); } } return done; }
 if(!TUT) setTimeout(()=>{ try{ seedBosses(); }catch(e){} },1600);
-window.__recipes={ BOSSES, NAMED_NAME, beatBoss, bossOf, seedBosses, KEY, NEED, HOME, ALL, PIECES, read, learn, addPage, pickKey, spawn:(k,x,z)=>spawnPage(k||pickKey(),x,z), list:()=>PAGES.map(p=>({k:p.k,x:+p.x.toFixed(2),z:+p.z.toFixed(2)})), chance, salvaged, seed, label, sweep, info:()=>Object.assign({ floor:PAGES.length },cnt) };
+window.__recipes={ pageCard, pageCardOn:()=>pcEl.classList.contains('on'), pageCardHtml:()=>pcEl.innerHTML, BOSSES, NAMED_NAME, beatBoss, bossOf, seedBosses, KEY, NEED, HOME, ALL, PIECES, read, learn, addPage, pickKey, spawn:(k,x,z)=>spawnPage(k||pickKey(),x,z), list:()=>PAGES.map(p=>({k:p.k,x:+p.x.toFixed(2),z:+p.z.toFixed(2)})), chance, salvaged, seed, label, sweep, info:()=>Object.assign({ floor:PAGES.length },cnt) };
 })();
