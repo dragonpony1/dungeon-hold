@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<meta name="hideout-build" content="88">
+<meta name="hideout-build" content="89">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;font-family:sans-serif}
@@ -92,6 +92,15 @@ canvas{display:block}
 #forgeCraftBtn:disabled{cursor:default;opacity:0.45}
 #forgeOutput{margin-top:14px;min-height:70px;border-radius:10px;border:1px dashed #6b3a1a;display:flex;align-items:center;justify-content:center;text-align:center;color:#a88;font-size:0.9em;padding:10px}
 #forgeOutput.success{border-style:solid;border-color:#7fd858;background:#12240f;color:#c8f5b0}
+#forgeBookBtn{position:absolute;left:14px;top:52px;z-index:2;background:#2a160a;color:#ffdca0;border:1px solid #a5501a;border-radius:8px;padding:5px 10px;font:700 13px Georgia,serif;cursor:pointer;box-shadow:0 2px 6px #000}#forgeBookBtn:hover{background:#4a2410}
+#forgeBook{display:none;position:absolute;inset:0;z-index:5;background:#160d08f2;overflow-y:auto;padding:16px 18px;color:#e8c9a0;font-family:Georgia,serif}#forgeBook.on{display:block}
+#forgeBook h2{margin:0 0 4px;text-align:center;color:#ffcf8a;letter-spacing:.08em}#forgeBook .bsub{text-align:center;font-size:.85em;font-style:italic;color:#d8a878;margin-bottom:10px}
+#forgeBook table{width:100%;border-collapse:separate;border-spacing:4px}#forgeBook th{font-size:.8em;color:#d8a878;font-weight:normal}#forgeBook td.bset{font-weight:bold;font-size:.9em;white-space:nowrap}#forgeBook td.bset small{display:block;font-weight:normal;font-style:italic;font-size:.75em;color:#a88}
+#forgeBook td.bc{text-align:center;border-radius:8px;padding:6px 2px;font-size:.85em;background:#241811;border:1px solid #3a2414;color:#776}#forgeBook td.bc.k{background:#3a2a0f;border-color:#ffcf3a;color:#ffe9a0;cursor:pointer}#forgeBook td.bc.k:hover{filter:brightness(1.25)}#forgeBook td.bc.p{color:#e8c9a0;border-color:#8a5a2a}
+#forgeBookClose{position:absolute;right:14px;top:12px;background:none;border:none;color:#ffcf8a;font-size:1.6em;cursor:pointer}
+.fgear.flock .swatch{filter:grayscale(1) brightness(.55)}.fset.flock{opacity:.55;border-style:dashed}
+.frbadge{position:absolute;right:4px;bottom:22px;background:#000c;color:#ffcf8a;font:bold 11px monospace;border-radius:4px;padding:1px 5px}.fset .frb{margin-left:5px;font-size:.85em}
+#forgeWtype{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;align-items:center}#forgeWtype .fsetlabel{flex-basis:100%;font-size:0.8em;letter-spacing:0.05em;color:#d8a878;font-style:italic}
 #forgeFocus,#forgeStoke{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;align-items:center}
 #forgeFocus .fsetlabel,#forgeStoke .fsetlabel{flex-basis:100%;font-size:0.8em;letter-spacing:0.05em;color:#d8a878;font-style:italic}
 .fflame{cursor:pointer;font-size:1.5em;background:none;border:none;filter:grayscale(1) brightness(.55);transition:filter .15s,transform .15s;padding:0 2px}.fflame.on{filter:none;transform:scale(1.15)}
@@ -206,6 +215,8 @@ canvas{display:block}
 <div id="forgeWrap"><div id="forgePanel">
   <button id="forgeClose">&times;</button>
   <button id="forgeBagBtn" title="Look in your bag (B) -- the forge stays open behind it">&#127890; Bag <b>B</b></button>
+  <button id="forgeBookBtn" title="Every recipe: what you know, the pages you have, where the rest drop">&#128214; <span id="forgeBookCount">Recipes</span></button>
+  <div id="forgeBook"></div>
   <div id="forgeHeader">
     <h1>THE FORGE</h1>
     <p>Pick the piece, its set and its main stat. Every craft can PROC.</p>
@@ -214,6 +225,7 @@ canvas{display:block}
   <div id="forgeBody">
     <div id="forgeGearGrid"></div>
     <div id="forgeSets"></div>
+    <div id="forgeWtype"></div>
     <div id="forgeFocus"></div>
     <div id="forgeStoke"></div>
     <button id="forgeCraftBtn">Craft</button>
@@ -294,7 +306,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 88;   // build 88: the crafting forge -- pick the piece, its set and its main stat; it always makes it; every craft can PROC (stoke the fire for more).   // build 87: the wardrobe stores gear (100) and opens beside the game's bag.   // build 86: no I screen inside the game -- the game's bag is the inventory (I opens it), with this room's hotbar and furniture under it.   // build 85: a big gold close button on every window, and it always hands the mouse back.   // build 84: Esc out of any menu leaves you in the room (a small click-to-play sign), never the big entry card.   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 89;   // build 89: recipes -- the forge makes what you know (pages and salvage teach, game 604), a recipe book, and you pick the weapon kind.   // build 88:   // build 88: the crafting forge -- pick the piece, its set and its main stat; it always makes it; every craft can PROC (stoke the fire for more).   // build 87: the wardrobe stores gear (100) and opens beside the game's bag.   // build 86: no I screen inside the game -- the game's bag is the inventory (I opens it), with this room's hotbar and furniture under it.   // build 85: a big gold close button on every window, and it always hands the mouse back.   // build 84: Esc out of any menu leaves you in the room (a small click-to-play sign), never the big entry card.   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -2604,6 +2616,7 @@ document.getElementById('vendWrap').addEventListener('click', e => { if (e.targe
 document.addEventListener('keydown', e => {
   if (keyName(e) !== 'escape') return;
   if (document.getElementById('vendWrap').style.display === 'flex') closeVending();
+  if (document.getElementById('forgeBook').classList.contains('on')) { document.getElementById('forgeBook').classList.remove('on'); return; }
   if (document.getElementById('forgeWrap').style.display === 'flex') closeForge();
   if (document.getElementById('cauldronWrap').style.display === 'flex') closeCauldron();
   if (document.getElementById('gearWrap').style.display === 'flex') closeGearPanel();
@@ -2629,6 +2642,20 @@ document.addEventListener('keydown', e => {
 // (The old forge: 3 sludge a try, 6% named, 35% a set piece, the rest failed and lost the sludge; picking a set cost 3 more.)
 const FORGE_COST = 6, FORGE_SUCCESS_CHANCE = 1, NAMED_PROC_CHANCE = 0.02;
 const PROC_BASE = 0.06, PROC_STOKE = 0.03, STOKE_MAX = 3, NAMED_SHARE = 1 / 3, FINE_CHANCE = 0.25;
+// build 89 -- RECIPES (Matt: "yes build the pages and salvage to learn"): the forge makes a set piece only if you KNOW its recipe. The game teaches them (99zb-recipes.js): 3 torn pages of a piece, dropped by
+// mobs on its set's home map, or salvaging a piece of that set. Shared in localStorage 'dd_recipes' {known:{"<set tail>|<game slot>":t}, pages:{...:n}}. What this hideout already holds counts as known, once (seededH).
+// Weapons: ONE recipe a set; you pick the kind (sword, staff, polearm) when you craft (Matt: "in the recipe picker i should be able to pick the weapon type").
+const RECIPE_KEY = 'dd_recipes', RECIPE_PAGES = 3;
+const RECIPE_HOME = { 'of the Earth':'the Gnome Hall', 'of Chaos':'the Throne Room', 'of Radiance':'the Throne Room', 'of Shadow':'the Cloister Court', 'of the Wind':'the Cloister Court', 'of Fire':'the Feast Hall', 'of the Storm':'the Drawbridge', 'of Ice':'the Drawbridge', 'of the Void':'the Deep Prison' };
+function readRecipes() { let b = null; try { b = JSON.parse(localStorage.getItem(RECIPE_KEY)); } catch (e) {} if (!b || typeof b !== 'object') b = {}; if (!b.known || typeof b.known !== 'object') b.known = {}; if (!b.pages || typeof b.pages !== 'object') b.pages = {}; return b; }
+function recipeKey(setId, type) { const st = MYTHIC_SETS.find(x => x.id === setId); return st ? st.tail + '|' + GAME_SLOT[type] : null; }
+function recipeState(setId, type) { const b = readRecipes(), k = recipeKey(setId, type); return { known: !!(k && b.known[k]), pages: k ? (b.pages[k] | 0) : 0 }; }
+function seedRecipesHere() { const b = readRecipes(); if (b.seededH) return; const own = ownedSets(); for (const st of MYTHIC_SETS) { if (st.offForge) continue; const o = own[st.id] || {};
+    for (const t of Object.keys(MYTHIC_GEAR)) { const k = st.tail + '|' + GAME_SLOT[t]; if (o[GAME_SLOT[t]] && !b.known[k]) { b.known[k] = Date.now(); delete b.pages[k]; } } }
+  b.seededH = Date.now(); try { localStorage.setItem(RECIPE_KEY, JSON.stringify(b)); } catch (e) {} }
+const WEAPON_WORD = { sword:'Sword', staff:'Staff', polearm:'Polearm' };
+let forgeWeapon = null;
+function heroWeapon() { let h = null; try { h = localStorage.getItem('ddHero'); } catch (e) {} return h === 'witch' ? 'staff' : h === 'fighter' ? 'polearm' : 'sword'; }
 const FOCUS_NAME = { dmg:'Damage', spd:'Swing speed', tow:'Defense damage', hp:'Health', def:'Armor', regen:'Regen', mana:'Mana', fdmg:'Pet damage', frate:'Pet rate', move:'Speed', trate:'Defense speed', tarea:'Defense range' };
 // build 52 (Matt: "make picking cost 3 extra"): rolling for ONE set (instead of a random one of nine) costs PICK_EXTRA more Legendary Sludge a try. The odds are the same (35% a set piece, 6% a named mythic that ignores the pick);
 // only the set is chosen. A random set piece of one particular set averages ~130 sludge; a picked one ~23 (8 a try at 35%).
@@ -2639,11 +2666,11 @@ const FORGE_LVL = 10; // placeholder item level for forged gear until the game s
 const MYTHIC_STAT = { dmg:24, spd:45, hp:156, def:24, regen:4.5, tow:41, mana:65, move:20, fdmg:35, frate:63, trate:20, tarea:18 };
 const SET_STAT_POOL = { weapon:['dmg','spd','tow'], armor:['hp','def','regen'], amulet:['mana','tow','hp'],
   familiar:['fdmg','frate','move'], trinket:['move','trate','tarea'] };
-function setPieceRecord(type, wantId, focus, quality) {
+function setPieceRecord(type, wantId, focus, quality, wantArt) {
   const rollable = MYTHIC_SETS.filter(s => !s.offForge); // nine sets — Nature/Forest is skipped for now
   const set = (wantId && rollable.find(s => s.id === wantId)) || rollable[Math.floor(Math.random() * rollable.length)];
   const looks = (type === 'weapon' && SET_WEAPONS[set.id]) || SET_ART_PIECES[type] || [];
-  const art = looks.length ? looks[Math.floor(Math.random() * looks.length)] : null; // sword or whip, armor, …
+  const art = wantArt && looks.includes(wantArt) ? wantArt : looks.length ? looks[Math.floor(Math.random() * looks.length)] : null; // build 89: the weapon kind you picked; else sword or staff or polearm, armor, …
   const stats = {};
   const pool = SET_STAT_POOL[type].slice(); if (focus && pool.includes(focus)) { pool.splice(pool.indexOf(focus), 1); pool.unshift(focus); } else focus = null;   // build 88: the focus leads (it is the primary stat)
   const top = quality === 'fine' || quality === 'procd';
@@ -2679,6 +2706,8 @@ function forgeOddsText() {
   if (!forgeSelected) return 'Pick a piece above.';
   if (!forgeSet) return 'Pick its set.';
   const pick = MYTHIC_SETS.find(s => s.id === forgeSet), p = Math.round(procChance() * 100);
+  const rs = recipeState(forgeSet, forgeSelected);
+  if (!rs.known) return '🔒 Recipe not learned. 📜 ' + rs.pages + '/' + RECIPE_PAGES + ' pages (they drop in ' + (RECIPE_HOME[pick.tail] || 'the halls') + ') — or salvage a piece of this set to learn it.';
   return 'Makes a ' + MYTHIC_GEAR[forgeSelected].name.replace('Mythic ', 'Mythic ') + ' ' + pick.tail + (forgeFocus ? ', ' + FOCUS_NAME[forgeFocus] + ' first' : '') + '. ' + p + '% PROC · ' + Math.round(FINE_CHANCE * 100) + '% Fine.';
 }
 // MYTHIC_GEAR now exists, so the shared gear-display poller (which looks up icons by category) is safe to start
@@ -2718,7 +2747,9 @@ function buildForgeGrid() {
     el.innerHTML = '<img class="swatch" data-cat="'+key+'" data-i="0" style="transition:opacity .22s" src="'+show[0]+'">'
       + (owned ? '<span style="position:absolute;top:4px;right:4px;background:#000c;color:#ffcf8a;font:bold 11px monospace;border-radius:4px;padding:1px 5px">x'+owned+'</span>' : '')
       + (setOwn ? (setOwn[GAME_SLOT[key]] ? '<span class="fhave have">✓</span>' : '<span class="fhave miss">✗</span>') : '')
+      + (forgeSet && !recipeState(forgeSet, key).known ? '<span class="frbadge">' + (recipeState(forgeSet, key).pages ? '📜' + recipeState(forgeSet, key).pages + '/' + RECIPE_PAGES : '🔒') + '</span>' : '')
       + '<div class="fname">'+g.name+'</div>';
+    if (forgeSet && !recipeState(forgeSet, key).known) el.classList.add('flock');
     el.onclick = () => { forgeSelected = (forgeSelected === key) ? null : key; forgeFocus = forgeSelected ? SET_STAT_POOL[forgeSelected][0] : null; buildForgeGrid(); const out = document.getElementById('forgeOutput'); if (!out.className) out.textContent = forgeOddsText(); };
     const setNote = setOwn ? (setOwn[GAME_SLOT[key]] ? ' · this set: you have one (' + (OWN_WHERE[setOwn[GAME_SLOT[key]]] || 'owned') + ')' : ' · this set: MISSING') : '';
     attachTooltip(el, 'Target: ' + g.name + (owned ? ' (you own ' + owned + ')' : '') + setNote);
@@ -2751,9 +2782,12 @@ function renderForgePanel() {
   const cost = forgeCost();
   document.getElementById('forgeSludgeText').textContent = SAVE.legendarySludge + ' Legendary Sludge';
   const btn = document.getElementById('forgeCraftBtn');
-  btn.disabled = forgeBusy || !forgeSelected || !forgeSet || SAVE.legendarySludge < cost;
-  btn.textContent = !forgeSelected ? 'Pick a piece' : !forgeSet ? 'Pick a set' : 'Craft · ' + cost + ' sludge';
-  buildForgeSets(); buildForgeFocus(); buildForgeStoke();
+  const known = !!(forgeSelected && forgeSet && recipeState(forgeSet, forgeSelected).known);
+  btn.disabled = forgeBusy || !forgeSelected || !forgeSet || !known || SAVE.legendarySludge < cost;
+  btn.textContent = !forgeSelected ? 'Pick a piece' : !forgeSet ? 'Pick a set' : !known ? '🔒 Recipe not learned' : 'Craft · ' + cost + ' sludge';
+  const bk = readRecipes(), total = MYTHIC_SETS.filter(x => !x.offForge).length * Object.keys(MYTHIC_GEAR).length, kn = Object.keys(bk.known).filter(k => MYTHIC_SETS.some(x => !x.offForge && k.startsWith(x.tail + '|'))).length;
+  document.getElementById('forgeBookCount').textContent = 'Recipes ' + kn + '/' + total;
+  buildForgeSets(); buildForgeWtype(); buildForgeFocus(); buildForgeStoke();
 }
 // the set row: "Any set" (the base cost) and the nine forge sets (each PICK_EXTRA more a try); picking the same one again puts it back to random
 function buildForgeSets() {
@@ -2762,6 +2796,7 @@ function buildForgeSets() {
   const own = ownedSets();
   const mk = (id, text, color) => {
     const b = document.createElement('button'); b.className = 'fset' + ((forgeSet || null) === id ? ' sel' : ''); b.textContent = text; if (color) b.style.borderColor = color;
+    if (id && forgeSelected) { const rs = recipeState(id, forgeSelected); if (!rs.known) { b.classList.add('flock'); const r = document.createElement('span'); r.className = 'frb'; r.textContent = rs.pages ? '📜' + rs.pages + '/' + RECIPE_PAGES : '🔒'; b.appendChild(r); } }
     if (id) {   // build 69: a dot per slot, filled where you have that set's piece -- the gaps are what you are missing
       const o = own[id] || {}, dots = document.createElement('span'); dots.className = 'fdots'; dots.style.color = color || '#ffb347';
       dots.innerHTML = OWN_SLOTS.map(([k, s]) => '<i class="' + (o[s] ? 'on' : '') + '"></i>').join(''); b.appendChild(dots);
@@ -2773,6 +2808,23 @@ function buildForgeSets() {
   MYTHIC_SETS.filter(s => !s.offForge).forEach(s => mk(s.id, s.tail, s.color));
 }
 // build 88: the main stat (one of the piece's three) and the stoke (0-3 extra sludge, each +3% proc), with the proc meter
+function buildForgeWtype() {
+  const row = document.getElementById('forgeWtype'); row.innerHTML = ''; if (forgeSelected !== 'weapon' || !forgeSet) return;
+  const looks = SET_WEAPONS[forgeSet] || SET_ART_PIECES.weapon; if (!forgeWeapon || !looks.includes(forgeWeapon)) forgeWeapon = looks.includes(heroWeapon()) ? heroWeapon() : looks[0];
+  const label = document.createElement('div'); label.className = 'fsetlabel'; label.textContent = 'Its weapon'; row.appendChild(label);
+  looks.forEach(w => { const b = document.createElement('button'); b.className = 'fset' + (forgeWeapon === w ? ' sel' : ''); b.textContent = WEAPON_WORD[w] || w; b.dataset.w = w; b.onclick = () => { forgeWeapon = w; buildForgeGrid(); }; row.appendChild(b); });
+}
+function openRecipeBook() {
+  const el = document.getElementById('forgeBook'), b = readRecipes(); const types = Object.keys(MYTHIC_GEAR), sets = MYTHIC_SETS.filter(x => !x.offForge);
+  let kn = 0; const rows = sets.map(st => '<tr><td class="bset" style="color:' + st.color + '">' + esc(st.tail.replace(/^of (the )?/, '').replace(/^./, c => c.toUpperCase())) + '<small>pages in ' + esc(RECIPE_HOME[st.tail] || 'the halls') + '</small></td>'
+    + types.map(t => { const k = st.tail + '|' + GAME_SLOT[t], p = b.pages[k] | 0; if (b.known[k]) { kn++; return '<td class="bc k" data-set="' + st.id + '" data-type="' + t + '">✓</td>'; } return '<td class="bc' + (p ? ' p' : '') + '">' + (p ? '📜 ' + p + '/' + RECIPE_PAGES : '🔒') + '</td>'; }).join('') + '</tr>').join('');
+  el.innerHTML = '<button id="forgeBookClose">&times;</button><h2>📖 RECIPE BOOK</h2><div class="bsub">' + kn + ' of ' + sets.length * types.length + ' known · 3 torn pages learn one · salvaging a set piece learns its recipe · tap a ✓ to forge it</div>'
+    + '<table><tr><th></th>' + types.map(t => '<th>' + esc(MYTHIC_GEAR[t].name.replace('Mythic ', '')) + '</th>').join('') + '</tr>' + rows + '</table>';
+  el.classList.add('on');
+  document.getElementById('forgeBookClose').onclick = e => { e.stopPropagation(); el.classList.remove('on'); };
+  el.querySelectorAll('td.bc.k').forEach(td => td.onclick = () => { forgeSelected = td.dataset.type; forgeSet = td.dataset.set; forgeFocus = SET_STAT_POOL[forgeSelected][0]; el.classList.remove('on'); buildForgeGrid(); const out = document.getElementById('forgeOutput'); out.className = ''; out.textContent = forgeOddsText(); });
+}
+document.getElementById('forgeBookBtn').onclick = e => { e.stopPropagation(); openRecipeBook(); };
 function buildForgeFocus() {
   const row = document.getElementById('forgeFocus'); row.innerHTML = ''; if (!forgeSelected) return;
   const label = document.createElement('div'); label.className = 'fsetlabel'; label.textContent = 'Its main stat (the one a proc boosts)'; row.appendChild(label);
@@ -2791,7 +2843,8 @@ function openForge() {
   forgeWasActive = active;
   if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
   document.getElementById('forgeWrap').style.display = 'flex';
-  forgeSelected = null; forgeFocus = null; forgeStoke = 0;
+  forgeSelected = null; forgeFocus = null; forgeStoke = 0; forgeWeapon = null;
+  try { seedRecipesHere(); } catch (e) {} document.getElementById('forgeBook').classList.remove('on');
   const out = document.getElementById('forgeOutput');
   out.className = ''; out.textContent = forgeOddsText();
   buildForgeGrid(); startForgeShowcase();
@@ -2807,14 +2860,14 @@ document.getElementById('forgeWrap').addEventListener('click', e => { if (e.targ
 // build 88: the craft -- the piece is made at once (in the bag before the show, so closing the forge loses nothing), the forge roars a moment, then shows what came out
 document.getElementById('forgeCraftBtn').onclick = () => {
   const cost = forgeCost();
-  if (forgeBusy || !forgeSelected || !forgeSet || SAVE.legendarySludge < cost) return;
+  if (forgeBusy || !forgeSelected || !forgeSet || SAVE.legendarySludge < cost || !recipeState(forgeSet, forgeSelected).known) return;
   SAVE.legendarySludge -= cost;
   const out = document.getElementById('forgeOutput');
   sfxClick();
   const P = procChance(), r = Math.random(), type = forgeSelected;
   const hasNamed = Object.keys(NAMED_MYTHICS).some(id => NAMED_MYTHICS[id].type === type && !NAMED_MYTHICS[id].noForge);
   let rec = r < P * NAMED_SHARE && hasNamed ? namedRecord(type) : null;
-  if (!rec) rec = setPieceRecord(type, forgeSet, forgeFocus, r < P ? 'procd' : r < P + FINE_CHANCE ? 'fine' : 'normal');
+  if (!rec) rec = setPieceRecord(type, forgeSet, forgeFocus, r < P ? 'procd' : r < P + FINE_CHANCE ? 'fine' : 'normal', type === 'weapon' ? forgeWeapon : null);
   const bagged = giveItem({ kind: 'forged', rec }, 'bag'); // a full bag keeps it on the waiting list in the I panel
   if (!bagged) SAVE.gear.push(rec);
   forgeStoke = 0; forgeBusy = true; writeSave(); buildForgeGrid();
