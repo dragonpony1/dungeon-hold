@@ -52,5 +52,7 @@ function close(){ el.classList.remove('on'); }
 document.addEventListener('click',e=>{ const t=e.target.closest&&e.target.closest('[data-act="blueprints"]'); if(t){ e.preventDefault(); e.stopPropagation(); open(); } },true);
 addEventListener('keydown',e=>{ if(e.code==='Escape'&&el.classList.contains('on')){ e.preventDefault(); e.stopImmediatePropagation(); close(); } },true);
 let openedAt=0; window.__bpEsc=()=>{ if(!el.classList.contains('on')) return false; close(); return true; };   // game.js's very first keydown listener asks this first: Esc closes the book (and only the book)
-window.__blueprints={ open, close, isOpen:()=>el.classList.contains('on'), opens:()=>opens };
+// build 621: the picture of a blueprint's piece (the crafting tutorial's banner shows the piece you just learned)
+function picOf(k){ const [tail,slot]=String(k).split('|'); const S=SETS.find(s=>s[1]===tail), T=TYPES.find(t=>t[1]===slot); if(!S||!T) return ''; return T[0]==='familiar'?BASE+'mythic_familiar.png':BASE+'sets/'+S[0]+'-'+(T[0]==='weapon'?heroWeapon():T[0])+'.jpg'; }
+window.__blueprints={ picOf, open, close, isOpen:()=>el.classList.contains('on'), opens:()=>opens };
 })();

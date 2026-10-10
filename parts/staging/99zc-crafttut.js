@@ -14,7 +14,7 @@ let st=(()=>{ try{ const o=JSON.parse(localStorage.getItem(KEY)); if(o&&typeof o
 const save=()=>{ try{ localStorage.setItem(KEY,JSON.stringify(st)); }catch(e){} };
 const R=()=>window.__recipes, solo=()=>{ const n=window.__net; return !(n&&n.role&&n.role()); };
 // ---- the banner and the hand
-{ const css=document.createElement('style'); css.textContent='#ctBan{position:fixed;left:50%;top:12%;transform:translateX(-50%);z-index:58;display:none;align-items:center;gap:14px;background:linear-gradient(#2e1d0c,#160c05);border:3px solid #c9962f;border-radius:16px;box-shadow:0 8px 30px #000c,0 0 18px #ffb00055;padding:10px 20px 10px 14px;font:16px Georgia,serif;color:#f3e6cf;max-width:min(640px,92vw)}#ctBan.on{display:flex;animation:ctIn .35s cubic-bezier(.2,1.4,.4,1)}@keyframes ctIn{from{opacity:0;transform:translate(-50%,-14px) scale(.9)}}#ctBan .pic{font-size:34px;white-space:nowrap}#ctBan .w{font-size:17px;line-height:1.25}#ctBan .w b{color:#ffd27a}#ctBan .sk{margin-left:8px;background:none;border:1px solid #8a6a3a;border-radius:8px;color:#c9a46a;font:12px Georgia,serif;padding:3px 8px;cursor:pointer;align-self:flex-start}'
+{ const css=document.createElement('style'); css.textContent='#ctBan{position:fixed;left:50%;top:12%;transform:translateX(-50%);z-index:58;display:none;align-items:center;gap:14px;background:linear-gradient(#2e1d0c,#160c05);border:3px solid #c9962f;border-radius:16px;box-shadow:0 8px 30px #000c,0 0 18px #ffb00055;padding:10px 20px 10px 14px;font:16px Georgia,serif;color:#f3e6cf;max-width:min(640px,92vw)}#ctBan.on{display:flex;animation:ctIn .35s cubic-bezier(.2,1.4,.4,1)}@keyframes ctIn{from{opacity:0;transform:translate(-50%,-14px) scale(.9)}}#ctBan .pic{font-size:34px;white-space:nowrap;display:flex;align-items:center;gap:8px}#ctBan .pic img{height:58px;width:auto;border-radius:8px;filter:drop-shadow(0 2px 4px #000)}#ctBan .pic img.pc{border:2px solid #ffcf3a;box-shadow:0 0 12px #ffcf3a88}#ctBan .w{font-size:17px;line-height:1.25}#ctBan .w b{color:#ffd27a}#ctBan .sk{margin-left:8px;background:none;border:1px solid #8a6a3a;border-radius:8px;color:#c9a46a;font:12px Georgia,serif;padding:3px 8px;cursor:pointer;align-self:flex-start}'
   +'#ctHand{position:fixed;z-index:57;pointer-events:none;display:none;font-size:46px;transform:translate(-50%,-100%);filter:drop-shadow(0 3px 4px #000);animation:ctBob .7s ease-in-out infinite alternate}#ctHand.on{display:block}@keyframes ctBob{to{margin-top:-14px}}#ctRing{position:fixed;z-index:56;pointer-events:none;display:none;width:54px;height:54px;margin:-27px 0 0 -27px;border:3px solid #ffd27a;border-radius:50%;box-shadow:0 0 14px #ffd27a;animation:ctRing 1s ease-out infinite}#ctRing.on{display:block}@keyframes ctRing{from{transform:scale(.5);opacity:1}to{transform:scale(1.4);opacity:0}}'; document.head.appendChild(css); }
 const ban=document.createElement('div'); ban.id='ctBan'; document.body.appendChild(ban);
 const hand=document.createElement('div'); hand.id='ctHand'; hand.textContent='👇'; document.body.appendChild(hand);
@@ -46,8 +46,11 @@ WORLDANIM.push(()=>{
       else { banner('w'+n,'📜'.repeat(n)+'<span style="opacity:.35">'+'📜'.repeat(3-n)+'</span>','<b>'+n+' / 3</b> &nbsp;⚔ ➜ 📜'); hand.classList.remove('on'); ring.classList.remove('on'); } } }
   if(st.s===3){ const P=window.__portal, open=window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen();
     if(open){ st.s=4; save(); hideAll(); return; }
-    if(ph!=='build'){ banner('3w','📖✓','⚔ ➜ 🌀'); hand.classList.remove('on'); ring.classList.remove('on'); return; }
-    banner('3','📖✓','🌀 ➜ 🔨');
+    /* build 621 (Matt: "chaos armor learned, then an infor graphic that shows a check mark by the book and a hammer, but we know nothing about the forge or book yet"): the banner shows what you KNOW --
+       the piece you just learned (its real picture), the portal, and the Blacksmith himself (Matt's model, photographed) -- no book, no hammer */
+    const BP=window.__blueprints, pc=BP&&BP.picOf?BP.picOf(st.key):'', pcImg=pc?'<img class="pc" src="'+pc+'" alt="">':'📜', smith='<img src="assets/blacksmith-icon.webp" alt="">';
+    if(ph!=='build'){ banner('3w',pcImg+' ➜ 🌀 ➜ '+smith,'⚔ ➜ 🌀'); hand.classList.remove('on'); ring.classList.remove('on'); return; }
+    banner('3',pcImg+' ➜ 🌀 ➜ '+smith,'');
     if(P&&P.pos){ const q=P.pos(); pointAt(q.x,(q.y||0)+3.4,q.z); } }
   if(st.s>=4) hideAll();   // the hideout's half has it
 });

@@ -19,8 +19,8 @@ check("on the Throne Room (build 614: not the Gnome Hall) after the guide: the f
 const B=await page.evaluate(()=>{ const d=window.__dd, T=window.__craftTut; for(let i=0;i<120;i++) d.step(1/60,1); const b=window.__recipes.read(); return { s:T.state().s, pages:b.pages['of Chaos|armor']|0, ban:T.banner() }; });
 check("walking over it: 1 of 3, and the banner says the next drops at the end of the next wave",B.s===2&&B.pages===1&&/1 \/ 3/.test(B.ban)&&/⚔/.test(B.ban),JSON.stringify(B));
 const C=await page.evaluate(()=>{ const d=window.__dd, T=window.__craftTut, out=[]; for(let w=0;w<2;w++){ d.S.wave++; d.S.phase='build'; for(let i=0;i<150;i++) d.step(1/60,1); const b=window.__recipes.read(); out.push({ pages:b.pages['of Chaos|armor']|0, known:!!b.known['of Chaos|armor'] }); }
-  for(let i=0;i<5;i++) d.step(1/60,1); return { out, s:T.state().s, ban:T.banner() }; });
-check("a page at the end of each of the next two waves: the third teaches the recipe, and the banner sends you through the portal to the Blacksmith",C.out[0].pages===2&&C.out[1].known&&C.s===3&&/🌀/.test(C.ban)&&/🔨/.test(C.ban),JSON.stringify(C));
+  for(let i=0;i<5;i++) d.step(1/60,1); return { out, s:T.state().s, ban:T.banner(), html:document.getElementById('ctBan').innerHTML }; });
+check("a page at the end of each of the next two waves: the third teaches the recipe, and the banner sends you through the portal to the Blacksmith",C.out[0].pages===2&&C.out[1].known&&C.s===3&&/🌀/.test(C.ban)&&/crimson-armor/.test(C.html)&&/blacksmith-icon/.test(C.html)&&!/📖|🔨/.test(C.ban),JSON.stringify(C).slice(0,500));   // build 621: the learned piece's picture -> portal -> the Blacksmith (no book, no hammer)
 await page.evaluate(()=>{ window.__dd.setHero(30,30); window.__hideout.open(); });
 let f=null; for(let i=0;i<600&&!f;i++){ f=page.frames().find(x=>x.url().includes("hideout/index.html")); if(!f) await sleep(50); }
 await f.waitForFunction(()=>typeof ctTick==='function'&&typeof openForge==='function',null,{timeout:120000});
