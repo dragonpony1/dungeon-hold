@@ -10,14 +10,17 @@
 if(typeof TRACKS==='undefined'||typeof musicForPhase!=='function') return;
 const LIST=[['build','Hall Theme'],['title','Heartroot Rap'],['title2','Guard the Heartroot · Tavern'],['title3','Guard the Heartroot · Rap'],['title4','Guard the Heartroot · Country'],['title5','Guard the Heartroot · Sea Chanty']].filter(x=>TRACKS[x[0]]);
 const NAME=Object.fromEntries(LIST);
-let pick='build'; try{ const v=localStorage.getItem('dd_hall_song'); if(v&&NAME[v]) pick=v; }catch(e){}
+let pick='build', chosen=false; try{ const v=localStorage.getItem('dd_hall_song'); if(v&&NAME[v]){ pick=v; chosen=true; } }catch(e){}
+// build 612 (Matt: "if juke is on overide the combat music"): once a song has been picked on the jukebox (any song, the Hall Theme too), it plays through the WAVES as well -- the battle music only plays
+// for a player who never picked one. The bosses keep their own themes (my call: they are the big moments).
+const juke=()=>chosen&&!!TRACKS[pick];
 const cnt={ picks:0, skips:0, cards:0 };
 const save=()=>{ try{ localStorage.setItem('dd_hall_song',pick); }catch(e){} };
 // the build phase plays the pick
-{ const prev=musicForPhase; musicForPhase=function(){ if(S.phase==='build'&&pick!=='build'&&TRACKS[pick]) return setMusic(pick); return prev.apply(this,arguments); }; }
+{ const prev=musicForPhase; musicForPhase=function(){ if(S.phase==='build'&&pick!=='build'&&TRACKS[pick]) return setMusic(pick); if(S.phase==='wave'&&juke()) return setMusic(pick); return prev.apply(this,arguments); }; }
 // and any straight call for the hall theme in the build phase (PLAY's own, a tutorial's, a scene's way back) gets the pick too
-{ const prev=setMusic; setMusic=function(m){ if(m==='build'&&S.phase==='build'&&pick!=='build'&&TRACKS[pick]) return prev.call(this,pick); return prev.apply(this,arguments); }; }
-function choose(k,quiet){ if(!NAME[k]) return false; pick=k; save(); cnt.picks++; if(!musicOn&&!quiet) toggleMusic(); if(S.phase==='build'){ try{ musicForPhase(); }catch(e){} } card(); paint(); return true; }
+{ const prev=setMusic; setMusic=function(m){ if(m==='wave'&&juke()) return prev.call(this,pick); if(m==='build'&&S.phase==='build'&&pick!=='build'&&TRACKS[pick]) return prev.call(this,pick); return prev.apply(this,arguments); }; }
+function choose(k,quiet){ if(!NAME[k]) return false; pick=k; chosen=true; save(); if(S.phase==='wave'){ try{ musicForPhase(); }catch(e){} } cnt.picks++; if(!musicOn&&!quiet) toggleMusic(); if(S.phase==='build'){ try{ musicForPhase(); }catch(e){} } card(); paint(); return true; }
 function next(){ const i=LIST.findIndex(x=>x[0]===pick); cnt.skips++; return choose(LIST[(i+1)%LIST.length][0],true); }
 // ---- the NOW PLAYING card
 const css=document.createElement('style'); css.textContent=

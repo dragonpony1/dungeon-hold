@@ -16,8 +16,8 @@ await p.evaluate(()=>document.querySelector('#jbpop .s[data-k="title4"]').click(
 check("a tap on the country song plays it in the build phase",B.playing&&B.track==='title4'&&Bj.pick==='title4',JSON.stringify({track:B.track,pick:Bj.pick}));
 await p.evaluate(()=>window.__jukebox.close()); await p.keyboard.press('KeyJ'); const C=await waitTrack('title5'); const Cj=await p.evaluate(()=>window.__jukebox.info());
 check("J: the next song (the sea chanty), with the NOW PLAYING card",C.track==='title5'&&Cj.card&&Cj.pick==='title5',JSON.stringify({track:C.track,card:Cj.card}));
-await p.evaluate(()=>{ const d=window.__dd; d.startWave(); for(let i=0;i<4;i++) d.spawn('goblin','S'); }); const D=await waitTrack('wave');
-check("a wave plays its battle music",D.track==='wave',JSON.stringify({track:D.track}));
+await p.evaluate(()=>{ const d=window.__dd; d.startWave(); for(let i=0;i<4;i++) d.spawn('goblin','S'); }); const D=await waitTrack('title5');
+check("build 612 (Matt: \"if juke is on overide the combat music\"): with a song picked, a wave keeps playing it, not the battle music",D.track==='title5',JSON.stringify({track:D.track}));
 await p.evaluate(async()=>{ const d=window.__dd; for(let i=0;i<1500&&d.S.phase==='wave';i++){ d.step(1/60,1); for(const e of d.enemies) if(!e.dead) d.kill(e); if(i%60===0) await new Promise(r=>setTimeout(r,0)); } }); const E=await waitTrack('title5');
 check("the hall held: your pick comes back",E.track==='title5',JSON.stringify({track:E.track,phase:await p.evaluate(()=>window.__dd.S.phase)}));
 await go(); const F=await waitTrack('title5'); check("remembered across a reload",F.track==='title5',JSON.stringify({track:F.track}));
