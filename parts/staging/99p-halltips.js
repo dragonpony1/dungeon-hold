@@ -69,9 +69,10 @@ let heldT=0;
 // ---- the watch: the hall's update for the ring (it moves), a slow timer for the rest
 const ringBusy=()=>{ try{ return Meta.isOpen()||!!(window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen())||document.body.classList.contains('cine-on')||!!(ring&&ring.on)||S.phase==='start'||S.phase==='dead'; }catch(e){ return true; } };   // not the lesson card: the ring cannot wait behind it (it would be walked over)
 { const prev=Meta.update; Meta.update=dt=>{ prev(dt); if(off()||seen('dd_tip_ring')||ringBusy()) return; try{ for(const l of loot){ const it=l&&l.it; if(!it||!RINGS[it.named]||!(l.t>.6)) continue; if(Math.hypot(l.x-hero.x,l.z-hero.z)<6){ ringStop(it); break; } } }catch(e){} }; }
-setInterval(()=>{ if(off()) return;
-  try{ if(!seen('dd_tip_sludge')&&!busy()){ const J=window.__jars; if(J&&J.run&&J.run().some(n=>n>0)) sludge(); } }catch(e){}
+let lFree=0;   // build 619: seconds the lesson box has been free -- a card never follows another straight away
+setInterval(()=>{ lFree=(L.on&&L.on())?0:lFree+.5; if(off()) return;
+  try{ if(!seen('dd_tip_sludge')&&!busy()&&lFree>=3){ const J=window.__jars; if(J&&J.run&&J.run().some(n=>n>0)) sludge(); } }catch(e){}
   try{ if(!seen('dd_tip_heroes')&&MAPI===0&&!SURVIVAL&&S.held){ heldT+=.5; if(heldT>=4&&!busy()&&!(heroEl&&heroEl.classList.contains('on'))) heroCard(); } else heldT=0; }catch(e){}
-  try{ if(!seen('dd_tip_special')&&MAPI===0&&!SURVIVAL&&S.phase==='build'&&S.wave>=2){ buildT+=.5; if(buildT>=2.5&&!busy()) special(); } else buildT=0; }catch(e){} },500);
+  try{ if(!seen('dd_tip_special')&&MAPI===0&&!SURVIVAL&&S.phase==='build'&&S.wave>=2){ buildT+=.5; if(buildT>=2.5&&!busy()&&lFree>=3) special(); } else buildT=0; }catch(e){} },500);
 window.__halltips={ info:()=>Object.assign({ ringOn:!!(ring&&ring.on), heroOn:!!(heroEl&&heroEl.classList.contains('on')) },cnt), special, sludge, ringStop, go, heroCard, heroClose };
 })();
