@@ -49,6 +49,8 @@ function normalize(rec){ if(!rec||typeof rec!=='object') return null; const it={
   const st=(rec.stats&&typeof rec.stats==='object')?rec.stats:{}; for(const k in st){ const v=+st[k]; if(Number.isFinite(v)&&STATL[k]) it.stats[k]=v; }
   const k=mythicId(rec); if(rec.tier==='named'||(rec.named&&k)){ if(!k) return null; it.named=k; it.name=NAMED[k].name; it.slot=NAMED[k].slot; it.stats=Object.assign({},NAMED[k].stats); it.rarity=5; it.power=NAMED[k].power;
     if(rec.procd){ const pk=Object.keys(it.stats)[0]; if(pk){ it.stats[pk]=Math.round(it.stats[pk]*1.35*10)/10; it.primary=pk; it.procd=true; } } }   // build 243: PROC'D GEAR (97c-procd.js): only the hideout's forge sets rec.procd; the primary stat is the first of the named table's stats, +35%
+  if(!it.named&&rec.procd&&Object.keys(it.stats).length){ it.procd=true; it.primary=(rec.primary&&it.stats[rec.primary]!==undefined)?rec.primary:Object.keys(it.stats)[0]; }   // build 603 (the crafting forge, hideout 88): a forged SET piece can proc too -- its main stat already carries the +35% from the forge; the game keeps the flag (gold stat, glow, fanfare)
+  if(rec.fine) it.fine=true;   // build 603: a Fine forged piece (every stat at its best; the name says so)
   // build 154/157: the set id and the weapon's kind ride along, so the hand shows the set's own weapon. A forged record calls
   // them set and art (art = sword/staff/polearm there); a game item that went to the hideout and came back calls them setId
   // and look, and its art is already a picture path

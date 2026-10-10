@@ -47,7 +47,7 @@ canvas{display:block}
 #vendClose{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:#000c;color:#fff;border:2px solid #a55;font:16px monospace;cursor:pointer;z-index:2}
 
 #forgeWrap{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:20}
-#forgePanel{position:relative;width:min(520px,92vw);max-height:90vh;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px #000a;font-family:Georgia,'Times New Roman',serif;background:linear-gradient(#241811,#160d08);border:3px solid #6b3a1a}
+#forgePanel{position:relative;width:min(640px,94vw);max-height:94vh;display:flex;flex-direction:column;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px #000a;font-family:Georgia,'Times New Roman',serif;background:linear-gradient(#241811,#160d08);border:3px solid #6b3a1a}
 #forgeBagBtn{position:absolute;left:14px;top:14px;z-index:2;background:#2a160a;color:#ffdca0;border:1px solid #a5501a;border-radius:8px;padding:6px 12px;font:700 14px Georgia,serif;cursor:pointer;box-shadow:0 2px 6px #000}#forgeBagBtn:hover{background:#4a2410}#forgeBagBtn b{display:inline-block;margin-left:6px;padding:0 5px;border:1px solid #ffdca088;border-radius:4px;font-size:11px}
 #forgeHeader{background:linear-gradient(#5a2a10,#3a1808);padding:16px 20px 12px;text-align:center;border-bottom:3px solid #a5501a}
 #forgeHeader h1{margin:0;color:#ffcf8a;font-size:1.7em;letter-spacing:0.04em;text-shadow:0 2px 4px #000}
@@ -55,8 +55,8 @@ canvas{display:block}
 #forgeInput{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;background:#150c06;border:1px solid #6b3a1a;border-radius:8px;padding:8px 14px;color:#ffdca0;font-weight:bold}
 #forgeInput img{width:26px;height:26px;object-fit:contain}
 #forgeBody{padding:16px 20px;overflow-y:auto}
-#forgeGearGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
-.fgear{border:2px solid #6b3a1a;border-radius:10px;background:linear-gradient(#3a2a1c,#241811);padding:8px;text-align:center;cursor:pointer;color:#e8c9a0}
+#forgeGearGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px}
+.fgear{border:2px solid #6b3a1a;border-radius:10px;background:linear-gradient(#3a2a1c,#241811);padding:5px;font-size:.85em;text-align:center;cursor:pointer;color:#e8c9a0}
 .fgear.sel{border-color:#ffb347;box-shadow:0 0 12px #ff8c3388}
 .fgear.taken{opacity:0.6;cursor:default}
 .fgear .swatch{width:100%;aspect-ratio:1;border-radius:8px;margin-bottom:6px;object-fit:contain;background:#150c06;box-sizing:border-box;padding:6px}
@@ -92,6 +92,15 @@ canvas{display:block}
 #forgeCraftBtn:disabled{cursor:default;opacity:0.45}
 #forgeOutput{margin-top:14px;min-height:70px;border-radius:10px;border:1px dashed #6b3a1a;display:flex;align-items:center;justify-content:center;text-align:center;color:#a88;font-size:0.9em;padding:10px}
 #forgeOutput.success{border-style:solid;border-color:#7fd858;background:#12240f;color:#c8f5b0}
+#forgeFocus,#forgeStoke{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;align-items:center}
+#forgeFocus .fsetlabel,#forgeStoke .fsetlabel{flex-basis:100%;font-size:0.8em;letter-spacing:0.05em;color:#d8a878;font-style:italic}
+.fflame{cursor:pointer;font-size:1.5em;background:none;border:none;filter:grayscale(1) brightness(.55);transition:filter .15s,transform .15s;padding:0 2px}.fflame.on{filter:none;transform:scale(1.15)}
+.fmeter{flex:1;min-width:150px;height:14px;border-radius:7px;background:#241811;border:1px solid #6b3a1a;overflow:hidden;position:relative}.fmeter i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#ff9a2e,#ffd24a);transition:width .25s}
+.fmeterlab{font:bold .85em monospace;color:#ffd24a;min-width:84px;text-align:right}
+#forgeOutput.forging{border-style:solid;border-color:#ff8c33;background:#2a1406;color:#ffcf8a;font-weight:bold;animation:fheat .35s ease-in-out infinite alternate}
+@keyframes fheat{from{box-shadow:0 0 6px #ff6a0066}to{box-shadow:0 0 24px #ffb000cc}}
+#forgeOutput.fine{border-style:solid;border-color:#9fd8ff;background:#0f1d2a;color:#d8f0ff;box-shadow:0 0 12px #9fd8ff66}
+.fbanner{display:block;font-size:1.25em;letter-spacing:.12em;margin-bottom:4px}
 #forgeOutput.fail{border-style:solid;border-color:#d85858;background:#240f0f;color:#f5b0b0}
 #forgeOutput.unique{border-style:solid;border-color:#ffcf3a;background:linear-gradient(135deg,#3a2a0f,#402050,#0f2a3a);color:#fff2c0;box-shadow:0 0 16px #ffcf3a88;font-weight:bold}
 #forgeClose{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:#000c;color:#fff;border:2px solid #a55;font:16px monospace;cursor:pointer;z-index:2}
@@ -199,12 +208,14 @@ canvas{display:block}
   <button id="forgeBagBtn" title="Look in your bag (B) -- the forge stays open behind it">&#127890; Bag <b>B</b></button>
   <div id="forgeHeader">
     <h1>THE FORGE</h1>
-    <p>Feed it Legendary Sludge. It might feed you back.</p>
+    <p>Pick the piece, its set and its main stat. Every craft can PROC.</p>
     <div id="forgeInput"><img src="/assets/hideout/items/legendary_sludge.png"> <span id="forgeSludgeText"></span></div>
   </div>
   <div id="forgeBody">
     <div id="forgeGearGrid"></div>
     <div id="forgeSets"></div>
+    <div id="forgeFocus"></div>
+    <div id="forgeStoke"></div>
     <button id="forgeCraftBtn">Craft</button>
     <div id="forgeOutput">Choose a gear target above, then Craft.</div>
   </div>
@@ -283,7 +294,7 @@ canvas{display:block}
 // Bumped on every push to hideout-wip (it's the commit count on that branch). The game embeds a copy of this
 // file, so the number in its corner vs. the number on the live standalone page says how far behind the copy is.
 // Keep it in step with the <meta name="hideout-build"> tag above.
-const HIDEOUT_BUILD = 90;   // build 90: first-time picture cards on the cauldron and the forge (hoTip).   // build 89: the training reward taken from the wall locker goes straight into the bag (the game hears 'hideout:taken', 93-gearsets.js).   // build 88 (co-op sweep 2026-10-02): a guest shown its own room (the host's layout never came) no longer shows or drops gear on the HOST's display table.   // build 87: the wardrobe stores gear (100) and opens beside the game's bag.   // build 86: no I screen inside the game -- the game's bag is the inventory (I opens it), with this room's hotbar and furniture under it.   // build 85: a big gold close button on every window, and it always hands the mouse back.   // build 84: Esc out of any menu leaves you in the room (a small click-to-play sign), never the big entry card.   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
+const HIDEOUT_BUILD = 88;   // build 88: the crafting forge -- pick the piece, its set and its main stat; it always makes it; every craft can PROC (stoke the fire for more).   // build 87: the wardrobe stores gear (100) and opens beside the game's bag.   // build 86: no I screen inside the game -- the game's bag is the inventory (I opens it), with this room's hotbar and furniture under it.   // build 85: a big gold close button on every window, and it always hands the mouse back.   // build 84: Esc out of any menu leaves you in the room (a small click-to-play sign), never the big entry card.   // build 83: your bag from the forge (a Bag button and B).   // build 82: Tab opens the game's character sheet over the room; all ten armor stands have their real models.   // build 81: Beast Mode and Malamute can come out of the forge.   // build 80: the Beast Mode and Malamute ring pictures (items/named/beast_mode.jpg, malamute.jpg).   // build 79: the chest holds 100, and shift-click moves things in and out.   // build 78: the slot reads Charm everywhere (Matt: "sometimes the game calls them charms and other times trinkets").   // build 77: set weapons on display are their real 3D models.   // build 76: click a piece (bag or worn) to HOLD it, then put it on a table. build 75: H changes hero (the game's picker). builds 72-74: ONE BAG (gear lives in the game bag; see the ONE BAG block). build 58: the Void set's staff and polearm cards are Matt's new framed icons (items/sets/void-staff.jpg, void-polearm.jpg); the game holds his Arcane Staff / Spear models (game build 267)
 window.HIDEOUT_BUILD = HIDEOUT_BUILD;
 document.getElementById('buildTag').textContent = 'hideout build ' + HIDEOUT_BUILD;
 
@@ -458,8 +469,6 @@ const HD = {
     if (!VISITOR || !this.layoutP) return own;
     const L = await this.layoutP;
     if (L && Array.isArray(L.placed) && L.placed.length) { this.visiting = true; this.hostName = String(L.host || '').slice(0, 24); this.bar(); syncSelection(); renderInv(); flashMsg("You're visiting " + (this.hostName || "the host") + "'s hideout — only they can move the furniture"); return L.placed; }
-    // co-op sweep 2026-10-02 (hideout build 88): this frame was opened with the HOST's hideout key, so its gear table is the host's -- in the guest's own room the host's displayed gear is not shown and the guest's drops are not written there
-    if (VISITOR) { this.ownFallback = true; Array.from(worldGear.keys()).forEach(removeWorldGear); syncSelection(); }
     flashMsg(L && Array.isArray(L.placed) ? "The host hasn't set up a hideout yet — showing yours" : "Couldn't reach the host's hideout — showing yours"); this.bar(); return own;
   },
   onParent(d) {
@@ -1525,7 +1534,6 @@ function syncSelection() {
   selectedGear = isGearItem(v) ? null : v;
   selectedDropGearId = isGearItem(v) ? gearKey(v) : null;
   if (HD.visiting) { selectedGear = null; selectedDropGearId = null; }   // build 45
-  if (HD.ownFallback) selectedDropGearId = null;   // hideout build 88: the gear table here is the host's (HD.enterVisit)
 }
 function renderInv() {
   const el = document.getElementById('inv'); el.innerHTML = '';
@@ -1767,9 +1775,7 @@ function pieceFromCarried(c) {
 }
 // build 43 (Matt: the new Cave Bat "doesn't show up on the floor or in the hideout"): an ordinary familiar carried in from the hall shows as its own 3D pet, by the kind its name spells
 // (the game's famKind rule: Storm Drake / Crystal Owl / Fire Imp / Sprite / Bat, otherwise the Wisp). named3d/fam_<kind>.glb are the game's own pet files -- when a pet is re-made, copy the new file over its fam_ one
-const FAM_3D = [['Storm Drake','fam_drake'],['Crystal Owl','fam_owl'],['Fire Imp','fam_imp'],['Sprite','fam_sprite'],['Bat','fam_bat'],['Frost Fox','fam_fox'],['Wisp','fam_wisp']];
-// game build 523 prep: the Frost Fox is new, and the Fire Imp is Matt's new flame-crest imp. The game's copies are rigged and fly a loop; these two are the same models with the rig taken out
-// (a plain clone of a rigged model would bend the cached original's bones, not the copy's), so they stand still and turn like the others
+const FAM_3D = [['Storm Drake','fam_drake'],['Crystal Owl','fam_owl'],['Fire Imp','fam_imp'],['Sprite','fam_sprite'],['Bat','fam_bat'],['Wisp','fam_wisp']];
 function famModelId(c) { const n = String((c && c.name) || ''); for (const [k, id] of FAM_3D) if (n.includes(k)) return id; return 'fam_wisp'; }
 const pieceFromCarriedBase = pieceFromCarried;
 pieceFromCarried = function(c) { const p = pieceFromCarriedBase(c); if (p && p.kind === 'carried' && c && c.slot === 'familiar' && !c.named && !p.named3d) p.named3d = famModelId(c); return p; };
@@ -1968,7 +1974,7 @@ function updateDropGhost() {
 }
 
 async function commitDropPlacement() {
-  if (!dropGhost || !selectedDropGearId || HD.ownFallback) return;
+  if (!dropGhost || !selectedDropGearId) return;
   const key = selectedDropGearId;
   const piece = findPiece(key);
   if (!piece) return;
@@ -2069,12 +2075,10 @@ async function pickupSharedGear(id) {
   }
 }
 async function pollDroppedGear() {
-  if (HD.ownFallback) return;   // hideout build 88: the host's table, not this room's (HD.enterVisit)
   try {
     const res = await fetch('/api/hideout/gear');
     if (!res.ok) return;
     const { items } = await res.json();
-    if (HD.ownFallback) return;   // the fallback landed while this poll was out
     const seen = new Set(items.map(i => i.id));
     items.forEach(spawnWorldGear);
     Array.from(worldGear.keys()).forEach(id => { if (!seen.has(id)) removeWorldGear(id); });
@@ -2243,9 +2247,7 @@ function takeBackReward(piece) {
   writeCarried(list);
   refreshRewardsFresh(); buildLockerGrids();
   sfxSuccess();
-  // hideout build 89 (Matt: "when i take that first imp out of the wardrobe why doesn't it go right into my bag"): the game is told at once and puts it in the bag now
-  try { window.parent.postMessage('hideout:taken', '*'); } catch (e) {}
-  flashMsg(piece.label + ' taken — it is in your bag');
+  flashMsg(piece.label + ' taken — it\'ll be in your bag when you go back to the hall');
 }
 // any other gear comes out into the hideout bag — from there it goes to the hotbar and onto display like furniture
 function takeGearFromLocker(piece) {
@@ -2617,7 +2619,17 @@ document.addEventListener('keydown', e => {
 // build 56 (Matt: "i am finding that i am not making enough sludge per round, 5 maybe too many on some of the sludge jars", "my barometer is that i should be able to do the loot gamble 2-3 times per round"): a forge try costs 3 Legendary Sludge
 // (was 5) and every Refine step takes 3 of a sludge for one of the next (REFINE_COST, was 5). A simulated room (real drop table and rarity roll, salvaged 2 pieces to 1) made about 1.1 Legendary Sludge in room one and 5.3 in room two: a try every
 // five rooms and one a room. At 3 and 3 it is 0.6 tries in room one and 2.4 in room two. Picking a set is still +3 a try (PICK_EXTRA), so 6.
-const FORGE_COST = 3, FORGE_SUCCESS_CHANCE = 0.35, NAMED_PROC_CHANCE = 0.06;
+// build 88 -- THE CRAFTING FORGE (Matt: "I like crafting, I want crafting to be a part of the game and I especially want the chance to roll something great, like better than i expected, which is what [I] have
+// been referring to as a proc" / "start with the forge and the proc"). No more failures and no random set: you pick the PIECE, its SET and its MAIN STAT (the focus, which leads its stats) and the forge makes it,
+// every time, for CRAFT_COST Legendary Sludge. Then the roll that makes it exciting:
+//   * PROC (PROC_BASE 6%, +PROC_STOKE 3% for each extra sludge you STOKE the fire with, up to STOKE_MAX 3 -> 15%): PROC'D GEAR -- its main stat +35%, the gold lettering, the fanfare, the golden glow in the game.
+//     One proc in NAMED_SHARE (a third) is the jackpot: a NAMED MYTHIC of that piece (proc'd, as the forge always made them).
+//   * FINE (FINE_CHANCE 25%): every stat at the very top of its range, a "Fine" piece.
+//   * otherwise a plain piece of the set: its main stat rolled 100-115%, the others 90-110%.
+// (The old forge: 3 sludge a try, 6% named, 35% a set piece, the rest failed and lost the sludge; picking a set cost 3 more.)
+const FORGE_COST = 6, FORGE_SUCCESS_CHANCE = 1, NAMED_PROC_CHANCE = 0.02;
+const PROC_BASE = 0.06, PROC_STOKE = 0.03, STOKE_MAX = 3, NAMED_SHARE = 1 / 3, FINE_CHANCE = 0.25;
+const FOCUS_NAME = { dmg:'Damage', spd:'Swing speed', tow:'Defense damage', hp:'Health', def:'Armor', regen:'Regen', mana:'Mana', fdmg:'Pet damage', frate:'Pet rate', move:'Speed', trate:'Defense speed', tarea:'Defense range' };
 // build 52 (Matt: "make picking cost 3 extra"): rolling for ONE set (instead of a random one of nine) costs PICK_EXTRA more Legendary Sludge a try. The odds are the same (35% a set piece, 6% a named mythic that ignores the pick);
 // only the set is chosen. A random set piece of one particular set averages ~130 sludge; a picked one ~23 (8 a try at 35%).
 const PICK_EXTRA = 3;
@@ -2627,16 +2639,22 @@ const FORGE_LVL = 10; // placeholder item level for forged gear until the game s
 const MYTHIC_STAT = { dmg:24, spd:45, hp:156, def:24, regen:4.5, tow:41, mana:65, move:20, fdmg:35, frate:63, trate:20, tarea:18 };
 const SET_STAT_POOL = { weapon:['dmg','spd','tow'], armor:['hp','def','regen'], amulet:['mana','tow','hp'],
   familiar:['fdmg','frate','move'], trinket:['move','trate','tarea'] };
-function setPieceRecord(type, wantId) {
+function setPieceRecord(type, wantId, focus, quality) {
   const rollable = MYTHIC_SETS.filter(s => !s.offForge); // nine sets — Nature/Forest is skipped for now
   const set = (wantId && rollable.find(s => s.id === wantId)) || rollable[Math.floor(Math.random() * rollable.length)];
   const looks = (type === 'weapon' && SET_WEAPONS[set.id]) || SET_ART_PIECES[type] || [];
   const art = looks.length ? looks[Math.floor(Math.random() * looks.length)] : null; // sword or whip, armor, …
   const stats = {};
-  SET_STAT_POOL[type].forEach(k => { const v = MYTHIC_STAT[k] * (0.9 + Math.random() * 0.2); stats[k] = k === 'regen' ? Math.round(v * 10) / 10 : Math.round(v); });
+  const pool = SET_STAT_POOL[type].slice(); if (focus && pool.includes(focus)) { pool.splice(pool.indexOf(focus), 1); pool.unshift(focus); } else focus = null;   // build 88: the focus leads (it is the primary stat)
+  const top = quality === 'fine' || quality === 'procd';
+  pool.forEach((k, i) => { const lead = focus && i === 0; let m = top ? (lead ? 1.15 : 1.1) : lead ? 1 + Math.random() * 0.15 : 0.9 + Math.random() * 0.2; if (lead && quality === 'procd') m *= PROCD_MULT;
+    const v = MYTHIC_STAT[k] * m; stats[k] = k === 'regen' ? Math.round(v * 10) / 10 : Math.round(v); });
   const base = type === 'weapon' && art ? 'Mythic ' + art[0].toUpperCase() + art.slice(1) : MYTHIC_GEAR[type].name;
-  return { id: crypto.randomUUID(), type, slot: GAME_SLOT[type], tier: 'mythic', rarity: MYTHIC_RARITY, set: set.id, art,
-    name: base + ' ' + set.tail, lvl: FORGE_LVL, stats, craftedAt: Date.now() };
+  const rec = { id: crypto.randomUUID(), type, slot: GAME_SLOT[type], tier: 'mythic', rarity: MYTHIC_RARITY, set: set.id, art,
+    name: (quality === 'fine' ? 'Fine ' : '') + base + ' ' + set.tail, lvl: FORGE_LVL, stats, craftedAt: Date.now() };
+  if (quality === 'fine') rec.fine = true;
+  if (quality === 'procd') { rec.procd = true; rec.primary = pool[0]; }   // the game keeps both (97-mythics.js normalize): the gold stat, the glow, the fanfare
+  return rec;
 }
 // a proc picks one of the target slot's named mythics, favouring ones you don't own yet
 function ownedNamed() {
@@ -2656,10 +2674,12 @@ function namedRecord(type) {
   rec.procd = true;   // only the forge can make this; the game applies the same +35% again when it normalises the piece
   return rec;
 }
+const procChance = () => PROC_BASE + PROC_STOKE * forgeStoke;
 function forgeOddsText() {
-  const set = Math.round((1 - NAMED_PROC_CHANCE) * FORGE_SUCCESS_CHANCE * 100), named = Math.round(NAMED_PROC_CHANCE * 100);
-  const pick = forgeSet ? MYTHIC_SETS.find(s => s.id === forgeSet) : null;
-  return 'Choose a gear target above, then Craft. About ' + set + '% make a Mythic set piece' + (pick ? ' ' + pick.tail + ' (the set you picked, +' + PICK_EXTRA + ' sludge a try)' : ' of a random set') + '; ' + named + '% proc a Named Mythic.';
+  if (!forgeSelected) return 'Pick a piece above.';
+  if (!forgeSet) return 'Pick its set.';
+  const pick = MYTHIC_SETS.find(s => s.id === forgeSet), p = Math.round(procChance() * 100);
+  return 'Makes a ' + MYTHIC_GEAR[forgeSelected].name.replace('Mythic ', 'Mythic ') + ' ' + pick.tail + (forgeFocus ? ', ' + FOCUS_NAME[forgeFocus] + ' first' : '') + '. ' + p + '% PROC · ' + Math.round(FINE_CHANCE * 100) + '% Fine.';
 }
 // MYTHIC_GEAR now exists, so the shared gear-display poller (which looks up icons by category) is safe to start
 pollDroppedGear();
@@ -2667,7 +2687,8 @@ setInterval(pollDroppedGear, 6000);
 
 let forgeSelected = null, forgeWasActive = false;
 let forgeSet = null;   // the set id being rolled for, or null for a random one
-const forgeCost = () => FORGE_COST + (forgeSet ? PICK_EXTRA : 0);
+let forgeFocus = null, forgeStoke = 0, forgeBusy = false;   // build 88: the main stat picked, the extra sludge stoked in, a craft on its way
+const forgeCost = () => FORGE_COST + forgeStoke;
 
 // build 69 (Matt: "when i go to the forge i need to pick what piece i am going for, but i cant remember what part of my set i am missing"): what you own of every set -- written by the game (dd_owned_sets,
 // game build 298: worn by this hero or another, in the bag, in the armory) plus what this hideout holds that it forged -- by the game's slot names. The standalone page has no game: only its own.
@@ -2698,7 +2719,7 @@ function buildForgeGrid() {
       + (owned ? '<span style="position:absolute;top:4px;right:4px;background:#000c;color:#ffcf8a;font:bold 11px monospace;border-radius:4px;padding:1px 5px">x'+owned+'</span>' : '')
       + (setOwn ? (setOwn[GAME_SLOT[key]] ? '<span class="fhave have">✓</span>' : '<span class="fhave miss">✗</span>') : '')
       + '<div class="fname">'+g.name+'</div>';
-    el.onclick = () => { forgeSelected = (forgeSelected === key) ? null : key; buildForgeGrid(); };
+    el.onclick = () => { forgeSelected = (forgeSelected === key) ? null : key; forgeFocus = forgeSelected ? SET_STAT_POOL[forgeSelected][0] : null; buildForgeGrid(); const out = document.getElementById('forgeOutput'); if (!out.className) out.textContent = forgeOddsText(); };
     const setNote = setOwn ? (setOwn[GAME_SLOT[key]] ? ' · this set: you have one (' + (OWN_WHERE[setOwn[GAME_SLOT[key]]] || 'owned') + ')' : ' · this set: MISSING') : '';
     attachTooltip(el, 'Target: ' + g.name + (owned ? ' (you own ' + owned + ')' : '') + setNote);
     grid.appendChild(el);
@@ -2730,14 +2751,14 @@ function renderForgePanel() {
   const cost = forgeCost();
   document.getElementById('forgeSludgeText').textContent = SAVE.legendarySludge + ' Legendary Sludge';
   const btn = document.getElementById('forgeCraftBtn');
-  btn.disabled = !forgeSelected || SAVE.legendarySludge < cost;
-  btn.textContent = 'Craft · ' + cost + ' sludge';
-  buildForgeSets();
+  btn.disabled = forgeBusy || !forgeSelected || !forgeSet || SAVE.legendarySludge < cost;
+  btn.textContent = !forgeSelected ? 'Pick a piece' : !forgeSet ? 'Pick a set' : 'Craft · ' + cost + ' sludge';
+  buildForgeSets(); buildForgeFocus(); buildForgeStoke();
 }
 // the set row: "Any set" (the base cost) and the nine forge sets (each PICK_EXTRA more a try); picking the same one again puts it back to random
 function buildForgeSets() {
   const row = document.getElementById('forgeSets'); row.innerHTML = '';
-  const label = document.createElement('div'); label.className = 'fsetlabel'; label.textContent = 'Roll for a set: +' + PICK_EXTRA + ' sludge a try · ● a piece you have'; row.appendChild(label);
+  const label = document.createElement('div'); label.className = 'fsetlabel'; label.textContent = 'Its set · ● a piece you have'; row.appendChild(label);
   const own = ownedSets();
   const mk = (id, text, color) => {
     const b = document.createElement('button'); b.className = 'fset' + ((forgeSet || null) === id ? ' sel' : ''); b.textContent = text; if (color) b.style.borderColor = color;
@@ -2749,33 +2770,28 @@ function buildForgeSets() {
     }
     b.onclick = () => { forgeSet = id && forgeSet !== id ? id : null; buildForgeGrid(); const out = document.getElementById('forgeOutput'); if (!out.className) out.textContent = forgeOddsText(); };
     row.appendChild(b); };
-  mk(null, 'Any set'); MYTHIC_SETS.filter(s => !s.offForge).forEach(s => mk(s.id, s.tail, s.color));
+  MYTHIC_SETS.filter(s => !s.offForge).forEach(s => mk(s.id, s.tail, s.color));
 }
-// hideout build 90 (Matt: "a sludge tutorial from pick up, salvage all the way thru forge" / "in the forge tutorial, pro'c gear means you won the lottery you won a very special version of
-// this gear peice"): the first time the cauldron and the forge are opened, a picture card over them says what they do (once each, dd_tip_cauldron / dd_tip_forge, shared with the game).
-function hoTip(key, title, rows, note) {
-  try { if (localStorage.getItem(key) === '1') return; localStorage.setItem(key, '1'); } catch (e) { return; }
-  if (!document.getElementById('hotip-css')) { const s = document.createElement('style'); s.id = 'hotip-css'; s.textContent =
-    '#hotip{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:#000a}#hotip .c{width:min(680px,94vw);background:linear-gradient(#24162e,#140c1a);border:3px solid #c9962f;border-radius:16px;box-shadow:0 10px 40px #000;padding:16px 18px 14px;color:#f3e6cf;font:16px Georgia,serif;text-align:center}' +
-    '#hotip h3{margin:0 0 12px;font:bold 24px Georgia,serif;letter-spacing:3px;color:#ffd27a}#hotip .r{display:flex;align-items:center;gap:14px;background:#ffffff08;border:1px solid #ffffff14;border-radius:12px;padding:8px 12px;margin:8px 0;text-align:left}' +
-    '#hotip .k{flex:0 0 220px;display:flex;align-items:center;justify-content:center;gap:4px;font-size:30px}#hotip .k img{width:40px;height:40px;object-fit:contain}#hotip .k i{font-style:normal;font-size:22px;color:#ffd27a;margin:0 4px}#hotip .w{font-size:16px;line-height:1.3}' +
-    '#hotip .r.gold{border-color:#ffd27a;background:linear-gradient(90deg,#4a3410,#2a1a08);box-shadow:0 0 18px #ffc04055}#hotip .r.gold .w b{color:#ffe08a;font-size:18px}#hotip .n{color:#c9b8a0;font-size:14px;margin-top:6px}' +
-    '#hotip button{margin-top:12px;background:linear-gradient(#5a2a14,#2a1208);border:2px solid #c9962f;border-radius:999px;color:#ffe2b8;font:bold 16px Georgia,serif;letter-spacing:3px;padding:9px 34px;cursor:pointer}';
-    document.head.appendChild(s); }
-  const el = document.createElement('div'); el.id = 'hotip';
-  el.innerHTML = '<div class="c"><h3>' + title + '</h3>' + rows.map(r => '<div class="r' + (r.gold ? ' gold' : '') + '"><div class="k">' + r.k + '</div><div class="w">' + r.w + '</div></div>').join('') + (note ? '<div class="n">' + note + '</div>' : '') + '<button type="button">GOT IT</button></div>';
-  const close = () => { el.remove(); removeEventListener('keydown', key2, true); };
-  const key2 = e => { if (e.code === 'Enter' || e.code === 'Escape' || e.code === 'Space') { e.preventDefault(); e.stopImmediatePropagation(); close(); } };
-  el.addEventListener('click', e => { if (e.target === el || e.target.tagName === 'BUTTON') close(); }); addEventListener('keydown', key2, true);
-  document.body.appendChild(el);
+// build 88: the main stat (one of the piece's three) and the stoke (0-3 extra sludge, each +3% proc), with the proc meter
+function buildForgeFocus() {
+  const row = document.getElementById('forgeFocus'); row.innerHTML = ''; if (!forgeSelected) return;
+  const label = document.createElement('div'); label.className = 'fsetlabel'; label.textContent = 'Its main stat (the one a proc boosts)'; row.appendChild(label);
+  SET_STAT_POOL[forgeSelected].forEach(k => { const b = document.createElement('button'); b.className = 'fset' + (forgeFocus === k ? ' sel' : ''); b.textContent = FOCUS_NAME[k] || k; b.dataset.stat = k;
+    b.onclick = () => { forgeFocus = k; buildForgeGrid(); const out = document.getElementById('forgeOutput'); if (!out.className) out.textContent = forgeOddsText(); }; row.appendChild(b); });
 }
-const SLUDGE_IMG = k => '<img src="' + ITEMS_DIR + ({ common:'common_sludge.png', uncommon:'uncommon_sludge.png', rare:'sludge_jar.webp', legendary:'legendary_sludge.png' })[k] + '" alt="">';
+function buildForgeStoke() {
+  const row = document.getElementById('forgeStoke'); row.innerHTML = '';
+  const label = document.createElement('div'); label.className = 'fsetlabel'; label.textContent = 'Stoke the fire: +1 sludge each, a better chance to PROC'; row.appendChild(label);
+  for (let i = 1; i <= STOKE_MAX; i++) { const b = document.createElement('button'); b.className = 'fflame' + (forgeStoke >= i ? ' on' : ''); b.textContent = '🔥'; b.dataset.n = i; attachTooltip(b, 'Stoke ' + i + ': +' + i + ' sludge, ' + Math.round((PROC_BASE + PROC_STOKE * i) * 100) + '% proc');
+    b.onclick = () => { forgeStoke = forgeStoke === i ? i - 1 : i; buildForgeGrid(); const out = document.getElementById('forgeOutput'); if (!out.className) out.textContent = forgeOddsText(); }; row.appendChild(b); }
+  const m = document.createElement('div'); m.className = 'fmeter'; m.innerHTML = '<i style="width:' + Math.round(procChance() / (PROC_BASE + PROC_STOKE * STOKE_MAX) * 100) + '%"></i>'; row.appendChild(m);
+  const t = document.createElement('div'); t.className = 'fmeterlab'; t.id = 'forgeProcPct'; t.textContent = Math.round(procChance() * 100) + '% PROC'; row.appendChild(t);
+}
 function openForge() {
   forgeWasActive = active;
   if (document.pointerLockElement) { suppressStart = true; document.exitPointerLock(); }
   document.getElementById('forgeWrap').style.display = 'flex';
-  hoTip('dd_tip_forge', '🔨 THE FORGE', [ { k:SLUDGE_IMG('legendary') + '×5 <i>➜</i> 🔨', w:'Spend Legendary sludge to forge' }, { k:'🎯 <i>➜</i> ✦', w:'Pick the piece you want. Most tries make a <b>Mythic set piece</b>' }, { gold:true, k:'✦ PROC\'D ✦', w:'<b>You won the lottery!</b> A very special version of this gear piece, with its best stat boosted' } ], 'A rare few tries PROC: you hear a fanfare and the piece glows gold.');
-  forgeSelected = null;
+  forgeSelected = null; forgeFocus = null; forgeStoke = 0;
   const out = document.getElementById('forgeOutput');
   out.className = ''; out.textContent = forgeOddsText();
   buildForgeGrid(); startForgeShowcase();
@@ -2788,41 +2804,50 @@ document.getElementById('forgeClose').onclick = closeForge;
 // build 83 (Matt: "i need to be able to look in my bag from the forge gui"): the Bag button (and B) opens the game's bag over the forge; closing it comes straight back here, the forge's set dots re-read
 document.getElementById('forgeBagBtn').onclick = e => { e.stopPropagation(); openHallBag(); };
 document.getElementById('forgeWrap').addEventListener('click', e => { if (e.target.id === 'forgeWrap') closeForge(); });
+// build 88: the craft -- the piece is made at once (in the bag before the show, so closing the forge loses nothing), the forge roars a moment, then shows what came out
 document.getElementById('forgeCraftBtn').onclick = () => {
   const cost = forgeCost();
-  if (!forgeSelected || SAVE.legendarySludge < cost) return;
+  if (forgeBusy || !forgeSelected || !forgeSet || SAVE.legendarySludge < cost) return;
   SAVE.legendarySludge -= cost;
   const out = document.getElementById('forgeOutput');
   sfxClick();
-  const rec = Math.random() < NAMED_PROC_CHANCE ? namedRecord(forgeSelected)
-    : Math.random() < FORGE_SUCCESS_CHANCE ? setPieceRecord(forgeSelected, forgeSet) : null;
-  if (rec) {
-    const bagged = giveItem({ kind: 'forged', rec }, 'bag'); // a full bag keeps it on the waiting list in the I panel
-    if (!bagged) SAVE.gear.push(rec);
-    const where = bagged ? ' It’s in your bag (press I).' : ' Your bag is full — it’s waiting in your inventory (press I).';
-    const piece = pieceFromForged(rec);
+  const P = procChance(), r = Math.random(), type = forgeSelected;
+  const hasNamed = Object.keys(NAMED_MYTHICS).some(id => NAMED_MYTHICS[id].type === type && !NAMED_MYTHICS[id].noForge);
+  let rec = r < P * NAMED_SHARE && hasNamed ? namedRecord(type) : null;
+  if (!rec) rec = setPieceRecord(type, forgeSet, forgeFocus, r < P ? 'procd' : r < P + FINE_CHANCE ? 'fine' : 'normal');
+  const bagged = giveItem({ kind: 'forged', rec }, 'bag'); // a full bag keeps it on the waiting list in the I panel
+  if (!bagged) SAVE.gear.push(rec);
+  forgeStoke = 0; forgeBusy = true; writeSave(); buildForgeGrid();
+  out.className = 'forging'; out.textContent = '🔥 The forge roars… 🔥'; try { out.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+  try { sfxSweep(90, 340, 1.0, 'sawtooth', 0.08); } catch (e) {}
+  window.__forgeLast = rec;
+  setTimeout(() => {
+    forgeBusy = false;
+    const where = bagged ? ' It’s in your bag.' : ' Your bag is full — it’s waiting in your inventory (press I).';
+    const piece = pieceFromForged(rec), img = '<img src="' + cutoutIcon(piece.icon) + '" style="width:88px;height:88px;object-fit:contain;display:block;margin:0 auto 6px;border-radius:8px">';
     if (rec.tier === 'named') {
       const N = NAMED_MYTHICS[rec.named];
       out.className = 'unique';
-      out.innerHTML = '<div><img src="' + cutoutIcon(piece.icon) + '" style="width:88px;height:88px;object-fit:contain;display:block;margin:0 auto 6px">'
-        + (rec.procd ? "🌟 PROC'D GEAR 🌟<br><span style=\"font-size:.7em;font-weight:normal\">a named mythic with +35% on its main stat</span><br>" : '✨ NAMED MYTHIC ✨<br>') + '<span style="font-size:1.35em">' + esc(N.name) + '</span>'
+      out.innerHTML = '<div>' + img + "<span class=\"fbanner\">🌟 PROC! 🌟</span>A NAMED MYTHIC<br><span style=\"font-size:1.35em\">" + esc(N.name) + '</span>'
         + '<div style="font-weight:normal;margin-top:6px">' + statHtml(rec.stats, rec.primary) + '</div>'
         + '<div style="font-weight:normal;margin-top:4px"><b>Power:</b> ' + esc(N.power) + '</div>'
         + '<div style="font-weight:normal;font-style:italic;opacity:0.85;margin-top:4px">“' + esc(N.lore) + '”</div>'
         + '<div style="font-weight:normal;margin-top:6px">' + where + '</div></div>';
+    } else if (rec.procd) {
+      out.className = 'unique';
+      out.innerHTML = '<div>' + img + '<span class="fbanner">🌟 PROC\'D! 🌟</span><span style="font-size:1.15em;color:' + piece.color + '">' + esc(rec.name) + '</span>'
+        + '<div style="font-weight:normal;margin-top:6px">' + statHtml(rec.stats, rec.primary) + '</div><div style="font-weight:normal;margin-top:6px">+35% on its main stat.' + where + '</div></div>';
+    } else if (rec.fine) {
+      out.className = 'fine';
+      out.innerHTML = '<div>' + img + '<span class="fbanner">✨ FINE ✨</span><b style="color:' + piece.color + '">' + esc(rec.name) + '</b><br>' + esc(statText(rec.stats)) + ' — every stat at its best.' + where + '</div>';
     } else {
       out.className = 'success';
-      out.innerHTML = '<div><img src="' + cutoutIcon(piece.icon) + '" style="width:88px;height:88px;object-fit:contain;display:block;margin:0 auto 6px;border-radius:8px">'
-        + 'Forged: <b style="color:' + piece.color + '">' + esc(rec.name) + '</b><br>' + esc(statText(rec.stats)) + '.' + where + '</div>';
+      out.innerHTML = '<div>' + img + 'Forged: <b style="color:' + piece.color + '">' + esc(rec.name) + '</b><br>' + esc(statText(rec.stats)) + '.' + where + '</div>';
     }
     refreshSlotViews();
-    setTimeout(rec.procd ? sfxProcd : rec.tier === 'named' ? sfxUnique : sfxSuccess, 90);
-  } else {
-    out.className = 'fail';
-    out.textContent = 'The forge sputters and fails. The sludge is lost.';
-    setTimeout(sfxFail, 90);
-  }
-  buildForgeGrid(); writeSave();
+    setTimeout(rec.procd ? sfxProcd : rec.fine ? sfxUnique : sfxSuccess, 30); try { out.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+    buildForgeGrid(); writeSave();
+  }, window.__forgeFast ? 0 : 1300);
 };
 
 // ============= CAULDRON CART (salvage carried-in gear, then refine sludge upward) =============
@@ -2925,7 +2950,6 @@ function openCauldron() {
   document.getElementById('cauldronWrap').style.display = 'flex';
   Object.assign(BAG, loadBag()); // re-read in case the main game is open in another tab and just added to it
   buildCauldronRows();
-  hoTip('dd_tip_cauldron', '🧪 THE CAULDRON', [ { k:'⚔️🛡️ <i>➜</i> ' + SLUDGE_IMG('rare'), w:'Gear you don\'t need goes in. <b>Sludge</b> comes out.' }, { k:SLUDGE_IMG('common') + SLUDGE_IMG('common') + SLUDGE_IMG('common') + '<i>➜</i>' + SLUDGE_IMG('uncommon'), w:'3 smaller sludges make 1 bigger one' }, { k:SLUDGE_IMG('legendary') + '<i>➜</i> 🔨', w:'Legendary sludge feeds <b>the forge</b>' } ], 'Rarer gear makes rarer sludge. In the bag (B) you can salvage straight into the cauldron.');
 }
 function closeCauldron() {
   document.getElementById('cauldronWrap').style.display = 'none';
