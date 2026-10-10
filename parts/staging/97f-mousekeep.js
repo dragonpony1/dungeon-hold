@@ -7,7 +7,7 @@
 (function(){
 'use strict';
 const hideoutOpen=()=>!!(window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen());
-const overlay=()=>!!Meta.isOpen()||hideoutOpen();
+const overlay=()=>!!Meta.isOpen()||hideoutOpen()||!!(window.__blueprints&&window.__blueprints.isOpen());   // build 617: the Blueprint Book (99zd) is a menu too
 const screenUp=()=>!!document.querySelector('.screen:not(.hide)');
 const wantPlay=()=>!TOUCH&&(S.phase==='build'||S.phase==='wave')&&!overlay()&&!screenUp();
 const RETRY=[0,120,300,600], GIVE_UP=900;
