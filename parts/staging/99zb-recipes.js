@@ -122,5 +122,14 @@ if(window.__net&&window.__net.onMessage) window.__net.onMessage('bossBeat',d=>{ 
 function seedBosses(){ const b=read(); if(b.seededBoss) return []; b.seededBoss=Date.now(); write(b); let cleared=0; try{ cleared=parseInt(localStorage.getItem('ddMapsCleared'))||0; }catch(e){}
   const done=[]; for(const id in BOSSES){ const B=BOSSES[id]; if(B.map>=0&&B.map<cleared&&!(read().bosses||{})[id]){ beatBoss(id,true); done.push(id); } } return done; }
 if(!TUT) setTimeout(()=>{ try{ seedBosses(); }catch(e){} },1600);
-window.__recipes={ pageCard, pageCardOn:()=>pcEl.classList.contains('on'), pageCardHtml:()=>pcEl.innerHTML, BOSSES, NAMED_NAME, beatBoss, bossOf, seedBosses, KEY, NEED, HOME, ALL, PIECES, read, learn, addPage, pickKey, spawn:(k,x,z)=>spawnPage(k||pickKey(),x,z), list:()=>PAGES.map(p=>({k:p.k,x:+p.x.toFixed(2),z:+p.z.toFixed(2)})), chance, salvaged, seed, label, sweep, info:()=>Object.assign({ floor:PAGES.length },cnt) };
+// build 623 (Matt: "have we tuned how this stuff drops for survival mode" -> "yes build it"): the map bosses are campaign-only, so Survival gave no trophies (the Throne Room's Cyclops aside).
+// Now every Survival boss wave held (10, 20, 30, 40, 50) drops THIS map's boss trophy -- five a full run. Trophies only: a new masterwork blueprint still comes from beating the real boss in the
+// campaign (my call). The Gnome Hall's is the Cyclops Eye (its set is Earth). Co-op: Meta.onWaveHeld runs on every guest too (99-network 'waveHeld'), so each player banks their own.
+const MAP_BOSS=['cyclops','pigs','archhag','bullion','avery','corruptor'];
+function survTrophy(id,mw,quiet){ const B=BOSSES[id]; if(!B) return false; const b=read(); b.trophies=b.trophies&&typeof b.trophies==='object'?b.trophies:{}; b.trophies[id]=(b.trophies[id]|0)+1; write(b); cnt.survTrophies=(cnt.survTrophies|0)+1;
+  if(!quiet){ bossCard.innerHTML='<div class="bh">☠ '+mw+'</div><div class="br"><img src="hideout/assets/hideout/items/trophies/'+id+'.webp" alt="'+B.tic+'" style="height:3.4em;vertical-align:middle;margin-right:.3em;filter:drop-shadow(0 0 6px #ffd27a)">+1 '+B.trophy+'</div>';
+    bossCard.classList.add('on'); clearTimeout(bossT); bossT=setTimeout(()=>bossCard.classList.remove('on'),4500); try{ SFX.loot&&SFX.loot(4); }catch(e){} }
+  return true; }
+{ const prev=Meta.onWaveHeld; Meta.onWaveHeld=function(w){ const r=prev.apply(this,arguments); try{ if(typeof SURVIVAL!=='undefined'&&SURVIVAL&&!TUT){ const mw=(+w)-MAP.wbase; if(mw>0&&mw%10===0) survTrophy(MAP_BOSS[MAPI],mw); } }catch(e){ console.warn('survTrophy',e); } return r; }; }
+window.__recipes={ survTrophy, MAP_BOSS, pageCard, pageCardOn:()=>pcEl.classList.contains('on'), pageCardHtml:()=>pcEl.innerHTML, BOSSES, NAMED_NAME, beatBoss, bossOf, seedBosses, KEY, NEED, HOME, ALL, PIECES, read, learn, addPage, pickKey, spawn:(k,x,z)=>spawnPage(k||pickKey(),x,z), list:()=>PAGES.map(p=>({k:p.k,x:+p.x.toFixed(2),z:+p.z.toFixed(2)})), chance, salvaged, seed, label, sweep, info:()=>Object.assign({ floor:PAGES.length },cnt) };
 })();
