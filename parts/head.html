@@ -12,7 +12,12 @@
     unlock:function(pin){ var h=sha('rootgate-dev:'+String(pin||'').trim()); return Promise.resolve().then(function(){ if(h!==H) return false; ok=true; try{ localStorage.setItem('dd_dev',H); }catch(e){} return true; }); },
     lock:function(){ ok=false; try{ localStorage.removeItem('dd_dev'); }catch(e){} } };
   if(!local&&!ok){ var q=new URLSearchParams(location.search), cut=false; ['nogate','ownweapons','nosetgate','silent'].forEach(function(k){ if(q.has(k)){ q.delete(k); cut=true; } });
-    if(cut){ var s=q.toString(); try{ history.replaceState(null,'',location.pathname+(s?'?'+s:'')+location.hash); }catch(e){} } } })();</script><script>/* build 595 (Matt: "Can you make an iPhone version of this while I'm at work today?"): on a PHONE (a touch screen whose short side is under 600 -- an iPad's is 744+) the page lays out
+    if(cut){ var s=q.toString(); try{ history.replaceState(null,'',location.pathname+(s?'?'+s:'')+location.hash); }catch(e){} } } })();</script><script>/* build 629 (Matt, on an iPad: "On the iPad the windowed mode is covering the bottom, can't select towers" / "This is safari"): Safari lays its toolbar over the bottom of the page,
+   right on the tower bar. The whole HUD now stands clear of it: #hud's bottom is lifted by whatever the browser says is covered (the visible area's gap, the safe area), and in iPad Safari
+   (not the Home Screen app) by at least LIFT even when Safari reports nothing. A PC and the desktop app read 0 -- unchanged. */
+(function(){ var ipadSafari=navigator.maxTouchPoints>0&&/Macintosh|iPad/.test(navigator.userAgent)&&!navigator.standalone&&!(window.matchMedia&&matchMedia('(display-mode: standalone)').matches), LIFT=70;
+  function upd(){ var vv=window.visualViewport, gap=vv?Math.max(0,Math.round(innerHeight-vv.height-vv.offsetTop)):0; if(ipadSafari) gap=Math.max(gap,LIFT); document.documentElement.style.setProperty('--hudlift',gap+'px'); window.__hudLift=gap; }
+  upd(); addEventListener('resize',upd); if(window.visualViewport){ visualViewport.addEventListener('resize',upd); visualViewport.addEventListener('scroll',upd); } setInterval(upd,1500); })();</script><script>/* build 595 (Matt: "Can you make an iPhone version of this while I'm at work today?"): on a PHONE (a touch screen whose short side is under 600 -- an iPad's is 744+) the page lays out
    as a small laptop screen about 600 tall and the phone scales it to fit, so every menu, card and button keeps its shape instead of each being redrawn for a 340-pixel-tall screen. The PC and the
    iPad never get this tag (they lay out as ever). Upright, the page asks to be turned (99v-phone.js). window.__PHONE says which. */
 (function(){ try{ var t=('ontouchstart' in window)&&matchMedia('(pointer:coarse)').matches, a=screen.width, b=screen.height, s=Math.min(a,b), l=Math.max(a,b); if(!t||!s||s>=600) return;
@@ -37,7 +42,7 @@ html,body{margin:0;height:100%;background:#0b0712;overflow:hidden;font-family:Ge
 #c{position:fixed;inset:0;width:100%;height:100%;display:block}
 body.play #c{cursor:none}
 #ov{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
-#hud{position:fixed;inset:0;pointer-events:none;font-size:15px}
+#hud{position:fixed;top:0;left:0;right:0;bottom:max(env(safe-area-inset-bottom,0px),var(--hudlift,0px));pointer-events:none;font-size:15px}
 .bars{position:absolute;left:14px;top:12px;width:250px}
 .bar{height:16px;background:#2a1f33;border:2px solid #0e0a14;border-radius:4px;margin-bottom:6px;position:relative;overflow:hidden;box-shadow:0 2px 0 #000}
 .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--cyan);transition:width .15s}
