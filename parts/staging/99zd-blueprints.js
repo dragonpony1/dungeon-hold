@@ -16,6 +16,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const el=document.createElement('div'); el.id='bpBook'; document.body.appendChild(el);
 for(const [v,f] of [['--bk-book','book'],['--bk-lock','slot-locked'],['--bk-known','slot-known'],['--bk-master','slot-master'],['--bk-tabm','tab-master']]) el.style.setProperty(v,'url("'+BASE+'book/'+f+'.webp")');
 const heroWeapon=()=>{ let h=null; try{ h=window.__heroes.pick(); }catch(e){} return h==='witch'?'staff':h==='fighter'?'polearm':'sword'; };
+const SURV_MAP={ cyclops:'the Gnome Hall', pigs:'the Throne Room', archhag:'the Cloister Court', bullion:'the Feast Hall', avery:'the Drawbridge', corruptor:'the Deep Prison' };   // build 624 (Matt: "yes add survival to the book"): Survival's boss waves on this map drop the trophy too (game 623)
 const WWORD={ sword:'Sword', staff:'Staff', polearm:'Polearm' };
 const trophy=(boss,h)=>'<img class="trophy" src="'+BASE+'trophies/'+boss+'.webp" alt="" style="height:'+h+'em;vertical-align:middle;filter:drop-shadow(0 1px 2px #000a)">';
 let opens=0;
@@ -43,7 +44,7 @@ function open(){ const R=window.__recipes; if(!R) return false; const b=R.read()
   el.onclick=e=>{ if(e.target===el) close(); }; el.querySelector('#bpClose').onclick=e=>{ e.stopPropagation(); close(); };
   el.querySelectorAll('td[data-key]').forEach(td=>{ const show=()=>{ const I=INFO[td.dataset.key]; if(!I) return; const sp=td.closest('.pg').querySelector('.spot'); if(!sp) return;
       const pic='<span class="ph"><img class="sil" src="'+I.src+'" alt="">'+(I.known?'<img class="col" src="'+I.src+'" alt="">':I.p?'<img class="col" src="'+I.src+'" alt="" style="clip-path:inset('+Math.round(100-I.p*100/3)+'% 0 0 0)">':'')+'</span>';
-      const how=I.mw?(I.known?(I.tr>0?'<div class="sg">✦ Ready at the Blacksmith: 6 sludge + 1 '+esc(I.boss.trophy)+' '+trophy(I.bossId,1.8)+'</div>':'<div class="sw">beat '+esc(I.boss.name)+' again for a '+esc(I.boss.trophy)+'</div>'):'<div class="sw">beat '+esc(I.boss.name)+' to learn it</div>')
+      const how=I.mw?(I.known?(I.tr>0?'<div class="sg">✦ Ready at the Blacksmith: 6 sludge + 1 '+esc(I.boss.trophy)+' '+trophy(I.bossId,1.8)+'</div>':'<div class="sw">'+trophy(I.bossId,1.5)+' '+esc(I.boss.trophy)+': beat '+esc(I.boss.name)+' again · or ☠ Survival in '+esc(SURV_MAP[I.bossId]||'its map')+', waves 10 · 20 · 30 · 40 · 50</div>'):'<div class="sw">beat '+esc(I.boss.name)+' to learn it</div>')
         :I.known?'<div class="sg">✓ Known · forge it at the Blacksmith</div>':'<div class="sw">'+(I.p?'📜 '+I.p+' of 3 pages · ':'')+'pages drop in '+esc(I.where)+' · or salvage one</div>';
       sp.innerHTML='<div class="sp'+(I.mw?' m':I.known?' k':'')+'">'+pic+'</div><div><div class="st">'+(I.known||I.p||I.mw?esc(I.name):'???')+'</div>'+how+'</div>'; };
     td.onmouseenter=show; td.onclick=show; });
