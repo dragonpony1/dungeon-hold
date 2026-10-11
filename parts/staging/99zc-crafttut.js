@@ -44,6 +44,7 @@ WORLDANIM.push(()=>{
       if(st.s===2&&ph==='build'&&!list.length&&S.wave>(st.dropWave|0)) dropPage();   // the next one comes at the end of the next wave (a new wave number since the last drop)
       if(list.length){ const p=list[0]; banner('p'+n,'📜 ➜ 👣','<b>'+n+' / 3</b>');   /* build 614 (Matt: less words) */ pointAt(p.x,.9,p.z); }
       else { banner('w'+n,'📜'.repeat(n)+'<span style="opacity:.35">'+'📜'.repeat(3-n)+'</span>','<b>'+n+' / 3</b> &nbsp;⚔ ➜ 📜'); hand.classList.remove('on'); ring.classList.remove('on'); } } }
+  if(st.s===3&&window.__hideoutUsable&&!window.__hideoutUsable()){ st.s=99; save(); hideAll(); return; }   // build 630: no hideout on this device (phone / iPad with no mouse) -- nothing to point at
   if(st.s===3){ const P=window.__portal, open=window.__hideout&&window.__hideout.isOpen&&window.__hideout.isOpen();
     if(open){ st.s=4; save(); hideAll(); return; }
     /* build 621 (Matt: "chaos armor learned, then an infor graphic that shows a check mark by the book and a hammer, but we know nothing about the forge or book yet"): the banner shows what you KNOW --
