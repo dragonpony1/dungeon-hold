@@ -70,6 +70,7 @@ function ensure(){ if(el) return; css();
     <div class="note">F9 to hide · a real player never sees this</div>`;
   document.body.appendChild(el);
   $('dp-x').onclick=()=>toggle(false);
+  { const x=$('dp-x'); if(x&&!$('dp-lock')&&window.__DEV&&!window.__DEV.local){ const b=document.createElement('button'); b.id='dp-lock'; b.textContent='🔒 lock'; b.title='Lock the dev tools on this browser again'; b.style.cssText='margin-left:6px'; b.onclick=()=>{ window.__DEV.lock(); toggle(false); try{ window.__campaign&&window.__campaign.testLine&&window.__campaign.testLine(); }catch(e){} }; x.insertAdjacentElement('afterend',b); } }
   $('dp-wave-go').onclick=()=>jumpWave(+$('dp-wave').value||1);
   $('dp-mob-go').onclick=()=>spawnNow($('dp-mob').value);
   $('dp-mob-5').onclick=()=>{ const k=$('dp-mob').value; for(let i=0;i<5;i++){ if(k==='direwolf') spawnNow(k); else setTimeout(()=>spawnNow(k),i*180); } };   // wolves come out together, as a pack (build 318)   // build 316: a pack at a time (Matt trying the dire wolves)
@@ -122,7 +123,15 @@ function spawnNow(kind){ if(guest()){ window.__net.send('dev',{a:'spawn',kind});
   // build 316: the dire wolf's model loads the first time one is asked for (95g-direwolf.js); wait for it rather than send out a goblin-bodied stand-in
   if(kind==='direwolf'&&window.__direwolf&&!window.__direwolf.loaded()){ toast('loading the dire wolf…'); window.__direwolf.load().then(()=>{ if(window.__direwolf.loaded()) spawnNow(kind); }); return; }
   spawnEnemy(kind,k); toast('spawned a '+kind); }
-function toggle(v){ ensure(); open=v===undefined?!open:v; el.classList.toggle('hide',!open); if(open&&$('dp-lv')) $('dp-lv').value=Meta.level(); }
+// build 627: the DEV LOCK (head.html window.__DEV) -- without the PIN on this browser F9 shows a small PIN box instead; the right PIN opens the panel (and the title's testing line)
+let pinEl=null;
+function askPin(then){ if(!pinEl){ pinEl=document.createElement('div'); pinEl.id='devpin'; pinEl.style.cssText='position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:#000a';
+    pinEl.innerHTML='<form style="background:#1a1220;border:2px solid #c9962f;border-radius:12px;padding:16px 20px;color:#f1e6d0;font:15px Georgia,serif;text-align:center;box-shadow:0 8px 30px #000"><div style="font-size:26px;margin-bottom:6px">🔒</div><input id="devpin-in" type="password" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="PIN" style="width:120px;font:bold 20px system-ui;text-align:center;letter-spacing:4px;padding:6px;border-radius:8px;border:2px solid #6b5a3c;background:#0b0712;color:#ffe2b8"><div id="devpin-m" style="height:18px;margin-top:6px;font-size:13px;color:#ff8a7a"></div><button type="submit" style="margin-top:4px;padding:6px 18px;border-radius:999px;border:2px solid #c9962f;background:#3a1a10;color:#ffe2b8;font:bold 14px Georgia,serif;cursor:pointer">OPEN</button></form>';
+    document.body.appendChild(pinEl); pinEl.addEventListener('click',e=>{ if(e.target===pinEl) pinEl.style.display='none'; }); pinEl.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Escape') pinEl.style.display='none'; },true); pinEl.addEventListener('keyup',e=>e.stopPropagation(),true); }
+  const f=pinEl.querySelector('form'), inp=pinEl.querySelector('#devpin-in'), m=pinEl.querySelector('#devpin-m'); inp.value=''; m.textContent=''; pinEl.style.display='flex'; if(document.pointerLockElement) try{ document.exitPointerLock(); }catch(e){} setTimeout(()=>inp.focus(),30);
+  f.onsubmit=e=>{ e.preventDefault(); const D=window.__DEV; if(!D){ pinEl.style.display='none'; return; } D.unlock(inp.value).then(ok=>{ if(!ok){ m.textContent='✕'; inp.value=''; inp.focus(); return; } pinEl.style.display='none'; try{ window.__campaign&&window.__campaign.testLine&&window.__campaign.testLine(); }catch(err){} if(then) then(); }); }; }
+const devOk=()=>!window.__DEV||window.__DEV.ok();
+function toggle(v){ if(!devOk()){ if(open&&el){ open=false; el.classList.add('hide'); } else if(v!==false) askPin(()=>toggle(true)); return; } ensure(); open=v===undefined?!open:v; el.classList.toggle('hide',!open); if(open&&$('dp-lv')) $('dp-lv').value=Meta.level(); }
 addEventListener('keydown',e=>{ if(e.code==='F9'){ e.preventDefault(); toggle(); } });
-window.__devpanel={toggle,isOpen:()=>open,jumpWave,spawnNow,givePlain,plainWeapon,giveSet:(slot,setId,look,drop)=>{ const rec=setRec(slot,setId,null,look); if(drop) dropIt(rec); else giveIt(rec); }};
+window.__devpanel={askPin,devOk,toggle,isOpen:()=>open,jumpWave,spawnNow,givePlain,plainWeapon,giveSet:(slot,setId,look,drop)=>{ const rec=setRec(slot,setId,null,look); if(drop) dropIt(rec); else giveIt(rec); }};
 })();

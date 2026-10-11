@@ -1,0 +1,36 @@
+// ===== THE DEV LOCK (build 627, head.html window.__DEV + 74-devpanel.js + 95-campaign.js). Matt: "today i am offering money to anyone who can beat the game without dev tools, so can you put the dev tool behind a pin or something".
+// Played on a NON-local address (rootgate.test, mapped to this machine -- the lock is open on 127.0.0.1 for the suites): F9 asks for a PIN instead of opening the panel; the title's testing line is one 🔒 button;
+// the test-only address options are stripped; a wrong PIN stays locked; the right PIN opens the panel and the full testing line, and stays unlocked after a reload; LOCK shuts it again.
+import { chromium } from "playwright"; import { serve } from "./serve.mjs";
+const PORT=8939; const server=await serve(PORT,{dist:process.env.DIST||"./dist"});
+const results=[]; const check=(n,ok,d)=>{ results.push(!!ok); console.log((ok?"PASS ":"FAIL ")+n+(d?"  -> "+d:"")); };
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const browser=await chromium.launch({args:["--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader","--host-resolver-rules=MAP rootgate.test 127.0.0.1"]}); const errors=[];
+const ctx=await browser.newContext({viewport:{width:1280,height:800}}); const page=await ctx.newPage(); page.on("pageerror",e=>errors.push(String(e)));
+await page.route("**/api/**",r=>r.fulfill({status:200,contentType:"application/json",body:"{}"}));
+await ctx.addInitScript(()=>{ try{ localStorage.setItem("ddSound","off"); localStorage.setItem("dd_trainer",JSON.stringify({done:{},off:true})); }catch(e){} });
+const BASE="http://rootgate.test:"+PORT+"/";
+await page.goto(BASE+"?nogate&silent&ownweapons&map=0",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__devpanel&&window.__DEV,null,{timeout:120000});
+const A=await page.evaluate(()=>({ ok:window.__DEV.ok(), local:window.__DEV.local, search:location.search, test:(document.getElementById('testline')||{}).textContent||'' }));
+check("on a real address the dev tools start locked, the testing line is one 🔒 button, and ?nogate ?silent ?ownweapons are stripped (?map stays)",!A.ok&&!A.local&&/🔒/.test(A.test)&&!/unlock all maps|\+1000 gold/.test(A.test)&&!/nogate|silent|ownweapons/.test(A.search)&&/map=0/.test(A.search),JSON.stringify(A));
+await page.keyboard.press('F9'); await sleep(300);
+const B=await page.evaluate(()=>({ pin:getComputedStyle(document.getElementById('devpin')).display, panel:window.__devpanel.isOpen() }));
+check("F9: a PIN box, not the panel",B.pin==='flex'&&!B.panel,JSON.stringify(B));
+await page.fill('#devpin-in','1234'); await page.press('#devpin-in','Enter'); await sleep(400);
+const C=await page.evaluate(()=>({ pin:getComputedStyle(document.getElementById('devpin')).display, msg:document.getElementById('devpin-m').textContent, ok:window.__DEV.ok(), panel:window.__devpanel.isOpen() }));
+check("a wrong PIN: still locked, the box says ✕",C.pin==='flex'&&C.msg==='✕'&&!C.ok&&!C.panel,JSON.stringify(C));
+await page.fill('#devpin-in','7319'); await page.press('#devpin-in','Enter'); await sleep(500);
+const D=await page.evaluate(()=>({ pin:getComputedStyle(document.getElementById('devpin')).display, ok:window.__DEV.ok(), panel:window.__devpanel.isOpen(), test:(document.getElementById('testline')||{}).textContent||'' }));
+check("the right PIN: the panel opens and the title's testing line is back in full",D.pin==='none'&&D.ok&&D.panel&&/unlock all maps/.test(D.test),JSON.stringify(D));
+await page.goto(BASE+"?nogate",{timeout:120000}); await page.waitForFunction(()=>window.__dd&&window.__DEV,null,{timeout:120000});
+const E=await page.evaluate(()=>({ ok:window.__DEV.ok(), search:location.search }));
+check("this browser stays unlocked after a reload (and its options are honoured)",E.ok&&/nogate/.test(E.search),JSON.stringify(E));
+await page.keyboard.press('F9'); await sleep(300); const lockBtn=await page.$('#dp-lock'); if(lockBtn) await lockBtn.click(); await sleep(300);
+const F=await page.evaluate(()=>({ ok:window.__DEV.ok(), panel:window.__devpanel.isOpen(), test:(document.getElementById('testline')||{}).textContent||'', saved:localStorage.getItem('dd_dev') }));
+check("🔒 lock in the panel shuts it all again",!!lockBtn&&!F.ok&&!F.panel&&/🔒/.test(F.test)&&!F.saved,JSON.stringify(F));
+const L=await (await browser.newContext()).newPage(); await L.route("**/api/**",r=>r.fulfill({status:200,contentType:"application/json",body:"{}"}));
+await L.goto("http://127.0.0.1:"+PORT+"/?silent&nogate",{timeout:120000}); await L.waitForFunction(()=>window.__DEV,null,{timeout:120000});
+const G=await L.evaluate(()=>({ ok:window.__DEV.ok(), search:location.search }));
+check("on this machine's own test address (127.0.0.1) the tools stay open with no PIN, so the test suites run as ever",G.ok&&/silent/.test(G.search),JSON.stringify(G));
+const real=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|fonts\.googleapis/i.test(e)); check("no page errors",real.length===0,real.slice(0,3).join(" | "));
+await browser.close(); server.close(); console.log(results.filter(Boolean).length+"/"+results.length+" passed"); process.exit(results.every(Boolean)?0:1);
