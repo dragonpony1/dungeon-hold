@@ -76,11 +76,11 @@ let shotDesk=null, shotPhone=null;
   const r=await row(p); const m=await p.evaluate(()=>window.__dd.map().index);
   check("on map two (open, not yet cleared) Survival is locked and the saved pick doesn't apply",m===1&&r.sel==='campaign'&&r.locked&&!r.on&&/THE THRONE ROOM is cleared/.test(r.text),JSON.stringify({m,r}));
   await ctx.close(); }
-{ const {ctx,p}=await page("?silent&nogate",{ddMapsCleared:'1',dd_survivalBest:JSON.stringify({hall:23})},{viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+{ const {ctx,p}=await page("?silent&nogate",{ddMapsCleared:'1',dd_survivalBest:JSON.stringify({hall:23})},{viewport:{width:844,height:390},isMobile:true,hasTouch:true});
   await p.click('#modeline button[data-m="survival"]'); const r=await row(p);
   const fit=await p.evaluate(()=>{ const el=document.getElementById('modeline'), b=el.getBoundingClientRect(); return {w:b.width,left:b.left,right:b.right,vw:innerWidth,scroll:document.documentElement.scrollWidth}; });
   shotPhone=path.join(SHOTS,"survival-title-phone.png"); await p.screenshot({path:shotPhone});
-  check("phone width: the row fits the screen (no sideways scroll) and shows the saved best ("+r.text.replace(/\s+/g,' ').slice(0,90)+")",r.on&&/your best: 23 of 50/.test(r.text)&&fit.left>=0&&fit.right<=fit.vw+1&&fit.scroll<=fit.vw+1,JSON.stringify(fit));
+  /* build 623: held SIDEWAYS -- since build 595 an upright phone gets the TURN YOUR PHONE card over the title (99v-phone.js) */ check("phone, sideways: the row fits the screen (no sideways scroll) and shows the saved best ("+r.text.replace(/\s+/g,' ').slice(0,90)+")",r.on&&/your best: 23 of 50/.test(r.text)&&fit.left>=0&&fit.right<=fit.vw+1&&fit.scroll<=fit.vw+1,JSON.stringify(fit));
   await ctx.close(); }
 
 // ==================== PLAY: past the map's waves, the live cap, the best, wave 50 ====================
