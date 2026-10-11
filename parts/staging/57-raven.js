@@ -58,6 +58,8 @@ function ensureHeroPick(){ if(heroPick) return heroPick;
     b.addEventListener('click',e=>{ e.stopPropagation(); if(window.__heroes.locked&&window.__heroes.locked(h.id)){ toast(window.__heroes.lockText?window.__heroes.lockText(h.id):'Locked'); return; } if(window.__heroes.pick()!==h.id) window.__heroes.select(h.id); syncHeroPick(); });   /* build 598: a locked hero (the Engineer before level 7) can't be picked here either */
     heroPick.appendChild(b); });
   document.getElementById('hud').appendChild(heroPick); syncHeroPick(); return heroPick; }
-{ const prev=ravenUpdate; ravenUpdate=function(dt){ prev(dt); const show=near()&&!placing&&!Meta.isOpen(); const hp=ensureHeroPick(); if((hp.style.display==='flex')!==show){ hp.style.display=show?'flex':'none'; if(show) syncHeroPick(); } }; }
+{ const prev=ravenUpdate; ravenUpdate=function(dt){ prev(dt); const show=near()&&!placing&&!Meta.isOpen(); const hp=ensureHeroPick(); if((hp.style.display==='flex')!==show){ hp.style.display=show?'flex':'none'; if(show) syncHeroPick(); }
+    /* build 626 (Matt: "at the raven hero picker the hero changes when you press H but the highlighted name plate doesn't change"): the lit plate follows the hero out, however it changed (H, a click, a load) */
+    if(show){ const cur=window.__heroes.pick(); if(cur!==hp.dataset.lit){ hp.dataset.lit=cur; syncHeroPick(); } } }; }
 window.__raven={spots:()=>SPOTS.map(s=>({x:s.x,y:s.y,z:s.z})),state:()=>state,near,pos:()=>({x:RX,y:ravenY(),z:RZ}),loaded:()=>!!wrap,heroPickVisible:()=>heroPick&&heroPick.style.display==='flex',heroPickButtons:()=>heroPick?[...heroPick.children].map(b=>b.dataset.hero):[]};
 })();
