@@ -31,9 +31,12 @@ const PIGS={
   pigdagger:{files:{walk:'pigdagger-walk.glb',run:'pigdagger-run.glb',attack:'pigdagger-attack.glb'},atkName:'Double_Blade_Spin',
     dim:{fit:3.96,h:3.6,r:.79,nat:{walk:1.0,run:2.3}},
     stats:{hp:340,spd:2.6,dmg:18,cd:2.6,mana:18,swingT:2.4,hitT:1}   /* build 289: its 5.7 s Double_Blade_Spin (a leap, then slashes) plays over 2.4 s, the blow as it lands; it swings every 2.6 s (was 1.5) so each blow is 18 (was 11), about the same damage over time */},
-  pigsling:{files:{walk:'pigsling-walk.glb',run:'pigsling-run.glb',attack:'pigsling-attack.glb'},atkName:'Crouch_Charge_and_Throw',
+  // build 631 (Matt: "change that to a spear chucker" -- his Meshy Bandit Pig Spear boss, one rigged file with Walking / Running / baseball_pitching): THE SPEAR CHUCKER takes the Sling's place
+  // (the kind id stays 'pigsling' so the trio, its bar row, the Pig Lords' trophy and co-op all carry on). His throw is below: he plants, a red line on the floor shows where (~1 s to step off it),
+  // then one fast straight spear -- one big hit and a shove, no splash -- that sticks in the floor or wall for a few seconds. Mostly at a hero; about one throw in three at the nearest tower.
+  pigsling:{files:{all:'pigspear.glb'},atkName:'baseball_pitching',
     dim:{fit:4.32,h:3.96,r:.94,nat:{walk:.9,run:2.0}},
-    stats:{hp:480,spd:2.6,dmg:14,cd:3.8,mana:20,splash:2.3,ranged:14,heroShot:true,swingT:3,hitT:2.25}},   // build 288 (Matt: "it never could actually swing it around"): its 7.7 s Crouch_Charge_and_Throw plays over 3 s -- the wind-up and the sling going round, then the throw at 2.25 s (where the clip's arm comes over, 75%) -- a throw every 3.8 s   // build 287 (Matt: "act like a ranged mob and stay back a little ... and try to hit me"): ranged, and a heroShot mob (game.js) throws at a hero it can see first   // hp was the lowest of the three (200) and the one Matt kept losing to focus fire before ever seeing him -- now the highest, since he's also the one standing still the longest (charging a throw) with nothing else drawing tower attention his way. No `ranged` -- same call the Cyclops made: that field only ever makes the generic AI snipe a TOWER from range (game.js's own ranged-standoff check explicitly skips it for a hero target), so a melee-seeking mob plus Sling's own charge-and-throw special below (mirroring Boulder Toss) covers both a hero and a tower without fighting itself. `splash` stays so fireArrow picks the heavier grenade visual for the throw.
+    stats:{hp:480,spd:2.6,dmg:30,cd:4.2,mana:20,ranged:16,heroShot:true,swingT:1.6,hitT:1.0}},   // build 288 (Matt: "it never could actually swing it around"): its 7.7 s Crouch_Charge_and_Throw plays over 3 s -- the wind-up and the sling going round, then the throw at 2.25 s (where the clip's arm comes over, 75%) -- a throw every 3.8 s   // build 287 (Matt: "act like a ranged mob and stay back a little ... and try to hit me"): ranged, and a heroShot mob (game.js) throws at a hero it can see first   // hp was the lowest of the three (200) and the one Matt kept losing to focus fire before ever seeing him -- now the highest, since he's also the one standing still the longest (charging a throw) with nothing else drawing tower attention his way. No `ranged` -- same call the Cyclops made: that field only ever makes the generic AI snipe a TOWER from range (game.js's own ranged-standoff check explicitly skips it for a hero target), so a melee-seeking mob plus Sling's own charge-and-throw special below (mirroring Boulder Toss) covers both a hero and a tower without fighting itself. `splash` stays so fireArrow picks the heavier grenade visual for the throw.
 };
 for(const k in PIGS){ MOBDIM[k]=PIGS[k].dim; MOBS[k]=PIGS[k].stats; }
 // build 187's emissiveTexture fix, confirmed present on all three of these too (checked each one's raw materials
@@ -53,10 +56,10 @@ function loadPigModel(kind){ if(MOBGLB[kind]) return Promise.resolve(); if(pigLo
   // behind it and never finished, which reads as "nothing new is loading" even though the game itself keeps running.
   // fetchBytes with no priority at all falls into game.js's own third, lowest tier: it waits for 'soon' to fully
   // drain before even starting, so this heavy download never competes with anything time-sensitive again.
-  pigLoadP[kind]=Promise.all([F.walk,F.run,F.attack].map(f=>fetchBytes(ASSET(f)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej)))))
-    .then(([wg,rg,ag])=>{ try{ const root=wg.scene||wg.scenes[0]; fixMats(root);
+  pigLoadP[kind]=Promise.all((F.all?[F.all]:[F.walk,F.run,F.attack]).map(f=>fetchBytes(ASSET(f)).then(buf=>new Promise((res,rej)=>new THREE.GLTFLoader().parse(buf,'',res,rej)))))   /* build 631: one file can carry all three clips */
+    .then(gs=>{ try{ const wg=gs[0]; const root=wg.scene||wg.scenes[0]; fixMats(root);
       const fit=fitModel(root,cfg.dim.fit); toonify(root,fit.scale);
-      const clips=[].concat(wg.animations||[],rg.animations||[],ag.animations||[]);
+      const clips=[].concat(...gs.map(g=>g.animations||[]));
       const map=mapClips(clips);
       // Axe_Spin_Attack matches CLIPMAP's own /attack/i fine on its own, but Double_Blade_Spin and
       // Crouch_Charge_and_Throw don't contain any word CLIPMAP looks for -- name each attack clip explicitly instead
@@ -125,6 +128,46 @@ const SLING_SPECIAL=false;   // build 287: the old charge-and-throw (at towers o
       if(e.slingCd===undefined) e.slingCd=5+R(0,2);
       if(e.slingCharging){ e.slingChargeT+=dt; if(e.slingGlow) e.slingGlow.material.opacity=Math.min(.75,e.slingChargeT/SLING_CHARGE*.75); if(e.slingChargeT>=SLING_CHARGE) slingThrow(e); }
       else { e.slingCd-=dt; if(e.slingCd<=0&&e.swing<0){ e.slingCd=8+R(-1,1); slingChargeStart(e); } } } }; }
+// ---------------------------------------------------------------- build 631: THE SPEAR CHUCKER'S THROW. The game's own attack timing drives it (swingT/hitT above): the moment he starts a throw
+// he picks his mark and PLANTS -- a red lane on the floor from him along the line, as far as the spear will fly (a wall stops it) -- and at the release (hitT, ~1 s later) the spear flies
+// straight down that lane: the first hero in it takes one big hit and a shove, a tower in it takes the hit, the Heartroot too; then it sticks in the floor or the wall it met for a few seconds.
+const SPEAR={ speed:34, len:20, hitR:.95, stick:3.5, towerShare:1/3 };
+const SPEARS=[]; const cntSp={ throws:0, atTower:0, heroHits:0, towerHits:0, misses:0, sticks:0 };
+const spearMat=[mat(0x6a4424),mat(0x9aa0a8)];
+function spearMesh(){ const g=new THREE.Group(); const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,2.6,6),spearMat[0]); shaft.rotation.x=PI/2; g.add(shaft);
+  const tip=new THREE.Mesh(new THREE.ConeGeometry(.13,.45,6),spearMat[1]); tip.rotation.x=PI/2; tip.position.z=1.5; g.add(tip); return g; }
+function laneLen(x0,z0,dx,dz){ for(let t=.6;t<=SPEAR.len;t+=.35){ const g=gat(wc(x0+dx*t),wcz(z0+dz*t)); if(g===T.WALL||g===T.PILLAR) return t; } return SPEAR.len; }
+function laneMesh(L){ const m=new THREE.Mesh(new THREE.PlaneGeometry(.55,L),new THREE.MeshBasicMaterial({color:C(0xff2a1a),transparent:true,opacity:.5,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending})); m.geometry.rotateX(-PI/2); m.geometry.translate(0,0,L/2); m.userData.noOL=true; return m; }
+function dropLane(e){ if(e.spearLane){ scene.remove(e.spearLane); e.spearLane.geometry.dispose(); e.spearLane.material.dispose(); e.spearLane=null; } }
+function sameLevel(e,d){ return Math.abs(floorH(d.x,d.z)-floorH(e.x,e.z))<=(typeof RANGED_UP!=='undefined'?RANGED_UP:3); }
+const skipDef=d=>BARRICADE_K[d.kind]||d.kind==='perch'||d.kind==='spike'||NOWALK_DEF[d.kind];
+{ const prev=attack; attack=function(e,tg){ if(e&&e.kind==='pigsling'&&!e.dead&&tg){
+      let aim=tg; if(Math.random()<SPEAR.towerShare){ let best=null, bd=MOBS.pigsling.ranged; for(const d of defs){ if(skipDef(d)) continue; const dd=Math.hypot(d.x-e.x,d.z-e.z); if(dd<bd&&dd>2&&sameLevel(e,d)&&los(e.x,e.z,d.x,d.z)){ bd=dd; best=d; } } if(best){ aim={kind:'def',obj:best,x:best.x,z:best.z}; cntSp.atTower++; } }
+      const tx=(aim.kind==='hero'&&aim.hero)?aim.hero.x:aim.x, tz=(aim.kind==='hero'&&aim.hero)?aim.hero.z:aim.z; let dx=tx-e.x, dz=tz-e.z; const dl=Math.hypot(dx,dz)||1; dx/=dl; dz/=dl;
+      const L=laneLen(e.x,e.z,dx,dz); dropLane(e); const lane=laneMesh(L); lane.position.set(e.x,floorH(e.x,e.z)+.06,e.z); lane.rotation.y=Math.atan2(dx,dz); scene.add(lane);
+      e.spearLane=lane; e.spearAim={x0:e.x,z0:e.z,dx,dz,L,kind:aim.kind,which:aim.which,t:0}; e.yaw=Math.atan2(dx,dz); cntSp.throws++; }
+    return prev.apply(this,arguments); }; }
+{ const prev=landHit; landHit=function(e,tg){ if(e&&e.kind==='pigsling'&&e.spearAim){ throwSpear(e); return; } return prev.apply(this,arguments); }; }
+function throwSpear(e){ const a=e.spearAim; e.spearAim=null; dropLane(e); if(e.dead) return; const m=spearMesh(); const y=floorH(e.x,e.z)+1.35*(e.sc||1);
+  const x=e.x+a.dx*1.2, z=e.z+a.dz*1.2; m.position.set(x,y,z); m.rotation.y=Math.atan2(a.dx,a.dz); scene.add(m); try{ SFX.ball&&SFX.ball(); }catch(er){}
+  SPEARS.push({ x,z,y,dx:a.dx,dz:a.dz,go:1.2,L:a.L,kind:a.kind,which:a.which,dmg:e.dmg,owner:e,mesh:m,stuck:0 }); }
+function stick(p,inWall){ p.stuck=SPEAR.stick; cntSp.sticks++; if(!inWall){ p.mesh.rotation.x=.45; p.mesh.position.y=floorH(p.x,p.z)+.55; } }
+function crystalAt(w){ return w===2&&typeof C2X!=='undefined'?{x:C2X,z:C2Z}:w===3&&typeof C3X!=='undefined'?{x:C3X,z:C3Z}:{x:0,z:0}; }
+function updateSpears(dt){ for(let i=SPEARS.length-1;i>=0;i--){ const p=SPEARS[i];
+    if(p.stuck>0){ p.stuck-=dt; if(p.stuck<=0){ scene.remove(p.mesh); SPEARS.splice(i,1); } continue; }
+    let step=SPEAR.speed*dt; while(step>0&&!p.stuck){ const s=Math.min(.3,step); step-=s; p.x+=p.dx*s; p.z+=p.dz*s; p.go+=s; const fl=floorH(p.x,p.z);
+      let hit=false; if(hero.dead<=0&&Math.hypot(hero.x-p.x,hero.z-p.z)<SPEAR.hitR&&Math.abs((hero.y||0)-fl)<2.5){ hurtHero(p.dmg); for(let k=0;k<7;k++) moveCircle(hero,p.dx*.5,p.dz*.5,.42,true); hit=true; cntSp.heroHits++; }
+      if(!hit) for(const h of Meta.heroes()){ if(!h.isDead()&&Math.hypot(h.x-p.x,h.z-p.z)<SPEAR.hitR){ h.hurt(p.dmg); hit=true; cntSp.heroHits++; break; } }
+      if(!hit) for(const d of defs){ if(skipDef(d)) continue; if(Math.hypot(d.x-p.x,d.z-p.z)<1.05&&Math.abs(floorH(d.x,d.z)-fl)<2.5){ hurtDef(d,p.dmg); hit=true; cntSp.towerHits++; break; } }
+      if(!hit&&p.kind==='crystal'){ const c=crystalAt(p.which); if(Math.hypot(c.x-p.x,c.z-p.z)<1.6){ try{ hurtCrystal(p.dmg,p.owner,p.which); }catch(er){} hit=true; } }
+      p.mesh.position.set(p.x,p.y,p.z);
+      if(hit){ stick(p,false); break; } if(p.go>=p.L){ const g=gat(wc(p.x+p.dx*.4),wcz(p.z+p.dz*.4)); const wall=g===T.WALL||g===T.PILLAR; cntSp.misses++; stick(p,wall); break; } } } }
+{ const prev=updateEnemies; updateEnemies=function(dt){ const held=[]; for(const e of enemies) if(!e.dead&&e.kind==='pigsling'&&e.spearAim) held.push([e,e.spearAim.x0,e.spearAim.z0]);
+    prev.apply(this,arguments);
+    for(const [e,x,z] of held){ if(e.dead){ dropLane(e); e.spearAim=null; continue; } e.x=x; e.z=z; if(e.spearLane&&e.spearAim){ e.spearAim.t+=dt; e.spearLane.material.opacity=.35+.35*Math.abs(Math.sin(e.spearAim.t*9)); } }   // planted: he doesn't take a step while the lane is up
+    for(const e of enemies) if(e.dead&&e.spearLane) dropLane(e);
+    updateSpears(dt); }; }
+window.__spear={ info:()=>Object.assign({ flying:SPEARS.filter(p=>!p.stuck).length, stuck:SPEARS.filter(p=>p.stuck>0).length },cntSp), SPEAR, list:()=>SPEARS.map(p=>({x:+p.x.toFixed(2),z:+p.z.toFixed(2),stuck:p.stuck>0})) };
 // ---------------------------------------------------------------- the boss bar: one panel, three named rows, each
 // hides on its own as that pig falls -- the whole panel hides once none of the three are left (build 192's fix
 // already applies here too: the fill is a real block element, not an inline <i>)
@@ -135,7 +178,7 @@ const css=document.createElement('style'); css.textContent=
   #pigbar .fill{display:block;height:100%;background:linear-gradient(#ffa050,#c8621a);width:100%;transition:width .2s}`;
 document.head.appendChild(css);
 const el=document.createElement('div'); el.id='pigbar';
-el.innerHTML=['pigflail:FLAIL','pigdagger:DAGGER','pigsling:SLING'].map(s=>{ const [k,name]=s.split(':');
+el.innerHTML=['pigflail:FLAIL','pigdagger:DAGGER','pigsling:SPEAR'].map(s=>{ const [k,name]=s.split(':');
   return `<div class="row" data-k="${k}">${name}<div class="track"><i class="fill"></i></div></div>`; }).join('');
 document.body.appendChild(el);
 const rowEl=k=>el.querySelector(`.row[data-k="${k}"]`);
