@@ -18,7 +18,7 @@ const A=await page.evaluate(()=>{ const td=document.querySelector('#bpBook td.bs
 check("tap Chaos in the hall's book: it is the focus, its row wears the ribbon and says pages on every map",A.focus==='of Chaos'&&A.fo&&A.rb&&/pages on every map/.test(A.txt),JSON.stringify(A));
 const B=await page.evaluate(()=>{ const R=window.__recipes; let ch=0, home=0, other=0; for(let i=0;i<2000;i++){ const k=R.pickKey(); if(/^of Chaos\|familiar$/.test(k)) ch++; else if(/^of (Shadow|the Wind)\|/.test(k)) home++; else other++; } return { ch, home, other }; });
 check("on the Cloister about half the pages go to the focus (Chaos's one unknown, the pet), the rest stay Shadow/Wind",B.ch>850&&B.ch<1150&&B.home+B.ch===2000,JSON.stringify(B));
-const C=await page.evaluate(()=>{ const R=window.__recipes; R.pageCard('of Chaos|familiar',1); const a=R.pageCardHtml(); R.pageCard('of Shadow|armor',1); const b=R.pageCardHtml(); return { chaos:/🔖/.test(a), shadow:/🔖/.test(b) }; });
+const C=await page.evaluate(()=>{ const R=window.__recipes; R.pageCard('of Chaos|familiar',1); const a=R.pageCardHtml(); R.pageCard('of Shadow|armor',1); const b=R.pageCardHtml(); return { chaos:/class="rb"/.test(a), shadow:/class="rb"/.test(b) }; });
 check("a focus page's corner card wears the ribbon; another set's doesn't",C.chaos&&!C.shadow,JSON.stringify(C));
 await page.click('#bpBook td.bset[data-set="of Chaos"]'); await sleep(300);
 const D=await page.evaluate(()=>({ focus:window.__recipes.focus() }));
