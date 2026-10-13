@@ -69,7 +69,7 @@ function loadPigModel(kind){ if(MOBGLB[kind]) return Promise.resolve(); if(pigLo
       MOBGLB[kind]={wrap:fit.wrap,map,scale:fit.scale}; }catch(e){ console.warn('pig boss model '+kind,e); } })
     .catch(e=>console.warn('pig boss model '+kind,e));
   return pigLoadP[kind]; }
-function loadAllPigs(){ return Promise.all(Object.keys(PIGS).map(loadPigModel)); }
+function loadAllPigs(){ try{ loadSpearTpl(); }catch(e){} return Promise.all(Object.keys(PIGS).map(loadPigModel)); }
 function pigsLoaded(){ return Object.keys(PIGS).every(k=>!!MOBGLB[k]); }
 // checked every tick, same reasoning as the Cyclops: a player can reach wave 5 on a page that's been open the whole
 // time, this can't be decided once at load
@@ -134,7 +134,12 @@ const SLING_SPECIAL=false;   // build 287: the old charge-and-throw (at towers o
 const SPEAR={ speed:34, len:20, hitR:.95, stick:3.5, towerShare:1/3 };
 const SPEARS=[]; const cntSp={ throws:0, atTower:0, heroHits:0, towerHits:0, misses:0, sticks:0 };
 const spearMat=[mat(0x6a4424),mat(0x9aa0a8)];
-function spearMesh(){ const g=new THREE.Group(); const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,2.6,6),spearMat[0]); shaft.rotation.x=PI/2; g.add(shaft);
+// build 635 (Matt's own spear, "actuall spear.glb": a barbed head and a red rag tied under it): the thrown spear is his model -- it stands up +Y, so it is laid along the throw (+Z) and
+// scaled to the same 3 units; fetched with the pig models (or at the first throw), the code-built one stands in until it lands
+let SPEAR_TPL=null, spearAsked=false;
+function loadSpearTpl(){ if(spearAsked||typeof fetchBytes!=='function') return; spearAsked=true; fetchBytes(ASSET('pigspear-spear.glb')).then(buf=>new THREE.GLTFLoader().parse(buf,'',g=>{ const root=g.scene||g.scenes[0]; fixMats(root);
+    const wrap=new THREE.Group(); root.rotation.x=PI/2; root.scale.setScalar(3/1.9); wrap.add(root); wrap.traverse(o=>{ if(o.isMesh){ o.frustumCulled=false; o.userData.noOL=true; } }); SPEAR_TPL=wrap; },e=>{ console.warn('spear model',e); spearAsked=false; })).catch(e=>{ console.warn('spear model',e); spearAsked=false; }); }
+function spearMesh(){ if(SPEAR_TPL){ cntSp.real=(cntSp.real|0)+1; return SPEAR_TPL.clone(); } loadSpearTpl(); const g=new THREE.Group(); const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,2.6,6),spearMat[0]); shaft.rotation.x=PI/2; g.add(shaft);
   const tip=new THREE.Mesh(new THREE.ConeGeometry(.13,.45,6),spearMat[1]); tip.rotation.x=PI/2; tip.position.z=1.5; g.add(tip); return g; }
 function laneLen(x0,z0,dx,dz){ for(let t=.6;t<=SPEAR.len;t+=.35){ const g=gat(wc(x0+dx*t),wcz(z0+dz*t)); if(g===T.WALL||g===T.PILLAR) return t; } return SPEAR.len; }
 function laneMesh(L){ const m=new THREE.Mesh(new THREE.PlaneGeometry(.55,L),new THREE.MeshBasicMaterial({color:C(0xff2a1a),transparent:true,opacity:.5,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending})); m.geometry.rotateX(-PI/2); m.geometry.translate(0,0,L/2); m.userData.noOL=true; return m; }
@@ -167,7 +172,20 @@ function updateSpears(dt){ for(let i=SPEARS.length-1;i>=0;i--){ const p=SPEARS[i
     for(const [e,x,z] of held){ if(e.dead){ dropLane(e); e.spearAim=null; continue; } e.x=x; e.z=z; if(e.spearLane&&e.spearAim){ e.spearAim.t+=dt; e.spearLane.material.opacity=.35+.35*Math.abs(Math.sin(e.spearAim.t*9)); } }   // planted: he doesn't take a step while the lane is up
     for(const e of enemies) if(e.dead&&e.spearLane) dropLane(e);
     updateSpears(dt); }; }
-window.__spear={ info:()=>Object.assign({ flying:SPEARS.filter(p=>!p.stuck).length, stuck:SPEARS.filter(p=>p.stuck>0).length },cntSp), SPEAR, list:()=>SPEARS.map(p=>({x:+p.x.toFixed(2),z:+p.z.toFixed(2),stuck:p.stuck>0})) };
+// build 635 (Matt: "he should hold it in his hand too"): his spear in his RIGHT HAND -- the bone is found by name (mixamorigRightHand) and the spear is placed there every frame in world space
+// (no guessing a bone's own axes): upright and a little forward while he walks, swung round to point down the lane while he aims, gone the moment it leaves his hand, a fresh one back ~1 s later
+const HV1=new THREE.Vector3(), HV2=new THREE.Vector3(), HV3=new THREE.Vector3(), GRIP=-.35, SPEAR_BACK=1.0;
+function heldSpear(e,dt){ if(!SPEAR_TPL||!e.mdl||!e.mdl.glb||!e.mdl.g) return;
+  if(!e.spearHand){ let hand=null; e.mdl.g.traverse(o=>{ if(!hand&&/RightHand$/.test(o.name)) hand=o; }); if(!hand) return; const m=SPEAR_TPL.clone(); scene.add(m); e.spearHand={m,hand,away:0}; cntSp.held=(cntSp.held|0)+1; }
+  const H=e.spearHand; if(e.dead){ scene.remove(H.m); e.spearHand=null; return; }
+  if(H.away>0){ H.away-=dt; H.m.visible=false; return; } H.m.visible=true;
+  const hp=H.hand.getWorldPosition(HV1); let dir;
+  if(e.spearAim) dir=HV2.set(e.spearAim.dx,.28,e.spearAim.dz).normalize();
+  else { const fx=Math.sin(e.yaw||0), fz=Math.cos(e.yaw||0); dir=HV2.set(fx*.3,1,fz*.3).normalize(); }
+  H.m.position.copy(hp).addScaledVector(dir,-GRIP); H.m.lookAt(HV3.copy(H.m.position).add(dir)); }
+{ const prev=throwSpear; throwSpear=function(e){ if(e&&e.spearHand) e.spearHand.away=SPEAR_BACK; return prev.apply(this,arguments); }; }
+{ const prev=updateEnemies; updateEnemies=function(dt){ prev.apply(this,arguments); for(const e of enemies) if(e.kind==='pigsling'&&(e.spearHand||!e.dead)) heldSpear(e,dt); }; }
+window.__spear={ held:e=>e&&e.spearHand?{ visible:e.spearHand.m.visible, x:+e.spearHand.m.position.x.toFixed(2), y:+e.spearHand.m.position.y.toFixed(2), z:+e.spearHand.m.position.z.toFixed(2) }:null, info:()=>Object.assign({ flying:SPEARS.filter(p=>!p.stuck).length, stuck:SPEARS.filter(p=>p.stuck>0).length },cntSp), SPEAR, list:()=>SPEARS.map(p=>({x:+p.x.toFixed(2),z:+p.z.toFixed(2),stuck:p.stuck>0})) };
 // ---------------------------------------------------------------- the boss bar: one panel, three named rows, each
 // hides on its own as that pig falls -- the whole panel hides once none of the three are left (build 192's fix
 // already applies here too: the fill is a real block element, not an inline <i>)

@@ -38,6 +38,13 @@ const Tw=await page.evaluate(()=>{ const d=window.__dd, S=window.__spear; d.enem
   const e=d.spawn('pigsling',Object.keys(d.lanes())[0]); e.x=t.x+8; e.z=t.z; e.hp=e.maxHp=1e6; h.x=e.x-40; h.z=e.z; const real=Math.random; Math.random=()=>0.05;
   const a0=S.info().atTower, th0=S.info().towerHits; for(let i=0;i<500&&S.info().towerHits===th0;i++){ d.step(1/30,1); } Math.random=real; return { atTower:S.info().atTower-a0, towerHits:S.info().towerHits-th0, hpLost:1e6-t.hp }; });
 check("sometimes he throws at a tower instead, and it takes the hit",Tw.atTower>=1&&Tw.towerHits>=1&&Tw.hpLost>0,JSON.stringify(Tw));
+await page.evaluate(()=>{ const h=window.__dd.hero; h.x=0; h.z=6; });   /* back to the hall's start: the tower check parked the hero far off */
+await setup();
+const HH=await page.evaluate(()=>{ const d=window.__dd, e=window.__boss, S=window.__spear; e.atk=999; for(let i=0;i<20;i++) d.step(1/30,1); const walk=S.held(e); e.atk=0;
+  let gone=null; const th0=S.info().throws; for(let i=0;i<400;i++){ d.step(1/30,1); if(S.info().flying>0&&gone===null){ gone=S.held(e); break; } }
+  const info=S.info(), thr=info.throws-th0; for(let i=0;i<40;i++) d.step(1/30,1); const back=S.held(e); return { walk, gone, back, thr, lane:!!e.spearLane, aim:!!e.spearAim, atk:e.atk, swing:e.swing, hp:d.hero.hp, dead:d.hero.dead }; });
+check("build 635: he holds a spear in his hand (Matt), it leaves his hand with the throw, and a fresh one is back about a second later",HH.walk&&HH.walk.visible&&HH.gone&&!HH.gone.visible&&HH.back&&HH.back.visible,JSON.stringify(HH));
+const RS=await page.evaluate(()=>window.__spear.info()); check("build 635: the spear he throws is Matt's own model (actuall spear.glb), not the code-built stand-in",RS.real>=1,JSON.stringify({real:RS.real,throws:RS.throws}));
 const BAR=await page.evaluate(()=>(document.getElementById('pigbar')||{}).textContent||'');
 check("the trio's bar row reads SPEAR",/SPEAR/.test(BAR)&&!/SLING/.test(BAR),BAR);
 const real=errors.filter(e=>!/Failed to load resource|favicon|net::ERR|fonts\.googleapis/i.test(e)); check("no page errors",real.length===0,real.slice(0,3).join(" | "));
