@@ -137,8 +137,10 @@ const spearMat=[mat(0x6a4424),mat(0x9aa0a8)];
 // build 635 (Matt's own spear, "actuall spear.glb": a barbed head and a red rag tied under it): the thrown spear is his model -- it stands up +Y, so it is laid along the throw (+Z) and
 // scaled to the same 3 units; fetched with the pig models (or at the first throw), the code-built one stands in until it lands
 let SPEAR_TPL=null, spearAsked=false;
+// build 636 (Matt: "he is carrying and throwing the dagger"): 3 units read as a dagger beside a 4.3-tall pig -- a spear stands taller than he does
+const SPEAR_LEN=5;
 function loadSpearTpl(){ if(spearAsked||typeof fetchBytes!=='function') return; spearAsked=true; fetchBytes(ASSET('pigspear-spear.glb')).then(buf=>new THREE.GLTFLoader().parse(buf,'',g=>{ const root=g.scene||g.scenes[0]; fixMats(root);
-    const wrap=new THREE.Group(); root.rotation.x=PI/2; root.scale.setScalar(3/1.9); wrap.add(root); wrap.traverse(o=>{ if(o.isMesh){ o.frustumCulled=false; o.userData.noOL=true; } }); SPEAR_TPL=wrap; },e=>{ console.warn('spear model',e); spearAsked=false; })).catch(e=>{ console.warn('spear model',e); spearAsked=false; }); }
+    const wrap=new THREE.Group(); root.rotation.x=PI/2; root.scale.setScalar(SPEAR_LEN/1.9); wrap.add(root); wrap.traverse(o=>{ if(o.isMesh){ o.frustumCulled=false; o.userData.noOL=true; } }); SPEAR_TPL=wrap; },e=>{ console.warn('spear model',e); spearAsked=false; })).catch(e=>{ console.warn('spear model',e); spearAsked=false; }); }
 function spearMesh(){ if(SPEAR_TPL){ cntSp.real=(cntSp.real|0)+1; return SPEAR_TPL.clone(); } loadSpearTpl(); const g=new THREE.Group(); const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,2.6,6),spearMat[0]); shaft.rotation.x=PI/2; g.add(shaft);
   const tip=new THREE.Mesh(new THREE.ConeGeometry(.13,.45,6),spearMat[1]); tip.rotation.x=PI/2; tip.position.z=1.5; g.add(tip); return g; }
 function laneLen(x0,z0,dx,dz){ for(let t=.6;t<=SPEAR.len;t+=.35){ const g=gat(wc(x0+dx*t),wcz(z0+dz*t)); if(g===T.WALL||g===T.PILLAR) return t; } return SPEAR.len; }
@@ -153,8 +155,9 @@ const skipDef=d=>BARRICADE_K[d.kind]||d.kind==='perch'||d.kind==='spike'||NOWALK
       e.spearLane=lane; e.spearAim={x0:e.x,z0:e.z,dx,dz,L,kind:aim.kind,which:aim.which,t:0}; e.yaw=Math.atan2(dx,dz); cntSp.throws++; }
     return prev.apply(this,arguments); }; }
 { const prev=landHit; landHit=function(e,tg){ if(e&&e.kind==='pigsling'&&e.spearAim){ throwSpear(e); return; } return prev.apply(this,arguments); }; }
-function throwSpear(e){ const a=e.spearAim; e.spearAim=null; dropLane(e); if(e.dead) return; const m=spearMesh(); const y=floorH(e.x,e.z)+1.35*(e.sc||1);
-  const x=e.x+a.dx*1.2, z=e.z+a.dz*1.2; m.position.set(x,y,z); m.rotation.y=Math.atan2(a.dx,a.dz); scene.add(m); try{ SFX.ball&&SFX.ball(); }catch(er){}
+function throwSpear(e){ const a=e.spearAim; e.spearAim=null; dropLane(e); if(e.dead) return; const m=spearMesh(); let y=floorH(e.x,e.z)+1.35*(e.sc||1);
+  let x=e.x+a.dx*1.2, z=e.z+a.dz*1.2;
+  if(e.spearHand&&e.spearHand.hand){ const hp=e.spearHand.hand.getWorldPosition(new THREE.Vector3()); y=Math.max(y,hp.y); const along=(hp.x-e.x)*a.dx+(hp.z-e.z)*a.dz; x=e.x+a.dx*Math.max(.6,along); z=e.z+a.dz*Math.max(.6,along); }   /* build 636: from his hand at the release, on the lane's line */ m.position.set(x,y,z); m.rotation.y=Math.atan2(a.dx,a.dz); scene.add(m); try{ SFX.ball&&SFX.ball(); }catch(er){}
   SPEARS.push({ x,z,y,dx:a.dx,dz:a.dz,go:1.2,L:a.L,kind:a.kind,which:a.which,dmg:e.dmg,owner:e,mesh:m,stuck:0 }); }
 function stick(p,inWall){ p.stuck=SPEAR.stick; cntSp.sticks++; if(!inWall){ p.mesh.rotation.x=.45; p.mesh.position.y=floorH(p.x,p.z)+.55; } }
 function crystalAt(w){ return w===2&&typeof C2X!=='undefined'?{x:C2X,z:C2Z}:w===3&&typeof C3X!=='undefined'?{x:C3X,z:C3Z}:{x:0,z:0}; }
@@ -174,7 +177,7 @@ function updateSpears(dt){ for(let i=SPEARS.length-1;i>=0;i--){ const p=SPEARS[i
     updateSpears(dt); }; }
 // build 635 (Matt: "he should hold it in his hand too"): his spear in his RIGHT HAND -- the bone is found by name (mixamorigRightHand) and the spear is placed there every frame in world space
 // (no guessing a bone's own axes): upright and a little forward while he walks, swung round to point down the lane while he aims, gone the moment it leaves his hand, a fresh one back ~1 s later
-const HV1=new THREE.Vector3(), HV2=new THREE.Vector3(), HV3=new THREE.Vector3(), GRIP=-.35, SPEAR_BACK=1.0;
+const HV1=new THREE.Vector3(), HV2=new THREE.Vector3(), HV3=new THREE.Vector3(), GRIP=-.9, SPEAR_BACK=1.0;   // build 636: held a third of the way up a 5-unit shaft
 function heldSpear(e,dt){ if(!SPEAR_TPL||!e.mdl||!e.mdl.glb||!e.mdl.g) return;
   if(!e.spearHand){ let hand=null; e.mdl.g.traverse(o=>{ if(!hand&&/RightHand$/.test(o.name)) hand=o; }); if(!hand) return; const m=SPEAR_TPL.clone(); scene.add(m); e.spearHand={m,hand,away:0}; cntSp.held=(cntSp.held|0)+1; }
   const H=e.spearHand; if(e.dead){ scene.remove(H.m); e.spearHand=null; return; }
@@ -183,8 +186,12 @@ function heldSpear(e,dt){ if(!SPEAR_TPL||!e.mdl||!e.mdl.glb||!e.mdl.g) return;
   if(e.spearAim) dir=HV2.set(e.spearAim.dx,.28,e.spearAim.dz).normalize();
   else { const fx=Math.sin(e.yaw||0), fz=Math.cos(e.yaw||0); dir=HV2.set(fx*.3,1,fz*.3).normalize(); }
   H.m.position.copy(hp).addScaledVector(dir,-GRIP); H.m.lookAt(HV3.copy(H.m.position).add(dir)); }
+// build 636 (Matt: "his body is turned the wrong way from where hes throwing"): Matt's baseball_pitching swings the arm through about 60 degrees to the pig's RIGHT of where his root faces
+// (measured: the hand travels toward -x of his own frame at the release), so while he aims and throws he stands turned that much to his left -- the arm then comes through down the lane
+const THROW_TURN=.81;   // measured: at 1.03 the release still ran .22 left of the lane
+function throwFace(e){ if(e.spearAim){ e.spearTurn=Math.atan2(e.spearAim.dx,e.spearAim.dz)+THROW_TURN; } if(e.spearTurn===undefined) return; if(!e.spearAim&&e.swing<0){ e.spearTurn=undefined; return; } e.yaw=e.spearTurn; if(e.mdl&&e.mdl.g) e.mdl.g.rotation.y=e.yaw; }
 { const prev=throwSpear; throwSpear=function(e){ if(e&&e.spearHand) e.spearHand.away=SPEAR_BACK; return prev.apply(this,arguments); }; }
-{ const prev=updateEnemies; updateEnemies=function(dt){ prev.apply(this,arguments); for(const e of enemies) if(e.kind==='pigsling'&&(e.spearHand||!e.dead)) heldSpear(e,dt); }; }
+{ const prev=updateEnemies; updateEnemies=function(dt){ prev.apply(this,arguments); for(const e of enemies) if(e.kind==='pigsling'&&!e.dead) throwFace(e); for(const e of enemies) if(e.kind==='pigsling'&&(e.spearHand||!e.dead)) heldSpear(e,dt); }; }
 window.__spear={ held:e=>e&&e.spearHand?{ visible:e.spearHand.m.visible, x:+e.spearHand.m.position.x.toFixed(2), y:+e.spearHand.m.position.y.toFixed(2), z:+e.spearHand.m.position.z.toFixed(2) }:null, info:()=>Object.assign({ flying:SPEARS.filter(p=>!p.stuck).length, stuck:SPEARS.filter(p=>p.stuck>0).length },cntSp), SPEAR, list:()=>SPEARS.map(p=>({x:+p.x.toFixed(2),z:+p.z.toFixed(2),stuck:p.stuck>0})) };
 // ---------------------------------------------------------------- the boss bar: one panel, three named rows, each
 // hides on its own as that pig falls -- the whole panel hides once none of the three are left (build 192's fix
