@@ -12,8 +12,8 @@ await page.evaluate(()=>{ try{ window.__trainer.skip(); }catch(e){} const d=wind
 for(let i=0;i<300;i++){ const n=await page.evaluate(()=>{ window.__dd.step(1/60,1); return window.__prisonwalls.walls().length; }); if(n===2) break; await new Promise(r=>setTimeout(r,100)); }
 const A=await page.evaluate(()=>{ const d=window.__dd, W=window.__mortarwake; d.S.phase='build'; W.wake(); d.step(1/60,10); const t0=W.tip(); W.lose(2); d.step(1/60,10); const t2=W.tip(); W.lose(1); d.step(1/60,10); const t3=W.tip();
   const card=document.getElementById('mortarcard'); return { t0, t2, t3, card:!!card&&card.style.display==='flex', img:card?card.querySelector('img').getAttribute('src'):null, glow:W.glow() }; });
-check("no card while no defense has been lost, nor after two",!A.t0.on&&!A.t2.on,JSON.stringify({t0:A.t0,t2:A.t2}));
-check("the third defense lost (the first glow): the picture card comes, with a gold arrow for each room",A.t3.on&&A.card&&/loading-hexmortar/.test(A.img||'')&&A.t3.arrowsShown===2&&A.glow>0,JSON.stringify(A));
+check("build 637 (Matt: we do need that tool tip): the card and a gold arrow for each room come the moment the rooms wake -- no tower has to be lost first",A.t0.on&&A.t0.arrowsShown===2&&A.t2.on,JSON.stringify({t0:A.t0,t2:A.t2}));
+check("still up at the third defense lost (the first glow), the Hex Mortar picture on it",A.t3.on&&A.card&&/loading-hexmortar/.test(A.img||'')&&A.t3.arrowsShown===2&&A.glow>0,JSON.stringify(A));
 const B=await page.evaluate(async()=>{ const d=window.__dd, W=window.__mortarwake; dispatchEvent(new KeyboardEvent('keydown',{code:'Enter',key:'Enter'})); d.step(1/60,5); const off=W.tip(); W.lose(3); d.step(1/60,10); return { off, later:W.tip() }; });
 check("Enter takes the card and arrows away, and they don't come back that run",!B.off.on&&B.off.arrows===0&&!B.later.on,JSON.stringify(B));
 const C=await page.evaluate(()=>{ const d=window.__dd, W=window.__mortarwake; W.lock(); W.wake(); W.lose(3); d.step(1/60,10); const on=W.tip().on; window.__prisonwalls.raw()[0].broken=true; d.step(1/60,5); return { on, after:W.tip() }; });

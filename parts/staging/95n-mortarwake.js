@@ -41,7 +41,7 @@ function placeArrow(w,a,t){ const sp=w.spot, W=innerWidth, H=innerHeight; V.set(
   else { let dx=V.x, dy=-V.y; if(!front){ dx=-dx; dy=-dy; } if(Math.hypot(dx,dy)<.001){ dx=0; dy=1; } const an=Math.atan2(dy,dx), Rr=Math.min(W,H)*.4+Math.sin(t*5)*6; px=W/2+Math.cos(an)*Rr*(W/H>1.2?1.35:1); py=H/2+Math.sin(an)*Rr; rot=an+PI/2; }
   a.style.display='block'; a.style.transform='translate('+(px-20)+'px,'+(py-26)+'px) rotate('+rot+'rad)'; }
 function tipTick(){ const walls=PW.raw(); const anyBroken=walls.some(w=>w.broken);
-  if(!TIP.shown&&!anyBroken&&AW.awake&&level()>0) showTip();
+  if(!TIP.shown&&!anyBroken&&AW.awake) showTip();   /* build 637 (Matt: "on the last room 6 we do need that tool tip to guide heroes to break the walls to roll out the mortar"): the card and arrows come the moment the rooms WAKE (the barrier down), not at the third tower lost -- a player whose towers held never saw it. The glow still starts faint and swells with each tower lost */
   if(!TIP.on) return; if(anyBroken){ hideTip(); return; }
   const cine=!!(window.__finale&&window.__finale.active&&window.__finale.active()); const show=!cine&&(S.phase==='wave'||S.phase==='build')&&!Meta.isOpen();
   if(TIP.card) TIP.card.style.visibility=show?'visible':'hidden'; for(const w of walls){ if(w.broken) continue; const a=arrowFor(w); if(show) placeArrow(w,a,S.t); else a.style.display='none'; } }
